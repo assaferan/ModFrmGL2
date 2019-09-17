@@ -1096,7 +1096,10 @@ end function;
    [a,b,  c,d] such that c=u, d=v both modulo N, and
    so that ad-bc=1. 
    **********************************************************/  
-function LiftToCosetRep(x, N) 
+function LiftToCosetRep(x, N)
+   if Type(x) eq GrpPSL2Elt then
+     return ElementToSequence(x);
+   end if;
    c:=Integers()!x[1]; d:=Integers()!x[2];
    g, z1, z2 := Xgcd(c,d);
    // We're lucky: z1*c + z2*d = 1.
