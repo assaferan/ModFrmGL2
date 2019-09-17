@@ -321,6 +321,26 @@ function P1Reduce(x, list)
 end function;
 */
 
+//////////////////////////////////////////////////////////////////////////
+//  CosetReduce:                                                        //
+//  INPUT: gamma in PSL2(Z), G                                          //
+//  OUTPUT:  1) the *index* of a fixed choice of representative         //
+//              in the coset of gamma - G * gamma in G\PSL2(Z)          //
+//                                                                      //
+//           2) We do not deal with a character in the general case yet //    
+//////////////////////////////////////////////////////////////////////////
+ 
+// The original is now in the C - we might want to change the corresponding
+// C code
+function CosetReduce(x, list, G)
+  for index in [1..#list] do
+     if x*list[index]^(-1) in G then
+        return index;
+     end if;
+  end for;
+  // error - could not find an appropriate coset
+  return false;
+end function;
 
 
 //////////////////////////////////////////////////////////////////////////
