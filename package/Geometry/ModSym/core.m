@@ -160,6 +160,7 @@ forward convergent,
         LiftToCosetRep,
         ManinSymbolApply,
         ManinSymbolList,
+        ManinSymbolGenList,
 //      ManinSymbolRepresentation,     // commented out
         ManSym2termQuotient,
         ManSym3termQuotient,
@@ -206,8 +207,8 @@ CManSymList := recformat<
       k,      // weight 
       F,      // base field
       R,      // F[X,Y].
-      p1list, // List of elements of P^1(Z/NZ).
-      n       // size of list of Manin symbols = #p1list * (k-1).
+      coset_list, // List of coset representatives for the congruence subgroup
+      n       // size of list of Manin symbols = #coset_list * (k-1).
 > ;
 
 
@@ -341,19 +342,48 @@ end function;
 //////////////////////////////////////////////////////////////////////////
 
 function ManinSymbolList(k,N,F) 
-   p1list := P1Classes(N);
-   n      := (k-1)*#p1list;
+   coset_list := P1Classes(N);
+   n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
    return rec<CManSymList |
       k      := k,            // weight
       F      := F,            // base field
       R      := R,            // polynomial ring F[X,Y]
-      p1list := p1list,     
+      coset_list := coset_list,     
       n      := n             
    >;
 end function;
 
-
+//////////////////////////////////////////////////////////////////////////
+// ManinSymbolGenList:                                                  //
+// Construct a list of distinct (Generalized) Manin symbols.            //
+// These are elements of the Cartesion product:                         //
+//     {0,...,k-2} x G\PSL2(Z).                                         //
+// In fact, we only store a list of the elements of G\PSL2(Z),          //
+// as the full Cartesion product can be stored using                    //
+// the following scheme.                                                //
+//                                                                      //
+// There are Manin symbols 1,...,#({0,..,k-2}xG\PSL2(Z)) indexed by i.  //
+// Thus i is an integer between 1 and the number of generating Manin    //
+// symbols.  Suppose G\PSL2 = {x_1, ..., x_n}.  The encoding is         //
+// as follows:                                                          // 
+//   1=<X^0Y^(k-2),x_1>,  2=<0, x_2>, ..., n=<0,x_n>,                   //
+// n+1=<X^1Y^(k-3),x_1>,n+2=<1, x_2>, ...,2n=<1,x_n>,                   //
+// ...                                                                  //
+//////////////////////////////////////////////////////////////////////////
+ 
+function ManinSymbolGenList(k,G,F) 
+   coset_list := CosetRepresentatives(G);
+   n      := (k-1)*#coset_list;
+   R<X,Y> := PolynomialRing(F,2);
+   return rec<CManSymList |
+      k      := k,            // weight
+      F      := F,            // base field
+      R      := R,            // polynomial ring F[X,Y]
+      coset_list := coset_list,     
+      n      := n             
+   >;
+end function;
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -362,8 +392,8 @@ end function;
 ///////////////////////////////////////////////////////////////////////////
 function UnwindManinSymbol(i, mlist)
    // P^1(N) part.
-   p1list := mlist`p1list;
-   n := #p1list;
+   coset_list := mlist`coset_list;
+   n := #coset_list;
    /*
    ind := (i mod n);
    if ind eq 0 then 
@@ -371,7 +401,7 @@ function UnwindManinSymbol(i, mlist)
    end if;
    */
    ind := ((i - 1) mod n) + 1;
-   uv := p1list[ind];
+   uv := coset_list[ind];
    //w := Integers()!((i - ind)/n);
    w := ExactQuotient(i - ind, n);
    return uv, w, ind;
@@ -382,7 +412,7 @@ end function;
 //   into the P^1-list, this function gives back
 //   the number of the generating Manin symbol.
 function WindManinSymbol(w, ind, mlist) 
-   return w*#(mlist`p1list) + ind;
+   return w*#(mlist`coset_list) + ind;
 end function;
 
 
@@ -401,7 +431,7 @@ function XXXManinSymbolApply(g, i, mlist, eps)
    k := mlist`k;
    uv, w, ind := UnwindManinSymbol(i,mlist);     // not time critical
 
-   p1list := mlist`p1list;
+   coset_list := mlist`coset_list;
 
    if Type(g) eq SeqEnum then
       g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
@@ -417,7 +447,7 @@ function XXXManinSymbolApply(g, i, mlist, eps)
 
 // Method 3: Do the coercision once and for all (even better)
    uvg    := uv*g[2];
-   act_uv, scalar := P1Reduce(uvg, p1list);
+   act_uv, scalar := P1Reduce(uvg, coset_list);
 
 
    if act_uv eq 0 then
@@ -442,7 +472,7 @@ function XXXManinSymbolApply(g, i, mlist, eps)
    pol := ElementToSequence(hP);
 
    // Put it together
-   n   := #p1list;
+   n   := #coset_list;
    ans := [<pol[w+1],  w*n + act_uv> : w in [0..#pol-1]];
    return [x : x in ans | x[1] ne 0];
 end function;
@@ -452,14 +482,14 @@ function ManinSymbolApply(g, i, mlist, eps, k)
 // Apply g to the ith Manin symbol.
    uv, w, ind := UnwindManinSymbol(i,mlist);  
 
-   p1list := mlist`p1list;
+   coset_list := mlist`coset_list;
 
    if Type(g) eq SeqEnum then
       g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
    end if;
 
    uvg    := uv*g[2];
-   act_uv, scalar := P1Reduce(uvg, p1list);
+   act_uv, scalar := P1Reduce(uvg, coset_list);
 
    if act_uv eq 0 then
       return [<0,1>];
@@ -483,7 +513,7 @@ function ManinSymbolApply(g, i, mlist, eps, k)
    pol := ElementToSequence(hP);
 
    // Put it together
-   n   := #p1list;
+   n   := #coset_list;
    ans := [<pol[w+1],  w*n + act_uv> : w in [0..#pol-1]];
    return [x : x in ans | x[1] ne 0];
 end function;
@@ -537,7 +567,7 @@ function XXXP1GeneralizedWeightedAction(
    assert Type(t) eq RngIntElt;
 
    Z := Integers();
-   p1list_size := #list;
+   coset_list_size := #list;
    K := Parent(eps[1]);
    v := VectorSpace(K,#S)!0;
    if #S eq 0 then 
@@ -557,7 +587,7 @@ function XXXP1GeneralizedWeightedAction(
 
       // The following "if" statement is for more than just efficiency;
       // if it is not there then the function will be incorrect, because
-      // phi[i+1+#p1list_size] is *not* 0.
+      // phi[i+1+#coset_list_size] is *not* 0.
       if ind eq 0 then
          continue;    
       end if;
@@ -567,7 +597,7 @@ function XXXP1GeneralizedWeightedAction(
       j := ind+1;
       for a in Eltseq(h) do
          v[phi[j]] +:= a*coeff[j];
-         j +:= p1list_size;
+         j +:= coset_list_size;
       end for;
    end for;
    return v * RMatrixSpace(K,Degree(v),Degree(S[1]))!S;
@@ -1205,9 +1235,9 @@ function ConvFromManinSymbol (M, P, uv)
    R   := mlist`R;
    P   := R!P;
    k   := M`k;
-   p1list := mlist`p1list;
-   n   := #p1list;
-   ind,s := P1Reduce(Parent(p1list[1])!uv, p1list);
+   coset_list := mlist`coset_list;
+   n   := #coset_list;
+   ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list);
    char := DirichletCharacter(M);
    if not IsTrivial(char) then
       P := R!Evaluate(char,Integers()!s) * P;
@@ -1238,14 +1268,14 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
    end if;
    R := mlist`R;
    P := BaseRing(R)!P;
-   p1list := mlist`p1list;
-   p1parent := Parent(p1list[1]);
+   coset_list := mlist`coset_list;
+   p1parent := Parent(coset_list[1]);
    char := DirichletCharacter(M);
    trivial :=  IsTrivial(char);
    symbols := [];
    if P ne 0 then
       for uv in uvs do 
-         ind,s := P1Reduce(p1parent!uv, p1list);
+         ind,s := P1Reduce(p1parent!uv, coset_list);
          if s ne 0 then 
             if trivial then
                a := 1;

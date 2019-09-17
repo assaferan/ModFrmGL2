@@ -612,28 +612,28 @@ function lev1_HeckeOperatorHeilbronn(M, Heil)
    Tgens := quot`Tgens;
    Tquot := quot`Tquot;         // S
 
-   p1list := M`mlist`p1list;
+   coset_list := M`mlist`coset_list;
    char0Heil, modNHeil := Explode(Heil);
    det := Determinant(char0Heil[1]);
 
-   generating_p1list  := [];
+   generating_coset_list  := [];
    generating_weights := [];
    for t in Tgens do
       uv, w := UnwindManinSymbol(Sgens[t],M`mlist);
-      Append(~generating_p1list,uv);
+      Append(~generating_coset_list,uv);
       Append(~generating_weights,w);
    end for;
 
    R := PolynomialRing(BaseField(M)); x := R.1;
-   T := [ P1GeneralizedWeightedAction(generating_p1list[j],
+   T := [ P1GeneralizedWeightedAction(generating_coset_list[j],
                                generating_weights[j],
-                               k, p1list, Tquot,
+                               k, coset_list, Tquot,
                                my_phi, my_coeff,
                                modNHeil, char0Heil,
                                eps,
                                R,
                                1) :
-             j in [1..#generating_p1list]
+             j in [1..#generating_coset_list]
         ];
 
    return MatrixAlgebra(BaseField(M),Dimension(M))!T;
@@ -681,21 +681,21 @@ function lev1_TnSparse(M, Heil, sparsevec)
    Tgens := quot`Tgens;
    Tquot := quot`Tquot;         // S
 
-   p1list := M`mlist`p1list;
+   coset_list := M`mlist`coset_list;
    det := Determinant(char0Heil[1]);
 
-   generating_p1list  := [];
+   generating_coset_list  := [];
    generating_weights := [];
    for t in Tgens do
       uv, w := UnwindManinSymbol(Sgens[t],M`mlist);
-      Append(~generating_p1list,uv);
+      Append(~generating_coset_list,uv);
       Append(~generating_weights,w);
    end for;
 
    R := PolynomialRing(BaseField(M)); x := R.1;
-   ans :=  &+[ m[1]* P1GeneralizedWeightedAction(generating_p1list[m[2]],
+   ans :=  &+[ m[1]* P1GeneralizedWeightedAction(generating_coset_list[m[2]],
                                generating_weights[m[2]],
-                               k, p1list, Tquot,
+                               k, coset_list, Tquot,
                                my_phi, my_coeff,
                                modNHeil, char0Heil,
                                eps,
@@ -737,33 +737,33 @@ function HeckeOperatorHeilbronn(M, Heil)
    Tgens := quot`Tgens;         
    // Tquot := quot`Tquot;         // S
 
-   p1list := M`mlist`p1list;
+   coset_list := M`mlist`coset_list;
 
    char0Heil, modNHeil := Explode(Heil);
    // det := Determinant(char0Heil[1]);
 
-   generating_p1list  := [];
+   generating_coset_list  := [];
    generating_weights := [];
    for t in Tgens do 
       uv, w := UnwindManinSymbol(Sgens[t],M`mlist);
-      Append(~generating_p1list,uv);
+      Append(~generating_coset_list,uv);
       Append(~generating_weights,w);
    end for;
 
    Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action);
 
-   defining_tuple := <p1list, Tquot, Squot, Scoef> ;
+   defining_tuple := <coset_list, Tquot, Squot, Scoef> ;
    Append(~defining_tuple, eps);  
 
    if Weight(M) eq 2 then
 	 T := [ CallP1Action2(defining_tuple, uv, modNHeil) : 
-		      uv in generating_p1list
+		      uv in generating_coset_list
 	      ];
    else
 	 T := [ CallP1Action(defining_tuple, 
-			 generating_p1list[j], generating_weights[j],
+			 generating_coset_list[j], generating_weights[j],
 			 modNHeil, char0Heil, k) : 
-		    j in [1..#generating_p1list]
+		    j in [1..#generating_coset_list]
 	      ];
    end if; 
 
@@ -844,27 +844,27 @@ function TnSparse(M, Heil, sparsevec)
    Tgens := quot`Tgens;         
    // Tquot := quot`Tquot;         // S
 
-   p1list := M`mlist`p1list;
+   coset_list := M`mlist`coset_list;
    det := Determinant(char0Heil[1]);
 
-   generating_p1list  := [];
+   generating_coset_list  := [];
    generating_weights := [];
    for t in Tgens do 
       uv, w := UnwindManinSymbol(Sgens[t],M`mlist);
-      Append(~generating_p1list,uv);
+      Append(~generating_coset_list,uv);
       Append(~generating_weights,w);
    end for;
 
    Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action);
 
-   defining_tuple := <p1list, Tquot, Squot, Scoef> ;
+   defining_tuple := <coset_list, Tquot, Squot, Scoef> ;
    Append(~defining_tuple, eps);  
    
    if Weight(M) eq 2 then
 
 	 /*
          ans := &+[ m[1]*CallP1Action2(defining_tuple, 
-                                  generating_p1list[m[2]], 
+                                  generating_coset_list[m[2]], 
                                   modNHeil) : 
                               m in sparsevec ];
 	 */
@@ -872,7 +872,7 @@ function TnSparse(M, Heil, sparsevec)
 	 ans := 0;
          for m in sparsevec do
 	     mat := m[1]*CallP1Action2(
-		 defining_tuple, generating_p1list[m[2]], modNHeil
+		 defining_tuple, generating_coset_list[m[2]], modNHeil
 	     );
 	     if ans cmpeq 0 then
 		ans := mat;
@@ -883,7 +883,7 @@ function TnSparse(M, Heil, sparsevec)
    else
 	 /*
          ans := &+[ m[1]*CallP1Action(defining_tuple, 
-                                  generating_p1list[m[2]], 
+                                  generating_coset_list[m[2]], 
                                   generating_weights[m[2]],
                                   modNHeil, 
                                   char0Heil, 
@@ -895,7 +895,7 @@ function TnSparse(M, Heil, sparsevec)
 	ans := 0;
         for m in sparsevec do
 	     mat := m[1]*CallP1Action(
-		defining_tuple, generating_p1list[m[2]], 
+		defining_tuple, generating_coset_list[m[2]], 
 		generating_weights[m[2]], modNHeil, 
 		char0Heil, k
 	     );
@@ -935,30 +935,30 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
    char0Heil, modNHeil := Explode(Heil);
    det := Determinant(char0Heil[1]);
 
-   generating_p1list  := [];
+   generating_coset_list  := [];
    generating_weights := [];
    Sgens := ambM`quot`Sgens;
    for t in ambM`quot`Tgens do 
       uv, w := UnwindManinSymbol(Sgens[t],ambM`mlist);
-      Append(~generating_p1list,uv);
+      Append(~generating_coset_list,uv);
       Append(~generating_weights,w);
    end for;
 
-   MM_p1list := ambMM`mlist`p1list;
+   MM_coset_list := ambMM`mlist`coset_list;
 
    R := PolynomialRing(BaseField(M)); x := R.1;
 
    T := [ P1GeneralizedWeightedAction(
-                               generating_p1list[j], 
+                               generating_coset_list[j], 
                                generating_weights[j], 
                                k, 
-                               MM_p1list, MM_Tquot, 
+                               MM_coset_list, MM_Tquot, 
                                my_MM_phi, my_MM_coeff, 
                                modNHeil, char0Heil, 
                                eps,
                                R,
                                t) :
-             j in [1..#generating_p1list]
+             j in [1..#generating_coset_list]
            ];
 
    return Hom(VectorSpace(M),VectorSpace(MM))!T;

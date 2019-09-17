@@ -665,13 +665,13 @@ function CreateTrivialSpace(k,eps,sign)
    M`quot := rec<CQuotient | Sgens:=[], Squot:=[], 
                Scoef:=[], Tgens := [], Tquot:=[]>;
 
-   p1list := P1Classes(N);
+   coset_list := P1Classes(N);
    M`mlist := rec<CManSymList |
                k := k, 
                F := F, 
                R := PolynomialRing(F,2),
-               p1list := p1list,
-               n := #p1list*(k-1)>;
+               coset_list := coset_list,
+               n := #coset_list*(k-1)>;
    return M;
 end function;
 
