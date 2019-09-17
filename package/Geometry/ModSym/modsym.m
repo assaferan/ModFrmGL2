@@ -207,7 +207,9 @@ declare type ModSym [ModSymElt];
 
 declare attributes ModSym:
 // these attributes completely determine this
-         eps,                // Dirichlet character 
+         eps,                // Dirichlet character
+         G,                  // a level subgroup
+                             // (arbitrary congruence subgroup of PSL2(Z)
 
          multi,              // Sequence of modular symbols spaces if
          is_multi,           // IsMultiChar is true (if eps is a sequence)
@@ -219,7 +221,8 @@ declare attributes ModSym:
                                    // multi space corresponding to a newform.
 
          isgamma1, isgamma,   // possibly assigned if this was created as the multicharacter space 
-                             // of modular symbols for gamma1 
+                             // of modular symbols for gamma1
+         isgamma_type,       // to distinguish arbitrary levels
          k,                  // weight
          sign,               // sign -- see doc of ModularSymbols()
 
@@ -516,6 +519,8 @@ intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt,
    F := BaseRing(eps);
    require IsSupportedField(F) : SupportMessage;
 
+   G := Gamma1(N);
+
    if GetVerbose("ModularSymbols") gt 0 and 
       BaseRing(eps) ne BaseRing(MinimalBaseRingCharacter(eps)) then
       print "WARNING: You are creating a space of modular symbols with character eps";
@@ -585,6 +590,8 @@ intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt,
    M`k    := k;
    M`N    := N;
    M`eps  := eps;
+   M`G := G;
+   M`isgamma_type := true;
    M`sign := sign;
    M`F    := F;
    M`mlist:= mlist;
@@ -623,6 +630,7 @@ function ModularSymbolsSub(M, V)
    MM`sign := M`sign;
    MM`F    := M`F;
    MM`k    := M`k; // added for faster access (04-09, SRD)
+   MM`G    := M`G;
    return MM;
 end function;
 
@@ -643,6 +651,7 @@ function ModularSymbolsDual(M, V)
    MM`sign := M`sign;
    MM`F    := M`F;
    MM`k    := M`k; // added for faster access (04-09, SRD)
+   MM`G    := M`G;
    return MM;
 end function;
 
@@ -658,7 +667,9 @@ function CreateTrivialSpace(k,eps,sign)
    M`dimension := 0;
    M`k := k;
    M`N := N;
+   M`G := Gamma1(N);
    M`eps := eps;
+   M`isgamma_type := true;
    M`sign := sign;
    M`F := F;
 
@@ -700,6 +711,13 @@ intrinsic Level(M::ModSym) -> RngIntElt
    return Level(AmbientSpace(M));
 end intrinsic;
 
+intrinsic LevelSubgroup(M::ModSym) -> GrpPSL2
+{The level subgroup of the space M of modular symbols.}
+   if IsAmbientSpace(M) then
+      return M`G;
+   end if;
+   return LevelSubgroup(AmbientSpace(M));
+end intrinsic;
 
 intrinsic IsCuspidal(M::ModSym) -> BoolElt
 {True if and only if M is contained in the cuspidal subspace
@@ -733,10 +751,20 @@ intrinsic BaseField(M::ModSym) -> Fld
    return M`F;
 end intrinsic;
 
+intrinsic IsOfGammaType(M::ModSym) -> BoolElt
+{True if and only if M is of gamma type}
+   if IsAmbientSpace(M) then
+      return M`isgamma_type;
+   else
+      return IsOfGammaType(AmbientSpace(M));
+   end if;
+end intrinsic;
 
 intrinsic DirichletCharacter(M::ModSym) -> SeqEnum
 {The Dirichlet character of the space M of modular symbols.}
    if IsAmbientSpace(M) then
+      require assigned(M`eps) : "This space of modular symbols is not over a
+                                 group of type gamma,hence it has no character";
       return M`eps;
    elif HasAssociatedNewformSpace(M) then
       return DirichletCharacter(AssociatedNewformSpace(M));
@@ -1550,7 +1578,11 @@ intrinsic BaseExtend(M::ModSym, F::Fld) -> ModSym
 
    N`k    := M`k;
    N`N    := M`N;
-   N`eps  := BaseExtend(M`eps,F);
+   N`G    := M`G;
+   N`isgamma_type := M`isgamma_type;
+   if (IsOfGammaType(M)) then
+      N`eps  := BaseExtend(M`eps,F);
+   end if;
    N`sign := M`sign;
    N`F    := F;
 
@@ -1656,7 +1688,11 @@ intrinsic BaseExtend(M::ModSym, f::Map) -> ModSym
 
    N`k    := M`k;
    N`N    := M`N;
-   N`eps  := BaseExtend(M`eps,f);
+   N`G    := M`G;
+   N`isgamma_type := M`isgamma_type;
+   if IsOfGammaType(M) then
+     N`eps  := BaseExtend(M`eps,f);
+   end if;
    N`sign := M`sign;
    N`F    := F;
 

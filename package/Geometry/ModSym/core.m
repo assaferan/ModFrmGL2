@@ -1276,9 +1276,17 @@ function ConvFromManinSymbol (M, P, uv)
    k   := M`k;
    coset_list := mlist`coset_list;
    n   := #coset_list;
-   ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list);
-   char := DirichletCharacter(M);
-   if not IsTrivial(char) then
+   if IsOfGammaType(M) then
+     ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list);
+     char := DirichletCharacter(M);
+     is_trivial_char := IsTrivial(char);
+   else
+     ind := CosetReduce(Parent(coset_list[1])!uv, coset_list, M`G);
+     s := 1;
+     is_trivial_char := true;
+   end if;
+
+   if not is_trivial_char then
       P := R!Evaluate(char,Integers()!s) * P;
    elif s eq 0 then
       P := 0;
