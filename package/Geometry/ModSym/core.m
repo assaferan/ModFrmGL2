@@ -505,29 +505,45 @@ function ManinSymbolApply(g, i, mlist, eps, k)
    coset_list := mlist`coset_list;
 
    if Type(g) eq SeqEnum then
-      g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
+      if Type(eps) eq GrpPSL2 then
+        g := <g, GL(2,Integers())!g> ;
+      else
+        g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
+      end if;
    end if;
 
-   uvg    := uv*g[2];
-   act_uv, scalar := P1Reduce(uvg, coset_list);
+   uvg := Matrix(uv)*g[2];
+   
+   if Type(eps) eq GrpPSL2 then
+     uvg := Matrix(uv)* g[2];
+     // That's for the case of involution
+     if (Determinant(g[2]) eq -1) then
+       uvg := g[2] * uvg;
+     end if;
+     uvg := PSL2(Integers())!uvg;
+     act_uv := CosetReduce(uvg, coset_list, eps);
+   else
+     uvg := uv * g[2];
+     act_uv, scalar := P1Reduce(uvg, coset_list);
+   end if;
 
    if act_uv eq 0 then
       return [<0,1>];
    end if;
 
    if k eq 2 then
-      if not IsTrivial(eps) then
-         return [<Evaluate(eps,scalar),act_uv>];
+      if (Type(eps) eq GrpPSL2) or (IsTrivial(eps)) then
+	 return [<1,act_uv>];
       else
-         return [<1,act_uv>];
+         return [<Evaluate(eps,scalar),act_uv>]; 
       end if;
    end if;
    
    // Polynomial part. 
    R := PolynomialRing(mlist`F); x := R.1;    // univariate is fine for computation
    hP := (g[1][1]*x+g[1][2])^w*(g[1][3]*x+g[1][4])^(k-2-w);
- 
-   if not IsTrivial(eps) then
+
+   if (Type(eps) ne GrpPSL2) and (not IsTrivial(eps)) then
       hP *:= Evaluate(eps,scalar);
    end if;
    pol := ElementToSequence(hP);
