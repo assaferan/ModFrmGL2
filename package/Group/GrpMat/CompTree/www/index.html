@@ -1,0 +1,224 @@
+<!--
+/******************************************************************************
+ *
+ *    index.html  MGRP webpage
+ *
+ *    File      : $HeadURL:: https://subversion.sfac.auckland.ac.nz/svn/prj_#$:
+ *    Author    : Henrik Bäärnhielm
+ *    Dev start : 2008-06-08
+ *
+ *    Version   : $Revision:: 1342                                           $:
+ *    Date      : $Date:: 2008-11-02 16:52:51 +1100 (Sun, 02 Nov 2008)       $:
+ *    Last edit : $Author:: jbaa004                                          $:
+ *
+ *    $Id:: index.html 1342 2008-11-02 05:52:51Z jbaa004                     $:
+ *
+ *****************************************************************************/
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="content-type">
+  <title>The Matrix Group Recognition Project</title>
+</head>
+<body>
+<h3>The Matrix Group Recognition Project</h3>
+
+<p>An international research project within <a
+ href="http://en.wikipedia.org/wiki/Computational_group_theory">computational
+group theory</a>. 
+<!-- The driving force is <a
+ href="http://en.wikipedia.org/wiki/Charles_Leedham-Green">Charles
+Leedham-Green</a>. -->
+The aim is to produce efficient algorithms for
+solving problems with matrix groups over finite fields, as well as making efficient
+implementations of these algorithms. The primary computer algebra
+system used is <a href="http://magma.maths.usyd.edu.au/">Magma</a>,
+but <a href="http://www.gap-system.org/">GAP</a> is also used.</p>
+
+<p>The project dates back to the early 1990's, and a major goal has been
+to produce an algorithm that computes a <i>composition tree</i> of a
+matrix group, given by a set of generators. From a composition tree,
+one can readily construct a composition series of the group, as well
+as homomorphisms to the composition factors. This provides basic
+structural information about the group, and also tools for further
+computational tasks.</p>
+
+<p>The approach for finding a composition tree is to use a
+divide-and-conquer strategy, by constructing a homomorphism into another
+group, and recursively finding a composition tree of the image and the
+kernel of the homomorphism. To construct homomorphisms, one uses
+Aschbacher's classification of the subgroups of the general linear
+group into 9 categories. This has led to a series of papers that
+present algorithms for deciding if a given matrix group lies in a
+specified Aschbacher category, and for constructing the corresponding
+homomorphism.</p>
+
+<p>The base cases of the recursion are groups without proper normal
+subgroups, the finite simple groups. Problems which arise in the base
+cases include <i>constructive membership testing</i> and
+<i>constructive recognition</i>. This has led to a series of papers
+that present algorithms for these problems in various classes of the
+finite simple groups.</p>
+
+<p>The composition tree algorithm is probabilistic of the type known as
+<i>one-sided Monte Carlo</i>. This means that there is a non-zero probability
+that the constructed composition tree is incorrect, which in this case
+means that it only is a composition tree for a proper subgroup. To determine
+if this is the case, one can construct a presentation of the group
+recursively, using presentations of the simple groups in the base
+cases, and then verify that the group satisfies the presentation. In
+order for this to be an efficient algorithm, the presentations of the
+simple groups have to be <i>short presentations</i>. This has led to a
+series of papers that present short presentations for various classes
+of the finite simple groups.</p>
+
+<p>More detailed information about the project up to the year 2005 can be found in this <a href="http://www.math.auckland.ac.nz/~obrien/research/survey.pdf">survey</a>.</p>
+
+<h4>Articles</h4> 
+Here is a list of published papers that could be
+considered a part of the project, with pointers to MathSciNet. Also pointers to the papers on the web, if available.
+
+<ul>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1829483">The computational matrix group project</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2258009">Towards effective algorithms for linear groups</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/survey.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2187651">Constructive recognition of PSL(2,q)</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/psl2q.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2188850">Writing projective representations over subfields</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/smaller.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2352733">Finding the characteristic of a group of Lie type</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/char.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2356848">Constructive recognition of SL(3,q)</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/sl3.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1925006">Recognising tensor-induced matrix groups</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/tensor-induce.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1470352">Recognising tensor products of matrix groups</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/tensor-algorithm.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1407872">Computing matrix group decompositions with respect to a normal subgroup</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/smash.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1407871">Testing matrix groups for primitivity</a>, <a href="http://www.math.auckland.ac.nz/~obrien/research/primitive.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1370623">Selecting base points for the Schreier-Sims algorithm for matrix groups</a>, <a href="http://www.maths.usyd.edu.au/u/murray/research/base-points.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2166794">Constructive recognition of finite alternating and symmetric groups acting as matrix groups on their natural permutation modules</a>, <a href="http://dx.doi.org/10.1016/j.jalgebra.2005.01.035">DOI</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1953539">A black-box group algorithm for recognizing finite symmetric and alternating groups</a>, <a href="http://dx.doi.org/10.1090/S0002-9947-03-03040-X">DOI</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1829474">Fast recognition of classical groups over large fields</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1647410">A constructive recognition algorithm for the special linear group</a>, <a href="http://www.celler.de/preprints/crec.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1444131">A non-constructive recognition algorithm for the special linear and other classical groups</a>, <a href="http://www.celler.de/preprints/ncrec.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1444130">Calculating the order of an invertible matrix</a>, <a href="http://www.celler.de/preprints/order.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1884263">Complexity and computation in matrix groups</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1717416">A recognition algorithm for non-generic classical groups over finite fields</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1625479">A recognition algorithm for classical groups over finite fields</a>, <a href="http://dx.doi.org/10.1112/S0024611598000422">DOI</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1444141">Implementing a recognition algorithm for classical groups</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1235803">Computation with matrix groups over finite fields</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1182102">A recognition algorithm for special linear groups</a>, <a href="http://dx.doi.org/10.1112/plms/s3-65.3.555">DOI</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2257997">A reduction algorithm for matrix groups with an extraspecial normal subgroup</a>, <a href="http://www.facstaff.bucknell.edu/pbrooksb/Papers/BNS.pdf">PDF</a></li>
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2142090">Constructive recognition of normalizers of small extra-special matrix groups</a>, <a href="http://dx.doi.org/10.1142/S021819670500230X">DOI</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1931364">Black-box recognition of finite simple groups of Lie type by statistics of element orders</a>, <a href="http://people.cs.uchicago.edu/~laci/papers/bkps.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1994963">Computing with matrix groups</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2289128">A data structure for a uniform approach to computations with finite groups</a>, <a href="http://www-groups.mcs.st-and.ac.uk/~neunhoef/Publications/pdf/fp013-neunhoeffer-authorsversion.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1743388">Fast constructive recognition of a black box group isomorphic to S_n or A_n using Goldbach's conjecture</a>, <a href="http://dx.doi.org/10.1006/jsco.1999.0295">DOI</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1958954">Constructive recognition of classical groups in their natural representation</a>, <a href="http://www.facstaff.bucknell.edu/pbrooksb/Papers/Br4.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2228648">Fast constructive recognition of black box orthogonal groups</a>, <a href="http://www.facstaff.bucknell.edu/pbrooksb/Papers/BrKa2.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2051584">Fast constructive recognition of black box unitary groups</a>, <a href="http://www.facstaff.bucknell.edu/pbrooksb/Papers/Br5.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1829473">On constructive recognition of a black box PSL(d, q)</a>, <a href="http://www.facstaff.bucknell.edu/pbrooksb/Papers/BrKa1.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1829472">A constructive recognition algorithm for the matrix group Omega(d, q)</a>, <a href="http://www.facstaff.bucknell.edu/pbrooksb/Papers/Br2.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1279282">Testing matrix groups for irreducibility</a>, <a href="http://www.warwick.ac.uk/~mareg/download/papers/meataxe/meataxe.ps">PS</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=2228642">Recognising the Suzuki groups in their natural representations</a>, <a href="http://arxiv.org/abs/math.GR/0608210">arXiv</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1648058">Simple groups in computational group theory</a>, <a href="http://uoregon.edu/~kantor/PAPERS/icm.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1461483">Short presentations for finite groups</a>, <a href="http://uoregon.edu/~kantor/PAPERS/presentations.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1203878">An implementation of the Neumann-Praeger algorithm for the recognition of special linear groups</a>, <a href="http://www.warwick.ac.uk/~mareg/download/papers/SLIdentify/SLIdentify.ps">PS</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1804385">Black box classical groups</a>, <a href="http://uoregon.edu/~kantor/PAPERS/ksfinal.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1929718">Variants of product replacement</a>, <a href="http://www.maths.usyd.edu.au/u/murray/research/variants.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1356111">Generating random elements of a finite group</a>, <a href="http://www.maths.usyd.edu.au/u/murray/research/random.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1446124">Writing representations over minimal fields</a>, <a href="http://dx.doi.org.ezproxy.auckland.ac.nz/10.1080/00927879708825947">DOI</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=746539">On the maximal subgroups of finite classical groups</a>, <a href="http://dx.doi.org.ezproxy.auckland.ac.nz/10.1007/BF01388470">DOI</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1901354">Small degree representations of finite Chevalley groups in defining characteristic</a>, <a href="http://www.math.rwth-aachen.de/~Frank.Luebeck/preprints/smdegdefchar.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1842506">Matrix generators for the Ree groups 2G2(q)</a>, <a href="http://www.math.rwth-aachen.de/~Frank.Luebeck/preprints/ree.pdf">PDF</a></li>
+
+  <li><a href="http://www.ams.org.ezproxy.auckland.ac.nz/mathscinet-getitem?mr=1676609">A
+polynomial-time theory of black box groups</a>, <a href="http://people.cs.uchicago.edu/~laci/papers/bath1.pdf">PDF</a></li>
+
+</ul>
+
+<!--
+<h4>Contributors</h4>
+An incomplete list of people, in arbitrary order, that have made contributions to the project.
+<ul>
+  <li>Charles Leedham-Green</li>
+  <li>Eamonn O'Brien</li>
+  <li>Henrik B&auml;&auml;rnhielm</li>
+  <li>Elliot Costi</li>
+  <li>Damien Burns</li>
+  <li>Mark Stather</li>
+  <li>Derek Holt</li>
+  <li>Scott Murray</li>
+  <li>Alice Niemeyer</li>
+  <li>Cheryl Praeger</li>
+  <li>Igor Pak</li>
+  <li>Sergey Bratus</li>
+  <li>Martin Liebeck</li>
+  <li>Laszlo Babai</li>
+  <li>Péter Pálfy</li>
+  <li>Marston Conder</li>
+  <li>Gerhard Hiss</li>
+  <li>Kay Magaard</li>
+  <li>Peter Neumann</li>
+  <li>Steve Linton</li>
+  <li>Ákos Seress</li>
+  <li>Bill Kantor</li>
+  <li>Peter Brooksbank</li>
+  <li>Frank Lübeck</li>
+  <li>Alexander Ryba</li>
+  <li>Stephen Glasby</li>
+  <li>John Bray</li>
+  <li>Robert Wilson</li>
+  <li>Ruth Schwingel</li>
+  <li>Colva Roney-Dougal</li>
+  <li>Frank Celler</li>
+  <li>John Cannon</li>
+  <li>Bill Unger</li>
+  <li>Sarah Rees</li>
+  <li>Bob Howlett</li>
+  <li>Christopher Parker</li>
+  <li>Gunter Malle</li>
+</ul>
+-->
+
+<h4>
+<h4>Ongoing work</h4>
+<ul>
+<li>Composition tree, new version</li>
+<li>Chief tree</li>
+<li>Exceptional groups</li>
+<li>Classical groups natural representation, even characteristic</li>
+<li>Classical groups, arbitrary representation</li>
+<li>Short presentations</li>
+</ul>
+
+<h4>Software</h4>
+Lots of code that have been produced is already included in the standard Magma package distribution.<br>
+
+Main Magma package for computing composition trees: <a href="/~henrik/mgrp/software/mgrp.tar.bz2">tar.bz2</a>, <a href="/~henrik/mgrp/software/mgrp.tar.gz">tar.gz</a>, <a href="/~henrik/mgrp/software/mgrp.zip">zip</a>.
+<hr style="width: 100%; height: 2px;">Last updated 2008-06-10<br>
+</body>
+</html>

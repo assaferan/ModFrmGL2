@@ -1,0 +1,21 @@
+{   
+   gl-list.m
+   d2
+   {
+      abelian.m       
+      monomial.m      
+      primitive.m
+      insoluble.m     
+   }
+   d3
+   {
+      monomial.m      
+      primitive.m
+      insoluble_modular.m
+      insoluble_nonmodular.m
+      common.m
+      deg3_groups.m
+   }
+}
+   
+

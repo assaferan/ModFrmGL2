@@ -1,0 +1,3 @@
+174,1
+S,SL2Presentation,"return presentation for SL(2, q); if Projective is true, then return presentation for PSL(2, q); also return the corresponding elements of SL(2, q)",0,1,0,0,0,0,0,0,0,148,,121,82,-38,-38,-38,-38
+S,SatisfiesSL2Presentation,"Decide if G satisfies the presentation for SL(2, q) given by SL2Presentation or for PSL(2, q) if Projective is true. If elements of G are supplied as the optional Generators, these are assumed to be the images of the generators of the finite presentation; otherwise we require that G is first constructively recognised as (P)SL(2, q) and we now construct the required matrices",0,2,0,0,0,0,0,0,0,148,,0,0,178,,36,-38,-38,-38,-38,-38

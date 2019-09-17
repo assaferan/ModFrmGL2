@@ -1,0 +1,30 @@
+{
+  interface.m
+}
+goodmodels
+{
+  auxpolys.m
+  convertscroll.m
+  genus3model.m
+  genus4model.m
+  genus5model.m
+  quadraticforms.m
+}
+pcc_p
+{
+  auxpolys_p.m
+  coho_p.m
+  froblift_p.m
+  pcc_p.m
+  reductions_p.m
+  zeta_p.m
+}
+pcc_q
+{
+  auxpolys_q.m
+  coho_q.m
+  froblift_q.m
+  pcc_q.m
+  reductions_q.m
+  zeta_q.m
+}
