@@ -310,13 +310,14 @@ intrinsic FareySymbol(group::GrpPSL2,restrictions::SeqEnum) -> SymFry
        return FareySequenceForGammaUpper1N(group);
     end if;
 
-    N,M,P:= Explode(CongruenceIndices(group)[1]);
-    if P eq 1 and M eq N and (not assigned group`subgroup_list) then
-       return FareySequenceForGamma1N(group);
-    elif N eq 1 and M eq P and (not assigned group`subgroup_list) then
-       return FareySequenceForGammaUpper1N(group);
-    end if;
-       
+    if group`IsOfGammaType then
+       N,M,P:= Explode(CongruenceIndices(group)[1]);
+       if P eq 1 and M eq N and (not assigned group`subgroup_list) then
+          return FareySequenceForGamma1N(group);
+       elif N eq 1 and M eq P and (not assigned group`subgroup_list) then
+          return FareySequenceForGammaUpper1N(group);
+       end if;
+    end if;   
     // assume for now the index is at least 2,
     // need to change this, as currently won't work in that case
     // (this case does not yet come up though)
@@ -385,7 +386,9 @@ intrinsic FareySymbol(group::GrpPSL2,restrictions::SeqEnum) -> SymFry
 		finished := true;
 	    else
 		UnGlueFirstBoundary(~L);
-		i := 1;
+                // Looks like it was a bug. Was it?
+                // i := 1;
+                i := 0;
 	    end if;
 	end if;
 	i +:=1;

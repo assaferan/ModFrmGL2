@@ -91,6 +91,14 @@ end intrinsic;
 
 intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
     {True iff H is a subgroup of G, where G and H are subgroups of PSL_2(Z).}
+    if not H`IsOfGammaType then
+         for h in H`Generators do
+             if not (h in G) then
+                return false;
+             end if;
+       end for;
+         return true;
+    end if;
     if G eq PSL2(Integers()) then
 	return Type(H`BaseRing) eq RngInt; end if;
     require #H`gammaType_list eq 1 and #G`gammaType_list eq 1: 

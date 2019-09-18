@@ -44,7 +44,7 @@ intrinsic CongruenceIndices(G::GrpPSL2) -> RngIntElt
    {For G  a congruence subgroup, returns [[N,M,P]]
    where G consists of matrices [a,b,c,d] with
    c = 0 mod N, a, d = 1 mod M, b = 0 mod P}
-
+  require G`IsOfGammaType : "G must be of gamma type";
   require not assigned G`EichlerOrder : "G must be a congruence subgroup";
   return G`gammaType_list;
 end intrinsic;

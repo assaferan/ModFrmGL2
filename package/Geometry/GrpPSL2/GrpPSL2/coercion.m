@@ -24,6 +24,9 @@ freeze;
 function MemberTest(G,g)
    // currently only works for congruence subgroups:
    // assert IsCongruence(G);
+   if not G`IsOfGammaType then
+      return G`ModLevel!Matrix(g) in G`ImageInLevel;
+   end if;
    error if not(Type(g[1,1]) eq RngIntElt),
       "Argument in coercion of sequences to matrices"
       * " should be a sequence of integers.";

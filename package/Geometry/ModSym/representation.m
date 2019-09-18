@@ -304,7 +304,7 @@ that is isomorphic to M as module of the Hecke algebra}
 
          p := 2;
          while Dimension(V) gt Dimension(M) do
-            if assigned M`al_decomp and Level(M) mod p eq 0 then
+	    if (assigned M`al_decomp or (not IsOfGammaType(M))) and Level(M) mod p eq 0 then
                p := NextPrime(p); 
                continue;
             end if;
@@ -320,7 +320,7 @@ that is isomorphic to M as module of the Hecke algebra}
  
             vprintf ModularSymbols, 3: "charpoly = %o\n", cp;
 //"DualVectorSpace: Evaluate on", BaseRing(Parent(cp)), "and", BaseRing(Tp); time
-            if Level(M) mod p ne 0  and Characteristic(BaseField(M)) eq 0 then
+            if (Level(M) mod p ne 0  and Characteristic(BaseField(M)) eq 0) and IsOfGammaType(M) then
                fT := &*[Evaluate(f[1],Tp) : f in Factorization(cp)];
             else
                fT := Evaluate(cp, Tp);
