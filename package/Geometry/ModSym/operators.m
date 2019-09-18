@@ -453,11 +453,13 @@ with respect to Basis(M).}
 
    elif IsPrime(n) then
       if IsAmbientSpace(M) then
-         use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
-                           and IsTrivial(DirichletCharacter(M));
-	 T := HeckeOperatorHeilbronn(M, Heilbronn(M, n, not use_cremona));
-
-//	    T := HeckeOperatorDirectlyOnModularSymbols(M,n);  
+         if IsOfGammaType(M) then
+           use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
+                             and IsTrivial(DirichletCharacter(M));
+	   T := HeckeOperatorHeilbronn(M, Heilbronn(M, n, not use_cremona));
+      else
+           T := HeckeOperatorDirectlyOnModularSymbols(M,n);
+      end if;
 /*  Using "DirectlyOn" fails in this example!!
     G<a>:=DirichletGroup(109,GF(4));M:=ModularSymbols(a,2);
     T7:=HeckeOperator(M,7);T23:=HeckeOperator(M,23);
@@ -993,12 +995,19 @@ require computing the full Hecke operator.}
    end if;
    if #M`standard_images[i] lt PrimePos(n) then  // generate more images...
       p := NthPrime(#M`standard_images[i]+1);
-      s := SparseRepresentation(VectorSpace(M).i);
       new_images := [Universe(M`standard_images[i])|]; // avoid copy inside loop
-      while p le n do 
-         Append(~new_images, TnSparse(M, p, s));
-         p := NextPrime(p);
-      end while;
+      if IsOfGammaType(M) then
+         s := SparseRepresentation(VectorSpace(M).i);  
+         while p le n do 
+            Append(~new_images, TnSparse(M, p, s));
+            p := NextPrime(p);
+         end while;
+      else
+	 while p le n do 
+	    Append(~new_images, VectorSpace(M).i * HeckeOperator(M, p));
+            p := NextPrime(p);
+         end while;
+      end if;
       M`standard_images[i] := M`standard_images[i] cat new_images;
    end if;      
    return M`standard_images[i];       
@@ -1195,7 +1204,7 @@ end function;
 function FastTn(M, V, n)
    assert IsAmbientSpace(M);
 
-   if IsMultiChar(M) then
+   if IsMultiChar(M) or (not IsOfGammaType(M)) then
       Tn := DualHeckeOperator(M,n);
       return Restrict(Tn,V);
    end if;

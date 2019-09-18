@@ -45,7 +45,6 @@ intrinsic IsGammaUpper0(G::GrpPSL2) -> BoolElt
     not assigned G`subgroup_list;
 end intrinsic;
 
-
 intrinsic IsGammaUpper1(G::GrpPSL2) -> BoolElt
     {returns true if and only if G is equal to Gamma^1(N) for some N}
     return IsCongruence(G)
@@ -55,6 +54,17 @@ intrinsic IsGammaUpper1(G::GrpPSL2) -> BoolElt
     and  not assigned G`subgroup_list;
 end intrinsic;
 
+intrinsic IsOfRealType(G::GrpPSL2) -> BoolElt
+{ returns true if and only if G is of real type (normalized by J) }
+  J := GL(2,Integers())![-1,0,0,1];
+  gens := Generators(G);
+  for g in gens do
+    if not PSL2(Integers())!(J * Matrix(g) * J) in G then
+       return false;
+    end if;
+  end for;
+  return true;
+end intrinsic;
 
 
 

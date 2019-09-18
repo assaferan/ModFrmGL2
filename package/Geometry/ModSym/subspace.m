@@ -314,6 +314,11 @@ required to be cuspidal.}
    If e doesn't factor through (Z/(N/p)Z)^* then
    e' is by definition 0.
  ********************************************************/
+   if not IsOfGammaType(M) then
+      require false : "Modular space must be of level 
+                    Gamma0(N), Gamma1(N) or Gamma(N)
+                    for new to be meaningful.";
+   end if;
    if p eq 0 then
       return NewSubspace(M);
    end if;
@@ -475,6 +480,12 @@ over all prime divisors of the level of M}
    // TO DO: was this require supposed to be required, or not?
    require IsCuspidal(M) : 
       "The given space must be contained in the cuspidal subspace";
+
+   if not IsOfGammaType(M) then
+      require false : "Modular space must be of level 
+                    Gamma0(N), Gamma1(N) or Gamma(N)
+                    for new to be meaningful.";
+   end if;
 
    if assigned M`is_new and M`is_new 
       or Level(M) eq 1 

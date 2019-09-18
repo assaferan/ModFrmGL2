@@ -183,6 +183,7 @@ import "core.m" :  CManSymList,
                    ConvToManinSymbol,
                    CQuotient,
                    ManinSymbolList,
+                   ManinSymbolGenList,
                    ManSym2termQuotient,
                    ManSym3termQuotient;
 
@@ -464,6 +465,13 @@ intrinsic ModularSymbols(N::RngIntElt, k::RngIntElt, F::Fld) -> ModSym
    return ModularSymbols(DirichletGroup(N,F)!1,k);
 end intrinsic;
 
+intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, F::Fld) -> ModSym
+{The space of modular symbols of level G, weight k, 
+ over the field F.}
+   requirege k,2;
+   require IsSupportedField(F) : SupportMessage;
+   return ModularSymbolsFromGroup(G,k,F,0);
+end intrinsic;
 
 intrinsic ModularSymbols(N::RngIntElt, k::RngIntElt, F::Fld, sign::RngIntElt) -> ModSym
 {The space of modular symbols of level N, weight k, trivial
@@ -492,6 +500,19 @@ intrinsic ModularSymbols(N::RngIntElt, k::RngIntElt,
    return ModularSymbols(x,k,sign);
 end intrinsic;
 
+intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt, 
+				        sign::RngIntElt) -> ModSym
+{The space of modular symbols of level G, weight k, 
+ and given sign over the rational numbers.
+ If sign=+1 then returns the +1 quotient, if sign=-1
+ returns the -1 quotient, and if sign=0 returns the full
+ space, respectively. The +1 quotient of M is M/(*-1)M, where 
+ * is StarInvolution(M).}
+   require sign in {-1,0,1} : "Argument 3 must be either -1, 0, or 1.";
+   
+   requirege k,2;
+   return ModularSymbolsFromGroup(G,k,Rationals(),sign);
+end intrinsic;
 
 intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt) -> ModSym
 {The space of modular symbols of weight k and character eps.}
@@ -610,6 +631,104 @@ intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt,
    return M;
 end intrinsic;
 
+forward CreateTrivialSpaceGen;
+
+intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt, F::Fld,
+                                        sign::RngIntElt) -> ModSym
+{The space of modular symbols of weight k and level G.
+ The third argument "sign" allows for working in certain
+ quotients.  The possible values are -1, 0, or +1, which correspond
+ to the -1 quotient, full space, and +1 quotient.}
+   require (-1 le sign and sign le 1) : 
+              "Argument 3 must be either -1, 0, or 1";
+   requirege k, 2;
+
+   require IsSupportedField(F) : SupportMessage;
+
+   if sign ne 0 then
+      require IsOfRealType(G) : "Group is not of real type.
+                                 Sign quotients are only relevant 
+                                 for groups of real type.";
+   end if;
+
+   if Type(F) in {FldAC, FldPad} then
+      if IsVerbose("ModularSymbols") then
+         printf "WARNING: Base field %o not fully supported.\n", F;  
+         printf "You might try using a less exotic base field, and then\n";
+         printf "base extending.  However many standard functions might\n";
+         printf "not work.\n";
+      end if;
+   end if;
+
+   if IsVerbose("ModularSymbols") then
+      tt := Cputime();
+      printf "Computing space of modular symbols of level %o and weight %o....\n", G, k;
+   end if;
+
+   if GetVerbose("ModularSymbols") ge 2 then   
+      t := Cputime(); "I.\tManin symbols list."; 
+   end if;
+   mlist := ManinSymbolGenList(k,G,F);
+   if GetVerbose("ModularSymbols") ge 2 then   
+      printf "\t\t(%o s)\n",Cputime(t);
+   end if;
+
+   if GetVerbose("ModularSymbols") ge 2 then   
+      t := Cputime(); "II.\t2-term relations.";
+   end if;
+   Sgens, Squot, Scoef := ManSym2termQuotient(mlist, G, sign);
+/*"Sgens = ", Sgens;
+"Squot = ", Squot;
+"Scoef = ", Scoef;
+*/
+   if GetVerbose("ModularSymbols") ge 2 then   
+      printf "\t\t(%o s)\n",Cputime(t);
+   end if;
+
+   if #Sgens lt 1 then
+      return CreateTrivialSpaceGen(k,G,F,sign);
+   end if;
+
+   if GetVerbose("ModularSymbols") ge 2 then   
+      t := Cputime(); "III.\t3-term relations.";
+   end if;
+   Tgens, Tquot := ManSym3termQuotient(mlist, G, Sgens, Squot, Scoef);
+   if GetVerbose("ModularSymbols") ge 2 then   
+      printf "\t\t(%o s)\n",Cputime(t);
+   end if;
+   dim := #Tgens;
+   if dim lt 1 then
+      return CreateTrivialSpaceGen(k,G,F,sign);
+   end if;
+
+   M := New(ModSym);
+   M`is_ambient_space := true;
+   M`sub_representation  := VectorSpace(F,dim);
+   M`dual_representation  := VectorSpace(F,dim);
+   M`dimension := dim;
+   M`k    := k;
+   M`G    := G;
+   M`N    := Level(G);
+   M`sign := sign;
+   M`F    := F;
+   M`isgamma_type := false;
+   
+   M`mlist:= mlist;
+   M`quot := rec<CQuotient |  
+                 Sgens := Sgens, 
+                 Squot := Squot, 
+                 Scoef := Scoef,
+                 Tgens := Tgens, 
+                 Tquot := Tquot>;  
+
+   M`quot`Tquot := [Representation(M)!v : v in M`quot`Tquot];  // move them into M.
+
+   if IsVerbose("ModularSymbols") then
+      printf "\t\t(total time to create space = %o seconds)\n",Cputime(tt);
+   end if;
+
+   return M;
+end intrinsic;
 
 function ModularSymbolsSub(M, V)
 /* Given a Hecke stable subspace V of Representation(M), construct 
@@ -686,6 +805,33 @@ function CreateTrivialSpace(k,eps,sign)
    return M;
 end function;
 
+function CreateTrivialSpaceGen(k,G,F,sign)
+   V := VectorSpace(F,0);
+   M := New(ModSym);
+   M`is_ambient_space := true;
+   M`sub_representation  := VectorSpace(F,0);
+   M`dual_representation  := VectorSpace(F,0);
+   M`dimension := 0;
+
+   M`k := k;
+   M`G := G;
+   M`N := Level(G);
+   M`sign := sign;
+   M`F := F;
+   M`isgamma_type := false;
+
+   M`quot := rec<CQuotient | Sgens:=[], Squot:=[], 
+               Scoef:=[], Tgens := [], Tquot:=[]>;
+
+   coset_list := CosetRepresentatives(G);
+   M`mlist := rec<CManSymList |
+               k := k, 
+               F := F, 
+               R := PolynomialRing(F,2),
+               coset_list := coset_list,
+               n := #coset_list*(k-1)>;
+   return M;
+end function;
 
 ///////////////////////////////////////////////////////////////
 //                                                           //
@@ -866,7 +1012,14 @@ level of M, do not decompose M into smaller modular symbols spaces.}
          return M`is_irreducible;     
       end if;
 
-      D := NewformDecomposition(M);
+      // Currently, NewformDecomposition is only implemented for
+      // Spaces of modular symbols of gamma type
+      if IsOfGammaType(M) then
+         D := NewformDecomposition(M);
+      else
+         D := Decomposition(M, HeckeBound(M));
+      end if;
+
       M`is_irreducible := #D le 1;
 
       if #D eq 1 and HasAssociatedNewSpace(D[1]) then  // useful later
@@ -1154,24 +1307,29 @@ intrinsic Print(M::ModSym, level::MonStgElt)
       return;
    end if;
 
-   if IsTrivial(DirichletCharacter(M)) then
-      printf "%oodular symbols space for Gamma_0(%o) of weight %o and dimension %o over %o",
-           full, Level(M), Weight(M), Dimension(M), BaseField(M);
-   elif IsMultiChar(AmbientSpace(M)) then
-      if assigned M`isgamma1 and M`isgamma1 then
-         printf "%oodular symbols space for Gamma_1(%o) of weight %o and dimension %o over %o",
-           full, Level(M), Weight(M), Dimension(M), BaseField(M);
-      elif assigned M`isgamma and M`isgamma then
-         printf "%oodular symbols space for Gamma(%o) of weight %o and dimension %o over %o " 
-              * "embedded as a subspace of modular symbols for Gamma_1(%o)",
-           full, Integers()!Sqrt(Level(M)), Weight(M), Dimension(M), BaseField(M), Level(M);
+   if IsOfGammaType(M) then
+      if IsTrivial(DirichletCharacter(M)) then
+         printf "%oodular symbols space for Gamma_0(%o) of weight %o and dimension %o over %o",
+              full, Level(M), Weight(M), Dimension(M), BaseField(M);
+      elif IsMultiChar(AmbientSpace(M)) then
+         if assigned M`isgamma1 and M`isgamma1 then
+            printf "%oodular symbols space for Gamma_1(%o) of weight %o and dimension %o over %o",
+              full, Level(M), Weight(M), Dimension(M), BaseField(M);
+         elif assigned M`isgamma and M`isgamma then
+            printf "%oodular symbols space for Gamma(%o) of weight %o and dimension %o over %o " 
+                 * "embedded as a subspace of modular symbols for Gamma_1(%o)",
+              full, Integers()!Sqrt(Level(M)), Weight(M), Dimension(M), BaseField(M), Level(M);
+         else
+            printf "%oodular symbols space of level %o, weight %o, and dimension %o over %o (multi-character)",
+              full, Level(M), Weight(M), Dimension(M), BaseField(M);
+         end if;
       else
-         printf "%oodular symbols space of level %o, weight %o, and dimension %o over %o (multi-character)",
-           full, Level(M), Weight(M), Dimension(M), BaseField(M);
+         printf "%oodular symbols space of level %o, weight %o, character %o, and dimension %o over %o",
+              full, Level(M), Weight(M), DirichletCharacter(M), Dimension(M), BaseField(M);
       end if;
    else
-      printf "%oodular symbols space of level %o, weight %o, character %o, and dimension %o over %o",
-           full, Level(M), Weight(M), DirichletCharacter(M), Dimension(M), BaseField(M);
+      printf "%oodular symbols space of level %o, weight %o, and dimension %o over %o",
+      full, LevelSubgroup(M), Weight(M), Dimension(M), BaseField(M);
    end if;
 end intrinsic;
 
@@ -1255,11 +1413,19 @@ end intrinsic;
 
 intrinsic 'eq'(M1::ModSym, M2::ModSym) -> BoolElt
 {}
+   if IsOfGammaType(M1) ne IsOfGammaType(M2) then
+      return false;
+   end if;
+   if IsOfGammaType(M1) then
+      complete_eq := DirichletCharacter(M1) eq DirichletCharacter(M2);
+   else
+      complete_eq := LevelSubgroup(M1) eq LevelSubgroup(M2);
+   end if;
    return IsMultiChar(M1) eq IsMultiChar(M2) and
           Weight(M1) eq Weight(M2) and
           Level(M1) eq Level(M2) and
-          BaseField(M1) cmpeq BaseField(M2) and 
-          DirichletCharacter(M1) eq DirichletCharacter(M2) and 
+          BaseField(M1) cmpeq BaseField(M2) and
+          complete_eq and
           Sign(M1) eq Sign(M2) and
           ( (assigned M1`dual_representation and assigned M2`dual_representation 
                 and DualVectorSpace(M1) cmpeq DualVectorSpace(M2)) or 
@@ -1581,7 +1747,7 @@ intrinsic BaseExtend(M::ModSym, F::Fld) -> ModSym
    N`G    := M`G;
    N`isgamma_type := M`isgamma_type;
    if (IsOfGammaType(M)) then
-      N`eps  := BaseExtend(M`eps,F);
+       N`eps  := BaseExtend(M`eps,F);
    end if;
    N`sign := M`sign;
    N`F    := F;

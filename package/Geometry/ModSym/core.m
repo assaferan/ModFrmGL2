@@ -1317,12 +1317,21 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
    P := BaseRing(R)!P;
    coset_list := mlist`coset_list;
    p1parent := Parent(coset_list[1]);
-   char := DirichletCharacter(M);
-   trivial :=  IsTrivial(char);
+   if IsOfGammaType(M) then
+     char := DirichletCharacter(M);
+     trivial :=  IsTrivial(char);
+   else
+      trivial := true;
+   end if;
    symbols := [];
    if P ne 0 then
-      for uv in uvs do 
-         ind,s := P1Reduce(p1parent!uv, coset_list);
+      for uv in uvs do
+	 if IsOfGammaType(M) then
+            ind,s := P1Reduce(p1parent!uv, coset_list);
+         else
+	    ind := CosetReduce(p1parent!uv, coset_list, M`G);
+            s := 1;
+         end if;
          if s ne 0 then 
             if trivial then
                a := 1;
@@ -1343,7 +1352,11 @@ function ConvFromModSym(M, V, ZN, P, a, b)
    end if;
    if b eq 0 then        // {0,oo}
       assert a ne 0;
-      return ConvFromManinSymbol(M, P, [ZN|0,1]);      
+      if IsOfGammaType(M) then
+        return ConvFromManinSymbol(M, P, [ZN|0,1]);
+      else
+	return ConvFromManinSymbol(M,P,PSL2(Integers())!1);
+      end if; 
    end if;
    v  := ContinuedFraction(a/b) cat [1];
    convergents_v := ConvergentsSequence(v, #v);
@@ -1371,8 +1384,14 @@ function ConvFromModSym(M, V, ZN, P, a, b)
          qq := Denominator(cn);
       end for;
 */
-      C:=ChangeUniverse([1,0] cat [Denominator(c) : c in convergents_v],ZN);
-      seq2:=[[C[i+1],C[i]*(-1)^(i-1)] : i in [1..#C-2]];
+      if IsOfGammaType(M) then
+         C:=ChangeUniverse([1,0] cat [Denominator(c) : c in convergents_v],ZN);
+         seq2:=[[C[i+1],C[i]*(-1)^(i-1)] : i in [1..#C-2]];
+      else
+         nums := [0,1] cat [Numerator(c) : c in convergents_v];
+         denoms := [1,0] cat [Denominator(c) : c in convergents_v];
+         seq2 := [[(-1)^(i+1) * nums[i+1], nums[i], (-1)^(i+1) * denoms[i+1], denoms[i]] : i in [1..#nums-2]];
+      end if;
       // assert seq eq seq2;
       ans := ConvFromManinSymbols(M, mlist, P, seq2); 
 
@@ -1393,7 +1412,11 @@ function ConvFromModSym(M, V, ZN, P, a, b)
             g[4] *:= -1;
          end if;
          hP := Evaluate(P,[ g[1]*R.1+g[2]*R.2, g[3]*R.1+g[4]*R.2]);
-         ans +:= ConvFromManinSymbol(M, hP, [ZN|g[3], g[4]]);
+         if IsOfGammaType(M) then
+            ans +:= ConvFromManinSymbol(M, hP, [ZN|g[3], g[4]]);
+         else
+	    ans +:= ConvFromManinSymbol(M, hP, g);
+         end if;
          if j le #v then
             p  := pp;
             q  := qq;

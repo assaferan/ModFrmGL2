@@ -175,7 +175,7 @@ function SimpleIrreducibleTest(W,a,elliptic_only)
       end if;
       
       if a eq 2 then
-	 if Sign(W) eq 0 and IsCuspidal(W) and
+        if Sign(W) eq 0 and IsCuspidal(W) and IsOfRealType(LevelSubgroup(W)) and
 	    Dimension(Kernel(DualStarInvolution(W)-1)) eq Dimension(W)/2 then
 	    return true;
 	    

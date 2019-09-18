@@ -130,6 +130,8 @@ intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt,
    M`sub_representation  := VectorSpace(M`F,M`dimension);
    M`dual_representation  := VectorSpace(M`F,M`dimension);
    M`mlist := ManinSymbolList(M`k, M`N, M`F);
+   M`isgamma_type := true;
+   M`G := Gamma1(M`N);
    return M;
 end intrinsic;
 
@@ -184,6 +186,8 @@ intrinsic DirectSumRestrictionOfScalarsToQ(Spaces::[ModSym]) -> ModSym
    A`dimension := &+[Dimension(S)*Degree(BaseRing(S)) : S in MultiSpaces(A)];
    A`sub_representation  := VectorSpace(A`F,A`dimension);
    A`dual_representation  := VectorSpace(A`F,A`dimension);
+   A`isgamma_type := true;
+   A`G := Gamma1(N);
    // Find each of the subspaces of A corresponding to spaces in the sequence,
    // and add them together.  This is the space we are after.
    S := ZeroSubspace(A);
@@ -224,8 +228,7 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
       M`isgamma := true;
       return M;
    else
-      require false:
-             "Argument 1 must be either Gamma_0(N), Gamma_1(N), or Gamma(N)";
+      return ModularSymbolsFromGroup(G, k, sign);
    end if;
 end intrinsic;
 
