@@ -91,16 +91,66 @@ end intrinsic;
 
 intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
     {True iff H is a subgroup of G, where G and H are subgroups of PSL_2(Z).}
+    if G eq PSL2(Integers()) then
+	return Type(H`BaseRing) eq RngInt;
+    end if;
     if not H`IsOfGammaType then
+       if assigned H`Generators then
          for h in H`Generators do
              if not (h in G) then
                 return false;
              end if;
-       end for;
+         end for;
          return true;
+      end if;
+      if assigned H`ImageInLevel then
+         N := Level(H);
+         if assigned G`ImageInLevel then
+	    M := Level(G);
+            if N mod M ne 0 then
+	      return false;
+            end if;
+            H_gens := [ G`ModLevel!h : h in Generators(H`ImageInLevel)];
+            H_im := sub< G`ModLevel | H_gens >;
+            return H_im subset G`ImageInLevel;
+	 end if;
+         if assigned G`Generators then
+	    Gamma_N := CongruenceSubgroup(N);
+            if not Gamma_N subset G then
+               return false;
+            end if;
+            G_im := sub< H`ModLevel | [H`ModLevel!g : g in G`Generators]>;
+            return H`ImageInLevel subset G_im;
+	 end if;
+         require #G`gammaType_list eq 1 :
+                 "Arguments should both be subgroups of PSL_2(Z)";
+         MG,NG,PG := Explode(G`gammaType_list[1]);
+         // check Gamma0(NG), Gamma1(MG) and GammaUpper0(PG)
+         if N mod Level(G) ne 0 then
+	   return false;
+         end if;
+         grps := [SL(2,IntegerRing(X)) : X in [MG,NG,PG]];
+         H_gens1 := [grps[1]!h : h in Generators(H`ImageInLevel)];
+         for h in H_gens1 do
+	     if (h[1,1] ne 1) or (h[2,2] ne 1) or (h[2,1] ne 0) then
+		return false;
+             end if;
+         end for;
+         H_gens2 := [grps[2]!h : h in Generators(H`ImageInLevel)];
+         for h in H_gens2 do
+	     if (h[2,1] ne 0) then
+		return false;
+             end if;
+         end for;
+         H_gens3 := [grps[3]!h : h in Generators(H`ImageInLevel)];
+         for h in H_gens3 do
+	     if (h[1,2] ne 0) then
+		return false;
+             end if;
+         end for;
+         return true;
+      end if;
     end if;
-    if G eq PSL2(Integers()) then
-	return Type(H`BaseRing) eq RngInt; end if;
     require #H`gammaType_list eq 1 and #G`gammaType_list eq 1: 
             "Arguments should both be subgroups of PSL_2(Z)";
     MH,NH,PH := Explode(H`gammaType_list[1]);
