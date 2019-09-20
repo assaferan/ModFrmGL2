@@ -135,6 +135,37 @@ intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt,
    return M;
 end intrinsic;
 
+/*
+intrinsic ModularSymbols(chars::[Map], k::RngIntElt, 
+                          sign::RngIntElt) -> ModSym
+{"} // "
+   requirege k,2;   
+   require sign in {-1,0,1} : "Argument 3 must be either -1, 0, or 1.";
+   require #chars gt 0 : "Argument 1 must have length at least 1.";
+   require Type(BaseRing(Codomain(chars[1]))) in {FldCyc, FldRat} : 
+       "The base ring of argument 1 must be the rationals or cyclotomic.";
+   // For now, until we know how to compute it in general
+   // chars := GaloisConjugacyRepresentatives(chars);
+   M := New(ModSym);
+   M`is_ambient_space := true;
+   M`k    := k;
+   M`N    := Modulus(BaseRing(Domain(chars[1])));
+   for i in [2..#chars] do 
+     require Modulus(BaseRing(Domain(chars[i]))) eq M`N : 
+            "The characters in argument 1 must all have the same modulus.";
+   end for;
+   M`eps  := chars;
+   M`sign := sign;
+   M`F    := RationalField();
+   M`dimension := &+[Dimension(S)*Degree(BaseRing(S)) : S in MultiSpaces(M)];
+   M`sub_representation  := VectorSpace(M`F,M`dimension);
+   M`dual_representation  := VectorSpace(M`F,M`dimension);
+   M`mlist := ManinSymbolList(M`k, M`N, M`F);
+   M`isgamma_type := false;
+   M`G := Kernel(Components(chars[1])[1]);
+   return M;
+end intrinsic;
+*/
 
 intrinsic RestrictionOfScalarsToQ(M::ModSym) -> ModSym
 {Restriction of scalars down to Q.  Here M must be defined 
@@ -227,7 +258,22 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
       M := ModularSymbols(chars, k, sign);
       M`isgamma := true;
       return M;
-   else
+    else
+	// the part here is what will happen once we are able to
+        // write down modular symbols spaces with irreducible reps
+      /*if assigned G`ModLevel then
+	 N := Normalizer(G`ModLevel, G`ImageInLevel);
+         Q, pi_Q := N / G`ImageInLevel;
+         D := AbsolutelyIrreducibleModules(Q);
+         reps := [pi_Q * rho  : rho in D];
+         M := ModularSymbols(chars, k, sign);
+         M`isgamma := false;
+      end if;
+      
+Q_lifts := [FindLiftToSL2(q @@ pi_Q) : q in GeneratorsSequence(Q)];
+Q_acts := [ActionOnModularSymbolsBasis(ElementToSequence(n), M) : n in Q_lif\
+ts];
+	*/
       return ModularSymbolsFromGroup(G, k, sign);
    end if;
 end intrinsic;

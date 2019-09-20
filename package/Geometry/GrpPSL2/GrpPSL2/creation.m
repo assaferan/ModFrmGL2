@@ -299,7 +299,7 @@ intrinsic Subgroup(G::GrpPSL2, gens::SeqEnum, N::RngIntElt) -> GrpPSL2
      H`Generators := gens;
      H`Level := N;
      if (Type(H`BaseRing) in {Rng,RngInt,FldRat}) then 
-        H`ModLevel := GL(2,quo<H`BaseRing | N>);
+        H`ModLevel := SL(2,quo<H`BaseRing | N>);
      else
         H`ModLevel := MatrixAlgebra(quo<H`BaseRing | N>,2);
      end if;

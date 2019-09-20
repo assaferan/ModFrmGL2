@@ -1284,7 +1284,7 @@ function ActionOnModularSymbolsBasis(g, M)
    // 2. Apply g to each basis element. 
    gB := [ModularSymbolApply(M, g,B[i]) : i in [1..#B]];
    // 3. Map the result back to M.
-  gM := [Representation(ConvFromModularSymbol(M,gB[i])) : i in [1..#gB]];
+   gM := [Representation(ConvFromModularSymbol(M,gB[i])) : i in [1..#gB]];
    A :=  MatrixAlgebra(BaseField(M),Dimension(M))!gM;
    return A;
 end function;

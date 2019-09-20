@@ -737,7 +737,7 @@ function ModularSymbolsSub(M, V)
    power to create nasty objects that don't satisfy the definition
    of a ModSym.
 */
-   assert Degree(V) eq Dimension(AmbientSpace(M));
+   assert Degree(V) le Dimension(AmbientSpace(M));
    // assert V subset Representation(M);
    // This is obviously nontrivial in large dimensions
 
