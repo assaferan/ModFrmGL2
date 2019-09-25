@@ -1,7 +1,11 @@
 // freeze;
-AttachSpec("./Geometry/GrpPSL2/GrpPSL2/spec");
-AttachSpec("./Geometry/GrpPSL2/SymFry/spec"); 
-AttachSpec("./Geometry/ModSym/ModSym.spec"); 
+ROOT_DIR := "/Users/eranassaf/Documents/Code/Magma/package/Geometry/";
+AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2/spec");
+AttachSpec(ROOT_DIR cat "GrpPSL2/SymFry/spec"); 
+AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
+SetHelpUseExternalBrowser(false);
+SetDebugOnError(true);
+SetVerbose("ModularSymbols", 0);
 
 /****-*-magma-* EXPORT DATE: 2004-03-08 ************************************
                                                                           
@@ -352,8 +356,12 @@ procedure Test_Rouse_single(gens, level, genus, id)
    G := GL(2,IntegerRing(N));
    H_N := sub<G | gens>;
    H := PSL2Subgroup(H_N);
+// print "Creating space of modular symbols...\n";
    M := ModularSymbols(H);
+//print "Done!\n";
+// print "Computing cuspidal subspace...\n";
    S := CuspidalSubspace(M);
+// print "Done!\n";
    assert Dimension(S) eq 2*genus;
    print "time = ", Cputime(t);  
 end procedure;

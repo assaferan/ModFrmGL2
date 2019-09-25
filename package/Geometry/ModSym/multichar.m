@@ -16,16 +16,17 @@ freeze;
 
  ***************************************************************************/
 
-
 import "core.m"   : LiftToCosetRep,
-                    ManinSymbolList;
+                    ManinSymbolList,
+                    ManinSymbolGenList;
+
 import "linalg.m" : MakeLattice,
                     RestrictionOfScalars, 
                     RestrictionOfScalars_Nonsquare,
                     UnRestrictionOfScalars;
+
 import "modsym.m" : CreateTrivialSpace,
                     ModularSymbolsSub;
-
 
 forward   AssociatedNewformSpace,
           MC_ConvToModularSymbol,
@@ -126,47 +127,48 @@ intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt,
    M`eps  := chars;
    M`sign := sign;
    M`F    := RationalField();
+   M`G := Gamma1(M`N);
    M`dimension := &+[Dimension(S)*Degree(BaseRing(S)) : S in MultiSpaces(M)];
    M`sub_representation  := VectorSpace(M`F,M`dimension);
    M`dual_representation  := VectorSpace(M`F,M`dimension);
    M`mlist := ManinSymbolList(M`k, M`N, M`F);
    M`isgamma_type := true;
-   M`G := Gamma1(M`N);
    return M;
 end intrinsic;
 
-/*
-intrinsic ModularSymbols(chars::[Map], k::RngIntElt, 
-                          sign::RngIntElt) -> ModSym
-{"} // "
+
+intrinsic ModularSymbols(reps::[ModGrp], pi_Q::HomGrp, k::RngIntElt, 
+			 sign::RngIntElt, G::GrpPSL2) -> ModSym
+{Constructs modular symbols with the representations. } 
    requirege k,2;   
    require sign in {-1,0,1} : "Argument 3 must be either -1, 0, or 1.";
-   require #chars gt 0 : "Argument 1 must have length at least 1.";
-   require Type(BaseRing(Codomain(chars[1]))) in {FldCyc, FldRat} : 
+   require #reps gt 0 : "Argument 1 must have length at least 1.";
+   require Type(BaseRing(Codomain(Representation(reps[1])))) in {FldCyc, FldRat} : 
        "The base ring of argument 1 must be the rationals or cyclotomic.";
-   // For now, until we know how to compute it in general
-   // chars := GaloisConjugacyRepresentatives(chars);
+  
+   reps := GaloisConjugacyRepresentatives(reps);
    M := New(ModSym);
    M`is_ambient_space := true;
    M`k    := k;
-   M`N    := Modulus(BaseRing(Domain(chars[1])));
-   for i in [2..#chars] do 
-     require Modulus(BaseRing(Domain(chars[i]))) eq M`N : 
-            "The characters in argument 1 must all have the same modulus.";
+   M`N    := Modulus(BaseRing(Domain(pi_Q)));
+   for i in [1..#reps] do 
+      require Domain(Representation(reps[i])) eq Codomain(pi_Q) : 
+            "The representations in argument 1 must all be of the same finite group, which has to be the image of the map in argument 2";
    end for;
-   M`eps  := chars;
+   M`eps  := reps;
    M`sign := sign;
    M`F    := RationalField();
+   M`G := G;
+   M`pi_Q := pi_Q;
    M`dimension := &+[Dimension(S)*Degree(BaseRing(S)) : S in MultiSpaces(M)];
    M`sub_representation  := VectorSpace(M`F,M`dimension);
    M`dual_representation  := VectorSpace(M`F,M`dimension);
-   M`mlist := ManinSymbolList(M`k, M`N, M`F);
+   M`mlist := ManinSymbolGenList(M`k, M`G, M`F);
    M`isgamma_type := false;
-   M`G := Kernel(Components(chars[1])[1]);
    return M;
 end intrinsic;
-*/
 
+  
 intrinsic RestrictionOfScalarsToQ(M::ModSym) -> ModSym
 {Restriction of scalars down to Q.  Here M must be defined 
 over a finite extension of the rationals.}
@@ -259,21 +261,16 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
       M`isgamma := true;
       return M;
     else
-	// the part here is what will happen once we are able to
-        // write down modular symbols spaces with irreducible reps
-      /*if assigned G`ModLevel then
-	 N := Normalizer(G`ModLevel, G`ImageInLevel);
-         Q, pi_Q := N / G`ImageInLevel;
-         D := AbsolutelyIrreducibleModules(Q);
-         reps := [pi_Q * rho  : rho in D];
-         M := ModularSymbols(chars, k, sign);
-         M`isgamma := false;
+      if assigned G`ModLevel then
+	 N_G := Normalizer(G`ModLevel, G`ImageInLevel);
+         Q, pi_Q := N_G / G`ImageInLevel;
+         D := AbsolutelyIrreducibleModules(Q,Rationals());
+         reps := GaloisConjugacyRepresentatives(D);
+         M := ModularSymbols(reps, pi_Q, k, sign, G);
+         return M;
       end if;
-      
-Q_lifts := [FindLiftToSL2(q @@ pi_Q) : q in GeneratorsSequence(Q)];
-Q_acts := [ActionOnModularSymbolsBasis(ElementToSequence(n), M) : n in Q_lif\
-ts];
-	*/
+      // right now, this is still faster - comment out the above for better
+      // performance
       return ModularSymbolsFromGroup(G, k, sign);
    end if;
 end intrinsic;
@@ -369,8 +366,12 @@ intrinsic MultiSpaces(M::ModSym) -> SeqEnum
    if not assigned M`multi then
       k := Weight(M);
       sign := Sign(M);
-      M`multi := [ModularSymbols(MinimalBaseRingCharacter(eps),k,sign) 
-                                        : eps in DirichletCharacter(M)];
+      reps := DirichletCharacter(M);
+      if Type(reps[1]) eq GrpDrchElt then
+	 M`multi := [ModularSymbols(MinimalBaseRingCharacter(eps),k,sign) : eps in reps];
+      else
+         M`multi := [ModularSymbols(AbsoluteModuleOverMinimalField(r),k,sign,M`G,M`pi_Q) : r in reps];
+      end if;
    end if;
    return M`multi;
 end intrinsic;
@@ -754,6 +755,29 @@ function MC_CutSubspace(M, cut_function)
    V := VectorSpace(M);
    B := [V| ];
    offset := 0;
+
+  // If M is not of Gamma type, the multispaces are already embedded
+  if not M`isgamma_type then
+      for MS in MultiSpaces(M) do
+	  K := BaseField(MS);
+          basis := Basis(K);
+	  for x in Basis(cut_function(MS)) do
+	     for alpha in basis do
+                 y := Solution(Matrix(Basis(Representation(MS))), Vector(Eltseq(alpha*x)));
+                 v := V!0;
+                 for i in [1..#basis] do 
+                    for j in [1..Dimension(MS)] do
+                       v[offset + (i-1)*Dimension(MS) + j] := Eltseq(y[j])[i];
+                    end for;
+                 end for;
+                 Append(~B, v);
+             end for;
+          end for;
+          offset := offset + Degree(BaseField(MS))*Dimension(MS);
+      end for;
+      return ModularSymbolsSub(M,sub<V|B>);
+   end if;
+
    for MS in MultiSpaces(M) do
       K := BaseField(MS);
       basis := Basis(K);

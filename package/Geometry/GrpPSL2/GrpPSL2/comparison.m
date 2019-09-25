@@ -88,6 +88,58 @@ intrinsic 'eq' (G::GrpPSL2,H::GrpPSL2) -> BoolElt
     end if;
 end intrinsic;
 
+// This function checks whether for a given element of SL(2,Z/NZ)
+// its image in PSL2(Z/NZ) lies in a Gamma1(N)
+function is_elt_in_gamma1(h,N)
+  in_gamma1 := (h[1,1] eq 1) and (h[2,2] eq 1);
+  in_gamma1 := in_gamma1 or ((h[1,1] eq -1) and (h[2,2] eq -1));
+  in_gamma1 := in_gamma1 and (h[2,1] eq 0);
+  return in_gamma1;
+end function;
+
+// This function checks whether for a given element of SL(2,Z/NZ)
+// its image in PSL2(Z/NZ) lies in a Gamma0(N)
+function is_elt_in_gamma0(h,N)
+  return (h[2,1] eq 0);
+end function;
+
+// This function checks whether for a given element of SL(2,Z/NZ)
+// its image in PSL2(Z/NZ) lies in a GammaUpper0(N)
+function is_elt_in_gammaUpper0(h,N)
+  return (h[1,2] eq 0);
+end function;
+
+// This function wraps the above three functions together
+// This function checks whether for a given element of SL(2,Z/NZ)
+// its image in PSL2(Z/NZ) lies in a Gamma0(N)
+function is_elt_in_gamma(h,N,type)
+  if type eq "Gamma0" then
+     return is_elt_in_gamma0(h,N);
+  elif type eq "Gamma1" then
+     return is_elt_in_gamma1(h,N);
+  elif type eq "GammaUpper0" then
+     return is_elt_in_gammaUpper0(h,N);
+  end if;
+  assert false; // Only Gamma0, Gamma1, GammaUpper0 are currently supported
+end function;
+
+// This function checks whether a congruence subgroup H
+// defined via its image in a certain level
+// is contained in Gamma_?(N)
+function is_in_gamma(H,N, type)
+  if N eq 1 then
+     return true;
+  end if;
+  grp := SL(2, Integers(N));
+  H_gens := [grp!h : h in Generators(H`ImageInLevel)];
+  for h in H_gens do
+     in_gamma := is_elt_in_gamma(h, N, type);
+     if not in_gamma then
+	return false;
+     end if;
+  end for;
+  return true;
+end function;
 
 intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
     {True iff H is a subgroup of G, where G and H are subgroups of PSL_2(Z).}
@@ -119,37 +171,34 @@ intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
             if not Gamma_N subset G then
                return false;
             end if;
-            G_im := sub< H`ModLevel | [H`ModLevel!g : g in G`Generators]>;
+            G_im := sub< H`ModLevel | [H`ModLevel!ElementToSequence(g)
+ 			      : g in G`Generators]>;
             return H`ImageInLevel subset G_im;
 	 end if;
-         require #G`gammaType_list eq 1 :
-                 "Arguments should both be subgroups of PSL_2(Z)";
-         MG,NG,PG := Explode(G`gammaType_list[1]);
-         // check Gamma0(NG), Gamma1(MG) and GammaUpper0(PG)
          if N mod Level(G) ne 0 then
 	   return false;
          end if;
-         grps := [SL(2,IntegerRing(X)) : X in [MG,NG,PG]];
-         H_gens1 := [grps[1]!h : h in Generators(H`ImageInLevel)];
-         for h in H_gens1 do
-	     if (h[1,1] ne 1) or (h[2,2] ne 1) or (h[2,1] ne 0) then
-		return false;
-             end if;
-         end for;
-         H_gens2 := [grps[2]!h : h in Generators(H`ImageInLevel)];
-         for h in H_gens2 do
-	     if (h[2,1] ne 0) then
-		return false;
-             end if;
-         end for;
-         H_gens3 := [grps[3]!h : h in Generators(H`ImageInLevel)];
-         for h in H_gens3 do
-	     if (h[1,2] ne 0) then
-		return false;
-             end if;
+         require #G`gammaType_list eq 1 :
+                 "Arguments should both be subgroups of PSL_2(Z)";
+         levels := G`gammaType_list[1];
+         types := ["Gamma1", "Gamma0", "GammaUpper0"];
+         for idx in [1..3] do
+            if not is_in_gamma(H, levels[idx], types[idx]) then
+	       return false;
+	    end if;
          end for;
          return true;
       end if;
+    end if;
+    if not G`IsOfGammaType then
+	// !!! this could be quite slow but will do for now
+        gens_H := Generators(H);
+        for h in gens_H do
+	   if not h in G then
+	      return false;
+           end if;
+	end for;
+        return true;
     end if;
     require #H`gammaType_list eq 1 and #G`gammaType_list eq 1: 
             "Arguments should both be subgroups of PSL_2(Z)";

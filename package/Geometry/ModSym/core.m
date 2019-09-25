@@ -324,22 +324,25 @@ end function;
 //////////////////////////////////////////////////////////////////////////
 //  CosetReduce:                                                        //
 //  INPUT: gamma in PSL2(Z), G                                          //
-//  OUTPUT:  1) the *index* of a fixed choice of representative         //
+//  OUTPUT:  1) the *index* of a fixed choice r of representative       //
 //              in the coset of gamma - G * gamma in G\PSL2(Z)          //
 //                                                                      //
-//           2) We do not deal with a character in the general case yet //    
+//           2) an element s in G such that gamma = s * r               //
+//              so the representation relation is                       //
+//                   eps(s)(r) = gamma                                  //
 //////////////////////////////////////////////////////////////////////////
  
 // The original is now in the C - we might want to change the corresponding
 // C code
 function CosetReduce(x, list, G)
   for index in [1..#list] do
-     if x*list[index]^(-1) in G then
-        return index;
+     s := x*list[index]^(-1);
+     if s in G then
+        return index, s;
      end if;
   end for;
   // error - could not find an appropriate coset
-  return false;
+  assert false;
 end function;
 
 
@@ -511,9 +514,7 @@ function ManinSymbolApply(g, i, mlist, eps, k)
         g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
       end if;
    end if;
-
-   uvg := Matrix(uv)*g[2];
-   
+ 
    if Type(eps) eq GrpPSL2 then
      uvg := Matrix(uv)* g[2];
      // That's for the case of involution
@@ -521,7 +522,7 @@ function ManinSymbolApply(g, i, mlist, eps, k)
        uvg := g[2] * uvg;
      end if;
      uvg := PSL2(Integers())!uvg;
-     act_uv := CosetReduce(uvg, coset_list, eps);
+     act_uv, s := CosetReduce(uvg, coset_list, eps);
    else
      uvg := uv * g[2];
      act_uv, scalar := P1Reduce(uvg, coset_list);
@@ -554,6 +555,41 @@ function ManinSymbolApply(g, i, mlist, eps, k)
    return [x : x in ans | x[1] ne 0];
 end function;
 
+function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
+// Apply g to the ith Manin symbol.
+   uv, w, ind := UnwindManinSymbol(i,mlist);  
+
+   coset_list := mlist`coset_list;
+
+   if Type(g) eq SeqEnum then
+        g := <g, GL(2,Integers())!g> ;
+   end if;
+ 
+   uvg := Matrix(uv)* g[2];
+   // That's for the case of involution
+   if (Determinant(g[2]) eq -1) then
+     uvg := g[2] * uvg;
+   end if;
+   uvg := PSL2(Integers())!uvg;
+   act_uv, s := CosetReduce(uvg, coset_list, G);
+   s := Domain(eps)!ElementToSequence(s);
+
+   if k eq 2 then
+      return [<eps(s)[1,1],act_uv>]; 
+   end if;
+   
+   // Polynomial part. 
+   R := PolynomialRing(mlist`F); x := R.1;    // univariate is fine for computation
+   hP := (g[1][1]*x+g[1][2])^w*(g[1][3]*x+g[1][4])^(k-2-w);
+
+   hP *:= eps(s)[1,1];
+   pol := ElementToSequence(hP);
+
+   // Put it together
+   n   := #coset_list;
+   ans := [<pol[w+1],  w*n + act_uv> : w in [0..#pol-1]];
+   return [x : x in ans | x[1] ne 0];
+end function;
 
 function ImageOfRep(M,i,Heil,Tmat,W)
    eps := DirichletCharacter(M);
@@ -1000,6 +1036,32 @@ function ManSym2termQuotient (mlist, eps, sign)
 end function;
 
 
+function ManSym2termQuotientGen (mlist, eps, sign, G)
+     n := mlist`n;
+     K := mlist`F;
+     k := mlist`k;
+     S := [0,-1,  1,0];
+     I := [-1,0,  0,1];
+     xS := [ManinSymbolApplyGen(S,i,mlist,eps,k,G) : i in [1..n]];
+     S_rels := [ [i,   (xS[i][1])[2]] : i in [1..n]| #xS[i] gt 0];
+     S_relc := [ [K!1, (xS[i][1])[1]] : i in [1..n]| #xS[i] gt 0];
+     if sign ne 0 then
+     xI := [ManinSymbolApplyGen(I,i,mlist,eps,k,G) : i in [1..n]];
+        I_rels := [ [i,    (xI[i][1])[2]] : i in [1..n]];
+        I_relc := [ [K!1, -sign*(xI[i][1])[1]] : i in [1..n]];
+     else
+        I_rels := [];
+        I_relc := [];
+     end if;
+     rels  := S_rels cat I_rels;
+     relc  := S_relc cat I_relc;
+     return Sparse2Quotient(rels,relc,n,K);
+
+// FOR DEBUGING:
+//    return Fake_Sparse2Quotient(rels,relc,n,K);
+
+end function;
+
 function ManSym3termQuotient (mlist, eps, Sgens, Squot, Scoef)
    // Construct the subspace of 3-term relations.
    n := mlist`n;
@@ -1035,6 +1097,43 @@ function ManSym3termQuotient (mlist, eps, Sgens, Squot, Scoef)
 
    return Quotient(rels, #Sgens, F);
 end function;
+
+function ManSym3termQuotientGen (mlist, eps, Sgens, Squot, Scoef,G)
+   // Construct the subspace of 3-term relations.
+   n := mlist`n;
+   F := mlist`F;
+   k := mlist`k;
+   T := [0,-1,  1,-1];
+   TT:= [-1,1, -1,0];
+
+   if k eq 2 then
+      mask := [false : i in [1..n]];   // to avoid redundant 3-term relations.
+      rels := [];
+      for j in [1..n] do
+         if not mask[j] then
+	    t  := ManinSymbolApplyGen(T,j,mlist,eps,2,G)[1];
+            tt := ManinSymbolApplyGen(TT,j,mlist,eps,2,G)[1];
+            mask[t[2]] := true;
+            mask[tt[2]] := true;
+            Append(~rels,  [<Scoef[j],Squot[j]>,
+               <t[1]*Scoef[t[2]],Squot[t[2]]>,
+               <tt[1]*Scoef[tt[2]],Squot[tt[2]]>]);
+         end if;
+      end for;
+   else 
+      rels := [&cat[
+               [<Scoef[i],Squot[i]>], 
+               [<x[1]*Scoef[x[2]],Squot[x[2]]>
+		   : x in ManinSymbolApplyGen(T,i,mlist,eps,k,G)],
+               [<x[1]*Scoef[x[2]],Squot[x[2]]>
+		   : x in ManinSymbolApplyGen(TT,i,mlist,eps,k,G)]
+              ]
+             : i in [1..n]];
+   end if;
+
+   return Quotient(rels, #Sgens, F);
+end function;
+
 
 function XXXManSym3termQuotient (mlist, eps, Sgens, Squot, Scoef)
    // Construct the subspace of 3-term relations.
@@ -1281,7 +1380,7 @@ function ConvFromManinSymbol (M, P, uv)
      char := DirichletCharacter(M);
      is_trivial_char := IsTrivial(char);
    else
-     ind := CosetReduce(Parent(coset_list[1])!uv, coset_list, M`G);
+     ind,s := CosetReduce(Parent(coset_list[1])!uv, coset_list, M`G);
      s := 1;
      is_trivial_char := true;
    end if;
@@ -1329,7 +1428,7 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
 	 if IsOfGammaType(M) then
             ind,s := P1Reduce(p1parent!uv, coset_list);
          else
-	    ind := CosetReduce(p1parent!uv, coset_list, M`G);
+	    ind,s := CosetReduce(p1parent!uv, coset_list, M`G);
             s := 1;
          end if;
          if s ne 0 then 

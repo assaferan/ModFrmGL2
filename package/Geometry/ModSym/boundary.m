@@ -59,6 +59,7 @@ freeze;
                                                                             
  ***************************************************************************/
 
+import "../GrpPSL2/GrpPSL2/creation.m" : FindLiftToSL2;
 
 import "core.m" : CosetReduce,
                   LiftToCosetRep,
@@ -125,8 +126,9 @@ end intrinsic;
 
 
 intrinsic Cusps(M::ModSym) -> SeqEnum
-{The cusps of X_0(N).  The weight must be two and the character trivial.}
-   require IsTrivial(DirichletCharacter(M)) : "The dirichlet character of M must be trivial.";
+{The cusps of M.  The weight must be two and the character trivial.}
+   require IsCharacterTrivial(M) :
+    "The dirichlet character of M must be trivial.";
    require Weight(M) eq 2 : "The weight of M must equal 2.";
    if not IsAmbientSpace(M) then
       return Cusps(AmbientSpace(M));
@@ -154,8 +156,9 @@ function IsRational(M, alpha)
 end function;
 
 intrinsic RationalCusps(M::ModSym) -> SeqEnum
-{The rational cusps of X_0(N).  The weight must be two and the character trivial.}
-   require IsTrivial(DirichletCharacter(M)) : "The dirichlet character of M must be trivial.";
+{The rational cusps of M.  The weight must be two and the character trivial.}
+   require IsCharacterTrivial(M) :
+      "The character of M must be trivial.";
    require Weight(M) eq 2 : "The weight of M must equal 2.";
    C := Cusps(M);
    if SquarefreeFactorization(Level(M)) eq Level(M) then
@@ -166,7 +169,8 @@ end intrinsic;
 
 intrinsic StandardCusp(M::ModSym, x::FldRatElt) -> FldRatElt
 {The unique element of Cusps(M) that is equivalent to x.}
-   require IsTrivial(DirichletCharacter(M)) : "The dirichlet character of M must be trivial.";
+   require IsCharacterTrivial(M) :
+            "The dirichlet character of M must be trivial.";
    require Weight(M) eq 2 : "The weight of M must equal 2.";
 
    alpha, i := CuspToFree(M,[Numerator(x),Denominator(x)]);
@@ -176,7 +180,8 @@ end intrinsic;
 
 intrinsic StandardCusp(M::ModSym, x::RngIntElt) -> FldRatElt
 {The unique element of Cusps(M) that is equivalent to x.}
-   require IsTrivial(DirichletCharacter(M)) : "The dirichlet character of M must be trivial.";
+   require IsCharacterTrivial(M) :
+         "The dirichlet character of M must be trivial.";
    require Weight(M) eq 2 : "The weight of M must equal 2.";
 
    return StandardCusp(M, RationalField()!x);
@@ -249,7 +254,7 @@ function CuspEquivGrp(coset_list, G, orbit_table, a, b)
   idxs := [CosetReduce(PSL2(Integers())!g, coset_list, G) : g in gs];
   orbit := [orbit_table[idx] : idx in idxs];
   if orbit[1][1] ne orbit[2][1] then // They are not in the same orbit
-     return false, 1;
+     return false, PSL2(Integers())!1;
   end if;
   t := PSL2(Integers())![1, orbit[1][2] - orbit[2][2], 0, 1];
   gamma := coset_list[idxs[2]] * t * coset_list[idxs[1]]^(-1);
@@ -307,11 +312,9 @@ function CuspToFreeHelper(M, sign, a)
 
    list  := M`cusplist;
    F     := BaseField(M);
-   is_trivial_eps := true;
-   if IsOfGammaType(M) then
-      eps   := DirichletCharacter(M);
-      is_trivial_eps := IsTrivial(eps);
-   else
+   eps   := DirichletCharacter(M);   
+   is_trivial_eps := IsCharacterTrivial(M);
+   if not IsOfGammaType(M) then
       G     := LevelSubgroup(M);
       coset_list :=  M`mlist`coset_list;
       orbit_table := BuildTOrbitTable(coset_list, G);
@@ -329,18 +332,25 @@ function CuspToFreeHelper(M, sign, a)
    for i in [1..#list] do
       b          := list[i];
       if IsOfGammaType(M) then
-         equiv, alp := CuspEquiv(N, b[1], a);   // [gam_alp(b[1])]=?=[a].
+        equiv, alp := CuspEquiv(N, b[1], a);   // [gam_alp(b[1])]=?=[a].
       else
 	equiv, alp := CuspEquivGrp(coset_list, G, orbit_table, b[1],a);
+// printf "alp=%o, eps=%o, ElementToSequence(alp)=%o, Domain(eps)=%o\n", alp, eps, ElementToSequence(alp), Domain(eps);
+        alp := Domain(eps)!ElementToSequence(alp);
       end if;
       if equiv then
          if b[2] eq 0 then
             return <F!0,1>;
          end if;
-         if is_trivial_eps then 
+         if is_trivial_eps then
+         //if IsTrivial(eps) then
             return <1,i>;
          else
-            return <Evaluate(eps,alp)^(-1),i>;  
+	    if IsOfGammaType(M) then
+               return <Evaluate(eps,alp)^(-1),i>;
+            else
+	       return <eps(alp)[1,1]^(-1),i>;
+            end if;
          end if;
       end if;
       if sign ne 0 then
@@ -348,15 +358,21 @@ function CuspToFreeHelper(M, sign, a)
             equiv, alp := CuspEquiv(N, b[1], [-a[1],a[2]]);
          else
 	    equiv, alp := CuspEquivGrp(coset_list, G, orbit_table, b[1], [-a[1],a[2]]);
+            alp := Domain(eps)!ElementToSequence(alp);
          end if; 
          if equiv then
             if b[2] eq 0 then
                return <F!0,1>;
             end if;
-            if is_trivial_eps then 
+            if is_trivial_eps then
+            // if IsTrivial(eps) then
                return <sign,i>;
             else
+	      if IsOfGammaType(M) then
                return <sign*Evaluate(eps,alp)^(-1),i>;
+	      else
+		return <eps(alp)[1,1]^(-1),i>;
+              end if;
             end if;
          end if;
       end if;
@@ -365,6 +381,8 @@ function CuspToFreeHelper(M, sign, a)
    // Determine if this cusp class is killed by the relations.
    c := F!1;
    if not is_trivial_eps then
+	  //if not IsTrivial(eps) then
+     if IsOfGammaType(M) then
       u := a[1]; v := a[2];
       g := Gcd(N,v);
       x := Integers()!(N/Gcd(N,v));
@@ -379,6 +397,22 @@ function CuspToFreeHelper(M, sign, a)
             end if;
          end if;
       end for;
+      else
+        pi_Q := Components(eps)[1];
+        Q := Codomain(pi_Q);
+        H := PSL2Subgroup(Kernel(pi_Q));
+        coset_list_H := CosetRepresentatives(H);
+        orbit_table_H := BuildTOrbitTable(coset_list_H, H);
+        for q in Q do
+	  q_elt := FindLiftToSL2(q @@ pi_Q);
+          q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
+	  equiv, tmp := CuspEquivGrp(coset_list_H, H, orbit_table_H, q_a,a);
+          if equiv and eps(q_elt)[1,1] ne 1 then
+            c := F!0;
+            break;
+          end if;
+        end for;
+     end if;
    end if;
 
    Append(~list,<a,c>);
