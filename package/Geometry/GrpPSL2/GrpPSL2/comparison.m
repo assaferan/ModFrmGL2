@@ -172,7 +172,7 @@ intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
                return false;
             end if;
             G_im := sub< H`ModLevel | [H`ModLevel!ElementToSequence(g)
- 			      : g in G`Generators]>;
+ 			      : g in G`Generators] cat [-H`ModLevel!1]>;
             return H`ImageInLevel subset G_im;
 	 end if;
          if N mod Level(G) ne 0 then
@@ -181,7 +181,7 @@ intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
          require #G`gammaType_list eq 1 :
                  "Arguments should both be subgroups of PSL_2(Z)";
          levels := G`gammaType_list[1];
-         types := ["Gamma1", "Gamma0", "GammaUpper0"];
+         types := ["Gamma0", "Gamma1", "GammaUpper0"];
          for idx in [1..3] do
             if not is_in_gamma(H, levels[idx], types[idx]) then
 	       return false;
