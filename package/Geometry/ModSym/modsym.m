@@ -751,6 +751,8 @@ intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt, F::Fld,
    return M;
 end intrinsic;
 
+forward CreateTrivialSpaceGenEps;
+
 intrinsic ModularSymbolsFromGroup(eps::Map, G::GrpPSL2, k::RngIntElt, F::Fld,
                                         sign::RngIntElt) -> ModSym
 {The space of modular symbols of weight k and level G, with character eps.
@@ -784,7 +786,7 @@ intrinsic ModularSymbolsFromGroup(eps::Map, G::GrpPSL2, k::RngIntElt, F::Fld,
    end if;
 
    if eps(Domain(eps)![-1,0,0,-1]) ne (-1)^k then
-       return CreateTrivialSpaceGen(k,eps,sign);
+      return CreateTrivialSpaceGenEps(k,eps,F,sign,G);
    end if; 
 
    if GetVerbose("ModularSymbols") ge 2 then   
@@ -814,13 +816,13 @@ Sgens, Squot, Scoef := ManSym2termQuotientGen(mlist, eps, sign, G);
    if GetVerbose("ModularSymbols") ge 2 then   
       t := Cputime(); "III.\t3-term relations.";
    end if;
-Tgens, Tquot := ManSym3termQuotientGen(mlist, eps, Sgens, Squot, Scoef, G);
+   Tgens, Tquot := ManSym3termQuotientGen(mlist, eps, Sgens, Squot, Scoef, G);
    if GetVerbose("ModularSymbols") ge 2 then   
       printf "\t\t(%o s)\n",Cputime(t);
    end if;
    dim := #Tgens;
    if dim lt 1 then
-      return CreateTrivialSpaceGen(k,G,F,sign);
+   return CreateTrivialSpaceGenEps(k,eps,F,sign,G);
    end if;
 
    M := New(ModSym);
@@ -857,7 +859,7 @@ end intrinsic;
 //  !!! This is the new addition - check if we can merge
 //  with the existing ones
 
-forward CreateTrivialSpaceGenEps;
+// forward CreateTrivialSpaceGenEps;
 
 intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt, 
                          sign::RngIntElt, G::GrpPSL2, pi_Q::HomGrp) -> ModSym
@@ -1035,6 +1037,11 @@ function CreateTrivialSpaceGenEps(k,eps,F,sign,G)
 end function;
 
 function CreateTrivialSpaceGen(k,G,F,sign)
+   if not assigned G`ModLevel then
+      print "This function should only be called 
+             when G is not of gamma type";
+      assert false;
+   end if;
    N_G := Normalizer(G`ModLevel, G`ImageInLevel);
    Q, pi_Q := N_G / G`ImageInLevel;
    eps := TrivialRepresentation(Q);
