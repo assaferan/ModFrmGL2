@@ -859,7 +859,7 @@ end intrinsic;
 //  !!! This is the new addition - check if we can merge
 //  with the existing ones
 
-// forward CreateTrivialSpaceGenEps;
+//  forward CreateTrivialSpaceGenEps;
 
 intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt, 
                          sign::RngIntElt, G::GrpPSL2, pi_Q::HomGrp) -> ModSym
@@ -1556,8 +1556,13 @@ intrinsic Print(M::ModSym, level::MonStgElt)
               full, Level(M), Weight(M), DirichletCharacter(M), Dimension(M), BaseField(M);
       end if;
    else
+     if IsCharacterTrivial(M) then 
       printf "%oodular symbols space of level %o, weight %o, and dimension %o over %o",
       full, LevelSubgroup(M), Weight(M), Dimension(M), BaseField(M);
+     else
+      printf "%oodular symbols space of level %o, weight %o, character %o, and dimension %o over %o",
+      full, LevelSubgroup(M), Weight(M), DirichletCharacter(M), Dimension(M), BaseField(M);
+     end if;
    end if;
 end intrinsic;
 

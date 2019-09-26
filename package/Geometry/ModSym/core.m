@@ -211,6 +211,15 @@ CManSymList := recformat<
       n       // size of list of Manin symbols = #coset_list * (k-1).
 > ;
 
+CManSymGenList := recformat<
+      k,      // weight 
+      F,      // base field
+      R,      // F[X,Y].
+      coset_list, // List of coset representatives for the congruence subgroup
+      coset_list_inv, // List of their inverses to speed up computation
+      n       // size of list of Manin symbols = #coset_list * (k-1).
+> ;
+
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -336,7 +345,8 @@ end function;
 // C code
 function CosetReduce(x, list, G)
   for index in [1..#list] do
-     s := x*list[index]^(-1);
+     // s := x*list[index]^(-1);
+     s := x*list[index];
      if s in G then
         return index, s;
      end if;
@@ -397,13 +407,15 @@ end function;
  
 function ManinSymbolGenList(k,G,F) 
    coset_list := CosetRepresentatives(G);
+   coset_list_inv := [g^(-1) : g in CosetRepresentatives(G)];
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
-   return rec<CManSymList |
+   return rec<CManSymGenList |
       k      := k,            // weight
       F      := F,            // base field
       R      := R,            // polynomial ring F[X,Y]
-      coset_list := coset_list,     
+      coset_list := coset_list,
+      coset_list_inv := coset_list_inv,
       n      := n             
    >;
 end function;
@@ -522,7 +534,8 @@ function ManinSymbolApply(g, i, mlist, eps, k)
        uvg := g[2] * uvg;
      end if;
      uvg := PSL2(Integers())!uvg;
-     act_uv, s := CosetReduce(uvg, coset_list, eps);
+     coset_list_inv := mlist`coset_list_inv;
+     act_uv, s := CosetReduce(uvg, coset_list_inv, eps);
    else
      uvg := uv * g[2];
      act_uv, scalar := P1Reduce(uvg, coset_list);
@@ -559,7 +572,7 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
 // Apply g to the ith Manin symbol.
    uv, w, ind := UnwindManinSymbol(i,mlist);  
 
-   coset_list := mlist`coset_list;
+   coset_list_inv := mlist`coset_list_inv;
 
    if Type(g) eq SeqEnum then
         g := <g, GL(2,Integers())!g> ;
@@ -571,7 +584,7 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
      uvg := g[2] * uvg;
    end if;
    uvg := PSL2(Integers())!uvg;
-   act_uv, s := CosetReduce(uvg, coset_list, G);
+   act_uv, s := CosetReduce(uvg, coset_list_inv, G);
    s := Domain(eps)!ElementToSequence(s);
 
    if k eq 2 then
@@ -586,7 +599,7 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    pol := ElementToSequence(hP);
 
    // Put it together
-   n   := #coset_list;
+   n   := #coset_list_inv;
    ans := [<pol[w+1],  w*n + act_uv> : w in [0..#pol-1]];
    return [x : x in ans | x[1] ne 0];
 end function;
@@ -1380,7 +1393,8 @@ function ConvFromManinSymbol (M, P, uv)
      char := DirichletCharacter(M);
      is_trivial_char := IsTrivial(char);
    else
-     ind,s := CosetReduce(Parent(coset_list[1])!uv, coset_list, M`G);
+     coset_list_inv := mlist`coset_list_inv;  
+     ind,s := CosetReduce(Parent(coset_list[1])!uv, coset_list_inv, M`G);
      s := 1;
      is_trivial_char := true;
    end if;
@@ -1428,7 +1442,8 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
 	 if IsOfGammaType(M) then
             ind,s := P1Reduce(p1parent!uv, coset_list);
          else
-	    ind,s := CosetReduce(p1parent!uv, coset_list, M`G);
+	    coset_list_inv := mlist`coset_list_inv;
+	    ind,s := CosetReduce(p1parent!uv, coset_list_inv, M`G);
             s := 1;
          end if;
          if s ne 0 then 

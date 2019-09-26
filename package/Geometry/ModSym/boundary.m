@@ -214,9 +214,9 @@ end function;
 // same T orbit, and in that case what is the element in the group
 // transferring one coset to the other
  
-function BuildTOrbitTable(coset_list, G)
+function BuildTOrbitTable(coset_list, coset_list_inv, G)
   T := PSL2(Integers()) ! [1,1,0,1];
-  T_map := [CosetReduce(x * T, coset_list, G) : x in coset_list];
+  T_map := [CosetReduce(x * T, coset_list_inv, G) : x in coset_list];
   orbit_table := [[] : idx in [1..#coset_list]];
   cur_idx := 1;
   cur_orbit := 1;
@@ -249,9 +249,9 @@ end function;
 // This function checks whether the cusps a and b are equivalent.
 // It uses the orbit_table as input
 
-function CuspEquivGrp(coset_list, G, orbit_table, a, b)
+function CuspEquivGrp(coset_list, coset_list_inv, G, orbit_table, a, b)
   gs := [CuspInftyElt(cusp) : cusp in [a,b]];
-  idxs := [CosetReduce(PSL2(Integers())!g, coset_list, G) : g in gs];
+  idxs := [CosetReduce(PSL2(Integers())!g, coset_list_inv, G) : g in gs];
   orbit := [orbit_table[idx] : idx in idxs];
   if orbit[1][1] ne orbit[2][1] then // They are not in the same orbit
      return false, PSL2(Integers())!1;
@@ -317,7 +317,8 @@ function CuspToFreeHelper(M, sign, a)
    if not IsOfGammaType(M) then
       G     := LevelSubgroup(M);
       coset_list :=  M`mlist`coset_list;
-      orbit_table := BuildTOrbitTable(coset_list, G);
+      coset_list_inv := M`mlist`coset_list_inv;
+      orbit_table := BuildTOrbitTable(coset_list, coset_list_inv, G);
    end if;
    N     := Level(M);
    k     := Weight(M);
@@ -334,7 +335,8 @@ function CuspToFreeHelper(M, sign, a)
       if IsOfGammaType(M) then
         equiv, alp := CuspEquiv(N, b[1], a);   // [gam_alp(b[1])]=?=[a].
       else
-	equiv, alp := CuspEquivGrp(coset_list, G, orbit_table, b[1],a);
+        coset_list_inv := M`mlist`coset_list_inv;
+        equiv, alp := CuspEquivGrp(coset_list, coset_list_inv, G, orbit_table, b[1],a);
 // printf "alp=%o, eps=%o, ElementToSequence(alp)=%o, Domain(eps)=%o\n", alp, eps, ElementToSequence(alp), Domain(eps);
         alp := Domain(eps)!ElementToSequence(alp);
       end if;
@@ -357,7 +359,8 @@ function CuspToFreeHelper(M, sign, a)
          if IsOfGammaType(M) then
             equiv, alp := CuspEquiv(N, b[1], [-a[1],a[2]]);
          else
-	    equiv, alp := CuspEquivGrp(coset_list, G, orbit_table, b[1], [-a[1],a[2]]);
+	    coset_list_inv := M`mlist`coset_list_inv;
+            equiv, alp := CuspEquivGrp(coset_list, coset_list_inv, G, orbit_table, b[1], [-a[1],a[2]]);
             alp := Domain(eps)!ElementToSequence(alp);
          end if; 
          if equiv then
@@ -402,11 +405,12 @@ function CuspToFreeHelper(M, sign, a)
         Q := Codomain(pi_Q);
         H := PSL2Subgroup(Kernel(pi_Q));
         coset_list_H := CosetRepresentatives(H);
-        orbit_table_H := BuildTOrbitTable(coset_list_H, H);
+        coset_list_inv_H := [h^(-1) : h in coset_list_H];
+        orbit_table_H := BuildTOrbitTable(coset_list_H, coset_list_inv_H, H);
         for q in Q do
 	  q_elt := FindLiftToSL2(q @@ pi_Q);
           q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
-	  equiv, tmp := CuspEquivGrp(coset_list_H, H, orbit_table_H, q_a,a);
+          equiv, tmp := CuspEquivGrp(coset_list_H, coset_list_inv_H, H, orbit_table_H, q_a,a);
           if equiv and eps(q_elt)[1,1] ne 1 then
             c := F!0;
             break;
