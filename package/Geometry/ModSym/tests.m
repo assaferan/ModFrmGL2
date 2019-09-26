@@ -386,14 +386,17 @@ end procedure;
 
 function my_Gamma(N, type)
   G_N := GL(2, IntegerRing(N));
-  gens := [G_N![1,1,0,1],-G_N!1];
-  if type eq 0 then
-     for t in [1..N-1] do
-	 d,x,y:= ExtendedGreatestCommonDivisor(t,N);
-         if d eq 1 then
-	    Append(~gens, G_N![t,0,0,x]);
-         end if;
-     end for; 
+  gens := [-G_N!1];
+  if Type(type) eq RngIntElt then
+     Append(~gens, G_N![1,1,0,1]);
+     if type eq 0 then
+        for t in [1..N-1] do
+	    d,x,y:= ExtendedGreatestCommonDivisor(t,N);
+            if d eq 1 then
+	       Append(~gens, G_N![t,0,0,x]);
+            end if;
+        end for; 
+     end if;
   end if;
   H_N := sub<G_N | gens>;
   return PSL2Subgroup(H_N);

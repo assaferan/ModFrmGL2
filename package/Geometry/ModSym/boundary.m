@@ -70,7 +70,6 @@ forward           CuspEquiv,
                   CuspToFreeHelper,
                   ReduceCusp;
 
-
 /////////////////////////////////////////////////////////////
 //                                                         //
 //               Exported functions                        //
@@ -127,7 +126,7 @@ end intrinsic;
 
 intrinsic Cusps(M::ModSym) -> SeqEnum
 {The cusps of M.  The weight must be two and the character trivial.}
-   require IsCharacterTrivial(M) :
+   require IsTrivial(DirichletCharacter(M)) :
     "The dirichlet character of M must be trivial.";
    require Weight(M) eq 2 : "The weight of M must equal 2.";
    if not IsAmbientSpace(M) then
@@ -157,7 +156,7 @@ end function;
 
 intrinsic RationalCusps(M::ModSym) -> SeqEnum
 {The rational cusps of M.  The weight must be two and the character trivial.}
-   require IsCharacterTrivial(M) :
+   require IsTrivial(DirichletCharacter(M)) :
       "The character of M must be trivial.";
    require Weight(M) eq 2 : "The weight of M must equal 2.";
    C := Cusps(M);
@@ -169,7 +168,7 @@ end intrinsic;
 
 intrinsic StandardCusp(M::ModSym, x::FldRatElt) -> FldRatElt
 {The unique element of Cusps(M) that is equivalent to x.}
-   require IsCharacterTrivial(M) :
+   require IsTrivial(DirichletCharacter(M)) :
             "The dirichlet character of M must be trivial.";
    require Weight(M) eq 2 : "The weight of M must equal 2.";
 
@@ -180,7 +179,7 @@ end intrinsic;
 
 intrinsic StandardCusp(M::ModSym, x::RngIntElt) -> FldRatElt
 {The unique element of Cusps(M) that is equivalent to x.}
-   require IsCharacterTrivial(M) :
+   require IsTrivial(DirichletCharacter(M)) :
          "The dirichlet character of M must be trivial.";
    require Weight(M) eq 2 : "The weight of M must equal 2.";
 
@@ -313,7 +312,7 @@ function CuspToFreeHelper(M, sign, a)
    list  := M`cusplist;
    F     := BaseField(M);
    eps   := DirichletCharacter(M);   
-   is_trivial_eps := IsCharacterTrivial(M);
+   is_trivial_eps := IsTrivial(eps);
    if not IsOfGammaType(M) then
       G     := LevelSubgroup(M);
       coset_list :=  M`mlist`coset_list;
@@ -336,8 +335,8 @@ function CuspToFreeHelper(M, sign, a)
         equiv, alp := CuspEquiv(N, b[1], a);   // [gam_alp(b[1])]=?=[a].
       else
         coset_list_inv := M`mlist`coset_list_inv;
-        equiv, alp := CuspEquivGrp(coset_list, coset_list_inv, G, orbit_table, b[1],a);
-// printf "alp=%o, eps=%o, ElementToSequence(alp)=%o, Domain(eps)=%o\n", alp, eps, ElementToSequence(alp), Domain(eps);
+        equiv, alp := CuspEquivGrp(coset_list, coset_list_inv,
+				   G, orbit_table, b[1],a);
         alp := Domain(eps)!ElementToSequence(alp);
       end if;
       if equiv then
@@ -345,7 +344,6 @@ function CuspToFreeHelper(M, sign, a)
             return <F!0,1>;
          end if;
          if is_trivial_eps then
-         //if IsTrivial(eps) then
             return <1,i>;
          else
 	    if IsOfGammaType(M) then
@@ -360,7 +358,8 @@ function CuspToFreeHelper(M, sign, a)
             equiv, alp := CuspEquiv(N, b[1], [-a[1],a[2]]);
          else
 	    coset_list_inv := M`mlist`coset_list_inv;
-            equiv, alp := CuspEquivGrp(coset_list, coset_list_inv, G, orbit_table, b[1], [-a[1],a[2]]);
+            equiv, alp := CuspEquivGrp(coset_list, coset_list_inv,
+				       G, orbit_table, b[1], [-a[1],a[2]]);
             alp := Domain(eps)!ElementToSequence(alp);
          end if; 
          if equiv then
@@ -368,7 +367,6 @@ function CuspToFreeHelper(M, sign, a)
                return <F!0,1>;
             end if;
             if is_trivial_eps then
-            // if IsTrivial(eps) then
                return <sign,i>;
             else
 	      if IsOfGammaType(M) then
@@ -384,7 +382,6 @@ function CuspToFreeHelper(M, sign, a)
    // Determine if this cusp class is killed by the relations.
    c := F!1;
    if not is_trivial_eps then
-	  //if not IsTrivial(eps) then
      if IsOfGammaType(M) then
       u := a[1]; v := a[2];
       g := Gcd(N,v);
@@ -410,7 +407,8 @@ function CuspToFreeHelper(M, sign, a)
         for q in Q do
 	  q_elt := FindLiftToSL2(q @@ pi_Q);
           q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
-          equiv, tmp := CuspEquivGrp(coset_list_H, coset_list_inv_H, H, orbit_table_H, q_a,a);
+          equiv, tmp := CuspEquivGrp(coset_list_H, coset_list_inv_H,
+				     H, orbit_table_H, q_a,a);
           if equiv and eps(q_elt)[1,1] ne 1 then
             c := F!0;
             break;

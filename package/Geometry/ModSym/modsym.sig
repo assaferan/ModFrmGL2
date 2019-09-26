@@ -25,7 +25,8 @@ S,IsEisenstein,True if and only if M is contained in the Eisenstein subspace of 
 S,BaseRing,The base ring of the space M of modular symbols,0,1,0,0,0,0,0,0,0,ModSym,,-44,-38,-38,-38,-38,-38
 S,BaseField,The base field of the space M of modular symbols,0,1,0,0,0,0,0,0,0,ModSym,,-24,-38,-38,-38,-38,-38
 S,IsOfGammaType,True if and only if M is of gamma type,0,1,0,0,0,0,0,0,0,ModSym,,36,-38,-38,-38,-38,-38
-S,IsCharacterTrivial,True if and only if M has a trivial character,0,1,0,0,0,0,0,0,0,ModSym,,36,-38,-38,-38,-38,-38
+S,IsTrivial,For internal use only,1,0,2,175,1,178,0,320,1,176,0,-24,1,0,0,0,0,0,0,0,175,,36,-38,-38,-38,-38,-38
+S,IsTrivial,For internal use only,1,0,2,175,1,178,0,320,1,178,0,-24,1,0,0,0,0,0,0,0,175,,36,-38,-38,-38,-38,-38
 S,DirichletCharacter,The Dirichlet character of the space M of modular symbols,0,1,0,0,0,0,0,0,0,ModSym,,82,-38,-38,-38,-38,-38
 S,IsPlusQuotient,True if and only if the sign of M is +1,0,1,0,0,0,0,0,0,0,ModSym,,82,-38,-38,-38,-38,-38
 S,IsMinusQuotient,True if and only if the sign of M is -1,0,1,0,0,0,0,0,0,0,ModSym,,82,-38,-38,-38,-38,-38

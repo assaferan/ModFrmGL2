@@ -346,6 +346,7 @@ end function;
 function CosetReduce(x, list, G)
   for index in [1..#list] do
      // s := x*list[index]^(-1);
+     // we now work with the list of inverses
      s := x*list[index];
      if s in G then
         return index, s;

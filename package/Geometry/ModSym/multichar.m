@@ -155,7 +155,7 @@ intrinsic ModularSymbols(reps::[ModGrp], pi_Q::HomGrp, k::RngIntElt,
       require Domain(Representation(reps[i])) eq Codomain(pi_Q) : 
             "The representations in argument 1 must all be of the same finite group, which has to be the image of the map in argument 2";
    end for;
-   M`eps  := reps;
+   M`eps  := [pi_Q * Representation(rep) : rep in reps];
    M`sign := sign;
    M`F    := RationalField();
    M`G := G;
@@ -247,7 +247,8 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
       M := ModularSymbols(chars, k, sign);
       M`isgamma1 := true;
       return M;
-   elif IsCongruence(G) and G eq CongruenceSubgroup(Level(G)) then
+// elif IsCongruence(G) and G eq CongruenceSubgroup(Level(G)) then
+   elif IsGamma(G) then
       N := Level(G);
       F := CyclotomicField(EulerPhi(N^2));
       D := Elements(DirichletGroup(N^2,F));
@@ -264,6 +265,11 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
       if assigned G`ModLevel then
 	 N_G := Normalizer(G`ModLevel, G`ImageInLevel);
          Q, pi_Q := N_G / G`ImageInLevel;
+         // At the moment, magma cannot compute irreducible modules for
+         // non soluble groups over characteristic 0 fields
+         if not IsSoluble(Q) then
+	    return ModularSymbolsFromGroup(G,k,Rationals(),sign);
+         end if;
          D := AbsolutelyIrreducibleModules(Q,Rationals());
          reps := GaloisConjugacyRepresentatives(D);
          M := ModularSymbols(reps, pi_Q, k, sign, G);
@@ -351,6 +357,10 @@ intrinsic IsTrivial(chars::[GrpDrchElt]) -> BoolElt
    return false;
 end intrinsic;
 
+intrinsic IsTrivial(chars::[Map]) -> BoolElt
+{For internal use only}
+   return false;
+end intrinsic;
 
 /************************************************************************
  *                                                                      *
@@ -370,7 +380,9 @@ intrinsic MultiSpaces(M::ModSym) -> SeqEnum
       if Type(reps[1]) eq GrpDrchElt then
 	 M`multi := [ModularSymbols(MinimalBaseRingCharacter(eps),k,sign) : eps in reps];
       else
-         M`multi := [ModularSymbols(AbsoluteModuleOverMinimalField(r),k,sign,M`G,M`pi_Q) : r in reps];
+         reps := [AbsoluteModuleOverMinimalField(GModule(Components(r)[2])) :
+					       r in reps];
+         M`multi := [ModularSymbols(r,k,sign,M`G,M`pi_Q) : r in reps];
       end if;
    end if;
    return M`multi;

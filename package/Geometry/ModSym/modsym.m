@@ -734,15 +734,14 @@ intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt, F::Fld,
    // Definitely should not happen, but just in case
    if M`N eq 1 then
     return ModularSymbols(1, k, F, sign);
-   else
-    if not assigned G`ModLevel then
+   end if;
+   if not assigned G`ModLevel then
       G`ModLevel := SL(2, IntegerRing(M`N));
       G`ImageInLevel := sub<G`ModLevel | [ElementToSequence(g)
 				       : g in Generators(G)]>;
-    end if;
-    N_G := Normalizer(G`ModLevel, G`ImageInLevel);
-    Q, pi_Q := N_G / G`ImageInLevel;
    end if;
+   N_G := Normalizer(G`ModLevel, G`ImageInLevel);
+   Q, pi_Q := N_G / G`ImageInLevel;
    M`eps := pi_Q * TrivialRepresentation(Q);
    if IsVerbose("ModularSymbols") then
       printf "\t\t(total time to create space = %o seconds)\n",Cputime(tt);
@@ -1121,17 +1120,20 @@ intrinsic IsOfGammaType(M::ModSym) -> BoolElt
    end if;
 end intrinsic;
 
-function IsTrivialCharacter(chi)
+intrinsic IsTrivial(chi_pi::Map[GrpMat[RngIntRes], AlgMat[Fld]])
+  -> BoolElt
+{For internal use only}
+   comps := Components(chi_pi);
+   chi := comps[#comps];
    return &and[IsIdentity(chi(g)) : g in Generators(Domain(chi))];
-end function;
+end intrinsic;
 
-intrinsic IsCharacterTrivial(M::ModSym) -> BoolElt
-{True if and only if M has a trivial character}
-   if IsOfGammaType(M) then
-      return IsTrivial(DirichletCharacter(M));
-   else
-      return IsTrivialCharacter(DirichletCharacter(M));
-   end if;
+intrinsic IsTrivial(chi_pi::Map[GrpMat[RngIntRes], GrpMat[Fld]])
+  -> BoolElt
+{For internal use only}
+   comps := Components(chi_pi);
+   chi := comps[#comps];
+   return &and[IsIdentity(chi(g)) : g in Generators(Domain(chi))];
 end intrinsic;
 
 intrinsic DirichletCharacter(M::ModSym) -> SeqEnum
@@ -1556,12 +1558,18 @@ intrinsic Print(M::ModSym, level::MonStgElt)
               full, Level(M), Weight(M), DirichletCharacter(M), Dimension(M), BaseField(M);
       end if;
    else
-     if IsCharacterTrivial(M) then 
-      printf "%oodular symbols space of level %o, weight %o, and dimension %o over %o",
-      full, LevelSubgroup(M), Weight(M), Dimension(M), BaseField(M);
+     if IsTrivial(DirichletCharacter(M)) then
+       printf "%oodular symbols space of level %o, weight %o, and dimension %o over %o",
+       full, LevelSubgroup(M), Weight(M), Dimension(M), BaseField(M);
+     elif IsMultiChar(AmbientSpace(M)) then
+       printf "%oodular symbols space of level %o, weight %o, and dimension %o over %o (multi-character)",
+              full, Level(M), Weight(M), Dimension(M), BaseField(M);
      else
-      printf "%oodular symbols space of level %o, weight %o, character %o, and dimension %o over %o",
-      full, LevelSubgroup(M), Weight(M), DirichletCharacter(M), Dimension(M), BaseField(M);
+       eps := DirichletCharacter(M);
+       gens := Generators(Domain(eps));
+       values_on_gens := [eps(g) : g in gens];
+       printf "%oodular symbols space of level %o, weight %o, character sending %o to %o, and dimension %o over %o",
+         full, LevelSubgroup(M), Weight(M), gens, values_on_gens, Dimension(M), BaseField(M);
      end if;
    end if;
 end intrinsic;

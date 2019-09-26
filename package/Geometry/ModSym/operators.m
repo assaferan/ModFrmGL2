@@ -520,6 +520,10 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
    assert Type(M) eq ModSym;
    assert Type(p) eq RngIntElt;
    assert IsPrime(p);
+   // We currently do not support the U_p operators for arbitrary subgroups
+   if not IsOfGammaType(M) then
+      assert Level(M) mod p ne 0;
+   end if;
    R := [[1,r,0,p] : r in [0..p-1]];
    if Level(M) mod p ne 0 then
       Append(~R,[p,0,0,1]);
