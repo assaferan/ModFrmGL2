@@ -137,7 +137,7 @@ intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt,
 end intrinsic;
 
 
-intrinsic ModularSymbols(reps::[ModGrp], pi_Q::HomGrp, k::RngIntElt, 
+intrinsic ModularSymbols(reps::[ModGrp], pi_Q::Map, k::RngIntElt, 
 			 sign::RngIntElt, G::GrpPSL2) -> ModSym
 {Constructs modular symbols with the representations. } 
    requirege k,2;   
@@ -150,7 +150,11 @@ intrinsic ModularSymbols(reps::[ModGrp], pi_Q::HomGrp, k::RngIntElt,
    M := New(ModSym);
    M`is_ambient_space := true;
    M`k    := k;
-   M`N    := Modulus(BaseRing(Domain(pi_Q)));
+   if #Domain(pi_Q) eq 1 then
+      M`N := 1;
+   else
+      M`N    := Modulus(BaseRing(Domain(pi_Q)));
+   end if;
    for i in [1..#reps] do 
       require Domain(Representation(reps[i])) eq Codomain(pi_Q) : 
             "The representations in argument 1 must all be of the same finite group, which has to be the image of the map in argument 2";
@@ -267,7 +271,7 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
          Q, pi_Q := N_G / G`ImageInLevel;
          // At the moment, magma cannot compute irreducible modules for
          // non soluble groups over characteristic 0 fields
-         if not IsSoluble(Q) then
+         if (not IsSoluble(Q)) or (#Q eq 1) then
 	    return ModularSymbolsFromGroup(G,k,Rationals(),sign);
          end if;
          D := AbsolutelyIrreducibleModules(Q,Rationals());
@@ -380,9 +384,15 @@ intrinsic MultiSpaces(M::ModSym) -> SeqEnum
       if Type(reps[1]) eq GrpDrchElt then
 	 M`multi := [ModularSymbols(MinimalBaseRingCharacter(eps),k,sign) : eps in reps];
       else
-         reps := [AbsoluteModuleOverMinimalField(GModule(Components(r)[2])) :
-					       r in reps];
-         M`multi := [ModularSymbols(r,k,sign,M`G,M`pi_Q) : r in reps];
+         min_reps := [];
+	 for r in reps do
+	    comps := Components(r);
+            module := GModule(comps[#comps]);
+            Append(~min_reps, AbsoluteModuleOverMinimalField(module));
+         end for;
+         N_G := PSL2Subgroup(Domain(M`pi_Q));
+         M`multi := [ModularSymbols(r,k,sign,N_G,M`pi_Q) :
+				     r in min_reps];
       end if;
    end if;
    return M`multi;

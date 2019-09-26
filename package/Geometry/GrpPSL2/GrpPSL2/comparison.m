@@ -76,7 +76,7 @@ intrinsic 'eq' (G::GrpPSL2,H::GrpPSL2) -> BoolElt
     {True iff the given congruence subgroups of PSL_2(Z) are equal.}
     // Warning! this may not work well for non congruence groups!
     if G`BaseRing cmpne H`BaseRing then return false; end if;
-    if assigned G`Level and assigned H`Level then
+     if assigned G`Level and assigned H`Level then
         levels := {G`Level, H`Level};
         if levels eq {1} then return true;
         elif 1 in levels then return false;
@@ -143,8 +143,8 @@ end function;
 
 intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
     {True iff H is a subgroup of G, where G and H are subgroups of PSL_2(Z).}
-    if G eq PSL2(Integers()) then
-	return Type(H`BaseRing) eq RngInt;
+    if (assigned G`Level) and (G`Level eq 1) then
+       return Type(H`BaseRing) eq Type(G`BaseRing);
     end if;
     if not H`IsOfGammaType then
        if assigned H`Generators then

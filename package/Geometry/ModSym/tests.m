@@ -355,7 +355,7 @@ procedure Test_Rouse_single(gens, level, genus, id)
    N := level;
    G := GL(2,IntegerRing(N));
    H_N := sub<G | gens>;
-   H := PSL2Subgroup(H_N);
+   H := PSL2Subgroup(H_N, true);
 // print "Creating space of modular symbols...\n";
    M := ModularSymbols(H);
 //print "Done!\n";
@@ -385,6 +385,10 @@ procedure Test_Rouse()
 end procedure;
 
 function my_Gamma(N, type)
+  if N eq 1 then
+     // just take en entire GL(2,N) for some N
+    return PSL2Subgroup(GL(2,IntegerRing(2)), false);
+  end if;
   G_N := GL(2, IntegerRing(N));
   gens := [-G_N!1];
   if Type(type) eq RngIntElt then
@@ -399,7 +403,33 @@ function my_Gamma(N, type)
      end if;
   end if;
   H_N := sub<G_N | gens>;
-  return PSL2Subgroup(H_N);
+  return PSL2Subgroup(H_N, true);
+end function;
+
+function make_group_copy(M)
+  k := Weight(M);
+  sign := Sign(M);
+  eps := DirichletCharacter(M);
+  if (Evaluate(eps,-1) eq -1) then
+     print "Currently can only work with even characters...";
+     return false;
+  end if;
+  N := Level(M);
+  G0 := my_Gamma(N,0);
+  G1 := my_Gamma(N,1);
+  Q, pi_Q := G0`ImageInLevel / G1`ImageInLevel;
+  gens := SetToSequence(Generators(G0`ImageInLevel));
+  D := AbsolutelyIrreducibleModules(Q,Rationals());
+  reps := [pi_Q * Representation(r) : r in D];
+  vals_all := [[r(g)[1,1] : g in gens] : r in reps];
+  vals_eps := [Evaluate(eps, g[2,2]) : g in gens];
+  for i in [1..#reps] do
+     if vals_eps eq vals_all[i] then
+	return ModularSymbols(D[i], k, sign, G0, pi_Q); 
+     end if;
+  end for;
+  print "Error! Could not find an appropriate character!\n";
+  return false;
 end function;
 
 procedure DoTests(numchecks)

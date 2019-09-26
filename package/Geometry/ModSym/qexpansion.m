@@ -187,7 +187,7 @@ end intrinsic;
 
 intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
 {"} // "
-   if IsMultiChar(M) then
+   if IsMultiChar(M) and IsOfGammaType(M) then
       return qEigenform(AssociatedNewformSpace(M), prec);
    end if;
 
@@ -196,7 +196,7 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
 
 //      require IsCuspidal(M) : "Argument 1 must be cuspidal.";
 
-      if IsMultiChar(AmbientSpace(M)) then
+      if IsMultiChar(AmbientSpace(M)) and IsOfGammaType(M) then
          return qEigenform(AssociatedNewformSpace(M),prec);
       end if;
 

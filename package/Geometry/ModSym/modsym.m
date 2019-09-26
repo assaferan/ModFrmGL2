@@ -217,8 +217,7 @@ declare attributes ModSym:
          eps,                // Dirichlet character
          G,                  // a level subgroup
                              // (arbitrary congruence subgroup of PSL2(Z)
-         pi_Q,               // quotient map from normalizer of G 
-
+         pi_Q,               // quotient map to N_G/G 
          multi,              // Sequence of modular symbols spaces if
          is_multi,           // IsMultiChar is true (if eps is a sequence)
          multi_modsymgens,   // generating modular symbols in that case
@@ -731,13 +730,13 @@ intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt, F::Fld,
    // !!! Temporary - might slow performance significantly
    // Usually should not get here
 
-   // Definitely should not happen, but just in case
-   if M`N eq 1 then
-    return ModularSymbols(1, k, F, sign);
-   end if;
    if not assigned G`ModLevel then
-      G`ModLevel := SL(2, IntegerRing(M`N));
-      G`ImageInLevel := sub<G`ModLevel | [ElementToSequence(g)
+     if M`N eq 1 then
+        G`ModLevel := SL(1, IntegerRing(2));
+        G`ImageInLevel := SL(1, IntegerRing(2));
+     end if;
+     G`ModLevel := SL(2, IntegerRing(M`N));
+     G`ImageInLevel := sub<G`ModLevel | [ElementToSequence(g)
 				       : g in Generators(G)]>;
    end if;
    N_G := Normalizer(G`ModLevel, G`ImageInLevel);
@@ -821,7 +820,7 @@ Sgens, Squot, Scoef := ManSym2termQuotientGen(mlist, eps, sign, G);
    end if;
    dim := #Tgens;
    if dim lt 1 then
-   return CreateTrivialSpaceGenEps(k,eps,F,sign,G);
+     return CreateTrivialSpaceGenEps(k,eps,F,sign,G);
    end if;
 
    M := New(ModSym);
@@ -861,7 +860,7 @@ end intrinsic;
 //  forward CreateTrivialSpaceGenEps;
 
 intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt, 
-                         sign::RngIntElt, G::GrpPSL2, pi_Q::HomGrp) -> ModSym
+                         sign::RngIntElt, G::GrpPSL2, pi_Q::Map) -> ModSym
 {The space of modular symbols of weight k and irreducible representation rep,
     as a subspace of the modular symbols of weight k and level G.
  The level and base field are specified as part of overM.
@@ -891,17 +890,19 @@ intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt,
       end if;
    end if;
 
-   N_G := PSL2Subgroup(Normalizer(G`ModLevel, G`ImageInLevel));
+// N_G := PSL2Subgroup(Normalizer(G`ModLevel, G`ImageInLevel));
+//   N_G := PSL2Subgroup(Domain(pi_Q));
    if IsVerbose("ModularSymbols") then
       tt := Cputime();
-      printf "Computing space of modular symbols of level %o and weight %o....\n", N_G,k;
+      printf "Computing space of modular symbols of level %o and weight %o....\n", G,k;
    end if;
 
    if Dimension(rep) eq 1 then
-      return ModularSymbolsFromGroup(pi_Q * Representation(rep), N_G, k, F, sign);
+      return ModularSymbolsFromGroup(pi_Q * Representation(rep), G, k, F, sign);
    end if;
 
-   overM := ModularSymbolsFromGroup(N_G, k, F, sign);
+   smaller_G := PSL2Subgroup(Kernel(pi_Q));
+   overM := ModularSymbolsFromGroup(smaller_G, k, F, sign);
    Q := Domain(Representation(rep));
    Q_lifts := [FindLiftToSL2(q @@ pi_Q) : q in GeneratorsSequence(Q)];
    Q_acts := [ActionOnModularSymbolsBasis(ElementToSequence(n), overM) : n in Q_lifts];
@@ -910,7 +911,7 @@ intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt,
    subreps := GHom(rep, ChangeRing(overM_as_Q_module, F));
 
    if Dimension(subreps) eq 0 then
-      return CreateTrivialSpaceGenEps(k,rep,F,sign,N_G);
+     return CreateTrivialSpaceGenEps(k,pi_Q * Representation(rep),F,sign,G);
    end if;
 
    B_rep := Basis(rep);
@@ -1563,7 +1564,7 @@ intrinsic Print(M::ModSym, level::MonStgElt)
        full, LevelSubgroup(M), Weight(M), Dimension(M), BaseField(M);
      elif IsMultiChar(AmbientSpace(M)) then
        printf "%oodular symbols space of level %o, weight %o, and dimension %o over %o (multi-character)",
-              full, Level(M), Weight(M), Dimension(M), BaseField(M);
+              full, LevelSubgroup(M), Weight(M), Dimension(M), BaseField(M);
      else
        eps := DirichletCharacter(M);
        gens := Generators(Domain(eps));
