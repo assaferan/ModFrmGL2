@@ -1366,8 +1366,9 @@ where N is the level of M.
 }
    if IsMultiChar(M) then
       return M!MC_ManinSymToBasis(M,x);
-   end if;
+   end if;  
    return M!ConvFromManinSymbol(M,x[1],x[2]);
+ 
 end intrinsic;
 
 
@@ -1390,20 +1391,23 @@ function ConvFromManinSymbol (M, P, uv)
    coset_list := mlist`coset_list;
    n   := #coset_list;
    if IsOfGammaType(M) then
-     ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list);
-     char := DirichletCharacter(M);
-     is_trivial_char := IsTrivial(char);
+     ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list); 
    else
      coset_list_inv := mlist`coset_list_inv;  
      ind,s := CosetReduce(Parent(coset_list[1])!uv, coset_list_inv, M`G);
-     s := 1;
-     is_trivial_char := true;
    end if;
 
-   if not is_trivial_char then
-      P := R!Evaluate(char,Integers()!s) * P;
-   elif s eq 0 then
-      P := 0;
+   char := DirichletCharacter(M);
+   is_trivial_char := IsTrivial(char);
+
+   if IsOfGammaType(M) then
+      if not is_trivial_char then
+         P := R!Evaluate(char,Integers()!s) * P;
+      elif s eq 0 then
+         P := 0;
+      end if;
+   else
+      P := R!(char(Domain(char)!ElementToSequence(s))[1,1]) * P;
    end if;
    if k eq 2 then    // case added 04-09, SRD
       if P eq 0 then
@@ -1431,12 +1435,8 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
    P := BaseRing(R)!P;
    coset_list := mlist`coset_list;
    p1parent := Parent(coset_list[1]);
-   if IsOfGammaType(M) then
-     char := DirichletCharacter(M);
-     trivial :=  IsTrivial(char);
-   else
-      trivial := true;
-   end if;
+   char := DirichletCharacter(M);
+   trivial :=  IsTrivial(char);
    symbols := [];
    if P ne 0 then
       for uv in uvs do
@@ -1445,13 +1445,16 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
          else
 	    coset_list_inv := mlist`coset_list_inv;
 	    ind,s := CosetReduce(p1parent!uv, coset_list_inv, M`G);
-            s := 1;
          end if;
-         if s ne 0 then 
+         if (Type(s) ne RngIntElt) or (s ne 0) then 
             if trivial then
                a := 1;
             else
-               a := Evaluate(char,Integers()!s); 
+	      if IsOfGammaType(M) then
+               a := Evaluate(char,Integers()!s);
+              else
+	       a := char(Domain(char)!ElementToSequence(s))[1,1];
+              end if;
             end if;
             Append(~symbols, <a*P,ind>);
          end if;

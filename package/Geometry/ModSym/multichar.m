@@ -588,23 +588,38 @@ function MC_ModSymBasis(M : cache_raw_basis:=false )
       mat := MatrixAlgebra(Rationals(),dim)!0;
       monomials := [X^i*Y^(k-2-i) : i in [0..k-2]];
 
-      // Run through pairs u,v in Z/N in some order
-      // TO DO: how can we guess which are likely to be independent generators?
-      for u := 0 to N-1 do
-         for v := 0 to N-1 do
-            if GCD([u,v,N]) ne 1 then continue; end if;
-	    for pol in monomials do 
-               gen := <pol, [u,v]>;
-               x := MC_ManinSymToBasis(M,gen);
-               Include(~W, x, ~x_is_new);
-               if x_is_new then
-                  Append(~G, gen);
-                  mat[#G] := x;
-                  if #G eq dim then break u; end if;        
-               end if; 
+      if IsOfGammaType(M) then
+        // Run through pairs u,v in Z/N in some order
+        // TO DO: how can we guess which are likely to be independent generators?
+         for u := 0 to N-1 do
+            for v := 0 to N-1 do
+               if GCD([u,v,N]) ne 1 then continue; end if;
+	       for pol in monomials do 
+                  gen := <pol, [u,v]>;
+                  x := MC_ManinSymToBasis(M,gen);
+                  Include(~W, x, ~x_is_new);
+                  if x_is_new then
+                     Append(~G, gen);
+                     mat[#G] := x;
+                     if #G eq dim then break u; end if;        
+                  end if; 
+               end for;
             end for;
          end for;
-      end for;
+      else
+	 for coset_rep in M`mlist`coset_list do
+	     for pol in monomials do
+		 gen := <pol, coset_rep>;
+                 x := MC_ManinSymToBasis(M,gen);
+                 Include(~W, x, ~x_is_new);
+                 if x_is_new then
+                     Append(~G, gen);
+                     mat[#G] := x;
+                     if #G eq dim then break coset_rep; end if;        
+                 end if; 
+	     end for;
+	 end for;
+      end if;
       assert #G eq dim;
 
       matinv := mat^(-1);

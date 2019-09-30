@@ -1,11 +1,11 @@
 // freeze;
-ROOT_DIR := "/Users/eranassaf/Documents/Code/Magma/package/Geometry/";
+ROOT_DIR := "./Geometry/";
 AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2/spec");
 AttachSpec(ROOT_DIR cat "GrpPSL2/SymFry/spec"); 
 AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
 SetHelpUseExternalBrowser(false);
 SetDebugOnError(true);
-SetVerbose("ModularSymbols", 0);
+// SetVerbose("ModularSymbols", 0);
 
 /****-*-magma-* EXPORT DATE: 2004-03-08 ************************************
                                                                           
@@ -406,6 +406,106 @@ function my_Gamma(N, type)
   return PSL2Subgroup(H_N, true);
 end function;
 
+// Here we test some easy examples from Stein's book
+procedure Test_Stein_8_33()
+  printf "Testing Stein Example 8.33\n";
+  M := ModularSymbols(my_Gamma(1,0),4);
+  assert Dimension(M) eq 1;
+  // There is only the Eisenstein - E4
+  for p in [2,3,5,7,11] do
+     Tp := HeckeOperator(M,p);
+     assert Tp eq Matrix([[p^3+1]]);
+  end for;
+end procedure;
+
+procedure Test_Stein_8_34()
+  printf "Testing Stein Example 8.34\n";
+  M := ModularSymbols(my_Gamma(11,0));
+  assert Dimension(M) eq 3;
+  T := HeckeOperator(M,2);
+  assert Eigenvalues(T) eq {<3,1>,<-2,2>};
+end procedure;
+
+procedure Test_Stein_8_35()
+  printf "Testing Stein Example 8.35\n";
+  M := ModularSymbols(my_Gamma(3,0),6);
+  assert Dimension(M) eq 4;
+  T2 := HeckeOperator(M,2);
+  assert Eigenvalues(T2) eq {<33,2>,<-6,2>};
+  T3 := HeckeOperator(M,3);
+  assert Eigenvalues(T3) eq {<1,1>, <243,1>, <9,2>};
+  T5 := HeckeOperator(M,5);
+  assert Eigenvalues(T5) eq {<3126,2>, <6,2>};
+  T7 := HeckeOperator(M,7);
+  assert Eigenvalues(T7) eq {<16808,2>,<-40,2>};
+  S := CuspidalSubspace(M);
+  assert Dimension(S) eq 2;
+  g := qEigenform(S,8);
+  q := Parent(g).1;
+  assert g eq q-6*q^2+9*q^3+4*q^4+6*q^5-54*q^6-40*q^7+O(q^8);
+end procedure;
+
+procedure Test_Stein_8_36()
+  printf "Testing Stein Example 8.36\n";
+  M := ModularSymbols(my_Gamma(43,0));
+  assert Dimension(M) eq 7;
+  T2 := HeckeOperator(M,2);
+  f2 := CharacteristicPolynomial(T2);
+  x := Parent(f2).1;
+  assert f2 eq (x-3)*(x+2)^2*(x^2-2)^2;
+  S := CuspidalSubspace(M);
+  assert Dimension(S) eq 6;
+end procedure;
+
+procedure Test_Stein_8_37()
+  printf "Testing Stein Example 8.37\n";
+  SetVerbose("ModularSymbols", 2);
+  M := ModularSymbols(my_Gamma(2004,0));
+  SetVerbose("ModularSymbols", 0);
+  assert Dimension(M) eq 673;
+  M_plus := ModularSymbols(my_Gamma(2004,0),2,-1);
+  assert Dimension(M_plus) eq 331;
+end procedure;
+
+procedure Test_Stein_9_6()
+  printf "Testing Stein Example 9.6\n";
+  M_old := ModularSymbols(my_Gamma(11,0));
+  S_old := CuspidalSubspace(M_old);
+  assert Dimension(S_old) eq 2;
+  M := ModularSymbols(my_Gamma(22,0));
+  S := CuspidalSubspace(M);
+  assert Dimension(S) eq 4;
+  T2 := HeckeOperator(S,2);
+  f2 := CharacteristicPolynomial(T2);
+  x := Parent(f2).1;
+  assert f2 eq (x^2+2*x+2)^2;
+end procedure;
+
+procedure Test_Stein_9_7()
+  printf "Testing Stein Example 9.7\n";
+  M_old := ModularSymbols(my_Gamma(9,0));
+  S_old := CuspidalSubspace(M_old);
+  assert Dimension(S_old) eq 0;
+  M_old := ModularSymbols(my_Gamma(15,0));
+  S_old := CuspidalSubspace(M_old);
+  assert Dimension(S_old) eq 2;
+  M := ModularSymbols(my_Gamma(45,0));
+  S := CuspidalSubspace(M);
+  assert Dimension(S) eq 6;
+  T2 := HeckeOperator(S,2);
+  f2 := CharacteristicPolynomial(T2);
+  x := Parent(f2).1;
+  assert f2 eq (x^2+2*x+2)^2;
+end procedure;
+
+procedure Test_Stein()
+  Test_Stein_8_34();
+  Test_Stein_8_35();
+  Test_Stein_8_36();
+// Test_Stein_8_37();
+  Test_Stein_9_6();
+end procedure;
+
 function make_group_copy(M)
   k := Weight(M);
   sign := Sign(M);
@@ -443,5 +543,6 @@ procedure DoTests(numchecks)
  //  Test_EllipticCurve();
    Test_qExpansionBasis(numchecks);
    Test_Rouse();
+   Test_Stein();
 end procedure;
 

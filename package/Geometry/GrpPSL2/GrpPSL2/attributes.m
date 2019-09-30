@@ -174,7 +174,7 @@ intrinsic Print(G::GrpPSL2, level::MonStgElt)
         num_printed_gens := Minimum(5, #G`FS_cosets);
         printf "Arithmetic subgroup of PSL2 with coset representatives\n";
         for coset_idx in [1..num_printed_gens] do
-            printf "%o,\n", G`FS_cosets[coset_idx];
+            printf "%o\n,", G`FS_cosets[coset_idx];
         end for;
         if #G`FS_cosets gt 5 then
            printf "... (there are %o cosets)\n", #G`FS_cosets;
