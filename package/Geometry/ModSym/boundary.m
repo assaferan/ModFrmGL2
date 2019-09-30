@@ -256,9 +256,8 @@ function CuspEquivGrp(coset_list, coset_list_inv, G, orbit_table, a, b)
      return false, PSL2(Integers())!1;
   end if;
   t := PSL2(Integers())![1, orbit[1][2] - orbit[2][2], 0, 1];
-  gamma := coset_list[idxs[2]] * t * coset_list[idxs[1]]^(-1);
-  h := [gs[i] * Matrix(coset_list[idxs[i]]^(-1)) : i in [1..2]];
-  return true, PSL2(Integers())!(h[2] * Matrix(gamma) * h[1]^(-1));
+  gamma  := gs[2] * Matrix(t) * gs[1]^(-1);
+  return true, PSL2(Integers())!gamma;
 end function; 
 
 function CuspEquiv(N,a,b) 
