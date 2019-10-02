@@ -322,7 +322,7 @@ that is isomorphic to M as module of the Hecke algebra}
 //"DualVectorSpace: Evaluate on", BaseRing(Parent(cp)), "and", BaseRing(Tp); time
             if (Level(M) mod p ne 0  and Characteristic(BaseField(M)) eq 0) and IsOfGammaType(M) then
                fT := &*[Evaluate(f[1],Tp) : f in Factorization(cp)];
-            else
+            else // why?? 
                fT := Evaluate(cp, Tp);
             end if;
             

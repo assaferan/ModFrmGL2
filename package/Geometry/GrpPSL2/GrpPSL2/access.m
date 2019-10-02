@@ -40,6 +40,23 @@ intrinsic Level(G::GrpPSL2) -> RngIntElt
    end if;
 end intrinsic;
 
+intrinsic ImageInLevel(G::GrpPSL2) -> GrpMat
+{The image of G in SL_2(Z/NZ), where N is the level.}
+  if assigned G`ImageInLevel then
+     return G`ImageInLevel;
+  else
+     gens := Generators(G);
+     N := Level(G);
+     if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
+        G`ModLevel := SL(2,quo<G`BaseRing | N>);
+     else
+        G`ModLevel := MatrixAlgebra(quo<G`BaseRing | N>,2);
+     end if;
+     G`ImageInLevel := sub< G`ModLevel | [G`ModLevel!Matrix(g) : g in gens]>;
+     return G`ImageInLevel;
+  end if;
+end intrinsic;
+
 intrinsic CongruenceIndices(G::GrpPSL2) -> RngIntElt
    {For G  a congruence subgroup, returns [[N,M,P]]
    where G consists of matrices [a,b,c,d] with

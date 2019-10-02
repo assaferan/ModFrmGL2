@@ -5,6 +5,7 @@ S,Identity,The identity element of G,0,1,0,0,0,0,0,0,0,GrpPSL2,,GrpPSL2Elt,-38,-
 S,Eltseq,Eltseq for the given element A in PSL_2(Z),0,1,0,0,0,0,0,0,0,GrpPSL2Elt,,82,-38,-38,-38,-38,-38
 S,Parent,,0,1,0,0,0,0,0,0,0,GrpPSL2Elt,,GrpPSL2,-38,-38,-38,-38,-38
 S,Level,The level of G,0,1,0,0,0,0,0,0,0,GrpPSL2,,148,-38,-38,-38,-38,-38
+S,ImageInLevel,"The image of G in SL_2(Z/NZ), where N is the level",0,1,0,0,0,0,0,0,0,GrpPSL2,,178,-38,-38,-38,-38,-38
 S,CongruenceIndices,"For G a congruence subgroup, returns [[N,M,P]] where G consists of matrices [a,b,c,d] with c = 0 mod N, a, d = 1 mod M, b = 0 mod P",0,1,0,0,0,0,0,0,0,GrpPSL2,,148,-38,-38,-38,-38,-38
 S,Genus,The genus of the upper half plane quotiented by the congruence subgroup G,0,1,0,0,0,0,0,0,0,GrpPSL2,,148,-38,-38,-38,-38,-38
 S,Matrix,returns an element of a matrix group corresponding to g,0,1,0,0,0,0,0,0,0,GrpPSL2Elt,,180,-38,-38,-38,-38,-38

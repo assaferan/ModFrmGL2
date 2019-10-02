@@ -918,11 +918,13 @@ intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt,
    phis := Basis(subreps);
    // V := Representation(overM);
    V := ChangeRing(Representation(overM), F);
- 
+
+   // !!! Here there are two many if rep is not absolutely irreducible
+
    subspaces_gens := [[V!phi(b) : b in B_rep] : phi in phis];
    subspaces := [sub<V | gens> : gens in subspaces_gens];
 
-   M := &+[ModularSymbolsSub(overM, sub) : sub in subspaces];
+   M := &+ [ModularSymbolsSub(overM, sub) : sub in subspaces];
 
    if IsVerbose("ModularSymbols") then
       printf "\t\t(total time to create space = %o seconds)\n",Cputime(tt);

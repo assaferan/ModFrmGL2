@@ -520,9 +520,19 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
    assert Type(M) eq ModSym;
    assert Type(p) eq RngIntElt;
    assert IsPrime(p);
-   R := [[1,r,0,p] : r in [0..p-1]];
-   if Level(M) mod p ne 0 then
-      Append(~R,[p,0,0,1]);
+   if IsOfGammaType(M) then
+      R := [[1,r,0,p] : r in [0..p-1]];
+      if Level(M) mod p ne 0 then
+         Append(~R,[p,0,0,1]);
+      end if;
+   else
+     // This is not very efficient but it works 
+     alpha := GL(2,Rationals())![1,0,0,p];
+     H := Conjugate(M`G meet Gamma0(p), alpha^(-1));
+     // What we really want here is just alpha * Transversal(G,H);
+     reprs := [alpha * GL(2,Rationals())!Eltseq(x) :
+		       x in CosetRepresentatives(H) | x in M`G];
+     R := [Eltseq(g) : g in reprs];
    end if;
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;
