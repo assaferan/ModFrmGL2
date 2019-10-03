@@ -169,6 +169,9 @@ intrinsic ModularSymbols(reps::[ModGrp], pi_Q::Map, k::RngIntElt,
    M`dual_representation  := VectorSpace(M`F,M`dimension);
    M`mlist := ManinSymbolGenList(M`k, M`G, M`F);
    M`isgamma_type := false;
+   M`hecke_known_primes := [];
+   M`hecke_known_reprs := [];
+   M`hecke_known_graph := [];
    return M;
 end intrinsic;
 

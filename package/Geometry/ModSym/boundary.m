@@ -59,7 +59,7 @@ freeze;
                                                                             
  ***************************************************************************/
 
-import "../GrpPSL2/GrpPSL2/creation.m" : FindLiftToSL2;
+// import "../GrpPSL2/GrpPSL2/creation.m" : FindLiftToSL2;
 
 import "core.m" : CosetReduce,
                   LiftToCosetRep,

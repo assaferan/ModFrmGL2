@@ -273,7 +273,10 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
       Append(~H_gens, new_g);
   end for;
   new_level := Level(G) * Integers()!(Determinant(A)^(-1));
-  return SubgroupFromGens(PSL2(Integers()), H_gens, new_level, false);
+  mod_level :=  SL(2,quo<G`BaseRing | new_level>);
+  gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
+  im_in_level := sub<mod_level | gens_level >;
+  return PSL2Subgroup(im_in_level, false);
 end intrinsic;
 
 intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
@@ -321,6 +324,34 @@ intrinsic 'meet' (G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
     return Intersection(G,H);
 end intrinsic;
 
+import "../../ModSym/core.m" : CosetReduce;
+
+intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
+{calculates the level of a subgroups of PSL2}
+  coset_list := CosetRepresentatives(G);
+  coset_list_inv := [x^(-1) : x in coset_list];
+  T := PSL2(Integers()) ! [1,1,0,1];
+  T_map := [CosetReduce(x * T, coset_list_inv, G) : x in coset_list];
+  perm_T := SymmetricGroup(#T_map)!T_map;
+  level := Order(perm_T);
+  // setting attributes which depend on the level
+  if level eq 1 then
+      G`ModLevel := SL(1, IntegerRing(2));
+      G`ImageInLevel := SL(1,IntegerRing(2));
+      return level;
+   end if;
+   if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
+        G`ModLevel := SL(2,quo<G`BaseRing | level>);
+   else
+        G`ModLevel := MatrixAlgebra(quo<G`BaseRing | level>,2);
+   end if;
+   G`ImageInLevel := sub<G`ModLevel | Generators(G`ImageInLevel)>;
+   cosets := Transversal(G`ModLevel, G`ImageInLevel);
+   G`FS_cosets := [FindLiftToSL2(c) : c in cosets];
+   return level;
+end intrinsic;
+
+/*
 function calcLevel(G)
    if not assigned G`ModLevel then
      return false; // should not be here
@@ -356,7 +387,7 @@ function calcLevel(G)
    cosets := Transversal(G`ModLevel, G`ImageInLevel);
    return level;
 end function;
-
+*/
  // Eventually we would like to compute the level and check
  // whether it is a congruence subgroup ourselves
  
@@ -390,7 +421,8 @@ end intrinsic;
 
 // Lift an element of SL2(Z/NZ) to an element of SL2(Z)
  
-function FindLiftToSL2(g)
+intrinsic FindLiftToSL2(g::GrpMatElt) -> GrpPSL2Elt
+{finds a lift in SL2 for g}
      a,b,c,d := Explode(ElementToSequence(g)); 
      N := Modulus(Parent(a));
      Z := Integers();
@@ -409,7 +441,7 @@ function FindLiftToSL2(g)
      d_prime := Z!d + x * (1 - det);       
      lift_g := SL(2,Z)![a_prime, b_prime, c_prime, d_prime];
      return lift_g;
-end function;
+end intrinsic;
 
 intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
 			  IsExactLevel::BoolElt) -> GrpPSL2

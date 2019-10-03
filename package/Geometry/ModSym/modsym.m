@@ -234,8 +234,15 @@ declare attributes ModSym:
          sign,               // sign -- see doc of ModularSymbols()
 
 // Hecke bound
-         hecke_bound,        // if assigned, replaces the "Sturm Bound". 
+         hecke_bound,        // if assigned, replaces the "Sturm Bound".
 
+// Precomputed representatives for the Hecke action
+  
+         hecke_known_primes,
+         hecke_known_reprs,
+         hecke_known_graph,
+         hecke_map,
+  
 // tree structure
          root,             // parent
          is_ambient_space,            // true <==> M is the root.
@@ -717,6 +724,9 @@ intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt, F::Fld,
    M`sign := sign;
    M`F    := F;
    M`isgamma_type := false;
+   M`hecke_known_primes := [];
+   M`hecke_known_reprs := [];
+   M`hecke_known_graph := [];
    
    M`mlist:= mlist;
    M`quot := rec<CQuotient |  
@@ -835,6 +845,9 @@ Sgens, Squot, Scoef := ManSym2termQuotientGen(mlist, eps, sign, G);
    M`F    := F;
    M`eps := eps;
    M`isgamma_type := false;
+   M`hecke_known_primes := [];
+   M`hecke_known_reprs := [];
+   M`hecke_known_graph := [];
    
    M`mlist:= mlist;
    M`quot := rec<CQuotient |  
@@ -1024,6 +1037,9 @@ function CreateTrivialSpaceGenEps(k,eps,F,sign,G)
    M`sign := sign;
    M`F := F;
    M`isgamma_type := false;
+   M`hecke_known_primes := [];
+   M`hecke_known_reprs := [];
+   M`hecke_known_graph := [];
 
    M`quot := rec<CQuotient | Sgens:=[], Squot:=[], 
                Scoef:=[], Tgens := [], Tquot:=[]>;
