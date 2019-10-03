@@ -457,9 +457,9 @@ with respect to Basis(M).}
            use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
                              and IsTrivial(DirichletCharacter(M));
 	   T := HeckeOperatorHeilbronn(M, Heilbronn(M, n, not use_cremona));
-      else
+         else
            T := HeckeOperatorDirectlyOnModularSymbols(M,n);
-      end if;
+         end if;
 /*  Using "DirectlyOn" fails in this example!!
     G<a>:=DirichletGroup(109,GF(4));M:=ModularSymbols(a,2);
     T7:=HeckeOperator(M,7);T23:=HeckeOperator(M,23);
@@ -526,16 +526,12 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
          Append(~R,[p,0,0,1]);
       end if;
    else
-     /*
      N := Level(M);
-     d, x, y := ExtendedGreatestCommonDivisor(N,p); 
+     d, x, y := ExtendedGreatestCommonDivisor(N^2,p); 
      if d eq 1 then
        R := [[1,r*x*N,0,p] : r in [0..p-1]];
-       Append(~R,[p,0,0,1]);
-       else */
-      if p in M`hecke_known_primes then
-         R := M`hecke_map(p);
-      else
+       Append(~R, [p*y,-x*N,p*N,p]);
+     else
         // This is not very efficient but it works 
         alpha := GL(2,Rationals())![1,0,0,p];
         H := Conjugate(M`G meet Gamma0(p), alpha^(-1));
@@ -543,13 +539,7 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
         reprs := [alpha * GL(2,Rationals())!Eltseq(x) :
 		       x in CosetRepresentatives(H) | x in M`G];
         R := [Eltseq(g) : g in reprs];
-        Append(~M`hecke_known_primes, p);
-        Append(~M`hecke_known_reprs, R);
-        Append(~M`hecke_known_graph, <p,R>);
-        M`hecke_map := map< M`hecke_known_primes -> M`hecke_known_reprs |
-                        M`hecke_known_graph>;
-      end if;
-// end if;
+     end if;
    end if;
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;
