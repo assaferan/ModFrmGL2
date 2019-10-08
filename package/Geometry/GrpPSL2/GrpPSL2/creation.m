@@ -324,14 +324,15 @@ intrinsic 'meet' (G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
     return Intersection(G,H);
 end intrinsic;
 
-import "../../ModSym/core.m" : CosetReduce;
+import "../../ModSym/core.m" : CosetReduce, ManinSymbolGenList;
 
 intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
 {calculates the level of a subgroups of PSL2}
-  coset_list := CosetRepresentatives(G);
-  coset_list_inv := [x^(-1) : x in coset_list];
+  mlist := ManinSymbolGenList(2,G,G`BaseRing);
+  coset_list := mlist`coset_list;
+  find_coset := mlist`find_coset;
   T := PSL2(Integers()) ! [1,1,0,1];
-  T_map := [CosetReduce(x * T, coset_list_inv, G) : x in coset_list];
+  T_map := [CosetReduce(x * T, find_coset, G) : x in coset_list];
   perm_T := SymmetricGroup(#T_map)!T_map;
   level := Order(perm_T);
   // setting attributes which depend on the level
@@ -478,4 +479,11 @@ end intrinsic;
 intrinsic PSL2Subgroup(H::GrpMat) -> GrpPSL2
  {returns a subgroup of PSL2(Z) whose image is H (assumes -I in H)}
    return PSL2Subgroup(H, true);
+end intrinsic;
+
+intrinsic PSL2Subgroup(H::GrpMat,label::MonStgElt) -> GrpPSL2
+ {returns a subgroup of PSL2(Z) whose image is H (assumes -I in H)}
+   ret :=  PSL2Subgroup(H, true);
+   ret`Label := label;
+   return ret;
 end intrinsic;

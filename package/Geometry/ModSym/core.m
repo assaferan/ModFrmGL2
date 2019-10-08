@@ -216,7 +216,8 @@ CManSymGenList := recformat<
       F,      // base field
       R,      // F[X,Y].
       coset_list, // List of coset representatives for the congruence subgroup
-      coset_list_inv, // List of their inverses to speed up computation
+   //      coset_list_inv, // List of their inverses to speed up computation
+      find_coset, // a map from results of computations to cosets
       n       // size of list of Manin symbols = #coset_list * (k-1).
 > ;
 
@@ -340,10 +341,24 @@ end function;
 //              so the representation relation is                       //
 //                   eps(s)(r) = gamma                                  //
 //////////////////////////////////////////////////////////////////////////
- 
+
+forward get_non_split_cartan_coset;
+
 // The original is now in the C - we might want to change the corresponding
 // C code
-function CosetReduce(x, list, G)
+function CosetReduce(x, find_coset, G)
+  
+  if IsGammaNS(G) or IsGammaNSplus(G) then
+     t := Universe(Domain(find_coset)).1;
+     val := get_non_split_cartan_coset(x,t);
+     index_g := find_coset(val);
+     index := index_g[1];
+     g := index_g[2];
+     s := x*g^(-1);
+     return index, s;
+  end if;
+
+  list := find_coset;
   for index in [1..#list] do
      // s := x*list[index]^(-1);
      // we now work with the list of inverses
@@ -352,6 +367,7 @@ function CosetReduce(x, list, G)
         return index, s;
      end if;
   end for;
+
   // error - could not find an appropriate coset
   assert false;
 end function;
@@ -388,6 +404,14 @@ function ManinSymbolList(k,N,F)
    >;
 end function;
 
+// special function to handel the ns cartan case better
+// act by the inverse to get a right action
+
+function get_non_split_cartan_coset(g, x)
+  a,b,c,d := Explode([Parent(x)!y : y in Eltseq(g)]);
+  return (d*x-b)/(-c*x+a);
+end function;
+
 //////////////////////////////////////////////////////////////////////////
 // ManinSymbolGenList:                                                  //
 // Construct a list of distinct (Generalized) Manin symbols.            //
@@ -408,7 +432,27 @@ end function;
  
 function ManinSymbolGenList(k,G,F) 
    coset_list := CosetRepresentatives(G);
-   coset_list_inv := [g^(-1) : g in CosetRepresentatives(G)];
+   if IsGammaNS(G) or IsGammaNSplus(G) then
+      u := G`ns_cartan_u;
+      FF := GF(Modulus(Parent(u)));
+      F2<x> := ExtensionField< FF, x | x^2-FF!u>;
+      coset_list_idxs := {<i, coset_list[i]> : i in [1..#coset_list]};
+      coset_vals := {<Parent(x)!get_non_split_cartan_coset(coset_list[i],x),
+		     <i, coset_list[i]> > :
+		     i in [1..#coset_list]};
+      if IsGammaNSplus(G) then
+         coset_vals_n :=  {<Parent(x)!get_non_split_cartan_coset
+			   (coset_list[i],-x),
+		                 <i, coset_list[i]> > :
+		                 i in [1..#coset_list]};
+         coset_vals := coset_vals join coset_vals_n;
+      end if;
+      dom := {x[1] : x in coset_vals};
+      find_coset := map<dom -> coset_list_idxs | coset_vals>;
+   else
+     find_coset := [g^(-1) : g in coset_list];
+   end if;
+   // coset_list_inv := [g^(-1) : g in CosetRepresentatives(G)];
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
    return rec<CManSymGenList |
@@ -416,7 +460,8 @@ function ManinSymbolGenList(k,G,F)
       F      := F,            // base field
       R      := R,            // polynomial ring F[X,Y]
       coset_list := coset_list,
-      coset_list_inv := coset_list_inv,
+   // coset_list_inv := coset_list_inv,
+      find_coset := find_coset,
       n      := n             
    >;
 end function;
@@ -535,8 +580,10 @@ function ManinSymbolApply(g, i, mlist, eps, k)
        uvg := g[2] * uvg;
      end if;
      uvg := PSL2(Integers())!uvg;
-     coset_list_inv := mlist`coset_list_inv;
-     act_uv, s := CosetReduce(uvg, coset_list_inv, eps);
+     // coset_list_inv := mlist`coset_list_inv;
+     find_coset := mlist`find_coset;
+     // act_uv, s := CosetReduce(uvg, coset_list_inv, eps);
+     act_uv, s := CosetReduce(uvg, find_coset, eps);
    else
      uvg := uv * g[2];
      act_uv, scalar := P1Reduce(uvg, coset_list);
@@ -573,7 +620,8 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
 // Apply g to the ith Manin symbol.
    uv, w, ind := UnwindManinSymbol(i,mlist);  
 
-   coset_list_inv := mlist`coset_list_inv;
+// coset_list_inv := mlist`coset_list_inv;
+   find_coset := mlist`find_coset;
 
    if Type(g) eq SeqEnum then
         g := <g, GL(2,Integers())!g> ;
@@ -585,7 +633,8 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
      uvg := g[2] * uvg;
    end if;
    uvg := PSL2(Integers())!uvg;
-   act_uv, s := CosetReduce(uvg, coset_list_inv, G);
+// act_uv, s := CosetReduce(uvg, coset_list_inv, G);
+   act_uv, s := CosetReduce(uvg, find_coset, G);
    s := Domain(eps)!ElementToSequence(s);
 
    if k eq 2 then
@@ -600,7 +649,8 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    pol := ElementToSequence(hP);
 
    // Put it together
-   n   := #coset_list_inv;
+   // n   := #coset_list_inv;
+   n := #Domain(find_coset);
    ans := [<pol[w+1],  w*n + act_uv> : w in [0..#pol-1]];
    return [x : x in ans | x[1] ne 0];
 end function;
@@ -1393,8 +1443,10 @@ function ConvFromManinSymbol (M, P, uv)
    if IsOfGammaType(M) then
      ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list); 
    else
-     coset_list_inv := mlist`coset_list_inv;  
-     ind,s := CosetReduce(Parent(coset_list[1])!uv, coset_list_inv, M`G);
+     // coset_list_inv := mlist`coset_list_inv;  
+     // ind,s := CosetReduce(Parent(coset_list[1])!uv, coset_list_inv, M`G);
+     find_coset := mlist`find_coset;  
+     ind,s := CosetReduce(Parent(coset_list[1])!uv, find_coset, M`G);
    end if;
 
    char := DirichletCharacter(M);
@@ -1434,17 +1486,19 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
    R := mlist`R;
    P := BaseRing(R)!P;
    coset_list := mlist`coset_list;
-   p1parent := Parent(coset_list[1]);
+   coset_parent := Parent(coset_list[1]);
    char := DirichletCharacter(M);
    trivial :=  IsTrivial(char);
    symbols := [];
    if P ne 0 then
       for uv in uvs do
 	 if IsOfGammaType(M) then
-            ind,s := P1Reduce(p1parent!uv, coset_list);
+            ind,s := P1Reduce(coset_parent!uv, coset_list);
          else
-	    coset_list_inv := mlist`coset_list_inv;
-	    ind,s := CosetReduce(p1parent!uv, coset_list_inv, M`G);
+	   // coset_list_inv := mlist`coset_list_inv;
+	   //  ind,s := CosetReduce(p1parent!uv, coset_list_inv, M`G);
+	   find_coset := mlist`find_coset;
+	   ind,s := CosetReduce(coset_parent!uv, find_coset, M`G);
          end if;
          if (Type(s) ne RngIntElt) or (s ne 0) then 
             if trivial then

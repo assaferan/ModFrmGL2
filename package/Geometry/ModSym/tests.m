@@ -406,6 +406,37 @@ function my_Gamma(N, type)
   return PSL2Subgroup(H_N, true);
 end function;
 
+function is_in_non_split_cartan(g,u)
+  a,b,c,d := Explode(Eltseq(g));
+  return (a eq d) and (b eq u*c);
+end function;
+
+function non_split_cartan(N, plus, u)
+  G_N := SL(2, IntegerRing(N));
+  // currently assumes N=p is prime
+  F := GF(N);
+  F2<t> := ExtensionField<F,t | t^2-F!u>;
+  zeta := PrimitiveElement(F2)^(N-1);
+  a := F!((zeta + Frobenius(zeta))/2);
+  b := F!((zeta - Frobenius(zeta))/(2*t));
+  g := [a,F!u*b,b,a];
+  C_N := sub<G_N | [IntegerRing(N)!x : x in g]>;
+  label_prefix := "Gamma_ns";
+  label_suffix := "(" cat IntegerToString(N) cat ")";
+  if plus then
+    C_N := Normalizer(G_N, C_N);
+    label_prefix := label_prefix cat "+";
+  end if;
+  G := PSL2Subgroup(C_N, label_prefix cat label_suffix);
+  G`ns_cartan_u := u;
+  return G;
+end function;
+
+function non_split_cartan_any(N, plus)
+  u := PrimitiveElement(IntegerRing(N));
+  return non_split_cartan(N,plus,u);
+end function;
+
 // Here we test some easy examples from Stein's book
 procedure Test_Stein_8_33()
   printf "Testing Stein Example 8.33\n";

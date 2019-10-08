@@ -526,20 +526,21 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
          Append(~R,[p,0,0,1]);
       end if;
    else
+     /*	
      N := Level(M);
      d, x, y := ExtendedGreatestCommonDivisor(N^2,p); 
      if d eq 1 then
-       R := [[1,r*x*N,0,p] : r in [0..p-1]];
+       R := [[1,r*x*N^2,0,p] : r in [0..p-1]];
        Append(~R, [p*y,-x*N,p*N,p]);
      else
-        // This is not very efficient but it works 
+     */        // This is not very efficient but it works 
         alpha := GL(2,Rationals())![1,0,0,p];
-        H := Conjugate(M`G meet Gamma0(p), alpha^(-1));
+        H := Conjugate(M`G meet Gamma0(p), alpha^(-1)) meet M`G;
         // What we really want here is just alpha * Transversal(G,H);
         reprs := [alpha * GL(2,Rationals())!Eltseq(x) :
 		       x in CosetRepresentatives(H) | x in M`G];
         R := [Eltseq(g) : g in reprs];
-     end if;
+//    end if;
    end if;
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;

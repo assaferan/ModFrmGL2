@@ -20,3 +20,4 @@ S,FindLiftToSL2,finds a lift in SL2 for g,0,1,0,0,0,0,0,0,0,180,,GrpPSL2Elt,-38,
 S,SubgroupFromMod,returns the subgroup of G generated whose image is H0,0,4,0,0,0,0,0,0,0,36,,0,0,178,,0,0,148,,0,0,GrpPSL2,,GrpPSL2,-38,-38,-38,-38,-38
 S,PSL2Subgroup,returns a subgroup of PSL2(Z) whose image is H (assumes -I in H),0,2,0,0,0,0,0,0,0,36,,0,0,178,,GrpPSL2,-38,-38,-38,-38,-38
 S,PSL2Subgroup,returns a subgroup of PSL2(Z) whose image is H (assumes -I in H),0,1,0,0,0,0,0,0,0,178,,GrpPSL2,-38,-38,-38,-38,-38
+S,PSL2Subgroup,returns a subgroup of PSL2(Z) whose image is H (assumes -I in H),0,2,0,0,0,0,0,0,0,298,,0,0,178,,GrpPSL2,-38,-38,-38,-38,-38

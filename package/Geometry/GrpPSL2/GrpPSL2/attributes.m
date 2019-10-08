@@ -16,12 +16,14 @@ freeze;
 declare type GrpPSL2 [GrpPSL2Elt];
 
 declare attributes GrpPSL2:
+   Label, // for printing purposes
    MatrixGroup,   // 
    BaseRing,      // 
    EichlerOrder,  // Used to define a Shimura subgroup, i.e.   
                   // intersection of 2 maximal orders
 		  // in a quaternion order.
-   MatrixRepresentation,     // for Shimura groups 
+   MatrixRepresentation,     // for Shimura groups
+   ns_cartan_u, // when this is non-split cartan, remember the nonsquare u
    Level,         // least integer N such that
                   // Gamma(N) is contained in the group.
    ModLevel,      // GL(2,Z/NZ)
@@ -71,7 +73,6 @@ declare attributes GrpPSL2:
    FS_otherEdges,
    FS_glue_list;  // currently this is assigned in the function
                   // FindWord in words_for_matrices.m
-
 
 declare type GrpPSL2Elt;
 
@@ -154,7 +155,11 @@ function gammaGroupString(gammatype)
 end function;
 	
 intrinsic Print(G::GrpPSL2, level::MonStgElt)
-    {}    
+    {}
+    if assigned G`Label then
+       print G`Label;
+       return;
+    end if;
     if assigned G`IsNormalizer and G`IsNormalizer then
        // Note: computation of normalizer not yet implemented.
        printf "Normalizer in PSL_2(R) of ";
