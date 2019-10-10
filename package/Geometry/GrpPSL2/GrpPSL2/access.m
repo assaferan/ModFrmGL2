@@ -46,15 +46,69 @@ intrinsic ImageInLevel(G::GrpPSL2) -> GrpMat
      return G`ImageInLevel;
   else
      gens := Generators(G);
+     modLevel := ModLevel(G);
+     G`ImageInLevel := sub< modLevel | [modLevel!Matrix(g) : g in gens]>;
+     return G`ImageInLevel;
+  end if;
+end intrinsic;
+
+intrinsic ModLevel(G::GrpPSL2) -> GrpMat
+  {SL_2(Z/NZ), where N is the level.}
+  if assigned G`ModLevel then
+     return G`ModLevel;
+  else
      N := Level(G);
+     if N eq 1 then return CyclicGroup(1); end if;
      if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
         G`ModLevel := SL(2,quo<G`BaseRing | N>);
      else
         G`ModLevel := MatrixAlgebra(quo<G`BaseRing | N>,2);
      end if;
-     G`ImageInLevel := sub< G`ModLevel | [G`ModLevel!Matrix(g) : g in gens]>;
-     return G`ImageInLevel;
+     return G`ModLevel;
   end if;
+end intrinsic;
+
+intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt
+ {return the (non square) element u used to create the group.
+     i.e. such that N | a-d, N | b-uc.}
+   // Although it makes sense, we actually need the function to
+   // determine whether that's true
+   // require IsGammaNS(G) or IsGammaNSplus(G);
+   size := #ImageInLevel(G);
+   p := Level(G);
+   if size eq p+1 then
+      index_ns := true;
+   elif size eq 2*(p+1) then
+      index_ns := false;
+   else
+      return 0;
+   end if;
+   gens := Generators(ImageInLevel(G));
+   good := [x : x in gens | (x[1,1] eq x[2,2]) and (x[2,1] ne 0)];
+   if not index_ns then 
+      good := [x : x in good | x[1,1] ne 0];
+   end if;
+   if #good ne 0 then
+      g := good[1];
+      if not IsUnit(g[2,1]) then return 0; end if;
+      return g[1,2]/g[2,1];
+   else
+      if index_ns then return 0; end if;
+      good := [x : x in gens | (x[1,1] eq -x[2,2]) and (x[2,1] ne 0)];
+      if #good ne 0 then
+         g := good[1];
+         if not IsUnit(g[2,1]) then return 0; end if;
+         return -g[1,2]/g[2,1];
+      end if;
+      good := [x : x in gens | (x[1,2] eq x[2,1]) and (x[2,2] ne 0) and
+		               (x[1,2] ne 0)];
+      if #good ne 0 then
+         g := good[1];
+         if not IsUnit(g[2,2]) then return 0; end if;
+         return g[1,1]/g[2,2];
+      end if;
+   end if;
+   return 0;
 end intrinsic;
 
 intrinsic CongruenceIndices(G::GrpPSL2) -> RngIntElt

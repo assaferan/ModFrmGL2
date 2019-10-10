@@ -23,7 +23,6 @@ declare attributes GrpPSL2:
                   // intersection of 2 maximal orders
 		  // in a quaternion order.
    MatrixRepresentation,     // for Shimura groups
-   ns_cartan_u, // when this is non-split cartan, remember the nonsquare u
    Level,         // least integer N such that
                   // Gamma(N) is contained in the group.
    ModLevel,      // GL(2,Z/NZ)
@@ -98,7 +97,7 @@ function find_factor(a,b)
 end function;
    
 
-function gammaIntersectiontionList(gammatype)
+function gammaIntersectionList(gammatype)
     // given a sequence list [N,M,P],
     // want to return a sequence [A,B1,B2,B3,C,D,E]
     // so that the group is
@@ -130,7 +129,7 @@ end function;
 
 function gammaGroupString(gammatype)
     // this prints the group correponding to gammatype=[a,b,c]
-    level := gammaIntersectiontionList(gammatype);    
+    level := gammaIntersectionList(gammatype);    
     string := ["" : i in [1..5]];
     scripts :=["_0","_1","","^1","^0"];
     start := 1;

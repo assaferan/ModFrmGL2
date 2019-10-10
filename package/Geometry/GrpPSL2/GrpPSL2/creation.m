@@ -48,6 +48,7 @@ intrinsic PSL2(R::Rng) -> GrpPSL2
     G := init_psl2_group(1,R);
     G`BaseRing := R;
     G`Level := 1;
+    G`IsOfGammaType := true;
     G`gammaType_list:=[[1,1,1]];
     if Type(R) eq RngInt then
        T := G![1,1,0,1];
@@ -55,7 +56,6 @@ intrinsic PSL2(R::Rng) -> GrpPSL2
        G`Generators := [T,S];
     end if;
     G`conjugate_list:=[GL(2,R)!1];
-    G`IsOfGammaType := true;
     return G;
 end intrinsic;
 
@@ -167,6 +167,44 @@ intrinsic GammaUpper1(N::RngIntElt) -> GrpPSL2
     return G;
 end intrinsic;
 
+intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
+{creates the congruence subgroup Gamma_ns(N), choosing u as the nonsquare
+    such that N | a-d, N | b-uc}
+  require N gt 0: "N must be a positive integer";
+  require Modulus(Parent(u)) eq N: "u must be a mod N residue";
+  primes := [x[1] : x in Factorization(N)];
+  good_u := &and[not IsSquare(IntegerRing(p)!u) : p in primes];
+  require good_u: "u must be a nonsquare mod every prime dividing N";
+  G_N := SL(2, IntegerRing(N));
+  // currently assumes N=p is prime
+  // In general will have to consider arbitrary irreducibles
+  F := GF(N);
+  F2<t> := ExtensionField<F,t | t^2-F!u>;
+  zeta := PrimitiveElement(F2)^(N-1);
+  a := F!((zeta + Frobenius(zeta))/2);
+  b := F!((zeta - Frobenius(zeta))/(2*t));
+  g := [a,F!u*b,b,a];
+  C_N := sub<G_N | [IntegerRing(N)!x : x in g]>;
+  G := PSL2Subgroup(C_N);
+  G`Label := Sprintf("Gamma_ns(%o)", N);
+  return G;
+end intrinsic;
+
+intrinsic GammaNS(N::RngIntElt) -> GrpPSL2
+{creates the congruence subgroup Gamma_ns(N)}
+   u := PrimitiveElement(IntegerRing(N));
+   return GammaNS(N,u);
+end intrinsic;
+
+intrinsic GammaNSplus(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
+{creates the congruence subgroup Gamma_ns^plus(N)}
+   return Normalizer(GammaNS(N,u));
+end intrinsic;
+
+intrinsic GammaNSplus(N::RngIntElt) -> GrpPSL2
+{creates the congruence subgroup Gamma_ns^plus(N)}
+  return Normalizer(GammaNS(N));
+end intrinsic;
 
 //////////////////////////////////////////////////////////
 //                                                      //
@@ -177,15 +215,21 @@ end intrinsic;
 
 intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
    {The normalizer of a congruence subgroup in SL_2(R)}
-   require IsGamma0(G): "the argument must be Gamma_0(N) for some integer N";
-   H := init_psl2_group(Level(G),Integers());
-   N := Level(G);
-   H`gammaType_list := [[N,1,1]]; 
+   // require IsGamma0(G): "the argument must be Gamma_0(N) for some integer N";
+   if IsGamma0(G) then
+     H := init_psl2_group(Level(G),Integers());
+     N := Level(G);
+     H`gammaType_list := [[N,1,1]]; 
+     F := Factorization(N);
+     r := #F;
+     H`LevelFactorization := F;
+     H`AtkinLehnerInvolutions := VectorSpace(FiniteField(2),r);
+   else     
+     N_G := Normalizer(ModLevel(G), ImageInLevel(G));
+     H := PSL2Subgroup(N_G);
+   end if;
    H`IsNormalizer := true;
-   F := Factorization(N);
-   r := #F;
-   H`LevelFactorization := F;
-   H`AtkinLehnerInvolutions := VectorSpace(FiniteField(2),r);
+   H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat G`Label;
    return H;
 end intrinsic;
 
@@ -352,43 +396,6 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
    return level;
 end intrinsic;
 
-/*
-function calcLevel(G)
-   if not assigned G`ModLevel then
-     return false; // should not be here
-   end if;
-   level := Modulus(BaseRing(G`ModLevel));
-   primes := Factorization(level);
-   prev_level := 0;
-   while (level ne prev_level) do
-      prev_level := level;
-      for i in [1..#primes] do
-	 new_level := level div primes[i][1];
-	 if CongruenceSubgroup(new_level) subset G then
-	    level := new_level;
-            primes[i][2] -:= 1;
-            if primes[i][2] eq 0 then
-	       Remove(~primes,i);
-            end if;
-            break;
-	 end if;
-      end for;
-   end while;
-   if level eq 1 then
-      G`ModLevel := SL(1, IntegerRing(2));
-      G`ImageInLevel := SL(1,IntegerRing(2));
-      return level;
-   end if;
-   if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
-        G`ModLevel := SL(2,quo<G`BaseRing | level>);
-   else
-        G`ModLevel := MatrixAlgebra(quo<G`BaseRing | level>,2);
-   end if;
-   G`ImageInLevel := sub<G`ModLevel | Generators(G`ImageInLevel)>;
-   cosets := Transversal(G`ModLevel, G`ImageInLevel);
-   return level;
-end function;
-*/
  // Eventually we would like to compute the level and check
  // whether it is a congruence subgroup ourselves
  

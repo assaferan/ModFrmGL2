@@ -1,7 +1,6 @@
 // freeze;
 ROOT_DIR := "./Geometry/";
-AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2/spec");
-AttachSpec(ROOT_DIR cat "GrpPSL2/SymFry/spec"); 
+AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2.spec");
 AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
 SetHelpUseExternalBrowser(false);
 SetDebugOnError(true);
@@ -406,37 +405,6 @@ function my_Gamma(N, type)
   return PSL2Subgroup(H_N, true);
 end function;
 
-function is_in_non_split_cartan(g,u)
-  a,b,c,d := Explode(Eltseq(g));
-  return (a eq d) and (b eq u*c);
-end function;
-
-function non_split_cartan(N, plus, u)
-  G_N := SL(2, IntegerRing(N));
-  // currently assumes N=p is prime
-  F := GF(N);
-  F2<t> := ExtensionField<F,t | t^2-F!u>;
-  zeta := PrimitiveElement(F2)^(N-1);
-  a := F!((zeta + Frobenius(zeta))/2);
-  b := F!((zeta - Frobenius(zeta))/(2*t));
-  g := [a,F!u*b,b,a];
-  C_N := sub<G_N | [IntegerRing(N)!x : x in g]>;
-  label_prefix := "Gamma_ns";
-  label_suffix := "(" cat IntegerToString(N) cat ")";
-  if plus then
-    C_N := Normalizer(G_N, C_N);
-    label_prefix := label_prefix cat "+";
-  end if;
-  G := PSL2Subgroup(C_N, label_prefix cat label_suffix);
-  G`ns_cartan_u := u;
-  return G;
-end function;
-
-function non_split_cartan_any(N, plus)
-  u := PrimitiveElement(IntegerRing(N));
-  return non_split_cartan(N,plus,u);
-end function;
-
 // Here we test some easy examples from Stein's book
 procedure Test_Stein_8_33()
   printf "Testing Stein Example 8.33\n";
@@ -562,6 +530,56 @@ function make_group_copy(M)
   print "Error! Could not find an appropriate character!\n";
   return false;
 end function;
+
+function genusNSCartan(N, plus)
+  primes_mul := Factorization(N);
+  primes := [x[1] : x in primes_mul];
+  beta3 := &and[p mod 3 eq 2 : p in primes];
+  if beta3 then beta3 := 1; else beta3 := 0; end if;
+  mult_n := 2^(#primes);
+  A := (N-6)*EulerPhi(N) / 12;
+  B := beta3 / 3;
+  if plus then
+    A := A / (mult_n);
+    C := N / (mult_n * 4);
+    for p_m in primes_mul do
+       p := p_m[1];
+       m := p_m[2];
+       if p mod 4 eq 1 then C := C*(1-1/p); end if;
+       if p mod 4 eq 3 then C := C*(1+1/p+2/p^m); end if;
+    end for;
+  else
+    B := B * (mult_n);
+    beta2 := &and[p mod 4 eq 3 : p in primes];
+    if beta2 then beta2 := 1; else beta2 := 0; end if;
+    C := mult_n * beta2 / 4;
+  end if;
+  return 1 + A - B - C;
+end function;
+
+procedure SingleTestNSCartan(N, plus)
+  if plus then
+    G := GammaNSplus(N);
+  else
+    G := GammaNS(N);
+  end if;
+  M := ModularSymbols(G);
+  S := CuspidalSubspace(M);
+  assert Dimension(S) eq 2*genusNSCartan(N,plus);
+end procedure;
+
+// These are tests for the non-split Cartan
+procedure Test_NS_cartan(max_N)
+   // right now, this is only worked out for odd primes
+   //  !!! TODO : handle all N, shouldn't be much more work
+  primes := PrimesUpTo(max_N);
+  odd_primes := primes[2..#primes];
+  for p in odd_primes do
+      printf "testing p=%o..\n", p;
+      SingleTestNSCartan(p, false);
+      SingleTestNSCartan(p, true);
+  end for;
+end procedure;
 
 procedure DoTests(numchecks)
    Test_Eigenforms(numchecks);

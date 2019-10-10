@@ -25,10 +25,10 @@ function MemberTest(G,g)
    // currently only works for congruence subgroups:
    // assert IsCongruence(G);
    if not G`IsOfGammaType then
-      if #G`ModLevel eq 1 then
+      if #ModLevel(G) eq 1 then
          return true;
       end if;
-      return G`ModLevel!Matrix(g) in G`ImageInLevel;
+      return ModLevel(G)!Matrix(g) in ImageInLevel(G);
    end if;
    error if not(Type(g[1,1]) eq RngIntElt),
       "Argument in coercion of sequences to matrices"

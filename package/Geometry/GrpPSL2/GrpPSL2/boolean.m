@@ -68,18 +68,16 @@ end intrinsic;
 
 intrinsic IsGammaNS(G::GrpPSL2) -> BoolElt
 {returns true if and only if G is Gamma non split Cartan}
-// at the moment we do it in a dumb way, using the name
-// !!! TODO: Change this to actually check and find conjugation if needed
-  if not assigned G`Label then return false; end if;
-  return G`Label[1..9] eq "Gamma_ns(";
+   u := NSCartanU(G);
+   if u eq 0 then return false; end if;
+   return G eq GammaNS(Level(G), u);
 end intrinsic;
 
 intrinsic IsGammaNSplus(G::GrpPSL2) -> BoolElt
 {returns true if and only if G is the normalizer of Gamma non split Cartan}
-// at the moment we do it in a dumb way, using the name
-// !!! TODO: Change this to actually check and find conjugation if needed
-  if not assigned G`Label then return false; end if;
-  return G`Label[1..9] eq "Gamma_ns+";
+   u := NSCartanU(G);
+   if u eq 0 then return false; end if;
+   return G eq GammaNSplus(Level(G), u);
 end intrinsic;
 
 

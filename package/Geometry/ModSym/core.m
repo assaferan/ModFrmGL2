@@ -433,7 +433,7 @@ end function;
 function ManinSymbolGenList(k,G,F) 
    coset_list := CosetRepresentatives(G);
    if IsGammaNS(G) or IsGammaNSplus(G) then
-      u := G`ns_cartan_u;
+      u := NSCartanU(G);
       FF := GF(Modulus(Parent(u)));
       F2<x> := ExtensionField< FF, x | x^2-FF!u>;
       coset_list_idxs := {<i, coset_list[i]> : i in [1..#coset_list]};

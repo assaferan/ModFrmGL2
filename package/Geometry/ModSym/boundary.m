@@ -59,8 +59,6 @@ freeze;
                                                                             
  ***************************************************************************/
 
-// import "../GrpPSL2/GrpPSL2/creation.m" : FindLiftToSL2;
-
 import "core.m" : CosetReduce,
                   LiftToCosetRep,
                   ManinSymbolGenList,
@@ -69,6 +67,7 @@ import "core.m" : CosetReduce,
 forward           CuspEquiv, 
                   CuspToFree,
                   CuspToFreeHelper,
+                  CuspToFreeHelperNS,
                   ReduceCusp;
 
 /////////////////////////////////////////////////////////////
@@ -98,15 +97,20 @@ vector space whose basis consists of the weight-k cusps.}
          F     := BaseField(M);
          n     := #Tgens;
          D     := [ [] : i in [1..n]];
+         if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) then
+	    cusp_to_free_helper := CuspToFreeHelperNS;
+         else
+	    cusp_to_free_helper := CuspToFreeHelper;
+         end if;
          for j in [1..n] do
             i := Sgens[Tgens[j]];
             uv, w, ind := UnwindManinSymbol(i,M`mlist); 
             g := LiftToCosetRep(uv, M`N);
             if w eq Weight(M)-2 then 
-               Append(~D[j], CuspToFreeHelper(M,Sign(M),[g[1],g[3]]));
+               Append(~D[j], cusp_to_free_helper(M,Sign(M),[g[1],g[3]]));
             end if;
             if w eq 0 then // substract the second term.
-               t := CuspToFreeHelper(M,Sign(M),[g[2],g[4]]);
+               t := cusp_to_free_helper(M,Sign(M),[g[2],g[4]]);
                t[1] *:= -1;
                Append(~D[j], t);
             end if; 
@@ -261,6 +265,66 @@ function CuspEquivGrp(coset_list, find_coset, G, orbit_table, a, b)
   return true, PSL2(Integers())!gamma;
 end function; 
 
+function CuspEquivNS(G, a, b)
+  u := NSCartanU(G);
+  p := Level(G);
+  p1, q1 := Explode(ReduceCusp(a));
+  p2, q2 := Explode(ReduceCusp(b));
+  d1, s1, r1 := ExtendedGreatestCommonDivisor(p1, q1);
+  d2, s2, r2 := ExtendedGreatestCommonDivisor(p2, q2);
+  r1 := -r1;
+  r2 := -r2;
+  pqrs := [[p1,p2], [q1,q2],[r1,r2],[s1,s2]];
+  pqrs_mod_p := [[IntegerRing(p)!x : x in arr] : arr in pqrs];
+  p_p, q_p, r_p, s_p := Explode(pqrs_mod_p);
+  norm_1 := p_p[1]^2 - u*q_p[1]^2;
+  norm_2 := p_p[2]^2 - u*q_p[2]^2;
+  equiv := (norm_1 eq norm_2);
+  equiv_by_nor := IsGammaNSplus(G) and (norm_1 eq -norm_2);
+  if (equiv or equiv_by_nor) then
+     if not equiv then
+	// solving alp^2-uc^2=-1 for a nontrivial element of the normalizer
+        for c in IntegerRing(p) do
+	  is_sq, alp := IsSquare(u*c^2-1);
+          if is_sq then
+	     S_mod_p := SL(2,IntegerRing(p))![alp,-u*c,c,-alp];
+             S := FindLiftToSL2(S_mod_p);
+             break;
+	  end if;
+	end for;
+        pqrs2 := S * Matrix([[p2, r2], [q2, s2]]);
+        p2 := pqrs2[1,1];
+        q2 := pqrs2[2,1];
+        r2 := pqrs2[1,2];
+        s2 := pqrs2[2,2];
+        p_p[2] := IntegerRing(p)!p2;
+        q_p[2] := IntegerRing(p)!q2;
+        r_p[2] := IntegerRing(p)!r2;
+        s_p[2] := IntegerRing(p)!s2;
+     end if;
+     num_1 := r_p[1]*q_p[2]-p_p[1]*s_p[2]+p_p[2]*s_p[1]-q_p[1]*r_p[2];
+     denom_1 := p_p[1]*q_p[2]+p_p[2]*q_p[1];
+     if denom_1 eq 0 then
+        num_2 := u*(q_p[2]*s_p[1]-q_p[1]*s_p[2])+p_p[2]*r_p[1]-p_p[1]*r_p[2];
+        denom_2 := p_p[1] * p_p[2] + u*q_p[1]*q_p[2];
+        x_p := num_2 * denom_2^(-1);
+     else
+        x_p := num_1 * denom_1^(-1);
+     end if;
+     x := Integers()!x_p;
+     T_x := SL(2, Integers())![1,x,0,1];
+     M2 := SL(2, Integers())![p2, r2, q2, s2];
+     M1_inv := SL(2,Integers())![s1,-r1,-q1,p1];
+     gamma := M2 * T_x * M1_inv;
+     if not equiv then
+        gamma := S^(-1)*gamma;
+     end if;
+     return true, PSL2(Integers())!gamma;
+  end if;
+  // not equivalent
+  return false, PSL2(Integers())!1;
+end function;
+
 function CuspEquiv(N,a,b) 
    u1, v1 := Explode(ReduceCusp(a));
    u2, v2 := Explode(ReduceCusp(b));
@@ -304,7 +368,7 @@ end function;
    my thesis (see chapter 2 of Stein, "Explicit approaches to 
    modular abelian varieties".)  */
 
-function CuspToFreeHelper(M, sign, a) 
+function CuspToFreeHelper(M, sign, a)
    if not assigned M`cusplist then
       M`cusplist := [];
    end if;
@@ -315,9 +379,11 @@ function CuspToFreeHelper(M, sign, a)
    is_trivial_eps := IsTrivial(eps);
    if not IsOfGammaType(M) then
       G     := LevelSubgroup(M);
-      coset_list :=  M`mlist`coset_list;
-      find_coset := M`mlist`find_coset;
-      orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
+      if not (IsGammaNS(G) or IsGammaNSplus(G)) then
+         coset_list :=  M`mlist`coset_list;
+         find_coset := M`mlist`find_coset;
+         orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
+      end if;
    end if;
    N     := Level(M);
    k     := Weight(M);
@@ -334,10 +400,15 @@ function CuspToFreeHelper(M, sign, a)
       if IsOfGammaType(M) then
         equiv, alp := CuspEquiv(N, b[1], a);   // [gam_alp(b[1])]=?=[a].
       else
-        find_coset := M`mlist`find_coset;
-        equiv, alp := CuspEquivGrp(coset_list, find_coset,
+	if (IsGammaNS(G) or IsGammaNSplus(G)) then
+	   equiv, alp := CuspEquivNS(G, b[1],a);
+           alp := Domain(eps)!ElementToSequence(alp);
+	else					
+           find_coset := M`mlist`find_coset;
+           equiv, alp := CuspEquivGrp(coset_list, find_coset,
 				   G, orbit_table, b[1],a);
-        alp := Domain(eps)!ElementToSequence(alp);
+           alp := Domain(eps)!ElementToSequence(alp);
+        end if;
       end if;
       if equiv then
          if b[2] eq 0 then
@@ -356,6 +427,9 @@ function CuspToFreeHelper(M, sign, a)
       if sign ne 0 then
          if IsOfGammaType(M) then
             equiv, alp := CuspEquiv(N, b[1], [-a[1],a[2]]);
+         elif IsGammaNS(G) or IsGammaNSplus(G) then
+	    equiv, alp := CuspEquivNS(G, b[1], [-a[1],a[2]]);
+            alp := Domain(eps)!ElementToSequence(alp);
          else
 	    find_coset := M`mlist`find_coset;
             equiv, alp := CuspEquivGrp(coset_list, find_coset,
@@ -397,25 +471,37 @@ function CuspToFreeHelper(M, sign, a)
             end if;
          end if;
       end for;
-      else
+     else
         pi_Q := Components(eps)[1];
         Q := Codomain(pi_Q);
         H := PSL2Subgroup(Kernel(pi_Q));
-        mlist_H := ManinSymbolGenList(2,H,F);
-        coset_list_H := mlist_H`coset_list;
-        find_coset_H := mlist_H`find_coset;
-        orbit_table_H := BuildTOrbitTable(coset_list_H, find_coset_H, H);
-        for q in Q do
-	  q_elt := FindLiftToSL2(q @@ pi_Q);
-          q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
-          equiv, tmp := CuspEquivGrp(coset_list_H, find_coset_H,
-				     H, orbit_table_H, q_a,a);
-          if equiv and eps(q_elt)[1,1] ne 1 then
-            c := F!0;
-            break;
-          end if;
-        end for;
-     end if;
+        if IsGammaNS(H) or IsGammaNSplus(H) then
+          for q in Q do
+	    q_elt := FindLiftToSL2(q @@ pi_Q);
+            q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
+            equiv, tmp := CuspEquivNS(H,q_a,a);
+            if equiv and eps(q_elt)[1,1] ne 1 then
+              c := F!0;
+              break;
+            end if;
+          end for;
+        else
+          mlist_H := ManinSymbolGenList(2,H,F);
+          coset_list_H := mlist_H`coset_list;
+          find_coset_H := mlist_H`find_coset;
+          orbit_table_H := BuildTOrbitTable(coset_list_H, find_coset_H, H);
+          for q in Q do
+	    q_elt := FindLiftToSL2(q @@ pi_Q);
+            q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
+            equiv, tmp := CuspEquivGrp(coset_list_H, find_coset_H,
+				        H, orbit_table_H, q_a,a);
+            if equiv and eps(q_elt)[1,1] ne 1 then
+              c := F!0;
+              break;
+            end if;
+           end for;
+        end if;
+      end if;
    end if;
 
    Append(~list,<a,c>);
@@ -433,4 +519,79 @@ function CuspToFreeHelper(M, sign, a)
    return <c,i>;
 end function;
 
+function CuspToFreeHelperNS(M, sign, a) 
+   if not assigned M`cusplist then
+      M`cusplist := [];
+   end if;
 
+   list  := M`cusplist;
+   F     := BaseField(M);
+   eps   := DirichletCharacter(M);   
+   is_trivial_eps := IsTrivial(eps);
+   G     := LevelSubgroup(M);
+   N     := Level(M);
+   k     := Weight(M);
+ 
+   a := ReduceCusp(a);
+   if a[2] lt 0 then
+      a[1] *:= F!-1;
+      a[2] *:= F!-1;
+   end if;
+
+   // Check if we've already encountered this cusp.
+   for i in [1..#list] do
+      b          := list[i];
+      equiv, alp := CuspEquivNS(G, b[1],a);
+      alp := Domain(eps)!ElementToSequence(alp);
+      if equiv then
+         if b[2] eq 0 then
+            return <F!0,1>;
+         end if;
+	 return <eps(alp)[1,1]^(-1),i>;
+      end if;
+      if sign ne 0 then
+	 equiv, alp := CuspEquivNS(G, b[1], [-a[1],a[2]]);
+         alp := Domain(eps)!ElementToSequence(alp);
+         if equiv then
+            if b[2] eq 0 then
+               return <F!0,1>;
+            end if;
+	       return <eps(alp)[1,1]^(-1),i>;
+         end if;
+      end if;
+   end for;
+
+   // Determine if this cusp class is killed by the relations.
+   c := F!1;
+   if not is_trivial_eps then
+        pi_Q := Components(eps)[1];
+        Q := Codomain(pi_Q);
+        // if we are here this is the non-split cartan
+        H := PSL2Subgroup(Kernel(pi_Q));     
+        for q in Q do
+	   q_elt := FindLiftToSL2(q @@ pi_Q);
+           if eps(q_elt)[1,1] ne 1 then
+              q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
+              equiv, tmp := CuspEquivNS(H,q_a,a);
+              if equiv then
+                 c := F!0;
+                 break;
+              end if;
+           end if;
+        end for;
+   end if;
+
+   Append(~list,<a,c>);
+   M`cusplist := list;
+   i := #list;
+
+   if sign ne 0 then
+      // Check is sign relation kills this cusp. 
+      ans := CuspToFreeHelperNS(M,0,[-a[1],a[2]]);
+      if ans[2] eq i and ans[1] ne sign then
+         M`cusplist[i][2] := 0;
+         c := F!0;
+      end if;
+   end if;
+   return <c,i>;
+end function;
