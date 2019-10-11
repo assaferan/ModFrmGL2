@@ -515,6 +515,61 @@ intrinsic IntegralHeckeOperator(M::ModSym, n::RngIntElt) -> AlgMatElt
    return A!&cat[Coordinates(L,L!((V!L.i)*T)) : i in [1..Dimension(L)]];
 end intrinsic;
 
+function HeckeNSCartanRepresentatives(G,p,plus)
+  // Assumes N = Level(G) is prime,  different from p
+  // and p is not +-1 mod N
+  u := NSCartanU(G);
+  N := Level(G);
+  u_inv := u^(-1);
+  possible_mod_N := [[1,0,0,1]];
+  for x in Parent(u) do
+     is_sq, c := IsSquare(x^2-u_inv);
+     if is_sq then
+        b := c^(-1);
+        a := b*x; 
+        Append(~possible_mod_N, [a,b,u_inv*b,a]);
+     else
+       if (plus) then
+	 c := SquareRoot(u_inv-x^2);
+         b := c^(-1);
+         a := b*x;
+         Append(~possible_mod_N, [a,b,-u_inv*b,-a]);
+       end if;
+     end if;
+  end for;
+  possible_mod_p := [[1,r,0,1] : r in IntegerRing(p)];
+  Append(~possible_mod_p, [0,1,-1,0]);
+  d,x,y := ExtendedGreatestCommonDivisor(N,p);
+  reprs := [];
+  for mod_N in possible_mod_N do
+     for mod_p in possible_mod_p do
+       g := [Integers()!mod_N[i]*y*p + Integers()!mod_p[i]*x*N : i in [1..4]];
+       Append(~reprs, Eltseq(FindLiftToSL2(SL(2,IntegerRing(N*p))!g)));
+     end for;
+  end for;
+  R := [[g[1],g[2],p*g[3],p*g[4]] : g in reprs];
+  return R;
+end function;
+
+function HeckeFullCongruenceRepresentatives(N,p)
+  // Assumes p does not divide N
+  d, x, y := ExtendedGreatestCommonDivisor(N^2,p); 
+  R := [[1,r*x*N^2,0,p] : r in [0..p-1]];
+  Append(~R, [p*y,-x*N,p*N,p]);
+  return R;
+end function;
+
+function HeckeGeneralCaseRepresentatives(G,p)
+  // This is not very efficient but it works 
+  alpha := GL(2,Rationals())![1,0,0,p];
+  H := Conjugate(G meet Gamma0(p), alpha^(-1)) meet G;
+  // What we really want here is just alpha * Transversal(G,H);
+  reprs := [alpha * GL(2,Rationals())!Eltseq(x) :
+		       x in CosetRepresentatives(H) | x in G];
+  R := [Eltseq(g) : g in reprs];
+  return R;
+end function;
+					
 
 function HeckeOperatorDirectlyOnModularSymbols(M,p)
    assert Type(M) eq ModSym;
@@ -526,21 +581,17 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
          Append(~R,[p,0,0,1]);
       end if;
    else
-     /*	
-     N := Level(M);
-     d, x, y := ExtendedGreatestCommonDivisor(N^2,p); 
-     if d eq 1 then
-       R := [[1,r*x*N^2,0,p] : r in [0..p-1]];
-       Append(~R, [p*y,-x*N,p*N,p]);
+     N := Level(M); 
+     if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) and (N ne p) then
+        if (p^2 - 1 mod N eq 0) then
+	  R := HeckeFullCongruenceRepresentatives(N,p);
+        else
+	  plus := (N mod 4 eq 3) and IsGammaNSplus(M`G);
+	  R := HeckeNSCartanRepresentatives(M`G,p,plus);
+        end if;
      else
-     */        // This is not very efficient but it works 
-        alpha := GL(2,Rationals())![1,0,0,p];
-        H := Conjugate(M`G meet Gamma0(p), alpha^(-1)) meet M`G;
-        // What we really want here is just alpha * Transversal(G,H);
-        reprs := [alpha * GL(2,Rationals())!Eltseq(x) :
-		       x in CosetRepresentatives(H) | x in M`G];
-        R := [Eltseq(g) : g in reprs];
-//    end if;
+        R := HeckeGeneralCaseRepresentatives(M`G,p);
+     end if;
    end if;
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;
