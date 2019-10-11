@@ -28,6 +28,9 @@ declare attributes GrpPSL2:
    ModLevel,      // GL(2,Z/NZ)
    ImageInLevel,  // Its image in GL(2,Z/NZ)
    IsOfGammaType, // Whether the group is of gamma type
+   IsNSCartan,    // for more efficeint treatment of the non-split Cartan case
+   IsNSCartanPlus,// for more efficeint treatment of the non-split Cartan case
+   NSCartanU,// for more efficeint treatment of the non-split Cartan case
    // a congruence subgroup of gamma type will be given by a list of
    // groups of the form Gamma_0(N), Gamma_1(N), Gamma(N),
    // Gamma^0(N) and Gamma^1(N), and congugates of these;

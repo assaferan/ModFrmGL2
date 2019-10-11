@@ -74,14 +74,20 @@ intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt
    // Although it makes sense, we actually need the function to
    // determine whether that's true
    // require IsGammaNS(G) or IsGammaNSplus(G);
+   if assigned G`NSCartanU then return G`NSCartanU; end if;
    size := #ImageInLevel(G);
    p := Level(G);
    if size eq p+1 then
       index_ns := true;
+      G`IsNSCartanPlus := false;
    elif size eq 2*(p+1) then
       index_ns := false;
+      G`IsNSCartan := false;
    else
-      return 0;
+      G`NSCartanU := 0;
+      G`IsNSCartan := false;
+      G`IsNSCartanPlus := false;
+      return G`NSCartanU;
    end if;
    gens := Generators(ImageInLevel(G));
    good := [x : x in gens | (x[1,1] eq x[2,2]) and (x[2,1] ne 0)];
@@ -91,24 +97,35 @@ intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt
    if #good ne 0 then
       g := good[1];
       if not IsUnit(g[2,1]) then return 0; end if;
-      return g[1,2]/g[2,1];
+      G`NSCartanU := g[1,2]/g[2,1];
+      return G`NSCartanU;
    else
-      if index_ns then return 0; end if;
+      if index_ns then
+         G`NSCartanU := 0;
+         G`IsNSCartan := false;
+         G`IsNSCartanPlus := false;
+         return G`NSCartanU;
+      end if;
       good := [x : x in gens | (x[1,1] eq -x[2,2]) and (x[2,1] ne 0)];
       if #good ne 0 then
          g := good[1];
          if not IsUnit(g[2,1]) then return 0; end if;
-         return -g[1,2]/g[2,1];
+         G`NSCartanU := -g[1,2]/g[2,1];
+         return G`NSCartanU;
       end if;
       good := [x : x in gens | (x[1,2] eq x[2,1]) and (x[2,2] ne 0) and
 		               (x[1,2] ne 0)];
       if #good ne 0 then
          g := good[1];
          if not IsUnit(g[2,2]) then return 0; end if;
-         return g[1,1]/g[2,2];
+         G`NSCartanU :=  g[1,1]/g[2,2];
+         return G`NSCartanU;
       end if;
    end if;
-   return 0;
+   G`NSCartanU := 0;
+   G`IsNSCartan := false;
+   G`IsNSCartanPlus := false;
+   return G`NSCartanU;
 end intrinsic;
 
 intrinsic CongruenceIndices(G::GrpPSL2) -> RngIntElt

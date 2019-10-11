@@ -68,16 +68,20 @@ end intrinsic;
 
 intrinsic IsGammaNS(G::GrpPSL2) -> BoolElt
 {returns true if and only if G is Gamma non split Cartan}
+   if assigned G`IsNSCartan then return G`IsNSCartan; end if;
    u := NSCartanU(G);
    if u eq 0 then return false; end if;
-   return G eq GammaNS(Level(G), u);
+   G`IsNSCartan :=  (G eq GammaNS(Level(G), u));
+   return G`IsNSCartan;
 end intrinsic;
 
 intrinsic IsGammaNSplus(G::GrpPSL2) -> BoolElt
 {returns true if and only if G is the normalizer of Gamma non split Cartan}
+   if assigned G`IsNSCartanPlus then return G`IsNSCartanPlus; end if;
    u := NSCartanU(G);
    if u eq 0 then return false; end if;
-   return G eq GammaNSplus(Level(G), u);
+   G`IsNSCartanPlus :=  (G eq GammaNSplus(Level(G), u));
+   return G`IsNSCartanPlus;
 end intrinsic;
 
 
