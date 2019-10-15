@@ -776,7 +776,7 @@ function qExpansionBasisUniversal(M, prec, do_saturate)
    e := [i : i in [1..Degree(M)] | 
         exists(b) { b : b in Basis(DualRepresentation(M)) | Eltseq(b)[i] ne 0}];
    i := 1;
-   if Sign(M) eq 0 then
+   if (Sign(M) eq 0) and IsOfRealType(M`G) then
       goal := goal div 2;
       S := PlusSubspaceDual(CuspidalSubspace(M));
    else

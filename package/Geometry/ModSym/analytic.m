@@ -342,7 +342,14 @@ function SlowPeriodIntegral(A, f, Pg)
    ev   := hom <R -> S | z, 1>;
    P    := ev(P);
    giP  := ev(giP);
-   eps_g:= C!Evaluate(DirichletCharacter(A),g[1]);
+   eps := DirichletCharacter(A);
+   if IsOfGammaType(A) then
+      eps_g:= C!Evaluate(eps,g[1]);
+   else
+     // !! TODO : find the correct representative g
+     //  eps_g := C!eps(Domain(eps)!g);
+     eps_g := C!1;
+   end if;
    return eps_g*PeriodIntegral(f,giP,alp) - PeriodIntegral(f,P,galp);
 end function;
 
@@ -515,14 +522,19 @@ intrinsic PeriodMapping(A::ModSym, prec::RngIntElt) -> Map
       * method which gives series that do not converge as quickly.   *
       ****************************************************************/
       fast := (Level(A) gt 1) and (k mod 2 eq 0)
-               and IsTrivial(DirichletCharacter(A))
+	       and IsTrivial(DirichletCharacter(A))
+	       and IsOfGammaType(A)
                and IsScalar(AtkinLehner(A,Level(A)));
 
       vprint ModularSymbols : "Computing period generators.";     
       G, fast  := PeriodGenerators(A, fast);
 
-      vprint ModularSymbols : "Computing an integral basis.";     
-      Q  := qIntegralBasis(A, n);
+      vprint ModularSymbols : "Computing an integral basis.";
+      if IsOfGammaType(A) then
+         Q  := qIntegralBasis(A, n);
+      else
+         Q := qIntegralBasis(A, n : Al := "Universal");
+      end if;
       // A is cuspidal with sign 0, so dimension is twice as large
       dim := Dimension(A) * AbsoluteDegree(BaseRing(A)) / 2;
       if #Q ne dim then

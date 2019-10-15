@@ -486,8 +486,23 @@ with respect to Basis(M).}
          // T_{p^r} := T_p * T_{p^{r-1}} - eps(p)p^{k-1} T_{p^{r-2}}.
          p  := fac[1][1];
          r  := fac[1][2];
+         eps := DirichletCharacter(M);
+         if IsOfGammaType(M) then
+            eps_val := Evaluate(eps,p);
+	 else
+	    // Check that this is really what we want
+	    d,x,y := ExtendedGreatestCommonDivisor(Level(M),p);
+            if d ne 1 then
+	       eps_val := 0;
+            else
+	       eps_val := 1;
+	      // something is not right here -
+	      // have to correct the representative
+	      // eps_val := eps(Domain(eps)![y,-x,Level(M),p]);
+            end if;
+         end if;
          T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
-        - Evaluate(DirichletCharacter(M),p)*p^(Weight(M)-1)*HeckeOperator(M,p^(r-2));
+            - eps_val*p^(Weight(M)-1)*HeckeOperator(M,p^(r-2));
       else  // T_m*T_r := T_{mr} and we know all T_i for i<n.
          m  := fac[1][1]^fac[1][2];
          T  := HeckeOperator(M,m)*HeckeOperator(M,n div m);
@@ -559,17 +574,24 @@ function HeckeFullCongruenceRepresentatives(N,p)
   return R;
 end function;
 
-function HeckeGeneralCaseRepresentatives(G,p)
+// Here H = alpha * Gamma(1) * alpha^(-1) meet Gamma(1)
+// for alpha=diag(a,b) with a|b, this is simply Gamma0(b/a)
+
+function HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H)
   // This is not very efficient but it works 
-  alpha := GL(2,Rationals())![1,0,0,p];
-  H := Conjugate(G meet Gamma0(p), alpha^(-1)) meet G;
+  H := Conjugate(G meet H, alpha^(-1)) meet G;
   // What we really want here is just alpha * Transversal(G,H);
   reprs := [alpha * GL(2,Rationals())!Eltseq(x) :
 		       x in CosetRepresentatives(H) | x in G];
   R := [Eltseq(g) : g in reprs];
   return R;
 end function;
-					
+
+function HeckeGeneralCaseRepresentatives(G,p)
+  alpha := GL(2,Rationals())![1,0,0,p];
+  H := Gamma0(p);
+  return HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H);
+end function;
 
 function HeckeOperatorDirectlyOnModularSymbols(M,p)
    assert Type(M) eq ModSym;
@@ -581,7 +603,7 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
          Append(~R,[p,0,0,1]);
       end if;
    else
-     N := Level(M); 
+     N := Level(M);
      if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) and (N ne p) then
         if (p^2 - 1 mod N eq 0) then
 	  R := HeckeFullCongruenceRepresentatives(N,p);
@@ -848,10 +870,13 @@ function TnSparse(M, Heil, sparsevec)
       return VectorSpace(M)!0;
    end if;
 
-/* In order to always use Heilbronn matrices, this is
-   now commented out.  WAS, 09/15/01.
+/* This now returns for the case not of Gamma type!
 
-   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
+   In order to always use Heilbronn matrices, this is
+   now commented out.  WAS, 09/15/01.
+*/
+//   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
+   if not IsOfGammaType(M) then
       if Type(Heil) eq RngIntElt then
 	 n := Heil;
       else
@@ -859,11 +884,12 @@ function TnSparse(M, Heil, sparsevec)
       end if;
       // For now we always simply compute the whole Hecke operator,
       // because this seems more efficient, since it is properly cached, etc.
-      if not IsPrime(n) then   // just compute the whole Hecke operator.
+      // if (not IsPrime(n) then   // just compute the whole Hecke operator.
 	 Tn := HeckeOperator(M,n);
 	 V := VectorSpace(M);
 	 v := &+[s[1]*V.s[2] : s in sparsevec];
 	 return v*Tn;
+/*
       else  // n is prime   -- this code isn't used, as it is slower.
          matrices := [[1,r,0,n] : r in [0..n-1]];
          if Level(M) mod n ne 0 then
@@ -873,9 +899,9 @@ function TnSparse(M, Heil, sparsevec)
    	      &+[ActionOnModularSymbolsBasisElement(g,M,s[2]) :
     	           g in matrices] : s in sparsevec];
       end if;
+*/
    end if;
 
-*/
 
    // Now consider the characteristic-zero case.
    if Level(M) eq 1 then
@@ -1273,7 +1299,7 @@ end function;
 function FastTn(M, V, n)
    assert IsAmbientSpace(M);
 
-   if IsMultiChar(M) or (not IsOfGammaType(M)) then
+   if IsMultiChar(M) then
       Tn := DualHeckeOperator(M,n);
       return Restrict(Tn,V);
    end if;

@@ -45,9 +45,25 @@ intrinsic ImageInLevel(G::GrpPSL2) -> GrpMat
   if assigned G`ImageInLevel then
      return G`ImageInLevel;
   else
-     gens := Generators(G);
      modLevel := ModLevel(G);
-     G`ImageInLevel := sub< modLevel | [modLevel!Matrix(g) : g in gens]>;
+     gens := [[1,1,0,1],[-1,0,0,-1]]; 
+     if #modLevel eq 1 then
+        G`ImageInLevel := modLevel;
+     elif IsGamma1(G) then
+       ;
+     elif IsGamma0(G) then
+       N := Level(G);
+       for t in [1..N-1] do
+	    d,x,y:= ExtendedGreatestCommonDivisor(t,N);
+            if d eq 1 then
+	       Append(~gens, modLevel[t,0,0,x]);
+            end if;
+       end for; 
+     else
+       gens := Generators(G); 
+     end if;
+
+     G`ImageInLevel := sub< modLevel | [modLevel!Eltseq(g) : g in gens]>;
      return G`ImageInLevel;
   end if;
 end intrinsic;

@@ -97,6 +97,9 @@ vector space whose basis consists of the weight-k cusps.}
          F     := BaseField(M);
          n     := #Tgens;
          D     := [ [] : i in [1..n]];
+         // This check takes too long -
+         // Either make it efficient, or use something to mark the fact that
+         // a group is of a non-split type
          if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) then
 	    cusp_to_free_helper := CuspToFreeHelperNS;
          else
