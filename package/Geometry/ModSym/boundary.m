@@ -385,7 +385,10 @@ function CuspToFreeHelper(M, sign, a)
       if not (IsGammaNS(G) or IsGammaNSplus(G)) then
          coset_list :=  M`mlist`coset_list;
          find_coset := M`mlist`find_coset;
-         orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
+         if not assigned M`orbit_table then
+           M`orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
+         end if;
+         orbit_table := M`orbit_table;
       end if;
    end if;
    N     := Level(M);
@@ -492,7 +495,10 @@ function CuspToFreeHelper(M, sign, a)
           mlist_H := ManinSymbolGenList(2,H,F);
           coset_list_H := mlist_H`coset_list;
           find_coset_H := mlist_H`find_coset;
-          orbit_table_H := BuildTOrbitTable(coset_list_H, find_coset_H, H);
+          if not assigned M`orbit_table_H then
+             M`orbit_table_H := BuildTOrbitTable(coset_list_H, find_coset_H, H);
+          end if;
+          orbit_table_H := M`orbit_table_H;
           for q in Q do
 	    q_elt := FindLiftToSL2(q @@ pi_Q);
             q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));

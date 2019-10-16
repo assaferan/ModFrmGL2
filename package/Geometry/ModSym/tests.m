@@ -581,6 +581,43 @@ procedure Test_NS_cartan(max_N)
   end for;
 end procedure;
 
+function get_eigenform_galois_orbit(f)
+  q := Parent(f).1;
+  K := BaseRing(Parent(f));
+  Gal_K := Automorphisms(K);
+  orbit := [];
+  coeffs := Coefficients(f);
+  prec := #coeffs + 1;
+  for sigma in Gal_K do
+    sigma_coeffs := [sigma(c) : c in coeffs];
+    Append(~orbit, &+[sigma_coeffs[i]*q^i : i in [1..#coeffs]] + O(q^prec));
+  end for;
+  return orbit;
+end function;
+
+import "linalg.m" : EchelonPolySeq;
+
+function get_eigenform_echelon_basis(M, prec)
+  S := CuspidalSubspace(M);
+  D := Decomposition(S, HeckeBound(S));
+  eigenforms := &cat[get_eigenform_galois_orbit(qEigenform(d, prec)) : d in D];
+  basis := EchelonPolySeq(eigenforms, prec);
+  q := Universe(basis).1;
+  return [f + O(q^prec) : f in basis];
+end function;
+
+procedure Test_Zywina()
+  printf "Testing the Zywina example Gamma(7)...\n";
+  N := 7;
+  G := my_Gamma(N, "full");
+  M := ModularSymbols(G);
+  f := get_eigenform_echelon_basis(M, 12);
+  q := Universe(f).1;
+  assert f[1] eq q-3*q^8+O(q^12);
+  assert f[2] eq q^2-3*q^9+O(q^12);
+  assert f[3] eq q^4-4*q^11+O(q^12);
+end procedure;
+
 procedure DoTests(numchecks)
    Test_Eigenforms(numchecks);
    Test_NewformDecomposition(numchecks);
@@ -593,4 +630,6 @@ procedure DoTests(numchecks)
    Test_qExpansionBasis(numchecks);
    Test_Rouse();
    Test_Stein();
+   Test_NS_cartan(20);
+   Test_Zywina();
 end procedure;

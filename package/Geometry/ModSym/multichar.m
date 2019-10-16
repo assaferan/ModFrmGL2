@@ -381,7 +381,10 @@ intrinsic MultiSpaces(M::ModSym) -> SeqEnum
       k := Weight(M);
       sign := Sign(M);
       reps := DirichletCharacter(M);
-      if Type(reps[1]) eq GrpDrchElt then
+      if Type(reps) eq GrpDrchElt then
+	reps := [reps];
+      end if;
+      if (Type(reps[1]) eq GrpDrchElt) then
 	 M`multi := [ModularSymbols(MinimalBaseRingCharacter(eps),k,sign) : eps in reps];
       else
          min_reps := [];
@@ -896,6 +899,24 @@ function MC_Decomposition(M, bound)
    return D;
 end function;
 
+function MC_RestrictDualVectorOfSummandToSummand(M, S, v)
+   assert Type(M) eq ModSym;
+   assert IsMultiChar(M);
+   assert IsAmbientSpace(M);
+   assert not IsMultiChar(AmbientSpace(S));
+
+   V := DualVectorSpace(AmbientSpace(S));
+   start_offset := 1;
+   for MS in MultiSpaces(M) do
+     K := BaseField(MS);
+     if MS eq AmbientSpace(S) then
+       end_offset := start_offset + Degree(K) * Dimension(MS) - 1;
+       break;
+     end if;
+     start_offset +:= Degree(K) * Dimension(MS);
+   end for;
+   return V![v[i] : i in [start_offset..end_offset]];
+end function;
 
 function MC_DecompositionOfCuspidalSubspace(M, bound)
    // Compute the decomposition of the cuspidal subspace of the 

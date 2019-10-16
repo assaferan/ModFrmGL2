@@ -139,6 +139,9 @@ import "multichar.m":
    AssociatedNewformSpace, 
    HasAssociatedNewformSpace;
 
+import "operators.m" :
+   ActionOnModularSymbolsBasisBetween;
+
 import "subspace.m":  MinusSubspaceDual,
                       PlusSubspaceDual;
 
@@ -230,11 +233,69 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
       end if;
 
       if IsVerbose("ModularSymbols") then
-         printf " ... finding eigenvector took %o sec\n", Cputime(time0);
-         printf "Computing q-expansion of eigenform ... \n";
+         printf " ... finding eigenvector took %o sec\n", Cputime(time0);     
          IndentPush();
          tm := Cputime();
       end if;
+
+      // in the general case, Hecke eigenvalues are not(!!!) the coefficients
+      // of the newform.
+      // To see the newform, we map it to M_k(Gamma1(N^2))
+      // This is extremely slow!
+      // At the moment also does not work for extension fields!!!
+      N := Level(M);
+      if not IsOfGammaType(M) and (M`G notin [Gamma0(N),Gamma1(N)]) then	
+        M1 := ModularSymbols(Gamma1(N^2), Weight(M), Sign(M));
+        g := [N, 0, 0, 1];
+        A := AmbientSpace(M);
+        if not assigned A`im_M1 then
+	       A`im_M1 :=
+		 ActionOnModularSymbolsBasisBetween(g, M1, A);
+        end if;
+	K := BaseField(Parent(eig));
+        mat := KMatrixSpace(K, Dimension(M1), Dimension(A))!A`im_M1;
+        eig_im := eig * Transpose(mat);
+        S1 := NewSubspace(CuspidalSubspace(M1));
+	D1 := NewformDecomposition(S1);
+        tr_eig := DualVectorSpace(M1)![Trace(eig_im[i]) :
+					      i in [1..Dimension(M1)]];
+        where_eig := [d : d in D1 | tr_eig in DualVectorSpace(d)];
+        M_eig := where_eig[1];
+        M_new:= AssociatedNewformSpace(M_eig);
+        // eig := MC_RestrictDualVectorOfSummandToSummand(M1, M_new, eig);
+        mat := ActionOnModularSymbolsBasisBetween(g, AmbientSpace(M_new), A);
+        mat := KMatrixSpace(K, Degree(M_new), Dimension(A))!mat;
+        eig := eig * Transpose(mat);
+        V := DualVectorSpace(AmbientSpace(M_new));
+        L := BaseField(V);
+	Gal_L := Automorphisms(L);
+	if K eq L then
+	   is_isom := true;
+           phi := Gal_L[1];
+	else
+	   is_isom, phi := IsIsomorphic(K,L);
+	end if;
+	assert is_isom;
+        eig := V![phi(eig[i]) : i in [1..Dimension(V)]];
+        Gal_idx := 1; 
+	while (eig notin DualVectorSpace(M_new)) do
+	  Gal_idx +:= 1;
+          eig := V![Gal_L[Gal_idx](eig[i]) : i in [1..Dimension(V)]];
+	end while;
+      else
+	M_eig := M;
+        M_new := M;
+      end if;
+
+      if IsVerbose("ModularSymbols") then
+	if not IsOfGammaType(M) then
+	     printf "... finding its image in M_k(Gamma1(N^2)) took %o sec\n",
+		 Cputime(tm);
+        end if;
+        printf "Computing q-expansion of eigenform ... \n";
+        IndentPush();
+        tm := Cputime();
+      end if;       
      
       require not (eig cmpeq false): "Argument 1 must correspond to a newform.";
 
@@ -259,14 +320,15 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
          vprintf ModularSymbols,2: "Setting up the Tpei (for p less than %o) ... ", prec;
       end if;
       time0 := Cputime();
-      Tpei := HeckeImages(AmbientSpace(M),i, prec);                         // "time critical"
+      // Have a problem here when not over the rationals
+      Tpei := HeckeImages(AmbientSpace(M_new),i, prec);                         // "time critical"
       vprintf ModularSymbols,2: "%os\n", Cputime(time0);
 
-      if IsOfGammaType(M) then
-	 eps := DirichletCharacter(M);
+      if IsOfGammaType(M_new) then
+	 eps := DirichletCharacter(M_new);
       else
 	// !!! check that it does what we want !!!
-         eps := DirichletGroup(Level(M),M`F)!1;
+         eps := DirichletGroup(Level(M_new),M_new`F)!1;
       end if;
       
       M`qeigenform[2], new_one_over_ei := Compute_qExpansion(M`qeigenform[1], M`qeigenform[2],

@@ -611,6 +611,8 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
 	  plus := (N mod 4 eq 3) and IsGammaNSplus(M`G);
 	  R := HeckeNSCartanRepresentatives(M`G,p,plus);
         end if;
+     elif (M`G eq CongruenceSubgroup(N)) then
+        R := HeckeFullCongruenceRepresentatives(N,p);
      else
         R := HeckeGeneralCaseRepresentatives(M`G,p);
      end if;
@@ -1381,6 +1383,19 @@ function ActionOnModularSymbolsBasis(g, M)
    // 3. Map the result back to M.
    gM := [Representation(ConvFromModularSymbol(M,gB[i])) : i in [1..#gB]];
    A :=  MatrixAlgebra(BaseField(M),Dimension(M))!gM;
+   return A;
+end function;
+
+// This could be quite slow...
+// This assumes that g indeed defines a map M_dom -> M_range
+function ActionOnModularSymbolsBasisBetween(g, M_dom, M_range)
+   // 1. Compute basis of modular symbols for M_dom.
+   B  := ModularSymbolsBasis(M_dom);
+   // 2. Apply g to each basis element. 
+   gB := [ModularSymbolApply(M_dom, g,B[i]) : i in [1..#B]];
+   // 3. Map the result back to M_range.
+   gM := [Representation(ConvFromModularSymbol(M_range,gB[i])) : i in [1..#gB]];
+   A :=  Matrix(gM);
    return A;
 end function;
 

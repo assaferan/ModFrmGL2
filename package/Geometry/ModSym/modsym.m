@@ -173,8 +173,6 @@ freeze;
  
  ***************************************************************************/
 
-import "../GrpPSL2/GrpPSL2/Creation.m": FindLiftToSL2;
-
 import "arith.m" : ReductionMap,
                    SmallestPrimeNondivisor;
 
@@ -307,7 +305,9 @@ declare attributes ModSym:
 
 // The boundary map, from M --> BoundaryModularSymbols.
          boundary_map,       
-         cusplist,           
+         cusplist,
+         orbit_table,
+         orbit_table_H,
 
 // Caching of data related to various operators on M.
          heilbronn_cremona,
@@ -345,6 +345,7 @@ declare attributes ModSym:
                              // (used in CompactSystemOfEigenvalues).
          eigenvector_in_terms_of_integral_basis,       // used by the intrinsic of the same name
          eigenvector_in_terms_of_expansion_basis,       // used by the intrinsic of the same name
+         im_M1, // the image of the map from M_k(Gamma1(N^2))
 
 // Eigenvectors for the action of the Hecke algebra (used in
 // computing q-expansions)
