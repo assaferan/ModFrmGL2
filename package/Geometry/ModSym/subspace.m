@@ -113,6 +113,8 @@ import "modsym.m" : ModularSymbolsDual,
 
 import "multichar.m" : MC_CutSubspace;
 
+import "operators.m" : ActionOnModularSymbolsBasisBetween;
+
 /* EXPORTS:
    CuspidalSubspace
    EisensteinSubspace
@@ -409,20 +411,33 @@ end intrinsic;
 function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 
    AM := AmbientSpace(M);
-   N := Level(M); 
-   Neps := Conductor(DirichletCharacter(M));
-
-   primes := Sort([p : p in primes | N mod (p*Neps) eq 0]);
-   // Sort so that below, the blocks of D with largest rank at the left
+   N := Level(M);
+   if IsOfGammaType(M) then
+      Neps := Conductor(DirichletCharacter(M));
+      primes := Sort([p : p in primes | N mod (p*Neps) eq 0]);
+      // Sort so that below, the blocks of D with largest rank at the left
+   else  // for now we assume no characters for general Gamma
+      Neps := 1;
+   end if;
 
    Dmats := <>;
-   for p in primes do 
-      oldp  := ModularSymbols(AM, N div p);
-      if Dimension(oldp) gt 0 then
-         Append(~Dmats, DegeneracyMatrix(AM, oldp, 1));
-         Append(~Dmats, DegeneracyMatrix(AM, oldp, p));
-      end if;
-   end for;
+   if IsOfGammaType(M) then 
+      for p in primes do
+         oldp  := ModularSymbols(AM, N div p);
+         if Dimension(oldp) gt 0 then
+            Append(~Dmats, DegeneracyMatrix(AM, oldp, 1));
+            Append(~Dmats, DegeneracyMatrix(AM, oldp, p));
+         end if;
+      end for;
+   else
+      for p in primes do
+	 oldp := ModularSymbols(PSL2Subgroup(p, false));
+         if Dimension(oldp) gt 0 then
+            Append(~Dmats, ActionOnModularSymbolsBasisBetween([1,0,0,1],
+							      AM, oldp));
+         end if;
+      end for;
+   end if;
    if #Dmats eq 0 then
       return M;
    end if;
@@ -443,13 +458,26 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       // Work out the dual representation of Mnew (repeat same method)
 
       DDmats := <>;
-      for p in primes do 
-         oldp  := ModularSymbols(AM, N div p); // cached in AM`other_levels
-         if Dimension(oldp) gt 0 then
-            Append(~DDmats, Transpose(DegeneracyMatrix(oldp, AM, 1)) );
-            Append(~DDmats, Transpose(DegeneracyMatrix(oldp, AM, p)) );
-         end if;
-      end for;
+      if IsOfGammaType(M) then
+         for p in primes do 
+            oldp  := ModularSymbols(AM, N div p); // cached in AM`other_levels
+            if Dimension(oldp) gt 0 then
+               Append(~DDmats, Transpose(DegeneracyMatrix(oldp, AM, 1)) );
+               Append(~DDmats, Transpose(DegeneracyMatrix(oldp, AM, p)) );
+            end if;
+         end for;
+      else
+	 for p in primes do
+	    oldp := ModularSymbols(PSL2Subgroup(p, false));
+            if Dimension(oldp) gt 0 then
+               R := Transversal(p, ImageInLevel(LevelSubgroup(M)));
+               R := [[Integers()!x : x in Eltseq(r)] : r in R];
+               mat := &+[ActionOnModularSymbolsBasisBetween(r, oldp, AM) :
+				       r in R];
+               Append(~DDmats, Transpose(mat));
+            end if;
+	 end for;
+      end if;
       DD := HorizontalJoin(DDmats);
  
       vprintf ModularSymbols: "Computing kernel of dual degeneracy maps: ";
@@ -480,13 +508,13 @@ over all prime divisors of the level of M}
    // TO DO: was this require supposed to be required, or not?
    require IsCuspidal(M) : 
       "The given space must be contained in the cuspidal subspace";
-
+/*
    if not IsOfGammaType(M) then
       require false : "Modular space must be of level 
                     Gamma0(N), Gamma1(N) or Gamma(N)
                     for new to be meaningful.";
    end if;
-
+*/
    if assigned M`is_new and M`is_new 
       or Level(M) eq 1 
       or Dimension(M) eq 0
@@ -497,7 +525,21 @@ over all prime divisors of the level of M}
    if not assigned M`new_part then
       vprintf ModularSymbols: "Computing new part of %o\n", M;
 
-      primes := [tup[1] : tup in Factorization(Level(M))];
+      if IsOfGammaType(M) then 
+         primes := [tup[1] : tup in Factorization(Level(M))];
+      else
+         G := LevelSubgroup(M);
+         G_N := ModLevel(G);
+         H := ImageInLevel(G);
+/*
+         subgroup_lattice := SubgroupLattice(G_N);
+         // find H in the lattice. !!! TODO : there are better ways
+         idx := [i : i in subgroup_lattice | H eq Group(i)][1];
+         primes := [Group(i) : i in MinimalOvergroups(idx)];
+*/
+         import "../../Group/GrpPerm/max/oddfns.m" : MinimalOvergroupsH;
+         primes := MinimalOvergroupsH(G_N,H);
+      end if;
 
       if IsMultiChar(M) then
          // This is the old version of NewSubspace (TO DO)

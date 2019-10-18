@@ -243,6 +243,7 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
       // To see the newform, we map it to M_k(Gamma1(N^2))
       // This is extremely slow!
       // At the moment also does not work for extension fields!!!
+      /*
       N := Level(M);
       if not IsOfGammaType(M) and (M`G notin [Gamma0(N),Gamma1(N)]) then	
         M1 := ModularSymbols(Gamma1(N^2), Weight(M), Sign(M));
@@ -287,6 +288,10 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
         M_new := M;
       end if;
 
+      */
+      M_eig := M;
+      M_new := M;
+      
       if IsVerbose("ModularSymbols") then
 	if not IsOfGammaType(M) then
 	     printf "... finding its image in M_k(Gamma1(N^2)) took %o sec\n",
@@ -1740,4 +1745,28 @@ intrinsic AllReductionMaps_Factor(K::RngUPolRes, p::RngIntElt) -> List
       end for;
    return ans;
 
+end intrinsic;
+
+function get_eigenform_galois_orbit(f)
+  q := Parent(f).1;
+  K := BaseRing(Parent(f));
+  Gal_K := Automorphisms(K);
+  orbit := [];
+  coeffs := Coefficients(f);
+  prec := #coeffs + 1;
+  for sigma in Gal_K do
+    sigma_coeffs := [sigma(c) : c in coeffs];
+    Append(~orbit, &+[sigma_coeffs[i]*q^i : i in [1..#coeffs]] + O(q^prec));
+  end for;
+  return orbit;
+end function;
+
+intrinsic qEigenformBasis(M::ModSym, prec::RngIntElt) -> SeqEnum[RngSerPowElt]
+{Computes an echelon basis of eigenforms for M.}
+  S := CuspidalSubspace(M);
+  D := Decomposition(S, HeckeBound(S));
+  eigenforms := &cat[get_eigenform_galois_orbit(qEigenform(d, prec)) : d in D];
+  basis := EchelonPolySeq(eigenforms, prec);
+  q := Universe(basis).1;
+  return [f + O(q^prec) : f in basis];
 end intrinsic;

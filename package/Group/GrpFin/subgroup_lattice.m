@@ -175,3 +175,132 @@ intrinsic ComputeSubgroupLattice(G::GrpPC) -> SeqEnum, SeqEnum
     E, V := subgroup_lattice(G);
     return E, V;
 end intrinsic
+
+
+subgroup_lattice_with_conjugation_info := function(G)
+    Print := GetVerbose("Subgroups");
+    if Print ge 1 then
+	zeit := Cputime();
+	printf "+SubgroupLattice: group order %o\n", #G;
+    end if;
+    orders := {@ #G @};
+    grps := [G];
+    grp_with_order := [[1]];
+    incls := {@ @}; /* edges of lattice graph (Hasse diagram) */
+    weights := [ ]; /* weights of corresponding edges */
+    incls_conj := [];
+    done := 0;
+    while done lt #grps do
+	done +:= 1;
+	if Print ge 2 then
+	    printf "Doing subgroup %o of order %o - have %o subgroup classes\n",
+			done, #grps[done], #grps;
+	end if;
+	s := maximal_subgroup_classes(G, grps[done]);
+	for i := 1 to #s do
+	    U := s[i]`subgroup;
+	    ind := Index(orders, #U);
+            is_conj := false;
+	    if ind gt 0 then
+	        for j in grp_with_order[ind] do
+		   is_conj,x := IsConjugate(G,grps[j],U);
+                   if is_conj then
+		      k := Index(incls, [done, j]);
+		      if k gt 0 then
+		         weights[k] +:= s[i]`length;
+                         Append(~incls_conj[k], x);
+		      else
+			 Include(~incls, [done, j]);
+		         Append(~weights, s[i]`length);
+                         Append(~incls_conj, [x]);
+		      end if;
+                      break;
+		   end if;
+		end for;
+            end if;
+            if (ind eq 0) or (not is_conj) then
+		/* new group */
+		Append(~grps, U);
+		if ind eq 0 then
+		    Include(~orders, #U);
+		    Append(~grp_with_order,[#grps]);
+		else
+		    Append(~grp_with_order[ind], #grps);
+		end if;
+                Include(~incls, [done, #grps]);
+		Append(~weights, s[i]`length);
+                Append(~incls_conj, [G!1]);
+	    end if;
+	end for;
+    end while; /* main while loop */
+
+    if Print ge 1 then
+	printf "Found %o classes after %o secs, computing class lengths\n", 
+		    #grps, RealField(5)!Cputime(zeit);
+    end if;
+
+    len := [];
+    for i := 1 to #grps do
+	a := Index(G, Normalizer(G, grps[i]));
+	Append(~len, [i, #grps[i], a]);
+    end for;
+
+    if Print ge 1 then
+	print "Computing the weighted subgroup lattice";
+    end if;
+
+    wlat := [];
+    for i :=1 to #incls do
+	a := incls[i];
+	Append(~a, weights[i]);
+	Append(~a, len[a[1],3]*weights[i] div len[a[2],3]);
+	Append(~wlat, a);
+    end for;
+    delete weights;
+
+    /* sort everything to standard order */
+    sort_cmp := function(x,y)
+	if not IsTrivial(grps[x]) and not IsTrivial(grps[y]) then
+	    res := &+[t[2]:t in FactoredOrder(grps[x])] - 
+			&+[t[2]:t in FactoredOrder(grps[y])];
+	    if not IsZero(res) then return res; end if;
+	end if;
+	res := #grps[x]-#grps[y];
+	if not IsZero(res) then return res; end if;
+	return len[x,3] - len[y,3];
+    end function;
+
+    resort := [1..#grps];
+    Sort(~resort, sort_cmp);
+    perm := [];
+    for i := 1 to #grps do
+	perm[resort[i]]:=i;
+    end for;
+    new_len := [];
+    len :=  [[perm[l[1]],l[2],l[3]]:l in len];
+    sort_cmp := func<x,y|x[1]-y[1]>;
+    Sort(~len,sort_cmp);
+    wlat := [[perm[l[1]], perm[l[2]], l[3]]:l in wlat];
+    Sort(~wlat, sort_cmp);
+    grps := [grps[resort[i]]:i in [1..#grps]];
+
+    /* at this point "grps" is sorted list of class reps
+     * "len" contains triples [subgrp_num, subgrp_order, class_length]
+     *     sorted by subgrp_num so len[i] eq [i, O, L]
+     * "wlat" contains edges of hasse diagram as 4-tuples
+     *  [super_grp, maximal_sub_grp, x, y, R] where x,y are NInclusion info
+     *  x = number of conjugates of sub_grp contained in each single super_grp
+     *  y = number of conjugates of super_grp contained in each single sub_grp
+     *  and R is a list of element that give the conjugation for inclusion.
+     */
+
+    /* set up maximals so maximals[i] = list of maximal classes of grps[i] 
+    maximals := [ []:i in [1..#grps]];
+    for t in wlat do
+	Append(~maximals[t[1]], t[2]);
+    end for;
+    */
+
+    /* return vertex info, edges info */
+    return [<grps[i], len[i,3]>:i in [1..#grps]], wlat, incls_conj;
+end function;
