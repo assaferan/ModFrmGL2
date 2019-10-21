@@ -15,6 +15,7 @@ declare attributes GrpChr:  // Call this GrpChr object G.
    BaseRing,      // The base ring R over which the characters are defined
    Domain,        // The domain of the characters (the finite group Q)
    OriginalDomain, // The domain before the quotient - the finite level group
+   Gamma,              // the GrpPSL2 group
    QuotientMap,   // The quotient map from the finite level group
    Exponent,      // Exponent of the group Q
    RootOf1,       // A root of unity z in R^*
@@ -49,7 +50,7 @@ declare attributes GrpChrElt:
 //                   Creation functions                       // 
 ////////////////////////////////////////////////////////////////
 
-intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng) -> GrpChr
+intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng, Gamma::GrpPSL2) -> GrpChr
  {The group of characters of Q with image in the ring R.}
    require Type(R) in {RngInt, FldRat, FldCyc, FldFin, FldQuad, FldNum} :
        "Argument 2 must be of type RngInt, FldRat, FldCyc, FldFin, FldQuad, or FldNum.";
@@ -60,25 +61,26 @@ intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng) -> GrpChr
    G`AbGrp  := A;
    G`AbGrpMap := phi;
    G`QuotientMap := pi_Q;
+   G`Gamma := Gamma;
    G`OriginalDomain := Domain(pi_Q);
    G`BaseRing := R;
    G`Exponent := Exponent(G`Domain);
    return G;
 end intrinsic;
 
-intrinsic CharacterGroup(pi_Q::HomGrp) -> GrpChr
+intrinsic CharacterGroup(pi_Q::HomGrp, G::GrpPSL2) -> GrpChr
  {The group of characters of Q with image in the rationals.}
-    return CharacterGroup(pi_Q,Rationals());
+   return CharacterGroup(pi_Q,Rationals(), G);
 end intrinsic;
 
-intrinsic FullCharacterGroup(pi_Q::HomGrp) -> GrpChr
+intrinsic FullCharacterGroup(pi_Q::HomGrp, G::GrpPSL2) -> GrpChr
 {The group of characters of Q with values in Q(zeta_m), where
 m is the exponent of Q.}
    mu := Exponent(Codomain(pi_Q));
    if mu gt 2 then
-      return CharacterGroup(pi_Q,CyclotomicField(mu));
+     return CharacterGroup(pi_Q,CyclotomicField(mu),G);
    else
-     return CharacterGroup(pi_Q);   
+     return CharacterGroup(pi_Q,G);   
    end if;
 end intrinsic;
 
@@ -191,6 +193,7 @@ intrinsic MinimalBaseRingCharacter(eps::GrpChrElt) -> GrpChrElt
    // N := Modulus(eps);
    pi_Q := Parent(eps)`QuotientMap;
    Q := Domain(eps);
+   G := Parent(eps)`Gamma;
    case Type(F):
       when FldRat:
          return eps;
@@ -201,7 +204,7 @@ intrinsic MinimalBaseRingCharacter(eps::GrpChrElt) -> GrpChrElt
       when FldCyc:
          n := Order(eps);
          if n eq 1 then
-            return CharacterGroup(pi_Q)!1;
+	    return CharacterGroup(pi_Q, G)!1;
          end if;
          if n gt 2 and EulerPhi(n) eq Degree(F) then
             return eps;
@@ -211,7 +214,7 @@ intrinsic MinimalBaseRingCharacter(eps::GrpChrElt) -> GrpChrElt
             else
                K := CyclotomicField(n);
             end if;
-            G := CharacterGroup(pi_Q,K);
+               G := CharacterGroup(pi_Q,K,G);
             return G!eps;
          end if;
    end case;   

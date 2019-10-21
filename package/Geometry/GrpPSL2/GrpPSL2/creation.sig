@@ -12,7 +12,9 @@ S,GammaNS,"creates the congruence subgroup Gamma_ns(N), choosing u as the nonsqu
 S,GammaNS,creates the congruence subgroup Gamma_ns(N),0,1,0,0,0,0,0,0,0,148,,GrpPSL2,-38,-38,-38,-38,-38
 S,GammaNSplus,creates the congruence subgroup Gamma_ns^plus(N),0,2,0,0,0,0,0,0,0,321,,0,0,148,,GrpPSL2,-38,-38,-38,-38,-38
 S,GammaNSplus,creates the congruence subgroup Gamma_ns^plus(N),0,1,0,0,0,0,0,0,0,148,,GrpPSL2,-38,-38,-38,-38,-38
+S,/,Currently assumes the same level,0,2,0,0,0,0,0,0,0,GrpPSL2,,0,0,GrpPSL2,,GrpPSL2,-38,-38,-38,-38,-38
 S,Normalizer,The normalizer of a congruence subgroup in SL_2(R),0,1,0,0,0,0,0,0,0,GrpPSL2,,GrpPSL2,-38,-38,-38,-38,-38
+S,MaximalNormalizingWithAbelianQuotient,,0,1,0,0,0,0,0,0,0,GrpPSL2,,GrpPSL2,-38,-38,-38,-38,-38
 S,Random,"returns a random element of the projective linear group G, m determines the size of the coefficients",0,2,0,0,0,0,0,0,0,148,,0,0,GrpPSL2,,GrpPSL2Elt,-38,-38,-38,-38,-38
 S,Conjugate,This function returns the conjugation of G by A. At the moment we only support the case where both input and output are subgroups of PSL2(Z),0,2,0,0,0,0,0,0,0,180,,0,0,GrpPSL2,,GrpPSL2,-38,-38,-38,-38,-38
 S,Intersection,returns the intersection of two congruence subgroups,0,2,0,0,0,0,0,0,0,GrpPSL2,,0,0,GrpPSL2,,GrpPSL2,-38,-38,-38,-38,-38

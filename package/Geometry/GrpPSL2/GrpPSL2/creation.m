@@ -27,6 +27,7 @@ function init_psl2_group(N,R)
     G`conjugate_list := [GL(2,R)!1];
     G`IsNormalizer := false;
     G`IsOfGammaType := true;
+    G`IsReal := true;
     return G;
 end function;
 
@@ -49,6 +50,7 @@ intrinsic PSL2(R::Rng) -> GrpPSL2
     G`BaseRing := R;
     G`Level := 1;
     G`IsOfGammaType := true;
+    G`IsReal := true;
     G`gammaType_list:=[[1,1,1]];
     if Type(R) eq RngInt then
        T := G![1,1,0,1];
@@ -74,7 +76,7 @@ intrinsic CongruenceSubgroup(A::SeqEnum) -> GrpPSL2
            * "with N[2] dividing N[1]*N[3]";
     N := Lcm(A);
     G := init_psl2_group(N,IntegerRing());
-    G`gammaType_list := [A]; 
+    G`gammaType_list := [A];
     return G;
 end intrinsic;
 
@@ -187,6 +189,7 @@ intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
   C_N := sub<G_N | [IntegerRing(N)!x : x in g]>;
   G := PSL2Subgroup(C_N);
   G`Label := Sprintf("Gamma_ns(%o)", N);
+  G`IsReal := true;
   return G;
 end intrinsic;
 
@@ -206,12 +209,19 @@ intrinsic GammaNSplus(N::RngIntElt) -> GrpPSL2
   return Normalizer(GammaNS(N));
 end intrinsic;
 
-//////////////////////////////////////////////////////////
-//                                                      //
-//  creation of normalizer of Gamma_0(N)                //
-//                                                      //
-//////////////////////////////////////////////////////////
+// Creation of Quotient
 
+intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
+{Currently assumes the same level.}
+   require ModLevel(G) eq ModLevel(H) : "the groups must be of the same level";
+   return ImageInLevel(G)/ImageInLevel(H);
+end intrinsic;
+
+//////////////////////////////////////////////////////////
+//                                                      //
+//  creation of normalizer of G                         //
+//                                                      //
+//////////////////////////////////////////////////////////
 
 intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
    {The normalizer of a congruence subgroup in SL_2(R)}
@@ -229,10 +239,45 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
      H := PSL2Subgroup(N_G);
    end if;
    H`IsNormalizer := true;
-   H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat G`Label;
+H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat Label(G);
+   if IsOfRealType(G) then H`IsReal := true; end if;
    return H;
 end intrinsic;
 
+intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
+{}
+    N_G := Normalizer(G);
+    Q, pi_Q := N_G / G;
+    // At the moment, magma cannot compute irreducible modules for
+    // non soluble groups over characteristic 0 fields
+    // if (not IsSoluble(Q)) or (#Q eq 1) then
+    // In fact, if Q is not nilpotent,
+    // currently don't know how to find maximal abelian subgroups
+    if IsAbelian(Q) then
+       return N_G;
+    elif not IsNilpotent(Q) then
+       return G;
+    else
+      // find a maximal abelian subgroup
+      A := Center(Q);
+      C := Centralizer(Q,A);
+      while (C ne A) do
+	gens := Generators(C);
+        for g in gens do
+	  if g notin A then
+	    A := sub<Q|A,g>;
+            break;
+          end if;
+        end for;
+        C := Centralizer(Q,A);
+      end while;
+    end if;
+    G_prime := A @@ pi_Q;
+    H := PSL2Subgroup(G_prime);
+    H`Label := Sprintf("Maximal Abelian Subgroup of Normalizer in 
+                        PSL_2(%o) of ", G`BaseRing) cat Label(G);
+    return H;
+end intrinsic;
 
 //////////////////////////////////////////////////////////
 //                                                      //

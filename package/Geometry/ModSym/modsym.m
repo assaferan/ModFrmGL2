@@ -776,7 +776,7 @@ intrinsic ModularSymbols(eps::GrpChrElt, k::RngIntElt,
       end if;
    end if;
 
-   G := PSL2Subgroup(Parent(eps)`OriginalDomain);
+   G := Parent(eps)`Gamma;
 
    if IsVerbose("ModularSymbols") then
       tt := Cputime();

@@ -56,14 +56,18 @@ end intrinsic;
 
 intrinsic IsOfRealType(G::GrpPSL2) -> BoolElt
 { returns true if and only if G is of real type (normalized by J) }
-  J := GL(2,Integers())![-1,0,0,1];
-  gens := Generators(G);
-  for g in gens do
-    if not PSL2(Integers())!(J * Matrix(g) * J) in G then
-       return false;
-    end if;
-  end for;
-  return true;
+  if not assigned G`IsReal then
+    J := GL(2,Integers())![-1,0,0,1];
+    gens := Generators(G);
+    G`IsReal := true;
+    for g in gens do
+      if not PSL2(Integers())!(J * Matrix(g) * J) in G then
+         G`IsReal := false;
+         break;
+      end if;
+    end for;
+  end if;
+  return G`IsReal;
 end intrinsic;
 
 intrinsic IsGammaNS(G::GrpPSL2) -> BoolElt
