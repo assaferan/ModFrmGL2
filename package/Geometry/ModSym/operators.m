@@ -182,6 +182,7 @@ import "arith.m":
 import "core.m": 
    ConvFromModularSymbol,
    ConvToModularSymbol,
+   CosetReduce,
    ModularSymbolsBasis,
    P1GeneralizedWeightedAction,
    UnwindManinSymbol;
@@ -453,13 +454,15 @@ with respect to Basis(M).}
 
    elif IsPrime(n) then
       if IsAmbientSpace(M) then
-         if IsOfGammaType(M) then
+ // Before adjusting Heilbronn to work for our case
+         if IsOfGammaType(M) or IsGammaNS(M`G) or IsGammaNSplus(M`G) then
            use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
                              and IsTrivial(DirichletCharacter(M));
 	   T := HeckeOperatorHeilbronn(M, Heilbronn(M, n, not use_cremona));
          else
            T := HeckeOperatorDirectlyOnModularSymbols(M,n);
          end if;
+
 /*  Using "DirectlyOn" fails in this example!!
     G<a>:=DirichletGroup(109,GF(4));M:=ModularSymbols(a,2);
     T7:=HeckeOperator(M,7);T23:=HeckeOperator(M,23);
@@ -629,7 +632,42 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
    end if;
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;
-                  
+
+// TODO: Have to add here the action of epsilon, later !!!
+function ManinSymbolsAction2(defining_tuple, uv, Heil)
+  find_coset := defining_tuple[1];
+  G := defining_tuple[2];
+  Tquot := defining_tuple[3];
+  Squot := defining_tuple[4];
+  Scoef := defining_tuple[5];
+  res := Universe(Tquot)!0;
+  for mat in Heil do
+    uvM := Parent(mat)!Eltseq(uv) * mat;
+    ind, s := CosetReduce(uvM, find_coset, G);
+    if ind ne 0 then
+      res +:= Scoef[ind]*Tquot[Squot[ind]];
+    end if;
+  end for;
+  return res;
+end function;
+
+
+// TODO: !!! Add polynomial action for arbitrary weight
+function ManinSymbolsAction(defining_tuple, uv, weight, Heil)
+  find_coset := defining_tuple[1];
+  G := defining_tuple[2];
+  Tquot := defining_tuple[3];
+  Squot := defining_tuple[4];
+  Scoef := defining_tuple[5];
+  res := Universe(Tquot)!0;
+  for mat in Heil do
+    uvM := Parent(mat)!Eltseq(uv) * mat;
+    ind, s := CosetReduce(uvM, find_coset, G);
+    res +:= Scoef[ind]*Tquot[Squot[ind]];
+  end for;
+  return res;
+end function;
+
 procedure Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action)
 
    Tquot := quot`Tquot;
@@ -815,7 +853,6 @@ function lev1_TnSparse(M, Heil, sparsevec)
    return ans;
 end function;
 
-
 function HeckeOperatorHeilbronn(M, Heil)
    if Dimension(M) eq 0 then
       return MatrixAlgebra(BaseField(M), Dimension(M))!0;
@@ -855,9 +892,19 @@ function HeckeOperatorHeilbronn(M, Heil)
       Append(~generating_weights,w);
    end for;
 
-   Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action);
+   if IsOfGammaType(M) then
+      Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action);
+      defining_tuple := <coset_list, Tquot, Squot, Scoef> ;
+   else
+      Tquot := quot`Tquot;
 
-   defining_tuple := <coset_list, Tquot, Squot, Scoef> ;
+      CallP1Action2 := ManinSymbolsAction2;
+      CallP1Action := ManinSymbolsAction;
+      G := LevelSubgroup(M);
+      find_coset := M`mlist`find_coset;
+      defining_tuple := <find_coset, G, Tquot, Squot, Scoef> ;
+   end if;
+
    Append(~defining_tuple, eps);  
 
    if Weight(M) eq 2 then
@@ -886,9 +933,10 @@ function TnSparse(M, Heil, sparsevec)
 
    In order to always use Heilbronn matrices, this is
    now commented out.  WAS, 09/15/01.
+  if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
 */
-//   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
-   if not IsOfGammaType(M) then
+  if (not IsOfGammaType(M)) and
+     (not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) then
       if Type(Heil) eq RngIntElt then
 	 n := Heil;
       else
@@ -913,7 +961,6 @@ function TnSparse(M, Heil, sparsevec)
       end if;
 */
    end if;
-
 
    // Now consider the characteristic-zero case.
    if Level(M) eq 1 then
@@ -964,9 +1011,19 @@ function TnSparse(M, Heil, sparsevec)
       Append(~generating_weights,w);
    end for;
 
-   Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action);
+   if IsOfGammaType(M) then
+      Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action);
+      defining_tuple := <coset_list, Tquot, Squot, Scoef> ;
+   else
+      Tquot := quot`Tquot;
 
-   defining_tuple := <coset_list, Tquot, Squot, Scoef> ;
+      CallP1Action2 := ManinSymbolsAction2;
+      CallP1Action := ManinSymbolsAction;
+      G := LevelSubgroup(M);
+      find_coset := M`mlist`find_coset;
+      defining_tuple := <find_coset, G, Tquot, Squot, Scoef> ;
+   end if;
+
    Append(~defining_tuple, eps);  
    
    if Weight(M) eq 2 then

@@ -395,3 +395,11 @@ intrinsic IsTrivial(eps::GrpChrElt) -> BoolElt
 {For internal use only}
    return &and[g@eps eq 1 : g in Generators(Domain(eps))];
 end intrinsic;
+
+intrinsic ValueList(eps::GrpChrElt) -> SeqEnum
+{[The values [eps(q) : q in Domain(eps)].}
+   if not assigned eps`ValueList then
+      eps`ValueList := [Evaluate(eps,q) : q in Domain(eps)];
+   end if;
+   return eps`ValueList;
+end intrinsic;

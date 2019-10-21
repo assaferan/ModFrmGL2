@@ -180,6 +180,7 @@ intrinsic ModularSymbols(chars::[GrpChrElt], k::RngIntElt,
    M`dual_representation  := VectorSpace(M`F,M`dimension);
    M`mlist := ManinSymbolGenList(M`k, M`G, M`F);
    M`isgamma_type := false;
+   if #MultiSpaces(M) eq 1 then return MultiSpaces(M)[1]; end if;
    return M;
 end intrinsic;
 
@@ -387,11 +388,6 @@ intrinsic IsTrivial(chars::[GrpDrchElt]) -> BoolElt
 end intrinsic;
 
 intrinsic IsTrivial(chars::[GrpChrElt]) -> BoolElt
-{For internal use only}
-   return false;
-end intrinsic;
-
-intrinsic IsTrivial(chars::[Map]) -> BoolElt
 {For internal use only}
    return false;
 end intrinsic;

@@ -351,9 +351,10 @@ function CosetReduce(x, find_coset, G)
   if IsGammaNS(G) or IsGammaNSplus(G) then
      t := Universe(Domain(find_coset)).1;
      val := get_non_split_cartan_coset(x,t);
+     if val notin Domain(find_coset) then return 0,0; end if;
      index_g := find_coset(val);
      index := index_g[1];
-     g := index_g[2];
+     g := Parent(x)!Eltseq(index_g[2]);
      s := x*g^(-1);
      return index, s;
   end if;
@@ -362,7 +363,8 @@ function CosetReduce(x, find_coset, G)
   for index in [1..#list] do
      // s := x*list[index]^(-1);
      // we now work with the list of inverses
-     s := x*list[index];
+     g := Parent(x)!Eltseq(list[index]);
+     s := x*g;
      if s in G then
         return index, s;
      end if;
@@ -409,7 +411,9 @@ end function;
 
 function get_non_split_cartan_coset(g, x)
   a,b,c,d := Explode([Parent(x)!y : y in Eltseq(g)]);
-  return (d*x-b)/(-c*x+a);
+  denom := -c*x+a;
+  if denom eq 0 then return 0; end if;
+  return (d*x-b)/denom;
 end function;
 
 //////////////////////////////////////////////////////////////////////////
@@ -450,6 +454,9 @@ function ManinSymbolGenList(k,G,F)
       dom := {x[1] : x in coset_vals};
       find_coset := map<dom -> coset_list_idxs | coset_vals>;
    else
+     // TODO : define find_coset in the general case,
+     // So that when we have an element of Delta, we can find the
+     // appropriate coset
      find_coset := [g^(-1) : g in coset_list];
    end if;
    // coset_list_inv := [g^(-1) : g in CosetRepresentatives(G)];

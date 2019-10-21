@@ -569,6 +569,7 @@ procedure SingleTestNSCartan(N, plus)
 end procedure;
 
 procedure TestNSCartan_11()
+  printf "Testing the eigenform of non-split Cartan 11...\n";
   N := 11;
   G := GammaNSplus(N);
   M := ModularSymbols(G);
@@ -578,13 +579,27 @@ procedure TestNSCartan_11()
   assert f eq f2;
 end procedure;
 
-function foo(N)
+function buildEigenbasisNS(N)
   G := GammaNSplus(N);
   M := ModularSymbols(G);
   S := CuspidalSubspace(M);
 // return qIntegralBasis(S,prec : Al := "Universal");
   prec := Dimension(S) div 2 + 10;
   return qEigenformBasis(M, prec);
+end function;
+
+function timeEigenbasisNS(N)
+  res := [];
+  primes := PrimesUpTo(N);
+  odd_primes := primes[2..#primes];
+  for p in odd_primes do
+     printf "Constructing eigenbasis for Xns+(%o)...\n", p;
+     tm := Cputime();
+     tmp := buildEigenbasisNS(p);
+     tm := Cputime() - tm;
+     Append(~res, [p,tm]);
+  end for;
+  return res;
 end function;
 
 // These are tests for the non-split Cartan
@@ -627,5 +642,6 @@ procedure DoTests(numchecks)
    Test_Rouse();
    Test_Stein();
    Test_NS_cartan(50);
+   TestNSCartan_11();
 // Test_Zywina();
 end procedure;

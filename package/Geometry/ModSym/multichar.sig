@@ -13,7 +13,6 @@ S,ModularSymbolsH,Let H be a cyclic subgroup of order ord of (Z/NZ)^*. This func
 S,IsMultiChar,True if M is defined by more than one Dirichlet character,0,1,0,0,0,0,0,0,0,ModSym,,36,-38,-38,-38,-38,-38
 S,IsTrivial,For internal use only,1,0,1,82,0,GrpDrchElt,1,0,0,0,0,0,0,0,82,,36,-38,-38,-38,-38,-38
 S,IsTrivial,For internal use only,1,0,1,82,0,GrpChrElt,1,0,0,0,0,0,0,0,82,,36,-38,-38,-38,-38,-38
-S,IsTrivial,For internal use only,1,0,1,82,0,175,1,0,0,0,0,0,0,0,82,,36,-38,-38,-38,-38,-38
 S,MultiSpaces,Sequence of spaces with characters attached to M,0,1,0,0,0,0,0,0,0,ModSym,,82,-38,-38,-38,-38,-38
 S,MultiQuotientMaps,List of quotient maps (with inverse) from M to each of the spaces that define the multi-character space M,0,1,0,0,0,0,0,0,0,ModSym,,168,-38,-38,-38,-38,-38
 S,MultiTuple,"If x is an element of the multicharacter space M, which is isomorphic to the direct sum of the restrictions of the restriction of scalars of spaces M_i, this returns the tuple in the product of the M_i corresponding to x. The tuple is represented as a list of elements of the M_i",0,1,0,0,0,0,0,0,0,ModSymElt,,168,-38,-38,-38,-38,-38
