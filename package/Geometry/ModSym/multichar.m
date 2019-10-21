@@ -285,21 +285,22 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
       // In fact, if Q is not nilpotent,
       // currently don't know how to find maximal abelian subgroups
       if not IsNilpotent(Q) then
-	return ModularSymbolsFromGroup(G,k,Rationals(),sign);
-      end if;
-      // find a maximal abelian subgroup
-      A := Center(Q);
-      C := Centralizer(Q,A);
-      while (C ne A) do
-	gens := Generators(C);
-        for g in gens do
-	  if g notin A then
-	    A := sub<Q|A,g>;
-            break;
-          end if;
-        end for;
+         A := Q;
+      else
+        // find a maximal abelian subgroup
+        A := Center(Q);
         C := Centralizer(Q,A);
-      end while;
+        while (C ne A) do
+	  gens := Generators(C);
+          for g in gens do
+	    if g notin A then
+	      A := sub<Q|A,g>;
+              break;
+            end if;
+          end for;
+          C := Centralizer(Q,A);
+        end while;
+      end if;
       G_prime := A @@ pi_Q;
       Q, pi_Q := G_prime / ImageInLevel(G);
       D := FullCharacterGroup(pi_Q);
