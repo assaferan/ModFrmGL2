@@ -3,6 +3,7 @@
     arith.m
     boundary.m
     calc.m
+    character.m
     charpolyhecke.m
     core.m    
     cusps.m

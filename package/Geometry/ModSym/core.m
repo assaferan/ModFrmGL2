@@ -633,24 +633,22 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
      uvg := g[2] * uvg;
    end if;
    uvg := PSL2(Integers())!uvg;
-// act_uv, s := CosetReduce(uvg, coset_list_inv, G);
    act_uv, s := CosetReduce(uvg, find_coset, G);
-   s := Domain(eps)!ElementToSequence(s);
 
    if k eq 2 then
-      return [<eps(s)[1,1],act_uv>]; 
+      return [<s@eps,act_uv>]; 
    end if;
    
    // Polynomial part. 
    R := PolynomialRing(mlist`F); x := R.1;    // univariate is fine for computation
    hP := (g[1][1]*x+g[1][2])^w*(g[1][3]*x+g[1][4])^(k-2-w);
 
-   hP *:= eps(s)[1,1];
+   hP *:= s@eps;
    pol := ElementToSequence(hP);
 
    // Put it together
    // n   := #coset_list_inv;
-   n := #Domain(find_coset);
+   n := #mlist`coset_list;
    ans := [<pol[w+1],  w*n + act_uv> : w in [0..#pol-1]];
    return [x : x in ans | x[1] ne 0];
 end function;
@@ -1459,7 +1457,7 @@ function ConvFromManinSymbol (M, P, uv)
          P := 0;
       end if;
    else
-      P := R!(char(Domain(char)!ElementToSequence(s))[1,1]) * P;
+     P := R!(Evaluate(char,s)) * P;
    end if;
    if k eq 2 then    // case added 04-09, SRD
       if P eq 0 then

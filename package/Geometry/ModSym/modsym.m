@@ -215,7 +215,6 @@ declare attributes ModSym:
          eps,                // Dirichlet character
          G,                  // a level subgroup
                              // (arbitrary congruence subgroup of PSL2(Z)
-         pi_Q,               // quotient map to N_G/G 
          multi,              // Sequence of modular symbols spaces if
          is_multi,           // IsMultiChar is true (if eps is a sequence)
          multi_modsymgens,   // generating modular symbols in that case
@@ -528,6 +527,13 @@ intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt) -> ModSym
    return ModularSymbols(eps,k,0);
 end intrinsic;
 
+intrinsic ModularSymbols(eps::GrpChrElt, k::RngIntElt) -> ModSym
+{The space of modular symbols of weight k and character eps.}
+   requirege k,2;
+   require IsSupportedField(BaseRing(eps)) : SupportMessage;
+   return ModularSymbols(eps,k,0);
+end intrinsic;
+
 forward CreateTrivialSpace;
 
 intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt, 
@@ -637,123 +643,10 @@ intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt,
    return M;
 end intrinsic;
 
-forward CreateTrivialSpaceGen;
-
-intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt, F::Fld,
-                                        sign::RngIntElt) -> ModSym
-{The space of modular symbols of weight k and level G.
- The third argument "sign" allows for working in certain
- quotients.  The possible values are -1, 0, or +1, which correspond
- to the -1 quotient, full space, and +1 quotient.}
-   require (-1 le sign and sign le 1) : 
-              "Argument 3 must be either -1, 0, or 1";
-   requirege k, 2;
-
-   require IsSupportedField(F) : SupportMessage;
-
-   if sign ne 0 then
-      require IsOfRealType(G) : "Group is not of real type.
-                                 Sign quotients are only relevant 
-                                 for groups of real type.";
-   end if;
-
-   if Type(F) in {FldAC, FldPad} then
-      if IsVerbose("ModularSymbols") then
-         printf "WARNING: Base field %o not fully supported.\n", F;  
-         printf "You might try using a less exotic base field, and then\n";
-         printf "base extending.  However many standard functions might\n";
-         printf "not work.\n";
-      end if;
-   end if;
-
-   if IsVerbose("ModularSymbols") then
-      tt := Cputime();
-      printf "Computing space of modular symbols of level %o and weight %o....\n", G, k;
-   end if;
-
-   if GetVerbose("ModularSymbols") ge 2 then   
-      t := Cputime(); "I.\tManin symbols list."; 
-   end if;
-   mlist := ManinSymbolGenList(k,G,F);
-   if GetVerbose("ModularSymbols") ge 2 then   
-      printf "\t\t(%o s)\n",Cputime(t);
-   end if;
-
-   if GetVerbose("ModularSymbols") ge 2 then   
-      t := Cputime(); "II.\t2-term relations.";
-   end if;
-   Sgens, Squot, Scoef := ManSym2termQuotient(mlist, G, sign);
-/*"Sgens = ", Sgens;
-"Squot = ", Squot;
-"Scoef = ", Scoef;
-*/
-   if GetVerbose("ModularSymbols") ge 2 then   
-      printf "\t\t(%o s)\n",Cputime(t);
-   end if;
-
-   if #Sgens lt 1 then
-      return CreateTrivialSpaceGen(k,G,F,sign);
-   end if;
-
-   if GetVerbose("ModularSymbols") ge 2 then   
-      t := Cputime(); "III.\t3-term relations.";
-   end if;
-   Tgens, Tquot := ManSym3termQuotient(mlist, G, Sgens, Squot, Scoef);
-   if GetVerbose("ModularSymbols") ge 2 then   
-      printf "\t\t(%o s)\n",Cputime(t);
-   end if;
-   dim := #Tgens;
-   if dim lt 1 then
-      return CreateTrivialSpaceGen(k,G,F,sign);
-   end if;
-
-   M := New(ModSym);
-   M`is_ambient_space := true;
-   M`sub_representation  := VectorSpace(F,dim);
-   M`dual_representation  := VectorSpace(F,dim);
-   M`dimension := dim;
-   M`k    := k;
-   M`G    := G;
-   M`N    := Level(G);
-   M`sign := sign;
-   M`F    := F;
-   M`isgamma_type := false;
-   
-   M`mlist:= mlist;
-   M`quot := rec<CQuotient |  
-                 Sgens := Sgens, 
-                 Squot := Squot, 
-                 Scoef := Scoef,
-                 Tgens := Tgens, 
-                 Tquot := Tquot>;  
-
-   M`quot`Tquot := [Representation(M)!v : v in M`quot`Tquot];  // move them into M.
-   // !!! Temporary - might slow performance significantly
-   // Usually should not get here
-
-   if not assigned G`ModLevel then
-     if M`N eq 1 then
-        G`ModLevel := SL(1, IntegerRing(2));
-        G`ImageInLevel := SL(1, IntegerRing(2));
-     end if;
-     G`ModLevel := SL(2, IntegerRing(M`N));
-     G`ImageInLevel := sub<G`ModLevel | [ElementToSequence(g)
-				       : g in Generators(G)]>;
-   end if;
-   N_G := Normalizer(G`ModLevel, G`ImageInLevel);
-   Q, pi_Q := N_G / G`ImageInLevel;
-   M`eps := pi_Q * TrivialRepresentation(Q);
-   if IsVerbose("ModularSymbols") then
-      printf "\t\t(total time to create space = %o seconds)\n",Cputime(tt);
-   end if;
-
-   return M;
-end intrinsic;
-
 forward CreateTrivialSpaceGenEps;
 
-intrinsic ModularSymbolsFromGroup(eps::Map, G::GrpPSL2, k::RngIntElt, F::Fld,
-                                        sign::RngIntElt) -> ModSym
+intrinsic ModularSymbolsFromGroup(eps::GrpChrElt, G::GrpPSL2, k::RngIntElt,
+				  F::Fld, sign::RngIntElt) -> ModSym
 {The space of modular symbols of weight k and level G, with character eps.
  The third argument "sign" allows for working in certain
  quotients.  The possible values are -1, 0, or +1, which correspond
@@ -784,12 +677,12 @@ intrinsic ModularSymbolsFromGroup(eps::Map, G::GrpPSL2, k::RngIntElt, F::Fld,
       printf "Computing space of modular symbols of level %o and weight %o....\n", G, k;
    end if;
 
-   if eps(Domain(eps)![-1,0,0,-1]) ne (-1)^k then
-      return CreateTrivialSpaceGenEps(k,eps,F,sign,G);
+   if Evaluate(eps,[-1,0,0,-1]) ne (-1)^k then
+      return CreateTrivialSpaceGenEps(k,eps,sign,G);
    end if; 
 
    if GetVerbose("ModularSymbols") ge 2 then   
-      t := Cputime(); "I.\tManin symbols list."; 
+      t := Cputime(); "I.\tManin symbols list.";
    end if;
    mlist := ManinSymbolGenList(k,G,F);
    if GetVerbose("ModularSymbols") ge 2 then   
@@ -799,17 +692,14 @@ intrinsic ModularSymbolsFromGroup(eps::Map, G::GrpPSL2, k::RngIntElt, F::Fld,
    if GetVerbose("ModularSymbols") ge 2 then   
       t := Cputime(); "II.\t2-term relations.";
    end if;
-Sgens, Squot, Scoef := ManSym2termQuotientGen(mlist, eps, sign, G);
-/*"Sgens = ", Sgens;
-"Squot = ", Squot;
-"Scoef = ", Scoef;
-*/
+   Sgens, Squot, Scoef := ManSym2termQuotientGen(mlist, eps, sign, G);
+
    if GetVerbose("ModularSymbols") ge 2 then   
       printf "\t\t(%o s)\n",Cputime(t);
    end if;
 
    if #Sgens lt 1 then
-      return CreateTrivialSpaceGen(k,G,F,sign);
+     return CreateTrivialSpaceGenEps(k,eps,sign,G);
    end if;
 
    if GetVerbose("ModularSymbols") ge 2 then   
@@ -821,7 +711,7 @@ Sgens, Squot, Scoef := ManSym2termQuotientGen(mlist, eps, sign, G);
    end if;
    dim := #Tgens;
    if dim lt 1 then
-     return CreateTrivialSpaceGenEps(k,eps,F,sign,G);
+   return CreateTrivialSpaceGenEps(k,eps,sign,G);
    end if;
 
    M := New(ModSym);
@@ -855,14 +745,9 @@ Sgens, Squot, Scoef := ManSym2termQuotientGen(mlist, eps, sign, G);
 end intrinsic;
 
 
-//  !!! This is the new addition - check if we can merge
-//  with the existing ones
-
-//  forward CreateTrivialSpaceGenEps;
-
-intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt, 
-                         sign::RngIntElt, G::GrpPSL2, pi_Q::Map) -> ModSym
-{The space of modular symbols of weight k and irreducible representation rep,
+intrinsic ModularSymbols(eps::GrpChrElt, k::RngIntElt, 
+                         sign::RngIntElt) -> ModSym
+{The space of modular symbols of weight k and character eps,
     as a subspace of the modular symbols of weight k and level G.
  The level and base field are specified as part of overM.
  The third argument "sign" allows for working in certain
@@ -872,14 +757,14 @@ intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt,
               "Argument 3 must be either -1, 0, or 1";
    requirege k, 2;
 
-   F := BaseRing(rep);
+   F := BaseRing(eps);
    require IsSupportedField(F) : SupportMessage;
 
    if GetVerbose("ModularSymbols") gt 0 and 
-      BaseRing(rep) ne BaseRing(AbsoluteModuleOverMinimalField(rep)) then
+      BaseRing(eps) ne BaseRing(MinimalBaseRingCharacter(eps)) then
       print "WARNING: You are creating a space of modular symbols with representation rep";
       print "where rep is defined over a bigger field than necessary.   It would be";
-      print "much more efficient to replace rep by (AbsoluteModuleOverMinimalField(rep).";
+      print "much more efficient to replace eps by MinimalBaseRingCharacter(eps).";
    end if;
 
    if Type(F) in {FldAC, FldPad} then
@@ -891,47 +776,15 @@ intrinsic ModularSymbols(rep::ModGrp, k::RngIntElt,
       end if;
    end if;
 
-// N_G := PSL2Subgroup(Normalizer(G`ModLevel, G`ImageInLevel));
-//   N_G := PSL2Subgroup(Domain(pi_Q));
+   G := PSL2Subgroup(Parent(eps)`OriginalDomain);
+
    if IsVerbose("ModularSymbols") then
       tt := Cputime();
       printf "Computing space of modular symbols of level %o and weight %o....\n", G,k;
    end if;
 
-   if Dimension(rep) eq 1 then
-      return ModularSymbolsFromGroup(pi_Q * Representation(rep), G, k, F, sign);
-   end if;
+   return ModularSymbolsFromGroup(eps, G, k, F, sign);
 
-   smaller_G := PSL2Subgroup(Kernel(pi_Q));
-   overM := ModularSymbolsFromGroup(smaller_G, k, F, sign);
-   Q := Domain(Representation(rep));
-   Q_lifts := [FindLiftToSL2(q @@ pi_Q) : q in GeneratorsSequence(Q)];
-   Q_acts := [ActionOnModularSymbolsBasis(ElementToSequence(n), overM) : n in Q_lifts];
-   overM_as_Q_module := GModule(Q, Q_acts);
-
-   subreps := GHom(rep, ChangeRing(overM_as_Q_module, F));
-
-   if Dimension(subreps) eq 0 then
-     return CreateTrivialSpaceGenEps(k,pi_Q * Representation(rep),F,sign,G);
-   end if;
-
-   B_rep := Basis(rep);
-   phis := Basis(subreps);
-   // V := Representation(overM);
-   V := ChangeRing(Representation(overM), F);
-
-   // !!! Here there are two many if rep is not absolutely irreducible
-
-   subspaces_gens := [[V!phi(b) : b in B_rep] : phi in phis];
-   subspaces := [sub<V | gens> : gens in subspaces_gens];
-
-   M := &+ [ModularSymbolsSub(overM, sub) : sub in subspaces];
-
-   if IsVerbose("ModularSymbols") then
-      printf "\t\t(total time to create space = %o seconds)\n",Cputime(tt);
-   end if;
-
-   return M;
 end intrinsic;
 
 
@@ -1010,7 +863,8 @@ function CreateTrivialSpace(k,eps,sign)
    return M;
 end function;
 
-function CreateTrivialSpaceGenEps(k,eps,F,sign,G)
+function CreateTrivialSpaceGenEps(k,eps,sign,G)
+   F := BaseRing(eps);
    V := VectorSpace(F,0);
    M := New(ModSym);
    M`is_ambient_space := true;
@@ -1037,18 +891,6 @@ function CreateTrivialSpaceGenEps(k,eps,F,sign,G)
                coset_list := coset_list,
                n := #coset_list*(k-1)>;
    return M;
-end function;
-
-function CreateTrivialSpaceGen(k,G,F,sign)
-   if not assigned G`ModLevel then
-      print "This function should only be called 
-             when G is not of gamma type";
-      assert false;
-   end if;
-   N_G := Normalizer(G`ModLevel, G`ImageInLevel);
-   Q, pi_Q := N_G / G`ImageInLevel;
-   eps := TrivialRepresentation(Q);
-   return CreateTrivialSpaceGenEps(k,pi_Q * eps,F,sign,G);
 end function;
 
 ///////////////////////////////////////////////////////////////
@@ -1122,22 +964,6 @@ intrinsic IsOfGammaType(M::ModSym) -> BoolElt
    else
       return IsOfGammaType(AmbientSpace(M));
    end if;
-end intrinsic;
-
-intrinsic IsTrivial(chi_pi::Map[GrpMat[RngIntRes], AlgMat[Fld]])
-  -> BoolElt
-{For internal use only}
-   comps := Components(chi_pi);
-   chi := comps[#comps];
-   return &and[IsIdentity(chi(g)) : g in Generators(Domain(chi))];
-end intrinsic;
-
-intrinsic IsTrivial(chi_pi::Map[GrpMat[RngIntRes], GrpMat[Fld]])
-  -> BoolElt
-{For internal use only}
-   comps := Components(chi_pi);
-   chi := comps[#comps];
-   return &and[IsIdentity(chi(g)) : g in Generators(Domain(chi))];
 end intrinsic;
 
 intrinsic DirichletCharacter(M::ModSym) -> SeqEnum

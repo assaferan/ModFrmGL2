@@ -428,6 +428,7 @@ intrinsic ValueList(eps::GrpDrchElt) -> SeqEnum
 end intrinsic;
 
 
+ 
 intrinsic DirichletGroup(m::RngIntElt) -> GrpDrch
    {The group of Dirichlet characters mod m with image 
     in RationalField(). This is a group of exponent at most 2.}
@@ -1585,4 +1586,3 @@ intrinsic Sqrt(eps::GrpDrchElt) -> GrpDrchElt
    require t : msg;
    return sqrt_eps;   
 end intrinsic;
-

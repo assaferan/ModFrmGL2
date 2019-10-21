@@ -568,6 +568,25 @@ procedure SingleTestNSCartan(N, plus)
   assert Dimension(S) eq 2*genusNSCartan(N,plus);
 end procedure;
 
+procedure TestNSCartan_11()
+  N := 11;
+  G := GammaNSplus(N);
+  M := ModularSymbols(G);
+  S := CuspidalSubspace(M);
+  f := qEigenform(S,100);
+  f2 := qExpansion(Newform("121k2A"),100);
+  assert f eq f2;
+end procedure;
+
+function foo(N)
+  G := GammaNSplus(N);
+  M := ModularSymbols(G);
+  S := CuspidalSubspace(M);
+// return qIntegralBasis(S,prec : Al := "Universal");
+  prec := Dimension(S) div 2 + 10;
+  return qEigenformBasis(M, prec);
+end function;
+
 // These are tests for the non-split Cartan
 procedure Test_NS_cartan(max_N)
    // right now, this is only worked out for odd primes
@@ -587,7 +606,8 @@ procedure Test_Zywina()
   N := 7;
   G := my_Gamma(N, "full");
   M := ModularSymbols(G);
-  f := qEigenformBasis(M, 12);
+  S := CuspidalSubspace(M);
+  f := qIntegralBasis(S, 12 : Al := "Universal");
   q := Universe(f).1;
   assert f[1] eq q-3*q^8+O(q^12);
   assert f[2] eq q^2-3*q^9+O(q^12);
@@ -607,5 +627,5 @@ procedure DoTests(numchecks)
    Test_Rouse();
    Test_Stein();
    Test_NS_cartan(50);
-   Test_Zywina();
+// Test_Zywina();
 end procedure;

@@ -408,12 +408,10 @@ function CuspToFreeHelper(M, sign, a)
       else
 	if (IsGammaNS(G) or IsGammaNSplus(G)) then
 	   equiv, alp := CuspEquivNS(G, b[1],a);
-           alp := Domain(eps)!ElementToSequence(alp);
 	else					
            find_coset := M`mlist`find_coset;
            equiv, alp := CuspEquivGrp(coset_list, find_coset,
 				   G, orbit_table, b[1],a);
-           alp := Domain(eps)!ElementToSequence(alp);
         end if;
       end if;
       if equiv then
@@ -422,12 +420,8 @@ function CuspToFreeHelper(M, sign, a)
          end if;
          if is_trivial_eps then
             return <1,i>;
-         else
-	    if IsOfGammaType(M) then
-               return <Evaluate(eps,alp)^(-1),i>;
-            else
-	       return <eps(alp)[1,1]^(-1),i>;
-            end if;
+         else	    
+            return <Evaluate(eps,alp)^(-1),i>;       
          end if;
       end if;
       if sign ne 0 then
@@ -435,12 +429,10 @@ function CuspToFreeHelper(M, sign, a)
             equiv, alp := CuspEquiv(N, b[1], [-a[1],a[2]]);
          elif IsGammaNS(G) or IsGammaNSplus(G) then
 	    equiv, alp := CuspEquivNS(G, b[1], [-a[1],a[2]]);
-            alp := Domain(eps)!ElementToSequence(alp);
          else
 	    find_coset := M`mlist`find_coset;
             equiv, alp := CuspEquivGrp(coset_list, find_coset,
 				       G, orbit_table, b[1], [-a[1],a[2]]);
-            alp := Domain(eps)!ElementToSequence(alp);
          end if; 
          if equiv then
             if b[2] eq 0 then
@@ -449,11 +441,7 @@ function CuspToFreeHelper(M, sign, a)
             if is_trivial_eps then
                return <sign,i>;
             else
-	      if IsOfGammaType(M) then
                return <sign*Evaluate(eps,alp)^(-1),i>;
-	      else
-		return <eps(alp)[1,1]^(-1),i>;
-              end if;
             end if;
          end if;
       end if;
@@ -478,7 +466,7 @@ function CuspToFreeHelper(M, sign, a)
          end if;
       end for;
      else
-        pi_Q := Components(eps)[1];
+        pi_Q := Parent(eps)`QuotientMap;
         Q := Codomain(pi_Q);
         H := PSL2Subgroup(Kernel(pi_Q));
         if IsGammaNS(H) or IsGammaNSplus(H) then
@@ -486,7 +474,7 @@ function CuspToFreeHelper(M, sign, a)
 	    q_elt := FindLiftToSL2(q @@ pi_Q);
             q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
             equiv, tmp := CuspEquivNS(H,q_a,a);
-            if equiv and eps(q_elt)[1,1] ne 1 then
+            if equiv and q_elt@eps ne 1 then
               c := F!0;
               break;
             end if;
@@ -504,7 +492,7 @@ function CuspToFreeHelper(M, sign, a)
             q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
             equiv, tmp := CuspEquivGrp(coset_list_H, find_coset_H,
 				        H, orbit_table_H, q_a,a);
-            if equiv and eps(q_elt)[1,1] ne 1 then
+            if equiv and q_elt@eps ne 1 then
               c := F!0;
               break;
             end if;
@@ -551,21 +539,19 @@ function CuspToFreeHelperNS(M, sign, a)
    for i in [1..#list] do
       b          := list[i];
       equiv, alp := CuspEquivNS(G, b[1],a);
-      alp := Domain(eps)!ElementToSequence(alp);
       if equiv then
          if b[2] eq 0 then
             return <F!0,1>;
          end if;
-	 return <eps(alp)[1,1]^(-1),i>;
+         return <Evaluate(eps,alp)^(-1),i>;
       end if;
       if sign ne 0 then
 	 equiv, alp := CuspEquivNS(G, b[1], [-a[1],a[2]]);
-         alp := Domain(eps)!ElementToSequence(alp);
          if equiv then
             if b[2] eq 0 then
                return <F!0,1>;
             end if;
-	       return <eps(alp)[1,1]^(-1),i>;
+               return <Evaluate(eps,alp)^(-1),i>;
          end if;
       end if;
    end for;
@@ -573,13 +559,13 @@ function CuspToFreeHelperNS(M, sign, a)
    // Determine if this cusp class is killed by the relations.
    c := F!1;
    if not is_trivial_eps then
-        pi_Q := Components(eps)[1];
+        pi_Q := Parent(eps)`QuotientMap;
         Q := Codomain(pi_Q);
         // if we are here this is the non-split cartan
         H := PSL2Subgroup(Kernel(pi_Q));     
         for q in Q do
-	   q_elt := FindLiftToSL2(q @@ pi_Q);
-           if eps(q_elt)[1,1] ne 1 then
+           if q@eps ne 1 then
+	      q_elt := FindLiftToSL2(q @@ pi_Q);
               q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
               equiv, tmp := CuspEquivNS(H,q_a,a);
               if equiv then

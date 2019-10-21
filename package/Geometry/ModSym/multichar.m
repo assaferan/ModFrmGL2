@@ -106,6 +106,18 @@ modulus.}
    return ModularSymbols(chars,k,0);
 end intrinsic;
 
+intrinsic ModularSymbols(chars::[GrpChrElt], k::RngIntElt, G::GrpPSL2) -> ModSym
+{The direct sum of the spaces ModularSymbols(eps,k,sign,G), 
+where eps runs through representatives of the Galois orbits 
+of the characters in chars, viewed as a spaced defined over the
+rational numbers.  The characters eps must all have the same 
+modulus.}
+   requirege k,2;   
+   require #chars gt 0 : "Argument 1 must have length at least 1.";
+   require Type(BaseRing(Parent(chars[1]))) in {FldCyc, FldRat} : 
+       "The base ring of argument 1 must be the rationals or cyclotomic.";
+return ModularSymbols(chars,k,0,G);
+end intrinsic;
 
 intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt, 
                           sign::RngIntElt) -> ModSym
@@ -136,34 +148,33 @@ intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt,
    return M;
 end intrinsic;
 
-
-intrinsic ModularSymbols(reps::[ModGrp], pi_Q::Map, k::RngIntElt, 
+intrinsic ModularSymbols(chars::[GrpChrElt], k::RngIntElt,
 			 sign::RngIntElt, G::GrpPSL2) -> ModSym
 {Constructs modular symbols with the representations. } 
    requirege k,2;   
    require sign in {-1,0,1} : "Argument 3 must be either -1, 0, or 1.";
-   require #reps gt 0 : "Argument 1 must have length at least 1.";
-   require Type(BaseRing(Codomain(Representation(reps[1])))) in {FldCyc, FldRat} : 
+   require #chars gt 0 : "Argument 1 must have length at least 1.";
+   require Type(BaseRing(Parent(chars[1]))) in {FldCyc, FldRat} : 
        "The base ring of argument 1 must be the rationals or cyclotomic.";
   
-   reps := GaloisConjugacyRepresentatives(reps);
+   chars := GaloisConjugacyRepresentatives(chars);
    M := New(ModSym);
    M`is_ambient_space := true;
    M`k    := k;
+   pi_Q := Parent(chars[1])`QuotientMap;
    if #Domain(pi_Q) eq 1 then
       M`N := 1;
    else
       M`N    := Modulus(BaseRing(Domain(pi_Q)));
    end if;
-   for i in [1..#reps] do 
-      require Domain(Representation(reps[i])) eq Codomain(pi_Q) : 
+   for i in [1..#chars] do 
+      require Domain(chars[i]) eq Codomain(pi_Q) : 
             "The representations in argument 1 must all be of the same finite group, which has to be the image of the map in argument 2";
    end for;
-   M`eps  := [pi_Q * Representation(rep) : rep in reps];
+   M`eps  := chars;
    M`sign := sign;
    M`F    := RationalField();
    M`G := G;
-   M`pi_Q := pi_Q;
    M`dimension := &+[Dimension(S)*Degree(BaseRing(S)) : S in MultiSpaces(M)];
    M`sub_representation  := VectorSpace(M`F,M`dimension);
    M`dual_representation  := VectorSpace(M`F,M`dimension);
@@ -265,23 +276,36 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
       M := ModularSymbols(chars, k, sign);
       M`isgamma := true;
       return M;
-    else
-      if assigned G`ModLevel then
-	 N_G := Normalizer(G`ModLevel, G`ImageInLevel);
-         Q, pi_Q := N_G / G`ImageInLevel;
-         // At the moment, magma cannot compute irreducible modules for
-         // non soluble groups over characteristic 0 fields
-         if (not IsSoluble(Q)) or (#Q eq 1) then
-	    return ModularSymbolsFromGroup(G,k,Rationals(),sign);
-         end if;
-         D := AbsolutelyIrreducibleModules(Q,Rationals());
-         reps := GaloisConjugacyRepresentatives(D);
-         M := ModularSymbols(reps, pi_Q, k, sign, G);
-         return M;
+    else 
+      N_G := Normalizer(ModLevel(G), ImageInLevel(G));
+      Q, pi_Q := N_G / ImageInLevel(G);
+      // At the moment, magma cannot compute irreducible modules for
+      // non soluble groups over characteristic 0 fields
+      // if (not IsSoluble(Q)) or (#Q eq 1) then
+      // In fact, if Q is not nilpotent,
+      // currently don't know how to find maximal abelian subgroups
+      if not IsNilpotent(Q) then
+	return ModularSymbolsFromGroup(G,k,Rationals(),sign);
       end if;
-      // right now, this is still faster - comment out the above for better
-      // performance
-      return ModularSymbolsFromGroup(G, k, sign);
+      // find a maximal abelian subgroup
+      A := Center(Q);
+      C := Centralizer(Q,A);
+      while (C ne A) do
+	gens := Generators(C);
+        for g in gens do
+	  if g notin A then
+	    A := sub<Q|A,g>;
+            break;
+          end if;
+        end for;
+        C := Centralizer(Q,A);
+      end while;
+      G_prime := A @@ pi_Q;
+      Q, pi_Q := G_prime / ImageInLevel(G);
+      D := FullCharacterGroup(pi_Q);
+      chars := GaloisConjugacyRepresentatives(D);
+      M := ModularSymbols(chars, k, sign, G);
+      return M;
    end if;
 end intrinsic;
 
@@ -361,6 +385,11 @@ intrinsic IsTrivial(chars::[GrpDrchElt]) -> BoolElt
    return false;
 end intrinsic;
 
+intrinsic IsTrivial(chars::[GrpChrElt]) -> BoolElt
+{For internal use only}
+   return false;
+end intrinsic;
+
 intrinsic IsTrivial(chars::[Map]) -> BoolElt
 {For internal use only}
    return false;
@@ -373,30 +402,16 @@ end intrinsic;
  ************************************************************************/
 
 intrinsic MultiSpaces(M::ModSym) -> SeqEnum
-{Sequence of spaces with Dirichlet characters attached to M.}
+{Sequence of spaces with characters attached to M.}
    if not IsMultiChar(M) then
       return [M];
    end if;
    if not assigned M`multi then
       k := Weight(M);
       sign := Sign(M);
-      reps := DirichletCharacter(M);
-      if Type(reps) eq GrpDrchElt then
-	reps := [reps];
-      end if;
-      if (Type(reps[1]) eq GrpDrchElt) then
-	 M`multi := [ModularSymbols(MinimalBaseRingCharacter(eps),k,sign) : eps in reps];
-      else
-         min_reps := [];
-	 for r in reps do
-	    comps := Components(r);
-            module := GModule(comps[#comps]);
-            Append(~min_reps, AbsoluteModuleOverMinimalField(module));
-         end for;
-         N_G := PSL2Subgroup(Domain(M`pi_Q));
-         M`multi := [ModularSymbols(r,k,sign,N_G,M`pi_Q) :
-				     r in min_reps];
-      end if;
+      chars := DirichletCharacter(M);
+      M`multi := [ModularSymbols(MinimalBaseRingCharacter(eps),k,sign) :
+				 eps in chars];
    end if;
    return M`multi;
 end intrinsic;
