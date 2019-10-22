@@ -681,22 +681,21 @@ procedure Test_Zywina()
   assert f[3] eq q^4-4*q^11+O(q^12);
 end procedure;
 
-function Test_John_timing(N)
-  G := GammaNSplus(N);
-  p := NextPrime(Index(G));
-  // Constructing a Gamma0(p) with ~ same number of representatives
-  M := ModularForms(p);
-  Snew := NewSubspace(CuspidalSubspace(M));
-  prec := Dimension(Snew) + 10;
-  tm := Cputime();
-  tmp := [* qExpansion(f[1],prec) : f in Newforms(Snew) *];
-  time_0 :=  Cputime() - tm;
+function benchmark(G)
   M := ModularForms(G);
   Snew := NewSubspace(CuspidalSubspace(M));
   prec := Dimension(Snew) + 10;
   tm := Cputime();
   tmp := [* qExpansion(f[1],prec) : f in Newforms(Snew) *];
-  time_1 :=  Cputime() - tm;
+  return Cputime() - tm;
+end function;
+
+function Test_John_timing(N)
+  G := GammaNSplus(N);
+  p := NextPrime(Index(G));
+  // Constructing a Gamma0(p) with ~ same number of representatives
+  time_0 :=  benchmark(Gamma0(p));
+  time_1 := benchmark(G);
   return [time_0, time_1];
 end function;
 

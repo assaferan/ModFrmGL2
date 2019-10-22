@@ -99,6 +99,12 @@ end function;
 function DimensionOfNewCuspidalSpace(M, param)
    assert Type(M) eq ModFrm;
    assert IsAmbientSpace(M);
+
+   if not IsOfGammaType(M) then
+      Snew := [NewSubspace(S) : S in MF_ModularSymbols(CuspidalSubspace(M),1)];
+      return &+[Dimension(s) : s in Snew];
+   end if;
+
    k := Weight(M);
    if k eq 1 then
       error "Weight one new cuspidal dimension not programmed.";            

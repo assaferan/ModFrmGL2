@@ -1629,6 +1629,14 @@ intrinsic 'lt' (M1::ModSym, M2::ModSym) -> BoolElt
 {Compare spaces of modular symbols that corresponding to
 Galois-conjugacy classes of newforms of some level.  See the
 manual for the definition of the ordering.}
+   // At the moment for arbitrary gamma we just sort according to dimensions
+   // Have to insert some ordering with respect to degeneracy maps
+   if not IsOfGammaType(M1) then
+       require not IsOfGammaType(M2) : "can't compare modular symbol spaces 
+                                     when one is of gamma type, and the other
+                                     is not";
+       return Dimension(M1) lt Dimension(M2);
+   end if;
    if HasAssociatedNewSpace(M1) and HasAssociatedNewSpace(M2) then
       N1 := AssociatedNewSpace(M1);
       N2 := AssociatedNewSpace(M2);
