@@ -189,7 +189,8 @@ intrinsic Label(G::GrpPSL2) -> MonStgElt
 	      Sprintf("... (there are %o generators)\n", #G`Generators);
         end if;
      end if;
-    else
+   else
+     G`Label := "";  
      num := #(G`gammaType_list);
      // Note: currently num should always be 1.
      for i in [1..num] do

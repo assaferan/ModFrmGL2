@@ -48,7 +48,8 @@ forward MinimalCharacterModularSymbols,
         MF_NewformModularSymbols;
 
 function MinimalCharacterModularSymbols(eps, k, sign)
-   assert Type(eps) eq GrpDrchElt;
+// assert Type(eps) eq GrpDrchElt;
+   assert Type(eps) in {GrpDrchElt, GrpChrElt};
    assert Type(k) eq RngIntElt;
    assert Type(sign) eq RngIntElt; 
    assert sign in {-1, 0, 1};

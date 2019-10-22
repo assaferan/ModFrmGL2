@@ -55,7 +55,7 @@ intrinsic ImageInLevel(G::GrpPSL2) -> GrpMat
           for t in [1..N-1] do
 	    d,x,y:= ExtendedGreatestCommonDivisor(t,N);
             if d eq 1 then
-	       Append(~gens, modLevel![t,0,0,x]);
+	       Append(~gens, [t,0,0,x]);
             end if;
           end for; 
        elif not IsGamma1(G) then
@@ -74,7 +74,7 @@ intrinsic ModLevel(G::GrpPSL2) -> GrpMat
      return G`ModLevel;
   else
      N := Level(G);
-     if N eq 1 then return CyclicGroup(1); end if;
+     if N eq 1 then return SL(1, IntegerRing(2)); end if;
      if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
         G`ModLevel := SL(2,quo<G`BaseRing | N>);
      else

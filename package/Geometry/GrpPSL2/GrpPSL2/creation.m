@@ -226,6 +226,7 @@ end intrinsic;
 intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
    {The normalizer of a congruence subgroup in SL_2(R)}
    // require IsGamma0(G): "the argument must be Gamma_0(N) for some integer N";
+   if Level(G) eq 1 then return G; end if;
    if IsGamma0(G) then
      H := init_psl2_group(Level(G),Integers());
      N := Level(G);
@@ -239,7 +240,7 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
      H := PSL2Subgroup(N_G);
    end if;
    H`IsNormalizer := true;
-H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat Label(G);
+   H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat Label(G);
    if IsOfRealType(G) then H`IsReal := true; end if;
    return H;
 end intrinsic;
@@ -433,8 +434,9 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
   perm_T := SymmetricGroup(#T_map)!T_map;
   level := Order(perm_T);
   // setting attributes which depend on the level
+/*
   if level eq 1 then
-      G`ModLevel := CyclicGroup(1);
+      G`ModLevel := ;
       G`ImageInLevel := CyclicGroup(1);
       return level;
    end if;
@@ -446,6 +448,7 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
    G`ImageInLevel := sub<G`ModLevel | Generators(G`ImageInLevel)>;
    cosets := Transversal(G`ModLevel, G`ImageInLevel);
    G`FS_cosets := [FindLiftToSL2(c) : c in cosets];
+*/
    delete G`IsNSCartan;
    delete G`IsNSCartanPlus;
    return level;

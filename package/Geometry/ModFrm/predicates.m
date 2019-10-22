@@ -41,6 +41,8 @@ freeze;
 
 import "eisenstein.m" : DimensionOfEisensteinSpace;
 
+import "modular_symbols.m" : MF_ModularSymbols;
+
 import "q-expansions.m" : ApproximatePrecisionBound;
 
 import "weight1.m": compute_weight1_cusp_space;
@@ -72,6 +74,10 @@ end intrinsic;
 function DimensionOfCuspidalSpace(M)
    assert Type(M) eq ModFrm;
    assert IsAmbientSpace(M);
+
+   if not IsOfGammaType(M) then
+      return &+[Dimension(a) : a in MF_ModularSymbols(M,1)];
+   end if;
 
    k := Weight(M);
    if k eq 1 then
@@ -196,7 +202,7 @@ over a ring R, then M is free and this is the rank of M.)}
 
       // Check the Cohen-Oesterle formula. 
       formulas_okay := true;
-      if Weight(M) ne 1 then
+      if (Weight(M) ne 1) and IsOfGammaType(M) then
          if SpaceType(M) eq "full" and #DirichletCharacters(M) eq 1 then
             eps := DirichletCharacters(M)[1];
             num_conjs := EulerPhi(Order(eps));
@@ -228,6 +234,17 @@ intrinsic Level(M::ModFrm) -> RngIntElt
    if not assigned M`level then
       if assigned M`dirichlet_character then
          M`level := Modulus(M`dirichlet_character[1]);
+      end if;
+      require assigned M`level : "The level of argument 1 is not defined.";
+   end if;
+   return M`level;      
+end intrinsic;
+
+intrinsic LevelSubgroup(M::ModFrm) -> GrpPSL2
+{The level of M.}
+   if not assigned M`level then
+      if assigned M`dirichlet_character then
+         M`level := Parent(M`dirichlet_character[1])`Gamma;
       end if;
       require assigned M`level : "The level of argument 1 is not defined.";
    end if;
@@ -273,15 +290,31 @@ intrinsic IsGamma1(M::ModFrm) -> BoolElt
    return M`is_gamma1;
 end intrinsic;
 
+intrinsic IsOfGammaType(M::ModFrm) -> BoolElt
+{True if and only if M is explicitly a space of modular forms of Gamma type.}
+   if not assigned M`is_gamma_type then
+      if IsAmbientSpace(M) then
+         M`is_gamma_type := true;
+      else
+         M`is_gamma_type := IsOfGammaType(AmbientSpace(M));
+      end if;
+   end if;
+   return M`is_gamma_type;
+end intrinsic;
+
 intrinsic IsGamma0(M::ModFrm) -> BoolElt
 {True if and only if M is a space of modular forms for Gamma_0(N).}
-   if IsRingOfAllModularForms(M) then
-      return false;
+   if not assigned M`is_gamma0 then
+     if IsRingOfAllModularForms(M) then
+        M`is_gamma0 := false;
+     elif IsGamma1(M) then
+        M`is_gamma0 := Level(M) le 2;
+     else
+        M`is_gamma0 := #DirichletCharacters(M) eq 1 and
+	 IsTrivial(DirichletCharacters(M)[1]);
+     end if;
    end if;
-   if IsGamma1(M) then
-      return Level(M) le 2;
-   end if;
-   return #DirichletCharacters(M) eq 1 and IsTrivial(DirichletCharacters(M)[1]);
+   return M`is_gamma0;
 end intrinsic;
 
 intrinsic IsAmbientSpace(M::ModFrm) -> BoolElt

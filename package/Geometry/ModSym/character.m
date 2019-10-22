@@ -65,6 +65,10 @@ intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng, Gamma::GrpPSL2) -> GrpChr
    G`OriginalDomain := Domain(pi_Q);
    G`BaseRing := R;
    G`Exponent := Exponent(G`Domain);
+   G`Domain, psi := PermutationGroup(G`AbGrp);
+   ngens := Ngens(G`OriginalDomain);
+   ValsOnGens := [(pi_Q*phi*psi^(-1))(G`OriginalDomain.i) : i in [1..ngens]];
+   G`QuotientMap := hom<G`OriginalDomain->G`Domain | ValsOnGens>;
    return G;
 end intrinsic;
 
@@ -330,6 +334,7 @@ intrinsic Order(x::GrpChrElt) -> RngIntElt
 {The order of x.}
   A, phi := MultiplicativeGroup(BaseRing(x));
   orders_gens := [Order(Evaluate(x,q) @@ phi) : q in Generators(Domain(x))];
+  if #orders_gens eq 0 then return 1; end if;
   return LCM(orders_gens);
 end intrinsic;
 
@@ -406,3 +411,33 @@ intrinsic ValueList(eps::GrpChrElt) -> SeqEnum
    end if;
    return eps`ValueList;
 end intrinsic;
+
+// Right now we only support even characters, nevertheless...
+
+intrinsic IsEven(chi::GrpChrElt) -> BoolElt
+{True iff the Dirichlet character chi satisfies chi(-1) = 1}
+   G := Parent(chi)`Gamma;
+   return Evaluate(chi,G!(-1)) eq 1;
+end intrinsic;
+
+intrinsic IsOdd(chi::GrpChrElt) -> BoolElt
+{True iff the Dirichlet character chi satisfies chi(-1) = -1}
+   G := Parent(chi)`Gamma;
+   return Evaluate(chi,G!(-1)) eq -1;
+end intrinsic;
+
+intrinsic CharacterGroupCopy(G::GrpChr) -> GrpChr
+{Clone G}
+// Only copies non-optional attributes.
+// In particular, MUST not copy things like G`Elements!
+   GG          := New(GrpChr);
+   GG`Domain  := G`Domain;
+   GG`OriginalDomain  := G`OriginalDomain;
+   GG`Gamma  := G`Gamma;
+   GG`QuotientMap := G`QuotientMap;
+   GG`BaseRing := G`BaseRing;
+   GG`Exponent := G`Exponent;
+   GG`AbGrp    := G`AbGrp;
+   return GG;
+end intrinsic;
+

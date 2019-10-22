@@ -2,11 +2,13 @@
 S,BaseRing,"The field over which Basis(M) is defined. This is either the rational numbers, a prime finite field, or a p-adic field Q_p",0,1,0,0,0,0,0,0,0,ModFrm,,-44,-38,-38,-38,-38,-38
 S,Dimension,"The dimension of the space M of modular forms. (If M is defined over a ring R, then M is free and this is the rank of M.)",0,1,0,0,0,0,0,0,0,ModFrm,,148,-38,-38,-38,-38,-38
 S,Level,The level of M,0,1,0,0,0,0,0,0,0,ModFrm,,148,-38,-38,-38,-38,-38
+S,LevelSubgroup,The level of M,0,1,0,0,0,0,0,0,0,ModFrm,,GrpPSL2,-38,-38,-38,-38,-38
 S,Level,The level of f,0,1,0,0,0,0,0,0,0,ModFrmElt,,148,-38,-38,-38,-38,-38
 S,IsRingOfAllModularForms,True if and only if M is the ring of all modular forms over a given ring,0,1,0,0,0,0,0,0,0,ModFrm,,36,-38,-38,-38,-38,-38
 S,Weight,The weight of M,0,1,0,0,0,0,0,0,0,ModFrm,,148,-38,-38,-38,-38,-38
 S,Weight,"The weight of f, if it is defined",0,1,0,0,0,0,0,0,0,ModFrmElt,,148,-38,-38,-38,-38,-38
 S,IsGamma1,True if and only if M is explicitly a space of modular forms for Gamma_1(N),0,1,0,0,0,0,0,0,0,ModFrm,,36,-38,-38,-38,-38,-38
+S,IsOfGammaType,True if and only if M is explicitly a space of modular forms of Gamma type,0,1,0,0,0,0,0,0,0,ModFrm,,36,-38,-38,-38,-38,-38
 S,IsGamma0,True if and only if M is a space of modular forms for Gamma_0(N),0,1,0,0,0,0,0,0,0,ModFrm,,36,-38,-38,-38,-38,-38
 S,IsAmbientSpace,True if and only if M is an ambient space,0,1,0,0,0,0,0,0,0,ModFrm,,36,-38,-38,-38,-38,-38
 S,IsCuspidal,True if M is contained in the cuspidal subspace of the ambient space of M,0,1,0,0,0,0,0,0,0,ModFrm,,36,-38,-38,-38,-38,-38

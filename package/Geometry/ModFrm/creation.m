@@ -124,6 +124,13 @@ intrinsic ModularForms(N::RngIntElt, k::RngIntElt) -> ModFrm
    return ModularForms([DirichletGroup(N)!1], k);
 end intrinsic;
 
+intrinsic ModularFormsGroup(G::GrpPSL2, k::RngIntElt) -> ModFrm
+{"} // "
+   requirege k,1;
+   Q, pi_Q := G / G;
+   return ModularForms([CharacterGroup(pi_Q, G)!1], k);
+end intrinsic;
+
 function ModularFormsGamma1(N, k)
    assert Type(N) eq RngIntElt;
    assert Type(k) eq RngIntElt;
@@ -138,7 +145,7 @@ end function;
 
 intrinsic ModularForms(G::GrpPSL2) -> ModFrm
 {Same as  ModularForms(G,2)}
-   require IsGamma1(G) or IsGamma0(G) : "Argument 1 must be Gamma_0(N) or Gamma_1(N).";
+// require IsGamma1(G) or IsGamma0(G) : "Argument 1 must be Gamma_0(N) or Gamma_1(N).";
    return ModularForms(G,2);
 end intrinsic;
 
@@ -163,7 +170,8 @@ intrinsic ModularForms(G::GrpPSL2, k::RngIntElt) -> ModFrm
    elif IsGamma0(G) then
       return ModularForms(Level(G),k);
    else
-      require false : "Argument 1 must be Gamma_0(N) or Gamma_1(N).";
+      return ModularFormsGroup(G,k);
+     //require false : "Argument 1 must be Gamma_0(N) or Gamma_1(N).";
    end if;
 end intrinsic;
 
@@ -198,7 +206,38 @@ intrinsic ModularForms(chars::[GrpDrchElt], k::RngIntElt) -> ModFrm
    return M;
 end intrinsic;
 
+intrinsic ModularForms(chars::[GrpChrElt], k::RngIntElt) -> ModFrm
+{The direct sum of the spaces ModularForms(eps,k), where eps runs through
+ representatives of the Galois orbits of the characters in the
+ sequence chars.}
+   requirege k,1;
+   require #chars gt 0 : "Argument 1 must have length at least 1.";
+   t := Type(BaseRing(Parent(chars[1])));
+   require t in {FldCyc, FldRat, RngInt} :
+      "The base ring of the given character(s) must be the rationals or cyclotomic.";
+   if t eq RngInt then
+      chars := [BaseExtend(chi,Rationals()) : chi in chars]; end if;
+   require Type(BaseRing(Parent(chars[1]))) in {FldCyc, FldRat} : 
+      "The base ring of argument 1 must be the rationals or cyclotomic.";
+   
+   M := New(ModFrm);
+   M`base_ring := Integers();
+   M`dirichlet_character := GaloisConjugacyRepresentatives(chars);
+   M`is_gamma1 := false;
+   M`is_gamma0 := false;
+   M`is_gamma_type := false;
+   M`weight := k;
+   M`type := "full";
+   return M;
+end intrinsic;
+
 intrinsic ModularForms(chars::[GrpDrchElt]) -> ModFrm
+{Same as ModularForms(chars,2)}
+   require #chars gt 0 : "Argument 1 must have length at least 1.";
+   return ModularForms(chars,2);
+end intrinsic;
+
+intrinsic ModularForms(chars::[GrpChrElt]) -> ModFrm
 {Same as ModularForms(chars,2)}
    require #chars gt 0 : "Argument 1 must have length at least 1.";
    return ModularForms(chars,2);
@@ -225,7 +264,18 @@ intrinsic ModularForms(eps::GrpDrchElt, k::RngIntElt) -> ModFrm
    return ModularForms([eps],k);  
 end intrinsic;
 
+intrinsic ModularForms(eps::GrpChrElt, k::RngIntElt) -> ModFrm
+{"} // "
+   requirege k,1;
+   return ModularForms([eps],k);  
+end intrinsic;
+
 intrinsic ModularForms(eps::GrpDrchElt) -> ModFrm
+{Same as ModularForms(eps,2)}
+   return ModularForms([eps],2);  
+end intrinsic;
+
+intrinsic ModularForms(eps::GrpChrElt) -> ModFrm
 {Same as ModularForms(eps,2)}
    return ModularForms([eps],2);  
 end intrinsic;
@@ -250,7 +300,11 @@ function CopyOfDefiningModularFormsObject(M)
       C`dimension := M`dimension;  
    end if;
    C`base_ring := BaseRing(M);
-   C`level := Level(M);
+   if IsOfGammaType(M) then
+     C`level := Level(M);
+   else
+     C`level := LevelSubgroup(M);
+   end if;
    C`weight := Weight(M);
    C`type := SpaceType(M);
    C`type_param := SpaceTypeParam(M);

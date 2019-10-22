@@ -2,14 +2,19 @@
 S,ModularForms,"Same as ModularForms(N,2)",0,1,0,0,0,0,0,0,0,148,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,The space of weight k modular forms on Gamma_0(N) over the integers,0,2,0,0,0,0,0,0,0,267,,0,0,148,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,The space of weight k modular forms on Gamma_0(N) over the integers,0,2,0,0,0,0,0,0,0,148,,0,0,148,,ModFrm,-38,-38,-38,-38,-38
+S,ModularFormsGroup,The space of weight k modular forms on Gamma_0(N) over the integers,0,2,0,0,0,0,0,0,0,148,,0,0,GrpPSL2,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,"Same as ModularForms(G,2)",0,1,0,0,0,0,0,0,0,GrpPSL2,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,The space of weight k modular forms on G over the integers,0,2,0,0,0,0,0,0,0,267,,0,0,GrpPSL2,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,The space of weight k modular forms on G over the integers,0,2,0,0,0,0,0,0,0,148,,0,0,GrpPSL2,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,"The direct sum of the spaces ModularForms(eps,k), where eps runs through representatives of the Galois orbits of the characters in the sequence chars",1,0,1,82,0,GrpDrchElt,2,0,0,0,0,0,0,0,148,,0,0,82,,ModFrm,-38,-38,-38,-38,-38
+S,ModularForms,"The direct sum of the spaces ModularForms(eps,k), where eps runs through representatives of the Galois orbits of the characters in the sequence chars",1,0,1,82,0,GrpChrElt,2,0,0,0,0,0,0,0,148,,0,0,82,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,"Same as ModularForms(chars,2)",1,0,1,82,0,GrpDrchElt,1,0,0,0,0,0,0,0,82,,ModFrm,-38,-38,-38,-38,-38
+S,ModularForms,"Same as ModularForms(chars,2)",1,0,1,82,0,GrpChrElt,1,0,0,0,0,0,0,0,82,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,"The space of modular forms of weight k over the integers, which under base extension becomes equal to the direct sum of the spaces M_k(eps'), where eps' runs over all Galois conjugates of eps",0,2,0,0,0,0,0,0,0,267,,0,0,GrpDrchElt,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,"The space of modular forms of weight k over the integers, which under base extension becomes equal to the direct sum of the spaces M_k(eps'), where eps' runs over all Galois conjugates of eps",0,2,0,0,0,0,0,0,0,148,,0,0,GrpDrchElt,,ModFrm,-38,-38,-38,-38,-38
+S,ModularForms,"The space of modular forms of weight k over the integers, which under base extension becomes equal to the direct sum of the spaces M_k(eps'), where eps' runs over all Galois conjugates of eps",0,2,0,0,0,0,0,0,0,148,,0,0,GrpChrElt,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,"Same as ModularForms(eps,2)",0,1,0,0,0,0,0,0,0,GrpDrchElt,,ModFrm,-38,-38,-38,-38,-38
+S,ModularForms,"Same as ModularForms(eps,2)",0,1,0,0,0,0,0,0,0,GrpChrElt,,ModFrm,-38,-38,-38,-38,-38
 S,CuspForms,Shorthand for CuspidalSubspace(ModularForms(x)),0,1,0,0,0,0,0,0,0,-1,,ModFrm,-38,-38,-38,-38,-38
 S,CuspForms,"Shorthand for CuspidalSubspace(ModularForms(x,y))",0,2,0,0,0,0,0,0,0,-1,,0,0,-1,,ModFrm,-38,-38,-38,-38,-38
 S,ModularForms,"The full space of modular forms with the same defining weight, base ring, etc. as M, but with level N. If M is defined by nontrivial dirichlet characters, then N must be a multiple at least one of the conductors of the characters",0,2,0,0,0,0,0,0,0,148,,0,0,ModFrm,,ModFrm,-38,-38,-38,-38,-38

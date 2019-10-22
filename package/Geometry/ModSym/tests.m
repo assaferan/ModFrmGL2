@@ -2,6 +2,7 @@
 ROOT_DIR := "./Geometry/";
 AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2.spec");
 AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
+AttachSpec(ROOT_DIR cat "ModFrm/ModFrm.spec");
 SetHelpUseExternalBrowser(false);
 SetDebugOnError(true);
 // SetVerbose("ModularSymbols", 0);
@@ -579,6 +580,56 @@ procedure TestNSCartan_11()
   assert f eq f2;
 end procedure;
 
+function conjugateForm(sigma, f, prec)
+  q := Parent(f).1;
+  conj := [sigma(x) : x in Coefficients(f)];
+  conj_f := &+([conj[i]*q^i : i in [1..#conj]]);
+  return conj_f + O(q^prec);
+end function;
+
+function IsFormConjugate(f1,f2,prec)
+  assert Parent(f1) eq Parent(f2);
+  K := BaseRing(Parent(f1));
+  Gal_K := Automorphisms(K);
+  for sigma in Gal_K do
+    if conjugateForm(sigma,f1,prec) eq f2 then
+      return true;
+    end if;
+  end for;
+  return false;
+end function;
+
+procedure TestNSCartan_17()
+  printf "Testing the eigenforms of non-split Cartan 17...\n";
+  N := 17;
+  G := GammaNSplus(N);
+  M := ModularSymbols(G);
+  S := CuspidalSubspace(M);
+  D := Decomposition(S, HeckeBound(S));
+  // These are tested against the results of Mercuri and Schoof
+  g1 := qEigenform(D[1],19);
+  g2 := qEigenform(D[2], 17);
+  g3 := qEigenform(D[3], 13);
+// Here they are from the paper
+  q := Parent(g1).1;
+  f1 := q-q^2-q^4+2*q^5-4*q^7+3*q^8-3*q^9-2*q^10-2*q^13+
+    4*q^14-q^16+3*q^18+O(q^19);
+  assert f1 eq g1;
+  q := Parent(g2).1;
+  K := BaseRing(Parent(g2));
+  a := K.1;
+  f2 := q-(a+1)*q^2+a*q^3+(a+2)*q^4-(a+1)*q^5-3*q^6+(a-1)*q^7-3*q^8-a*q^9+
+  (a+4)*q^10-3*q^11+(a+3)*q^12-(a+2)*q^13+(a-2)*q^14-3*q^15+(a-1)*q^16+O(q^17);
+  assert IsFormConjugate(f2,g2,17);
+  q := Parent(g3).1;
+  K := BaseRing(Parent(g3));
+  b := K.1;
+  f3 := q-(b^2+b-2)*q^2-(b+1)*q^3+b*q^4+(b^2+b-4)*q^5+(2*b^2+2*b-3)*q^6+b*q^7+
+  (b^2+b-3)*q^8+(b^2+2*b-2)*q^9+
+  (2*b^2+b-6)*q^10-(2*b^2-2)*q^11-(b^2+b)*q^12+O(q^13);
+  assert IsFormConjugate(f3,g3,13);
+end procedure;
+
 function buildEigenbasisNS(N)
   G := GammaNSplus(N);
   M := ModularSymbols(G);
@@ -597,6 +648,7 @@ function timeEigenbasisNS(N)
      tm := Cputime();
      tmp := buildEigenbasisNS(p);
      tm := Cputime() - tm;
+     printf "Took %o seconds.\n", tm;
      Append(~res, [p,tm]);
   end for;
   return res;
@@ -629,6 +681,25 @@ procedure Test_Zywina()
   assert f[3] eq q^4-4*q^11+O(q^12);
 end procedure;
 
+function Test_John_timing(N)
+  G := GammaNSplus(N);
+  p := NextPrime(Index(G));
+  // Constructing a Gamma0(p) with ~ same number of representatives
+  M := ModularForms(p);
+  Snew := NewSubspace(CuspidalSubspace(M));
+  prec := Dimension(Snew) + 10;
+  tm := Cputime();
+  tmp := [* qExpansion(f[1],prec) : f in Newforms(Snew) *];
+  time_0 :=  Cputime() - tm;
+  M := ModularForms(G);
+  Snew := NewSubspace(CuspidalSubspace(M));
+  prec := Dimension(Snew) + 10;
+  tm := Cputime();
+  tmp := [* qExpansion(f[1],prec) : f in Newforms(Snew) *];
+  time_1 :=  Cputime() - tm;
+  return [time_0, time_1];
+end function;
+
 procedure DoTests(numchecks)
    Test_Eigenforms(numchecks);
    Test_NewformDecomposition(numchecks);
@@ -643,5 +714,6 @@ procedure DoTests(numchecks)
    Test_Stein();
    Test_NS_cartan(50);
    TestNSCartan_11();
+   TestNSCartan_17();
 // Test_Zywina();
 end procedure;

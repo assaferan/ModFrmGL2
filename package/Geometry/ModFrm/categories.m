@@ -86,8 +86,14 @@ declare attributes ModFrm:
         dirichlet_character, 
 
    // true if this is a space of modular forms for Gamma_1(N)
-        is_gamma1, 
+        is_gamma1,
+  
+   // true if this is a space of modular forms for Gamma_0(N)
+        is_gamma0,
 
+   // true if this is a space of modular forms of gamma type
+        is_gamma_type, 
+  
         weight,         
 
    // the level of this space of modular forms. 

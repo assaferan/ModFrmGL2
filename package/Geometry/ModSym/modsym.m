@@ -1009,6 +1009,7 @@ end intrinsic;
 
 intrinsic Dimension(M::ModSym) -> RngIntElt
 {The dimension of M.}
+   if not assigned M`dimension then return -1; end if;
    return M`dimension;
 end intrinsic;
 

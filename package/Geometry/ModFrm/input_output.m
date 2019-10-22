@@ -48,6 +48,12 @@ intrinsic Print(M::ModFrm, level::MonStgElt)
    elif IsGamma1(M) then
        printf "Space of modular forms on Gamma_1(%o) of weight %o%o over %o.", 
        Level(M), Weight(M), dim_string, BaseRing(M);
+   elif (not IsOfGammaType(M)) then
+       chars := DirichletCharacters(M);
+       assert #chars gt 0;
+       printf "Space of modular forms on %o with character%o all conjugates of %o, weight %o,%o over %o.", 
+       LevelSubgroup(M), #chars eq 1 select "" else "s", PrintSideways(chars),  
+           Weight(M), dim_string, BaseRing(M);
    elif ( #chars eq 1 and Order(chars[1]) eq 2 where chars := DirichletCharacters(M) ) then
        printf "Space of modular forms on Gamma_1(%o) with character %o, weight %o,%o over %o.", 
        Level(M), DirichletCharacters(M)[1], Weight(M), dim_string, BaseRing(M);

@@ -126,6 +126,8 @@ forward EisensteinBasisHelper;
 
 import "misc.m":  EchelonPowerSeriesSequence;
 
+import "modular_symbols.m" : MF_ModularSymbols;
+
 import "predicates.m": SpaceType;
 
 import "q-expansions.m": ApproximatePrecisionBound, 
@@ -151,22 +153,36 @@ end function;
        chi : (Z/N)^* ----> Q(zeta_m)
    where m is LCM(n, exponent of (Z/N)^*).
 */
+// Now extened to eps : D ---> Q(zeta_n)
 function ExtendBaseMaximal(eps)
 
    assert Type(eps) eq SeqEnum;
    assert #eps gt 0;
-   assert Type(eps[1]) eq GrpDrchElt;
-  
-   N := Modulus(eps[1]);
-   g := ExponentOfZModN(N);
-   if g eq 1 then
-      g := 2;
-   end if;
-   _, r := DistinguishedRoot(Parent(eps[1]));
+   if Type(eps[1]) eq GrpDrchElt then
+     N := Modulus(eps[1]);
+     g := ExponentOfZModN(N);
+     if g eq 1 then
+        g := 2;
+     end if;
+     _, r := DistinguishedRoot(Parent(eps[1]));
 
-   R := QZeta(LCM(g,r));
-   G := DirichletGroup(Modulus(eps[1]),R);
-   ans := [G!e : e in eps];
+     R := QZeta(LCM(g,r));
+     G := DirichletGroup(Modulus(eps[1]),R);
+     ans := [G!e : e in eps];
+   elif Type(eps[1]) eq GrpChrElt then
+     D := Domain(eps[1]);
+     g := Exponent(D);
+     if g eq 1 then
+       R := Rationals();
+     else
+       R := CyclotomicField(g);
+     end if;
+     G := CharacterGroup(Parent(eps[1])`QuotientMap,R,Parent(eps[1])`Gamma);
+     ans := [G!e : e in eps];
+   else
+     assert false; // Characters are only allowed to be GrpChrElt or GrpDrchElt
+   end if;
+
    return ans;
 end function;
 
@@ -207,7 +223,13 @@ function ComputeAllEisensteinSeries(M : all:=false)
    eps := ExtendBaseMaximal(DirichletCharacters(M));
    K   := BaseRing(eps[1]);
    Chi := Universe(eps);
-   Chi1 := DirichletGroupCopy(Chi);  
+   if Type(Chi) eq GrpDrch then
+     Chi1 := DirichletGroupCopy(Chi);
+   elif Type(Chi) eq GrpChr then
+     Chi1 := CharacterGroupCopy(Chi);
+   else
+     assert false; // Shouldn't happen
+   end if;
        // work in this copy, make a big mess, then toss the lot at the end
 
    if all then
@@ -222,10 +244,29 @@ function ComputeAllEisensteinSeries(M : all:=false)
    end if;
 
    // Divide up Chi by conductor:
+   
    C   := [[] : i in [1..N]];
    for e in Elements(Chi1) do
       Append(~C[Conductor(e)],e);
    end for;
+
+/* This is what we should do in general (one day) for an arbitrary level
+
+   C := [];
+   conds := {};
+   conds_inds := {};
+   for e in Elements(Chi1) do
+      c := Conductor(e);
+      if c in conds then
+        Append(~C[conds_to_ind(c)], e);
+      else
+        Include(~conds, c);
+        C[#C+1] := [e];
+        Include(~conds_inds, <c, #C>);
+        conds_to_ind := map< conds -> Integers() | conds_inds>;
+      end if;
+   end for;
+*/
 
 /* Find all pairs chi, psi such that
      chi * psibar = eps (nebentypus)
@@ -315,6 +356,14 @@ end intrinsic;
 function DimensionOfEisensteinSpace(M)
    assert Type(M) eq ModFrm;
    assert IsAmbientSpace(M);
+
+   if not IsOfGammaType(M) then
+      A := MF_ModularSymbols(AmbientSpace(M),0);
+      dim_A := &+[Dimension(a) : a in A];
+      S := [CuspidalSubspace(a) : a in A];
+      dim_S := &+[Dimension(s) : s in S];
+      return dim_A - dim_S;
+   end if;
 
    N := Level(M);
    if IsGamma0(M) then
