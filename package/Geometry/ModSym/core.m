@@ -430,28 +430,61 @@ function get_find_coset(G)
   coset_list := CosetRepresentatives(G);
   coset_list_N := [ModLevel(G)!Eltseq(r) : r in coset_list];
   map_pairs := [];
+
+  space_size := #ModLevel(G);
+  num_cosets := #coset_list;
+
+  average_reduce := num_cosets / 2;
+  num_reductions := num_cosets * 5 / 3;
+  load_factor := 3 / 4;
+
+  numerator := num_reductions * average_reduce;  
+  denominator := space_size - num_reductions * (1/load_factor - average_reduce);
+  coverage := numerator / denominator;
+
+  num_mapped := Floor(coverage * space_size);
+  // Right now I don't know how to sample distinct elements
+  // so we work slightly more
+  for j in [1..Floor(num_mapped * 3/2)] do
+     i := Random([1..#coset_list]);
+     g := Random(ImageInLevel(G));
+     Append(~map_pairs, <g*coset_list_N[i], <i, coset_list[i]> >);
+  end for;
+
+		 /*
   for i in [1..#coset_list] do
     for g in ImageInLevel(G) do
        Append(~map_pairs, <g*coset_list_N[i], <i, coset_list[i]> >);
     end for;
   end for;
+		 */
   codom := [x[2] : x in map_pairs];
-// This is terribly slow, for no good reason - what does Magma do here
-// find_coset_N := map<ModLevel(G) -> codom | map_pairs>;
+  // This is terribly slow, for no good reason - what does Magma do here
+  // find_coset_N := map<ModLevel(G) -> codom | map_pairs>;
 
-  num_buckets := #map_pairs * 4 div 3 ; // to have load factor of 0.75
+  // building my own naive hash_table.
+  // There has to be a better way
+
+  num_buckets := Floor(#map_pairs / load_factor) ; 
   hash_table := [[] : i in [1..num_buckets]];
   for i in [1..#map_pairs] do
-     idx := Hash(map_pairs[i][1]) mod num_buckets;
+     idx := Hash(map_pairs[i][1]) mod num_buckets + 1;
      Append(~hash_table[idx], map_pairs[i]);
   end for;
 
+  coset_list_inv := [g^(-1) : g in coset_list_N];		 
+		 
   function find_coset_N(x)
-    idx := Hash(x) mod num_buckets;
+    idx := Hash(x) mod num_buckets + 1;
     for pair in hash_table[idx] do
        if pair[1] eq x then
           return pair[2];
        end if;
+    end for;
+    // could not find a coset in the table, trying to find it manually
+    for i in [1..#coset_list] do
+       ginv := coset_list_inv[i];
+       if x*ginv in ImageInLevel(G) then return <i,coset_list[i]>; end if;
     end for;
     // could not find a coset
     return <0,0>;

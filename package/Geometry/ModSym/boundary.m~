@@ -474,7 +474,7 @@ function CuspToFreeHelper(M, sign, a)
 	    q_elt := FindLiftToSL2(q @@ pi_Q);
             q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
             equiv, tmp := CuspEquivNS(H,q_a,a);
-            if equiv and q@eps ne 1 then
+            if equiv and q_elt@eps ne 1 then
               c := F!0;
               break;
             end if;
@@ -488,12 +488,11 @@ function CuspToFreeHelper(M, sign, a)
           end if;
           orbit_table_H := M`orbit_table_H;
           for q in Q do
-	    //q_elt := FindLiftToSL2(q @@ pi_Q);
-	    q_elt := MatrixAlgebra(Integers(),2)!(q @@ pi_Q);
-	    q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
+	    q_elt := FindLiftToSL2(q @@ pi_Q);
+            q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
             equiv, tmp := CuspEquivGrp(coset_list_H, find_coset_H,
 				        H, orbit_table_H, q_a,a);
-            if equiv and q@eps ne 1 then
+            if equiv and q_elt@eps ne 1 then
               c := F!0;
               break;
             end if;
