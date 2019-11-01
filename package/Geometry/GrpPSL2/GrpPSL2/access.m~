@@ -74,9 +74,9 @@ intrinsic ModLevel(G::GrpPSL2) -> GrpMat
      return G`ModLevel;
   else
      N := Level(G);
-     if N eq 1 then return GL(1, IntegerRing(2)); end if;
+     if N eq 1 then return SL(1, IntegerRing(2)); end if;
      if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
-        G`ModLevel := GL(2,quo<G`BaseRing | N>);
+        G`ModLevel := SL(2,quo<G`BaseRing | N>);
      else
         G`ModLevel := MatrixAlgebra(quo<G`BaseRing | N>,2);
      end if;
@@ -93,10 +93,10 @@ intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt
    if assigned G`NSCartanU then return G`NSCartanU; end if;
    size := #ImageInLevel(G);
    p := Level(G);
-   if size eq (p+1)*(p-1) then
+   if size eq p+1 then
       index_ns := true;
       G`IsNSCartanPlus := false;
-   elif size eq 2*(p+1)*(p-1) then
+   elif size eq 2*(p+1) then
       index_ns := false;
       G`IsNSCartan := false;
    else

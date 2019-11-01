@@ -130,7 +130,7 @@ function is_in_gamma(H,N, type)
   if N eq 1 then
      return true;
   end if;
-  grp := GL(2, Integers(N));
+  grp := SL(2, Integers(N));
   H_gens := [grp!h : h in Generators(H`ImageInLevel)];
   for h in H_gens do
      in_gamma := is_elt_in_gamma(h, N, type);

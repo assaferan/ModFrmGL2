@@ -359,7 +359,6 @@ function CosetReduce(x, find_coset, G)
      return index, s;
   end if;
 
-/*
   list := find_coset;
   for index in [1..#list] do
      // s := x*list[index]^(-1);
@@ -370,14 +369,6 @@ function CosetReduce(x, find_coset, G)
         return index, s;
      end if;
   end for;
-*/
-  val := Domain(find_coset)!Eltseq(x);
-  // This could be left out if we use a different function for Hecke
-  if not IsCoercible(ModLevel(G), val) then return 0,0; end if;
-  index_g := find_coset(val);
-  g := Domain(find_coset)!Eltseq(index_g[2]);
-  s := val*g^(-1);
-  return index_g[1], s;
 
   // error - could not find an appropriate coset
   assert false;
@@ -413,53 +404,6 @@ function ManinSymbolList(k,N,F)
       coset_list := coset_list,     
       n      := n             
    >;
-end function;
-
-// This function returns a map from elements in M2Z with
-// determinant which is invertible modulo the level
-// to a corresponding coset of G
-
-// At the moment, we just build a map by going
-// over all points in the reduction mod N
-
-// TODO : be able to use any codomain (not necessarily CosetRepresentatives(G)
-// TODO : Add TMTO (using Hellman)
-
-function get_find_coset(G)
-  M2Z := MatrixAlgebra(Integers(),2);
-  coset_list := CosetRepresentatives(G);
-  coset_list_N := [ModLevel(G)!Eltseq(r) : r in coset_list];
-  map_pairs := [];
-  for i in [1..#coset_list] do
-    for g in ImageInLevel(G) do
-       Append(~map_pairs, <g*coset_list_N[i], <i, coset_list[i]> >);
-    end for;
-  end for;
-  codom := [x[2] : x in map_pairs];
-// This is terribly slow, for no good reason - what does Magma do here
-// find_coset_N := map<ModLevel(G) -> codom | map_pairs>;
-
-  num_buckets := #map_pairs * 4 div 3 ; // to have load factor of 0.75
-  hash_table := [[] : i in [1..num_buckets]];
-  for i in [1..#map_pairs] do
-     idx := Hash(map_pairs[i][1]) mod num_buckets;
-     Append(~hash_table[idx], map_pairs[i]);
-  end for;
-
-  function find_coset_N(x)
-    idx := Hash(x) mod num_buckets;
-    for pair in hash_table[idx] do
-       if pair[1] eq x then
-          return pair[2];
-       end if;
-    end for;
-    // could not find a coset
-    return <0,0>;
-  end function;
-
-  find_coset := map<M2Z -> codom |
-                    x :-> find_coset_N(ModLevel(G)!x)>;
-  return find_coset;
 end function;
 
 // special function to handel the ns cartan case better
@@ -513,8 +457,7 @@ function ManinSymbolGenList(k,G,F)
      // TODO : define find_coset in the general case,
      // So that when we have an element of Delta, we can find the
      // appropriate coset
-     // find_coset := [g^(-1) : g in coset_list];
-     find_coset := get_find_coset(G);
+     find_coset := [g^(-1) : g in coset_list];
    end if;
    // coset_list_inv := [g^(-1) : g in CosetRepresentatives(G)];
    n      := (k-1)*#coset_list;

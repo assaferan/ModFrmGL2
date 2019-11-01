@@ -177,22 +177,16 @@ intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
   primes := [x[1] : x in Factorization(N)];
   good_u := &and[not IsSquare(IntegerRing(p)!u) : p in primes];
   require good_u: "u must be a nonsquare mod every prime dividing N";
-  G_N := GL(2, IntegerRing(N));
+  G_N := SL(2, IntegerRing(N));
   // currently assumes N=p is prime
   // In general will have to consider arbitrary irreducibles
-  // F := GF(N);
-  F := IntegerRing(N);
-/*
+  F := GF(N);
   F2<t> := ExtensionField<F,t | t^2-F!u>;
   zeta := PrimitiveElement(F2)^(N-1);
   a := F!((zeta + Frobenius(zeta))/2);
   b := F!((zeta - Frobenius(zeta))/(2*t));
   g := [a,F!u*b,b,a];
   C_N := sub<G_N | [IntegerRing(N)!x : x in g]>;
-*/
-  indices := [x : x in CartesianPower(F,2) | IsUnit(x[1]^2 - u*x[2]^2)]; 
-  elts := [G_N![x[1],u*x[2],x[2],x[1]] : x in indices];
-  C_N := sub<G_N | elts>;
   G := PSL2Subgroup(C_N);
   G`Label := Sprintf("Gamma_ns(%o)", N);
   G`IsReal := true;
@@ -369,7 +363,7 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
       Append(~H_gens, new_g);
   end for;
   new_level := Level(G) * Integers()!(Determinant(A)^(-1));
-  mod_level :=  GL(2,quo<G`BaseRing | new_level>);
+  mod_level :=  SL(2,quo<G`BaseRing | new_level>);
   gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
   im_in_level := sub<mod_level | gens_level >;
   return PSL2Subgroup(im_in_level, false);
@@ -390,9 +384,9 @@ intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
     groups you have entered";
     // initiate group
     // find the 3 integers giving group
-    H_L := (H`gammaType_list)[1];
-    G_L := (G`gammaType_list)[1];
-    A := [Lcm(H_L[i],G_L[i]) : i in [1..3]];   
+    HL := (H`gammaType_list)[1];
+    GL := (G`gammaType_list)[1];
+    A := [Lcm(HL[i],GL[i]) : i in [1..3]];   
     K := init_psl2_group(Lcm(A),Integers());
     K`gammaType_list := [A];
     K`IsOfGammaType := true;
@@ -400,7 +394,7 @@ intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
   else
     N := LeastCommonMultiple(Level(G), Level(H));   
     if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
-        ModLevel := GL(2,quo<G`BaseRing | N>);
+        ModLevel := SL(2,quo<G`BaseRing | N>);
     else
         ModLevel := MatrixAlgebra(quo<G`BaseRing | N>,2);
     end if;
@@ -472,7 +466,7 @@ intrinsic SubgroupFromGens(G::GrpPSL2, gens::SeqEnum, N::RngIntElt,
      H`IsOfGammaType := false;
      H`Generators := gens;
      if (Type(H`BaseRing) in {Rng,RngInt,FldRat}) then 
-        H`ModLevel := GL(2,quo<H`BaseRing | N>);
+        H`ModLevel := SL(2,quo<H`BaseRing | N>);
      else
         H`ModLevel := MatrixAlgebra(quo<H`BaseRing | N>,2);
      end if;
@@ -523,15 +517,12 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
      H`BaseRing := G`BaseRing;
      H`IsOfGammaType := false;
      if (Type(H`BaseRing) in {Rng,RngInt,FldRat}) then 
-        // H`ModLevel := SL(2,quo<H`BaseRing | N>);
-	H`ModLevel := GL(2,quo<H`BaseRing | N>);
+        H`ModLevel := SL(2,quo<H`BaseRing | N>);
      else
         H`ModLevel := MatrixAlgebra(quo<H`BaseRing | N>,2);
      end if;
-     // H`ImageInLevel := H0 meet H`ModLevel;
-     H`ImageInLevel := H0;
-     SL_N := SL(2, quo<H`BaseRing | N>); 
-     cosets := Transversal(SL_N, H0 meet SL_N);
+     H`ImageInLevel := H0 meet H`ModLevel;
+     cosets := Transversal(H`ModLevel, H`ImageInLevel);
      H`FS_cosets := [FindLiftToSL2(c) : c in cosets];
      if IsExactLevel then
         H`Level := N;

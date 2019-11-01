@@ -371,6 +371,11 @@ intrinsic Evaluate(x::GrpChrElt,g::GrpPSL2Elt) -> RngElt
    return Evaluate(x, elt);
 end intrinsic;
 
+intrinsic Evaluate(x::GrpChrElt,g::AlgMatElt) -> RngElt
+{Evaluation x(g).}
+   return Evaluate(x, PSL2(Integers())!g);
+end intrinsic;
+
 intrinsic Evaluate(x::GrpChrElt,g::SeqEnum[RngIntElt]) -> RngElt
 {Evaluation x(g).}
    return Evaluate(x, PSL2(Integers())!g);
@@ -387,6 +392,11 @@ intrinsic '@'(g::GrpMatElt, x::GrpChrElt) -> RngElt
 end intrinsic;
 
 intrinsic '@'(g::GrpPSL2Elt, x::GrpChrElt) -> RngElt
+{"} // "
+   return Evaluate(x,g);
+end intrinsic;
+
+intrinsic '@'(g::AlgMatElt, x::GrpChrElt) -> RngElt
 {"} // "
    return Evaluate(x,g);
 end intrinsic;
