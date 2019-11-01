@@ -587,6 +587,14 @@ function conjugateForm(sigma, f, prec)
   return conj_f + O(q^prec);
 end function;
 
+function traceForm(f, prec)
+  q := Parent(f).1;
+  K := BaseRing(Parent(f));
+  coefs := [Trace(x) : x in Coefficients(f)];
+  trace_f := &+([coefs[i]*q^i : i in [1..#coefs]]);
+  return PowerSeriesRing(Rationals())!(trace_f + O(q^prec));
+end function;
+
 function IsFormConjugate(f1,f2,prec)
   assert Parent(f1) eq Parent(f2);
   K := BaseRing(Parent(f1));
@@ -698,6 +706,54 @@ function Test_John_timing(N)
   time_1 := benchmark(G);
   return [time_0, time_1];
 end function;
+
+function get_traces_data_up_to(max_N, prec)
+  primes := PrimesUpTo(max_N);
+  odd_primes := primes[2..#primes];
+  res := [];
+  for p in odd_primes do
+     G := GammaNSplus(p);
+     M := ModularForms(G);
+     Snew := NewSubspace(CuspidalSubspace(M));
+     forms := [* qExpansion(f[1],prec) : f in Newforms(Snew) *];
+     trace_forms := [traceForm(f,prec) : f in forms];
+     if #trace_forms ne 0 then
+        trace_form := &+trace_forms;
+     else
+        trace_form := PowerSeriesRing(Rationals())!0;
+     end if;
+     Append(~res, trace_form);
+  end for;
+  return odd_primes, res;
+end function;
+
+function get_decomposition_dim_and_char_poly(N, max_p)
+  G := GammaNSplus(N);
+  M := ModularSymbols(G,2,1);
+  S := CuspidalSubspace(M);
+  D := Decomposition(S, HeckeBound(S));
+  dims := [Dimension(d) : d in D];
+  primes := PrimesUpTo(max_p);
+  polys := [CharacteristicPolynomial(HeckeOperator(S,p)) : p in primes];
+  facs := [<primes[i], Factorization(polys[i])> : i in [1..#primes]];
+  return dims, facs;
+end function;
+
+procedure dec_dim_char_poly_up_to(N, max_p, output_fname)
+  // This is just so that the polynomials will look better
+  R<x> := PolynomialRing(Rationals());
+  primes := PrimesUpTo(N);
+  odd_primes := primes[5..#primes];
+  output_file := Open(output_fname, "w");
+  for p in odd_primes do
+     fprintf output_file, "Data for X_ns+(%o):\n", p;
+     dims, facs := get_decomposition_dim_and_char_poly(p, max_p);
+     fprintf output_file, "Dimensions of the irreducible subspaces:\n%o\n",
+             dims;
+     fprintf output_file, "Factorization of the characteristic polynomial of the Hecke operators:\n%o\n\n", facs;
+  end for;
+  delete output_file;
+end procedure;
 
 procedure DoTests(numchecks)
    Test_Eigenforms(numchecks);
