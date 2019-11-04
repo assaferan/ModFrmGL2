@@ -291,7 +291,7 @@ function CuspEquivNS(G, a, b)
 	  is_sq, alp := IsSquare(u*c^2-1);
           if is_sq then
 	     S_mod_p := SL(2,IntegerRing(p))![alp,-u*c,c,-alp];
-             S := FindLiftToSL2(S_mod_p)`Element;
+             S := FindLiftToSL2(S_mod_p);
              break;
 	  end if;
 	end for;
@@ -489,7 +489,7 @@ function CuspToFreeHelper(M, sign, a)
           orbit_table_H := M`orbit_table_H;
           for q in Q do
 	    q_elt := FindLiftToSL2(q @@ pi_Q);
-            q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt`Element));
+            q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
             equiv, tmp := CuspEquivGrp(coset_list_H, find_coset_H,
 				        H, orbit_table_H, q_a,a);
             if equiv and q_elt@eps ne 1 then
@@ -566,7 +566,7 @@ function CuspToFreeHelperNS(M, sign, a)
         for q in Q do
            if q@eps ne 1 then
 	      q_elt := FindLiftToSL2(q @@ pi_Q);
-              q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt`Element));
+              q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
               equiv, tmp := CuspEquivNS(H,q_a,a);
               if equiv then
                  c := F!0;

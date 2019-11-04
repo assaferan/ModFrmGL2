@@ -433,9 +433,25 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
   T_map := [CosetReduce(x * T, find_coset, G) : x in coset_list];
   perm_T := SymmetricGroup(#T_map)!T_map;
   level := Order(perm_T);
-  delete G`IsNSCartan;
-  delete G`IsNSCartanPlus;
-  return level;
+  // setting attributes which depend on the level
+/*
+  if level eq 1 then
+      G`ModLevel := ;
+      G`ImageInLevel := CyclicGroup(1);
+      return level;
+   end if;
+   if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
+        G`ModLevel := SL(2,quo<G`BaseRing | level>);
+   else
+        G`ModLevel := MatrixAlgebra(quo<G`BaseRing | level>,2);
+   end if;
+   G`ImageInLevel := sub<G`ModLevel | Generators(G`ImageInLevel)>;
+   cosets := Transversal(G`ModLevel, G`ImageInLevel);
+   G`FS_cosets := [FindLiftToSL2(c) : c in cosets];
+*/
+   delete G`IsNSCartan;
+   delete G`IsNSCartanPlus;
+   return level;
 end intrinsic;
 
  // Eventually we would like to compute the level and check
@@ -489,8 +505,7 @@ intrinsic FindLiftToSL2(g::GrpMatElt) -> GrpPSL2Elt
      det := a_prime * Z!d - b_prime*Z!c;
      c_prime := Z!c - y * (1 -det);
      d_prime := Z!d + x * (1 - det);       
-//lift_g := SL(2,Z)![a_prime, b_prime, c_prime, d_prime];
-     lift_g := PSL2(Integers())![a_prime, b_prime, c_prime, d_prime];
+     lift_g := SL(2,Z)![a_prime, b_prime, c_prime, d_prime];
      return lift_g;
 end intrinsic;
 
@@ -507,11 +522,8 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
         H`ModLevel := MatrixAlgebra(quo<H`BaseRing | N>,2);
      end if;
      H`ImageInLevel := H0 meet H`ModLevel;
-     cosets, find_coset := Transversal(H`ModLevel, H`ImageInLevel);
-     H`FS_cosets := [PSL2(Integers()) | FindLiftToSL2(c) : c in cosets];
-     coset_idx := map<cosets -> Integers() |
-       [<cosets[i], i> : i in [1..#cosets]] >;
-     H`FindCoset := find_coset*coset_idx;
+     cosets := Transversal(H`ModLevel, H`ImageInLevel);
+     H`FS_cosets := [FindLiftToSL2(c) : c in cosets];
      if IsExactLevel then
         H`Level := N;
      else

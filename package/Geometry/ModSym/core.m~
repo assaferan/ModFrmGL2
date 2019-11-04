@@ -347,7 +347,7 @@ forward get_non_split_cartan_coset;
 // The original is now in the C - we might want to change the corresponding
 // C code
 function CosetReduce(x, find_coset, G)
-
+  
   if IsGammaNS(G) or IsGammaNSplus(G) then
      t := Universe(Domain(find_coset)).1;
      val := get_non_split_cartan_coset(x,t);
@@ -359,7 +359,6 @@ function CosetReduce(x, find_coset, G)
      return index, s;
   end if;
 
-/*
   list := find_coset;
   for index in [1..#list] do
      // s := x*list[index]^(-1);
@@ -370,14 +369,7 @@ function CosetReduce(x, find_coset, G)
         return index, s;
      end if;
   end for;
-*/
 
-  index := G`FindCoset(ModLevel(G)!Eltseq(x));
-  g := find_coset[index];
-  //s := x*g^(-1);
-  // we now work with the list of inverses
-  s := x*g;
-  return index, s;
   // error - could not find an appropriate coset
   assert false;
 end function;
@@ -448,16 +440,12 @@ function ManinSymbolGenList(k,G,F)
       u := NSCartanU(G);
       FF := GF(Modulus(Parent(u)));
       F2<x> := ExtensionField< FF, x | x^2-FF!u>;
-      universe := CartesianProduct(Integers(), PSL2(Integers()));
-      coset_list_idxs := {universe |
-			  <i, coset_list[i]> : i in [1..#coset_list]};
-      univ := CartesianProduct(F2, universe);
-      coset_vals := {univ |
-		     <Parent(x)!get_non_split_cartan_coset(coset_list[i],x),
+      coset_list_idxs := {<i, coset_list[i]> : i in [1..#coset_list]};
+      coset_vals := {<Parent(x)!get_non_split_cartan_coset(coset_list[i],x),
 		     <i, coset_list[i]> > :
 		     i in [1..#coset_list]};
       if IsGammaNSplus(G) then
-         coset_vals_n :=  {univ | <Parent(x)!get_non_split_cartan_coset
+         coset_vals_n :=  {<Parent(x)!get_non_split_cartan_coset
 			   (coset_list[i],-x),
 		                 <i, coset_list[i]> > :
 		                 i in [1..#coset_list]};
@@ -469,7 +457,7 @@ function ManinSymbolGenList(k,G,F)
      // TODO : define find_coset in the general case,
      // So that when we have an element of Delta, we can find the
      // appropriate coset
-     find_coset := [*g^(-1) : g in coset_list*];
+     find_coset := [g^(-1) : g in coset_list];
    end if;
    // coset_list_inv := [g^(-1) : g in CosetRepresentatives(G)];
    n      := (k-1)*#coset_list;
