@@ -394,20 +394,9 @@ function my_Gamma(N, type)
   if Type(type) eq RngIntElt then
      Append(~gens, G_N![1,1,0,1]);
      if type eq 0 then
-        units := [t : t in IntegerRing(N) | IsUnit(t)];
-        for t1 in units do
-	   for t2 in units do
-	      Append(~gens, G_N![t1,0,0,t2]);
-           end for;
-        end for;
-	     /*
-        for t in [1..N-1] do
-	    d,x,y:= ExtendedGreatestCommonDivisor(t,N);
-            if d eq 1 then
-	       Append(~gens, G_N![t,0,0,x]);
-            end if;
-        end for; 
-	     */
+       t := PrimitiveElement(IntegerRing(N));
+       Append(~gens, G_N![t,0,0,1]);
+       Append(~gens, G_N![1,0,0,t]);
      end if;
   end if;
   H_N := sub<G_N | gens>;

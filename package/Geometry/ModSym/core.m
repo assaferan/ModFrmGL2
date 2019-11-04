@@ -161,6 +161,7 @@ forward convergent,
         ManinSymbolApply,
         ManinSymbolList,
         ManinSymbolGenList,
+        ManinSymbolsGeneralizedWeightedAction,
 //      ManinSymbolRepresentation,     // commented out
         ManSym2termQuotient,
         ManSym3termQuotient,
@@ -346,6 +347,9 @@ forward get_non_split_cartan_coset;
 
 // The original is now in the C - we might want to change the corresponding
 // C code
+
+// We want x to be in SL(2,Z/NZ) as well as s
+
 function CosetReduce(x, find_coset, G)
 
   if IsGammaNS(G) or IsGammaNSplus(G) then
@@ -372,7 +376,8 @@ function CosetReduce(x, find_coset, G)
   end for;
 */
 
-  index := G`FindCoset(ModLevel(G)!Eltseq(x));
+ index := G`FindCoset(ModLevel(G)!Eltseq(x));
+//  index := G`FindCoset(x);
   g := find_coset[index];
   //s := x*g^(-1);
   // we now work with the list of inverses
@@ -444,6 +449,7 @@ end function;
  
 function ManinSymbolGenList(k,G,F) 
    coset_list := CosetRepresentatives(G);
+//   coset_list := G`CosetList;
    if IsGammaNS(G) or IsGammaNSplus(G) then
       u := NSCartanU(G);
       FF := GF(Modulus(Parent(u)));
@@ -639,11 +645,11 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
 // Apply g to the ith Manin symbol.
    uv, w, ind := UnwindManinSymbol(i,mlist);  
 
-// coset_list_inv := mlist`coset_list_inv;
    find_coset := mlist`find_coset;
 
    if Type(g) eq SeqEnum then
-        g := <g, GL(2,Integers())!g> ;
+        // g := <g, Parent(uv)!g> ;
+       g := <g, GL(2, Integers())!g>;
    end if;
  
    uvg := Matrix(uv)* g[2];
@@ -757,6 +763,108 @@ function XXXP1GeneralizedWeightedAction(
 end function;
 
 
+function XXXManinSymbolsGeneralizedWeightedAction(
+                              uv,  // element of P1(Z/NZ)
+                               w,  // weight of symbol
+                               k,  // weight of action
+                            list, 
+                               S, 
+                             phi, 
+                           coeff, 
+                               M, 
+                               W,
+                             eps,
+                               R,
+			       t,
+			       G)
+
+   assert Type(w) eq RngIntElt;
+   assert Type(k) eq RngIntElt;
+
+   Z := Integers();
+   coset_list_size := #list;
+   K := Parent(eps[1]);
+   v := VectorSpace(K,#S)!0;
+   if #S eq 0 then 
+      return v;
+   end if;
+
+   uv := Universe(M)!Eltseq(uv);
+
+   for i in [1..#M] do
+      uvM := uv*M[i];
+      det := Determinant(uvM); // mod Level(G);
+      if det notin Domain(G`DetRep) then continue; end if;
+      det_rep := G`DetRep(det);
+      uvM := det_rep^(-1) * uvM;
+      ind, s := CosetReduce(uvM,list,G);
+      s := det_rep * s;
+      e := s@eps;
+      H := W[i];
+      h := e*(R![H[1,2],H[1,1]])^w*(R![H[2,2],H[2,1]])^(k-2-w);
+      j := ind+1;
+      for a in Eltseq(h) do
+         v[phi[j]] +:= a*coeff[j];
+         j +:= coset_list_size;
+      end for;
+   end for;
+   return v * RMatrixSpace(K,Degree(v),Degree(S[1]))!S;
+end function;
+
+function ManinSymbolsGeneralizedWeightedAction(
+					       uv,
+					       w,
+					       k,
+					       list,
+					       S,
+					       phi,
+					       coeff,
+					       M,
+					       W,
+					       eps,
+					       R,
+					       t,
+					       G)
+   return XXXManinSymbolsGeneralizedWeightedAction(uv,w,k,list,S,
+						   phi,coeff,M,W,eps,R,t,G);
+end function;
+
+function lev1_ManinSymbolsGeneralizedWeightedAction(
+					       uv,
+					       w,
+					       k,
+					       list,
+					       S,
+					       phi,
+					       coeff,
+					       M,
+					       W,
+					       eps,
+					       R,
+					       t,
+					       G)
+   Z := Integers();
+   coset_list_size := #list;
+   K := Parent(eps[1]);
+   v := VectorSpace(K,#S)!0;
+   if #S eq 0 then 
+      return v;
+   end if;
+
+   uv := Universe(M)!Eltseq(uv);
+
+   for i in [1..#M] do
+      H := W[i];
+      h := (R![H[1,2],H[1,1]])^w*(R![H[2,2],H[2,1]])^(k-2-w);
+      j := 2;
+      for a in Eltseq(h) do
+         v[phi[j]] +:= a*coeff[j];
+         j +:= coset_list_size;
+      end for;
+   end for;
+   return v * RMatrixSpace(K,Degree(v),Degree(S[1]))!S;
+end function;
+					      
 
 function P1GeneralizedWeightedAction(
                               uv,  // element of P1(Z/NZ)

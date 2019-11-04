@@ -183,8 +183,6 @@ import "core.m":
    ConvFromModularSymbol,
    ConvToModularSymbol,
    CosetReduce,
-   lev1_ManinSymbolsGeneralizedWeightedAction,
-   ManinSymbolsGeneralizedWeightedAction,
    ModularSymbolsBasis,
    P1GeneralizedWeightedAction,
    UnwindManinSymbol;
@@ -457,16 +455,13 @@ with respect to Basis(M).}
    elif IsPrime(n) then
       if IsAmbientSpace(M) then
  // Before adjusting Heilbronn to work for our case
-      if (GCD(n, Level(M)) ne 1) and
-        (not IsOfGammaType(M)) and (not IsGammaNS(M`G)) and
-				  (not IsGammaNSplus(M`G)) then
-	   T := HeckeOperatorDirectlyOnModularSymbols(M,n);
-      else
-         //if IsOfGammaType(M) or IsGammaNS(M`G) or IsGammaNSplus(M`G) then
+         if IsOfGammaType(M) or IsGammaNS(M`G) or IsGammaNSplus(M`G) then
            use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
                              and IsTrivial(DirichletCharacter(M));
 	   T := HeckeOperatorHeilbronn(M, Heilbronn(M, n, not use_cremona));
-      end if;
+         else
+           T := HeckeOperatorDirectlyOnModularSymbols(M,n);
+         end if;
 
 /*  Using "DirectlyOn" fails in this example!!
     G<a>:=DirichletGroup(109,GF(4));M:=ModularSymbols(a,2);
@@ -645,19 +640,12 @@ function ManinSymbolsAction2(defining_tuple, uv, Heil)
   Tquot := defining_tuple[3];
   Squot := defining_tuple[4];
   Scoef := defining_tuple[5];
-  eps := defining_tuple[6];
   res := Universe(Tquot)!0;
   for mat in Heil do
     uvM := Parent(mat)!Eltseq(uv) * mat;
-    det := Determinant(uvM); // mod Level(G);
-    if det in Domain(G`DetRep) then
-      det_rep := G`DetRep(det);
-      uvM := ModLevel(G)!(det_rep^(-1) * uvM);
-      ind, s := CosetReduce(FindLiftToSL2(uvM), find_coset, G);
-      s := det_rep * ModLevel(G)!Eltseq(s);
-      e := s@eps;
-//if ind ne 0 then
-      res +:= e*Scoef[ind]*Tquot[Squot[ind]];
+    ind, s := CosetReduce(uvM, find_coset, G);
+    if ind ne 0 then
+      res +:= Scoef[ind]*Tquot[Squot[ind]];
     end if;
   end for;
   return res;
@@ -665,39 +653,19 @@ end function;
 
 
 // TODO: !!! Add polynomial action for arbitrary weight
-function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
+function ManinSymbolsAction(defining_tuple, uv, weight, Heil)
   find_coset := defining_tuple[1];
   G := defining_tuple[2];
   Tquot := defining_tuple[3];
   Squot := defining_tuple[4];
   Scoef := defining_tuple[5];
-  eps := defining_tuple[6];
-// K := Parent(eps[1]);
-  K := BaseRing(eps);
-  R<X> := PolynomialRing(K);
-  coset_list_size := #find_coset;
-  res := VectorSpace(K,#Tquot)!0;
-  for idx in [1..#Heil_N] do
-    mat := Heil_N[idx];
+  res := Universe(Tquot)!0;
+  for mat in Heil do
     uvM := Parent(mat)!Eltseq(uv) * mat;
-    det := Determinant(uvM); // mod Level(G);
-    if det in Domain(G`DetRep) then
-      det_rep := G`DetRep(det);
-      uvM := ModLevel(G)!(det_rep^(-1) * uvM);
-      ind, s := CosetReduce(FindLiftToSL2(uvM), find_coset, G);
-      s := det_rep * ModLevel(G)!Eltseq(s);
-      e := s@eps;
-//if ind ne 0 then
-      H := Heil_0[idx];
-      h := e*(R![H[1,2],H[1,1]])^w*(R![H[2,2],H[2,1]])^(k-2-w);
-// val := Scoef[ind]*Tquot[Squot[ind]];
-      for a in Eltseq(h) do
-	 res[Squot[ind]] +:= a*Scoef[ind];
-         ind +:= coset_list_size;
-      end for;
-    end if;
+    ind, s := CosetReduce(uvM, find_coset, G);
+    res +:= Scoef[ind]*Tquot[Squot[ind]];
   end for;
-  return res * RMatrixSpace(K,Degree(res),Degree(Tquot[1]))!Tquot;
+  return res;
 end function;
 
 procedure Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action)
@@ -800,8 +768,7 @@ function lev1_HeckeOperatorHeilbronn(M, Heil)
    end for;
 
    R := PolynomialRing(BaseField(M)); x := R.1;
-   if IsOfGammaType(M) then
-     T := [ P1GeneralizedWeightedAction(generating_coset_list[j],
+   T := [ P1GeneralizedWeightedAction(generating_coset_list[j],
                                generating_weights[j],
                                k, coset_list, Tquot,
                                my_phi, my_coeff,
@@ -811,18 +778,6 @@ function lev1_HeckeOperatorHeilbronn(M, Heil)
                                1) :
              j in [1..#generating_coset_list]
         ];
-   else
-     T := [ lev1_ManinSymbolsGeneralizedWeightedAction(generating_coset_list[j],
-                               generating_weights[j],
-                               k, coset_list, Tquot,
-                               my_phi, my_coeff,
-                               modNHeil, char0Heil,
-                               eps,
-                               R,
-			       1,LevelSubgroup(M)) :
-             j in [1..#generating_coset_list]
-        ];
-   end if;
 
    return MatrixAlgebra(BaseField(M),Dimension(M))!T;
 end function;
@@ -909,11 +864,7 @@ function HeckeOperatorHeilbronn(M, Heil)
 
    M := AmbientSpace(M);
 
-   if IsOfGammaType(M) then
-      eps   := ValueList(DirichletCharacter(M));
-   else
-      eps := DirichletCharacter(M);
-   end if;
+   eps   := ValueList(DirichletCharacter(M));
    k     := Weight(M);
 
    quot  := M`quot;
@@ -983,7 +934,7 @@ function TnSparse(M, Heil, sparsevec)
    In order to always use Heilbronn matrices, this is
    now commented out.  WAS, 09/15/01.
   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
-
+*/
   if (not IsOfGammaType(M)) and
      (not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) then
       if Type(Heil) eq RngIntElt then
@@ -1009,7 +960,7 @@ function TnSparse(M, Heil, sparsevec)
     	           g in matrices] : s in sparsevec];
       end if;
 */
-//   end if;
+   end if;
 
    // Now consider the characteristic-zero case.
    if Level(M) eq 1 then
@@ -1034,11 +985,7 @@ function TnSparse(M, Heil, sparsevec)
       char0Heil, modNHeil := Explode(Heil);      
    end if;
 
-   if IsOfGammaType(M) then
-      eps   := ValueList(DirichletCharacter(M));
-   else
-      eps := DirichletCharacter(M);
-   end if;
+   eps   := ValueList(DirichletCharacter(M));
    k     := Weight(M);
 
    quot  := M`quot;
@@ -1167,8 +1114,7 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
 
    R := PolynomialRing(BaseField(M)); x := R.1;
 
-   if IsOfGammaType(MM) then
-      T := [ P1GeneralizedWeightedAction(
+   T := [ P1GeneralizedWeightedAction(
                                generating_coset_list[j], 
                                generating_weights[j], 
                                k, 
@@ -1180,20 +1126,6 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
                                t) :
              j in [1..#generating_coset_list]
            ];
-   else
-       T := [ ManinSymbolsGeneralizedWeightedAction(
-                               generating_coset_list[j], 
-                               generating_weights[j], 
-                               k, 
-                               MM_coset_list, MM_Tquot, 
-                               my_MM_phi, my_MM_coeff, 
-                               modNHeil, char0Heil, 
-                               eps,
-                               R,
-                               t) :
-             j in [1..#generating_coset_list]
-           ];
-   end if;
 
    return Hom(VectorSpace(M),VectorSpace(MM))!T;
 end function;

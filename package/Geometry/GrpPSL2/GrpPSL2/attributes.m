@@ -22,7 +22,8 @@ declare attributes GrpPSL2:
            // GL(2,Z/NZ)
            // having the same determinant
    MatrixGroup,   // 
-   BaseRing,      // 
+   BaseRing,      //
+   CosetList,       // CosetList as elements in SL(2,Z/NZ)
    EichlerOrder,  // Used to define a Shimura subgroup, i.e.   
                   // intersection of 2 maximal orders
 		  // in a quaternion order.
