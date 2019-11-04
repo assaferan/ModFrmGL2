@@ -18,6 +18,9 @@ declare type GrpPSL2 [GrpPSL2Elt];
 declare attributes GrpPSL2:
    Label, // for printing purposes
    FindCoset, // A map to a transveral representatives in SL(2,Z/NZ)
+   DetRep, //  A map from (Z/NZ)^* to elements in the group's image in
+           // GL(2,Z/NZ)
+           // having the same determinant
    MatrixGroup,   // 
    BaseRing,      // 
    EichlerOrder,  // Used to define a Shimura subgroup, i.e.   
@@ -28,6 +31,8 @@ declare attributes GrpPSL2:
                   // Gamma(N) is contained in the group.
    ModLevel,      // SL(2,Z/NZ)
    ImageInLevel,  // Its image in SL(2,Z/NZ)
+   ModLevelGL,      // GL(2,Z/NZ)
+   ImageInLevelGL,  // Its image in GL(2,Z/NZ)
    IsOfGammaType, // Whether the group is of gamma type
    IsNSCartan,    // for more efficeint treatment of the non-split Cartan case
    IsNSCartanPlus,// for more efficeint treatment of the non-split Cartan case

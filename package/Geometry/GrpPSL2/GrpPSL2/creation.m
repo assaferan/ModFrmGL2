@@ -177,12 +177,12 @@ intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
   primes := [x[1] : x in Factorization(N)];
   good_u := &and[not IsSquare(IntegerRing(p)!u) : p in primes];
   require good_u: "u must be a nonsquare mod every prime dividing N";
-  G_N := SL(2, IntegerRing(N));
+  G_N := GL(2, IntegerRing(N));
   // currently assumes N=p is prime
   // In general will have to consider arbitrary irreducibles
   F := GF(N);
   F2<t> := ExtensionField<F,t | t^2-F!u>;
-  zeta := PrimitiveElement(F2)^(N-1);
+  zeta := PrimitiveElement(F2);
   a := F!((zeta + Frobenius(zeta))/2);
   b := F!((zeta - Frobenius(zeta))/(2*t));
   g := [a,F!u*b,b,a];
@@ -214,7 +214,8 @@ end intrinsic;
 intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
 {Currently assumes the same level.}
    require ModLevel(G) eq ModLevel(H) : "the groups must be of the same level";
-   return ImageInLevel(G)/ImageInLevel(H);
+// return ImageInLevel(G)/ImageInLevel(H);
+   return G`ImageInLevelGL / H`ImageInLevelGL;
 end intrinsic;
 
 //////////////////////////////////////////////////////////
@@ -236,7 +237,8 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
      H`LevelFactorization := F;
      H`AtkinLehnerInvolutions := VectorSpace(FiniteField(2),r);
    else     
-     N_G := Normalizer(ModLevel(G), ImageInLevel(G));
+     //N_G := Normalizer(ModLevel(G), ImageInLevel(G));
+     N_G := Normalizer(G`ModLevelGL, G`ImageInLevelGL);
      H := PSL2Subgroup(N_G);
    end if;
    H`IsNormalizer := true;
@@ -503,15 +505,20 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
      H`IsOfGammaType := false;
      if (Type(H`BaseRing) in {Rng,RngInt,FldRat}) then 
         H`ModLevel := SL(2,quo<H`BaseRing | N>);
+        H`ModLevelGL := GL(2, quo<H`BaseRing | N>);
      else
         H`ModLevel := MatrixAlgebra(quo<H`BaseRing | N>,2);
      end if;
      H`ImageInLevel := H0 meet H`ModLevel;
+     H`ImageInLevelGL := H0;
      cosets, find_coset := Transversal(H`ModLevel, H`ImageInLevel);
      H`FS_cosets := [PSL2(Integers()) | FindLiftToSL2(c) : c in cosets];
      coset_idx := map<cosets -> Integers() |
        [<cosets[i], i> : i in [1..#cosets]] >;
      H`FindCoset := find_coset*coset_idx;
+     det_cosets := Transversal(H0, H`ImageInLevel);
+     dom := [Determinant(x) : x in det_cosets];
+     H`DetRep := map< dom -> H0 | [<Determinant(x),x> : x in det_cosets] >;
      if IsExactLevel then
         H`Level := N;
      else

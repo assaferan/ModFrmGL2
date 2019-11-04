@@ -470,9 +470,11 @@ function CuspToFreeHelper(M, sign, a)
         Q := Codomain(pi_Q);
         H := PSL2Subgroup(Kernel(pi_Q));
         if IsGammaNS(H) or IsGammaNSplus(H) then
-          for q in Q do
-	    q_elt := FindLiftToSL2(q @@ pi_Q);
-            q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt));
+          for q in Q do	    
+            q_lift := q @@ pi_Q;
+            det_rep := H`DetRep(Determinant(q_lift)^(-1));
+            q_elt := FindLiftToSL2(det_rep * q_lift);
+            q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt`Element));
             equiv, tmp := CuspEquivNS(H,q_a,a);
             if equiv and q_elt@eps ne 1 then
               c := F!0;
@@ -488,7 +490,9 @@ function CuspToFreeHelper(M, sign, a)
           end if;
           orbit_table_H := M`orbit_table_H;
           for q in Q do
-	    q_elt := FindLiftToSL2(q @@ pi_Q);
+            q_lift := q @@ pi_Q;
+            det_rep := H`DetRep(Determinant(q_lift)^(-1));
+            q_elt := FindLiftToSL2(det_rep * q_lift);
             q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt`Element));
             equiv, tmp := CuspEquivGrp(coset_list_H, find_coset_H,
 				        H, orbit_table_H, q_a,a);
@@ -565,7 +569,9 @@ function CuspToFreeHelperNS(M, sign, a)
         H := PSL2Subgroup(Kernel(pi_Q));     
         for q in Q do
            if q@eps ne 1 then
-	      q_elt := FindLiftToSL2(q @@ pi_Q);
+	      q_lift := q @@ pi_Q;
+              det_rep := H`DetRep(Determinant(q_lift)^(-1));
+              q_elt := FindLiftToSL2(det_rep * q_lift);
               q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt`Element));
               equiv, tmp := CuspEquivNS(H,q_a,a);
               if equiv then
