@@ -476,7 +476,7 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, F::Fld) -> ModSym
  over the field F.}
    requirege k,2;
    require IsSupportedField(F) : SupportMessage;
-   return ModularSymbolsFromGroup(G,k,F,0);
+   return ModularSymbols(G,k,F,0);
 end intrinsic;
 
 intrinsic ModularSymbols(N::RngIntElt, k::RngIntElt, F::Fld, sign::RngIntElt) -> ModSym
@@ -506,8 +506,8 @@ intrinsic ModularSymbols(N::RngIntElt, k::RngIntElt,
    return ModularSymbols(x,k,sign);
 end intrinsic;
 
-intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt, 
-				        sign::RngIntElt) -> ModSym
+intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, 
+				  sign::RngIntElt) -> ModSym
 {The space of modular symbols of level G, weight k, 
  and given sign over the rational numbers.
  If sign=+1 then returns the +1 quotient, if sign=-1
@@ -517,7 +517,25 @@ intrinsic ModularSymbolsFromGroup(G::GrpPSL2, k::RngIntElt,
    require sign in {-1,0,1} : "Argument 3 must be either -1, 0, or 1.";
    
    requirege k,2;
-   return ModularSymbolsFromGroup(G,k,Rationals(),sign);
+   return ModularSymbols(G,k,Rationals(),sign);
+end intrinsic;
+
+intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, 
+			 F::Fld, sign::RngIntElt) -> ModSym
+{The space of modular symbols of level G, weight k, 
+ and given sign over the field F.
+ If sign=+1 then returns the +1 quotient, if sign=-1
+ returns the -1 quotient, and if sign=0 returns the full
+ space, respectively. The +1 quotient of M is M/(*-1)M, where 
+ * is StarInvolution(M).}
+   require sign in {-1,0,1} : "Argument 3 must be either -1, 0, or 1.";
+   
+   requirege k,2;
+   require IsSupportedField(F) : SupportMessage;
+
+   Q, pi_Q := G/G;
+   eps := CharacterGroup(pi_Q, F, G)!1;
+   return ModularSymbols(eps,G,k,F,sign);
 end intrinsic;
 
 intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt) -> ModSym
@@ -645,23 +663,24 @@ end intrinsic;
 
 forward CreateTrivialSpaceGenEps;
 
-intrinsic ModularSymbolsFromGroup(eps::GrpChrElt, G::GrpPSL2, k::RngIntElt,
+intrinsic ModularSymbols(eps::GrpChrElt, G::GrpPSL2, k::RngIntElt,
 				  F::Fld, sign::RngIntElt) -> ModSym
 {The space of modular symbols of weight k and level G, with character eps.
  The third argument "sign" allows for working in certain
  quotients.  The possible values are -1, 0, or +1, which correspond
  to the -1 quotient, full space, and +1 quotient.}
+   
    require (-1 le sign and sign le 1) : 
               "Argument 3 must be either -1, 0, or 1";
    requirege k, 2;
-
    require IsSupportedField(F) : SupportMessage;
 
+ 
    if sign ne 0 then
       require IsOfRealType(G) : "Group is not of real type.
                                  Sign quotients are only relevant 
                                  for groups of real type.";
-   end if;
+   end if; 
 
    if Type(F) in {FldAC, FldPad} then
       if IsVerbose("ModularSymbols") then
@@ -684,6 +703,7 @@ intrinsic ModularSymbolsFromGroup(eps::GrpChrElt, G::GrpPSL2, k::RngIntElt,
    if GetVerbose("ModularSymbols") ge 2 then   
       t := Cputime(); "I.\tManin symbols list.";
    end if;
+  
    mlist := ManinSymbolGenList(k,G,F);
    if GetVerbose("ModularSymbols") ge 2 then   
       printf "\t\t(%o s)\n",Cputime(t);
@@ -783,7 +803,7 @@ intrinsic ModularSymbols(eps::GrpChrElt, k::RngIntElt,
       printf "Computing space of modular symbols of level %o and weight %o....\n", G,k;
    end if;
 
-   return ModularSymbolsFromGroup(eps, G, k, F, sign);
+   return ModularSymbols(eps, G, k, F, sign);
 
 end intrinsic;
 

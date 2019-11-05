@@ -504,8 +504,9 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
      H`ImageInLevelGL := H0;
      cosets, find_coset := Transversal(H`ModLevel, H`ImageInLevel);
      H`FS_cosets := [PSL2(Integers()) | FindLiftToSL2(c) : c in cosets];
-     coset_idx := map<cosets -> Integers() |
-       [<cosets[i], i> : i in [1..#cosets]] >;
+     codom := [<i, cosets[i]^(-1)> : i in [1..#cosets]];
+     coset_idx := map<cosets -> codom |
+       [<cosets[i], codom[i] > : i in [1..#cosets]] >;
      H`FindCoset := find_coset*coset_idx;
      det_cosets := Transversal(H0, H`ImageInLevel);
      dom := [Determinant(x) : x in det_cosets];

@@ -116,7 +116,7 @@ modulus.}
    require #chars gt 0 : "Argument 1 must have length at least 1.";
    require Type(BaseRing(Parent(chars[1]))) in {FldCyc, FldRat} : 
        "The base ring of argument 1 must be the rationals or cyclotomic.";
-   return ModularSymbols(chars,k,0,G);
+return ModularSymbols(chars,k,0,G);
 end intrinsic;
 
 intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt, 

@@ -334,21 +334,20 @@ end function;
 
 //////////////////////////////////////////////////////////////////////////
 //  CosetReduce:                                                        //
-//  INPUT: gamma in PSL2(Z), G                                          //
+//  INPUT: x in GL(2,Z/NZ), find_coset - a map                          //
+//                          sending elements of GL(2,Z/NZ) to a pair    //
+//                          <idx, g> such that x belongs to coset no.   //
+//                          idx, which is represented by g^(-1)         //
 //  OUTPUT:  1) the *index* of a fixed choice r of representative       //
-//              in the coset of gamma - G * gamma in G\PSL2(Z)          //
+//              in the coset of x - G * x in G\PSL2(Z)                  //
 //                                                                      //
-//           2) an element s in G such that gamma = s * r               //
+//           2) an element s in GL(2,Z/NZ) such that x = s * r          //
 //              so the representation relation is                       //
-//                   eps(s)(r) = gamma                                  //
+//                   eps(s)(r) = x                                      //
 //////////////////////////////////////////////////////////////////////////
-
-forward get_non_split_cartan_coset;
 
 // The original is now in the C - we might want to change the corresponding
 // C code
-
-// We want x to be in SL(2,Z/NZ) as well as s
 
 function CosetReduce(x, find_coset)
 
@@ -424,12 +423,9 @@ end function;
 //////////////////////////////////////////////////////////////////////////
  
 function ManinSymbolGenList(k,G,F) 
-   coset_list := CosetRepresentatives(G);
-// find_coset := [* ModLevel(G)!(Matrix(g^(-1))) : g in coset_list *];
-   codom := [<i, ModLevel(G)!Matrix(coset_list[i])^(-1)> :
-		 i in [1..#coset_list]];
-   idx2pair := map< [1..#coset_list] -> codom | i :-> codom[i] >;
-   find_coset := G`FindCoset*idx2pair;
+   coset_list := [PSL2(Integers()) | FindLiftToSL2(c) : c in
+		      Codomain(Components(G`FindCoset)[1])];   
+   find_coset := G`FindCoset;
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
    return rec<CManSymGenList |
@@ -598,8 +594,6 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    find_coset := mlist`find_coset;
 
    if Type(g) eq SeqEnum then
-        // g := <g, Parent(uv)!g> ;
-       // g := <g, GL(2, Integers())!g>;
        g := <g,(G`ModLevelGL)!g>;
    end if;
  
@@ -608,7 +602,6 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    if (Determinant(g[2]) eq -1) then
      uvg := g[2] * uvg;
    end if;
-// uvg := PSL2(Integers())!uvg;
    act_uv, s := CosetReduce(uvg, find_coset);
 
    if k eq 2 then
