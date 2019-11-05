@@ -101,6 +101,11 @@ intrinsic Conductor(x::GrpChrElt) -> GrpFin
   return x`Conductor;
 end intrinsic;
 
+intrinsic Modulus(eps::GrpChrElt) -> RngIntElt
+{compute the level of the domain of eps}
+   return BaseRing(Parent(eps)`OriginalDomain);;
+end intrinsic;
+
 function initGrpChrElt(G, rep)
   x := New(GrpChrElt);
   x`Parent := G;

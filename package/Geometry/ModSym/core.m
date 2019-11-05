@@ -351,40 +351,18 @@ forward get_non_split_cartan_coset;
 // We want x to be in SL(2,Z/NZ) as well as s
 
 function CosetReduce(x, find_coset, G)
-/*
-  if IsGammaNS(G) or IsGammaNSplus(G) then
-     t := Universe(Domain(find_coset)).1;
-     val := get_non_split_cartan_coset(x,t);
-     if val notin Domain(find_coset) then return 0,0; end if;
-     index_g := find_coset(val);
-     index := index_g[1];
-     g := Parent(x)!Eltseq(index_g[2]);
-     s := x*g^(-1);
-     return index, s;
-  end if;
-*/
-/*
-  list := find_coset;
-  for index in [1..#list] do
-     // s := x*list[index]^(-1);
-     // we now work with the list of inverses
-     g := Parent(x)!Eltseq(list[index]);
-     s := x*g;
-     if s in G then
-        return index, s;
-     end if;
-  end for;
-*/
 
- index := G`FindCoset(ModLevel(G)!Eltseq(x));
-//  index := G`FindCoset(x);
+//index := G`FindCoset(ModLevel(G)!Eltseq(x));
+  index := G`FindCoset(x);
   g := find_coset[index];
   //s := x*g^(-1);
   // we now work with the list of inverses
   s := x*g;
   return index, s;
+
   // error - could not find an appropriate coset
   assert false;
+
 end function;
 
 
@@ -449,7 +427,7 @@ end function;
  
 function ManinSymbolGenList(k,G,F) 
    coset_list := CosetRepresentatives(G);
-   find_coset := [*g^(-1) : g in coset_list*];
+find_coset := [* ModLevel(G)!(Matrix(g^(-1))) : g in coset_list *];
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
    return rec<CManSymGenList |
@@ -561,24 +539,23 @@ function ManinSymbolApply(g, i, mlist, eps, k)
 
    coset_list := mlist`coset_list;
 
-   if Type(g) eq SeqEnum then
-      if Type(eps) eq GrpPSL2 then
-        g := <g, GL(2,Integers())!g> ;
+   if Type(g) eq SeqEnum then 
+     if Type(eps) eq GrpPSL2 then
+        //g := <g, GL(2,Integers())!g> ;
+        g := <g, GL(2,Integers(Level(eps)))!g> ;
       else
         g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
-      end if;
+    end if;
    end if;
  
    if Type(eps) eq GrpPSL2 then
-     uvg := Matrix(uv)* g[2];
+     uvg := (Parent(g[2])!Matrix(uv))* g[2];
      // That's for the case of involution
      if (Determinant(g[2]) eq -1) then
        uvg := g[2] * uvg;
      end if;
-     uvg := PSL2(Integers())!uvg;
-     // coset_list_inv := mlist`coset_list_inv;
+     // uvg := PSL2(Integers())!uvg;
      find_coset := mlist`find_coset;
-     // act_uv, s := CosetReduce(uvg, coset_list_inv, eps);
      act_uv, s := CosetReduce(uvg, find_coset, eps);
    else
      uvg := uv * g[2];
@@ -620,15 +597,16 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
 
    if Type(g) eq SeqEnum then
         // g := <g, Parent(uv)!g> ;
-       g := <g, GL(2, Integers())!g>;
+       // g := <g, GL(2, Integers())!g>;
+       g := <g,(G`ModLevelGL)!g>;
    end if;
  
-   uvg := Matrix(uv)* g[2];
+   uvg := (Parent(g[2])!Matrix(uv))* g[2];
    // That's for the case of involution
    if (Determinant(g[2]) eq -1) then
      uvg := g[2] * uvg;
    end if;
-   uvg := PSL2(Integers())!uvg;
+// uvg := PSL2(Integers())!uvg;
    act_uv, s := CosetReduce(uvg, find_coset, G);
 
    if k eq 2 then
@@ -1539,10 +1517,9 @@ function ConvFromManinSymbol (M, P, uv)
    if IsOfGammaType(M) then
      ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list); 
    else
-     // coset_list_inv := mlist`coset_list_inv;  
-     // ind,s := CosetReduce(Parent(coset_list[1])!uv, coset_list_inv, M`G);
      find_coset := mlist`find_coset;  
-     ind,s := CosetReduce(Parent(coset_list[1])!uv, find_coset, M`G);
+     //ind,s := CosetReduce(Parent(coset_list[1])!uv, find_coset, M`G);
+     ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset, M`G);
    end if;
 
    char := DirichletCharacter(M);
@@ -1591,10 +1568,8 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
 	 if IsOfGammaType(M) then
             ind,s := P1Reduce(coset_parent!uv, coset_list);
          else
-	   // coset_list_inv := mlist`coset_list_inv;
-	   //  ind,s := CosetReduce(p1parent!uv, coset_list_inv, M`G);
 	   find_coset := mlist`find_coset;
-	   ind,s := CosetReduce(coset_parent!uv, find_coset, M`G);
+           ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset, M`G);
          end if;
          if (Type(s) ne RngIntElt) or (s ne 0) then 
             if trivial then

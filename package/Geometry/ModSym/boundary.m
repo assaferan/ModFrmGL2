@@ -222,8 +222,9 @@ end function;
 // transferring one coset to the other
  
 function BuildTOrbitTable(coset_list, find_coset, G)
-  T := PSL2(Integers()) ! [1,1,0,1];
-  T_map := [CosetReduce(x * T, find_coset, G) : x in coset_list];
+  T := ModLevel(G) ! [1,1,0,1];
+  T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
+		      find_coset, G) : x in coset_list];
   orbit_table := [[] : idx in [1..#coset_list]];
   cur_idx := 1;
   cur_orbit := 1;
@@ -258,7 +259,7 @@ end function;
 
 function CuspEquivGrp(coset_list, find_coset, G, orbit_table, a, b)
   gs := [CuspInftyElt(cusp) : cusp in [a,b]];
-  idxs := [CosetReduce(PSL2(Integers())!g, find_coset, G) : g in gs];
+  idxs := [CosetReduce(ModLevel(G)!g, find_coset, G) : g in gs];
   orbit := [orbit_table[idx] : idx in idxs];
   if orbit[1][1] ne orbit[2][1] then // They are not in the same orbit
      return false, PSL2(Integers())!1;

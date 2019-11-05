@@ -431,8 +431,9 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
   mlist := ManinSymbolGenList(2,G,G`BaseRing);
   coset_list := mlist`coset_list;
   find_coset := mlist`find_coset;
-  T := PSL2(Integers()) ! [1,1,0,1];
-  T_map := [CosetReduce(x * T, find_coset, G) : x in coset_list];
+  T := ModLevel(G) ! [1,1,0,1];
+  T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
+		      find_coset, G) : x in coset_list];
   perm_T := SymmetricGroup(#T_map)!T_map;
   level := Order(perm_T);
   delete G`IsNSCartan;
