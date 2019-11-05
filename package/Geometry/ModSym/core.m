@@ -351,7 +351,7 @@ forward get_non_split_cartan_coset;
 // We want x to be in SL(2,Z/NZ) as well as s
 
 function CosetReduce(x, find_coset, G)
-
+/*
   if IsGammaNS(G) or IsGammaNSplus(G) then
      t := Universe(Domain(find_coset)).1;
      val := get_non_split_cartan_coset(x,t);
@@ -362,7 +362,7 @@ function CosetReduce(x, find_coset, G)
      s := x*g^(-1);
      return index, s;
   end if;
-
+*/
 /*
   list := find_coset;
   for index in [1..#list] do
@@ -449,35 +449,7 @@ end function;
  
 function ManinSymbolGenList(k,G,F) 
    coset_list := CosetRepresentatives(G);
-//   coset_list := G`CosetList;
-   if IsGammaNS(G) or IsGammaNSplus(G) then
-      u := NSCartanU(G);
-      FF := GF(Modulus(Parent(u)));
-      F2<x> := ExtensionField< FF, x | x^2-FF!u>;
-      universe := CartesianProduct(Integers(), PSL2(Integers()));
-      coset_list_idxs := {universe |
-			  <i, coset_list[i]> : i in [1..#coset_list]};
-      univ := CartesianProduct(F2, universe);
-      coset_vals := {univ |
-		     <Parent(x)!get_non_split_cartan_coset(coset_list[i],x),
-		     <i, coset_list[i]> > :
-		     i in [1..#coset_list]};
-      if IsGammaNSplus(G) then
-         coset_vals_n :=  {univ | <Parent(x)!get_non_split_cartan_coset
-			   (coset_list[i],-x),
-		                 <i, coset_list[i]> > :
-		                 i in [1..#coset_list]};
-         coset_vals := coset_vals join coset_vals_n;
-      end if;
-      dom := {x[1] : x in coset_vals};
-      find_coset := map<dom -> coset_list_idxs | coset_vals>;
-   else
-     // TODO : define find_coset in the general case,
-     // So that when we have an element of Delta, we can find the
-     // appropriate coset
-     find_coset := [*g^(-1) : g in coset_list*];
-   end if;
-   // coset_list_inv := [g^(-1) : g in CosetRepresentatives(G)];
+   find_coset := [*g^(-1) : g in coset_list*];
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
    return rec<CManSymGenList |
@@ -485,7 +457,6 @@ function ManinSymbolGenList(k,G,F)
       F      := F,            // base field
       R      := R,            // polynomial ring F[X,Y]
       coset_list := coset_list,
-   // coset_list_inv := coset_list_inv,
       find_coset := find_coset,
       n      := n             
    >;
