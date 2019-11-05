@@ -420,14 +420,6 @@ import "../../ModSym/core.m" : CosetReduce, ManinSymbolGenList;
 
 intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
 {calculates the level of a subgroups of PSL2}
-  // Verifying these features requires knowledge of the level
-  // Thus this function will not make use of the
-  // speical case of non-split Cartan
-  // !!! TODO : The right thing to do here is
-  // to construct a distinct path of functions for ns cartan
-  // and use it when relevant
-  G`IsNSCartan := false;
-  G`IsNSCartanPlus := false;
   mlist := ManinSymbolGenList(2,G,G`BaseRing);
   coset_list := mlist`coset_list;
   find_coset := mlist`find_coset;
@@ -436,8 +428,6 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
 		      find_coset) : x in coset_list];
   perm_T := SymmetricGroup(#T_map)!T_map;
   level := Order(perm_T);
-  delete G`IsNSCartan;
-  delete G`IsNSCartanPlus;
   return level;
 end intrinsic;
 
