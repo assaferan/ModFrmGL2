@@ -350,11 +350,9 @@ forward get_non_split_cartan_coset;
 
 // We want x to be in SL(2,Z/NZ) as well as s
 
-function CosetReduce(x, find_coset, G)
+function CosetReduce(x, find_coset)
 
-//index := G`FindCoset(ModLevel(G)!Eltseq(x));
-  index := G`FindCoset(x);
-  g := find_coset[index];
+  index, g := Explode(find_coset(x));
   //s := x*g^(-1);
   // we now work with the list of inverses
   s := x*g;
@@ -427,7 +425,11 @@ end function;
  
 function ManinSymbolGenList(k,G,F) 
    coset_list := CosetRepresentatives(G);
-find_coset := [* ModLevel(G)!(Matrix(g^(-1))) : g in coset_list *];
+// find_coset := [* ModLevel(G)!(Matrix(g^(-1))) : g in coset_list *];
+   codom := [<i, ModLevel(G)!Matrix(coset_list[i])^(-1)> :
+		 i in [1..#coset_list]];
+   idx2pair := map< [1..#coset_list] -> codom | i :-> codom[i] >;
+   find_coset := G`FindCoset*idx2pair;
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
    return rec<CManSymGenList |
@@ -556,7 +558,7 @@ function ManinSymbolApply(g, i, mlist, eps, k)
      end if;
      // uvg := PSL2(Integers())!uvg;
      find_coset := mlist`find_coset;
-     act_uv, s := CosetReduce(uvg, find_coset, eps);
+     act_uv, s := CosetReduce(uvg, find_coset);
    else
      uvg := uv * g[2];
      act_uv, scalar := P1Reduce(uvg, coset_list);
@@ -607,7 +609,7 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
      uvg := g[2] * uvg;
    end if;
 // uvg := PSL2(Integers())!uvg;
-   act_uv, s := CosetReduce(uvg, find_coset, G);
+   act_uv, s := CosetReduce(uvg, find_coset);
 
    if k eq 2 then
       return [<s@eps,act_uv>]; 
@@ -746,7 +748,7 @@ function XXXManinSymbolsGeneralizedWeightedAction(
       if det notin Domain(G`DetRep) then continue; end if;
       det_rep := G`DetRep(det);
       uvM := det_rep^(-1) * uvM;
-      ind, s := CosetReduce(uvM,list,G);
+      ind, s := CosetReduce(uvM,list);
       s := det_rep * s;
       e := s@eps;
       H := W[i];
@@ -1517,9 +1519,8 @@ function ConvFromManinSymbol (M, P, uv)
    if IsOfGammaType(M) then
      ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list); 
    else
-     find_coset := mlist`find_coset;  
-     //ind,s := CosetReduce(Parent(coset_list[1])!uv, find_coset, M`G);
-     ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset, M`G);
+     find_coset := mlist`find_coset;
+     ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset);
    end if;
 
    char := DirichletCharacter(M);
@@ -1569,7 +1570,7 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
             ind,s := P1Reduce(coset_parent!uv, coset_list);
          else
 	   find_coset := mlist`find_coset;
-           ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset, M`G);
+           ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset);
          end if;
          if (Type(s) ne RngIntElt) or (s ne 0) then 
             if trivial then

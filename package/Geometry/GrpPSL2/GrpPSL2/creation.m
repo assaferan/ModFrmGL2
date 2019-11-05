@@ -433,7 +433,7 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
   find_coset := mlist`find_coset;
   T := ModLevel(G) ! [1,1,0,1];
   T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
-		      find_coset, G) : x in coset_list];
+		      find_coset) : x in coset_list];
   perm_T := SymmetricGroup(#T_map)!T_map;
   level := Order(perm_T);
   delete G`IsNSCartan;

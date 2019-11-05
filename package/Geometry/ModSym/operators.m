@@ -653,7 +653,7 @@ function ManinSymbolsAction2(defining_tuple, uv, Heil)
     if det in Domain(G`DetRep) then
       det_rep := G`DetRep(det);
       uvM := ModLevel(G)!(det_rep^(-1) * uvM);
-      ind, s := CosetReduce(uvM, find_coset, G);
+      ind, s := CosetReduce(uvM, find_coset);
       s := det_rep * ModLevel(G)!Eltseq(s);
       e := s@eps;
 //if ind ne 0 then
@@ -675,7 +675,7 @@ function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
 // K := Parent(eps[1]);
   K := BaseRing(eps);
   R<X> := PolynomialRing(K);
-  coset_list_size := #find_coset;
+  coset_list_size := #Codomain(find_coset);
   res := VectorSpace(K,#Tquot)!0;
   for idx in [1..#Heil_N] do
     mat := Heil_N[idx];
@@ -684,7 +684,7 @@ function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
     if det in Domain(G`DetRep) then
       det_rep := G`DetRep(det);
       uvM := ModLevel(G)!(det_rep^(-1) * uvM);
-      ind, s := CosetReduce(uvM, find_coset, G);
+      ind, s := CosetReduce(uvM, find_coset);
       s := det_rep * ModLevel(G)!Eltseq(s);
       e := s@eps;
 //if ind ne 0 then
