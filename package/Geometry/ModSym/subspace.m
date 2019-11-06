@@ -432,13 +432,13 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       end for;
    else
       for p in primes do
-	 oldp := ModularSymbols(PSL2Subgroup(p, false));
+	 oldp := ModularSymbols(PSL2Subgroup(p, false),Weight(M),Sign(M));
          if Dimension(oldp) gt 0 then
             conjs := Conjugates(p,ImageInLevelGL(G));
             for conj in conjs do
-	       is_conj, alpha := IsConjugate(p, ImageInLevelGL(G), conj);
+	       is_conj, alpha_inv := IsConjugate(p, ImageInLevelGL(G), conj);
                assert is_conj;
-               alpha_inv := [Integers()!x : x in Eltseq(alpha^(-1))];
+               alpha_inv := [Integers()!x : x in Eltseq(alpha_inv)];
                Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
 	    						      AM, oldp));
             end for;
@@ -475,13 +475,14 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
          end for;
       else
 	 for p in primes do
-	    oldp := ModularSymbols(PSL2Subgroup(p, false));
+	    oldp := ModularSymbols(PSL2Subgroup(p, false),
+				      Weight(M), Sign(M));
             if Dimension(oldp) gt 0 then
               conjs := Conjugates(p,ImageInLevelGL(G));
               for conj in conjs do
-		 is_conj, alpha := IsConjugate(p, ImageInLevelGL(G), conj);
+		 is_conj, alpha_inv := IsConjugate(p, ImageInLevelGL(G), conj);
                  assert is_conj;
-                 R := [alpha*r : r in Transversal(p, conj)];
+                 R := [alpha_inv^(-1)*r : r in Transversal(p, conj)];
                  R := [[Integers()!x : x in Eltseq(r)] : r in R];
                  mat := &+[ActionOnModularSymbolsBasisBetween(r, oldp, AM) :
 				       r in R];
@@ -518,7 +519,7 @@ This is the intersection of NewSubspace(M,p) as p varies
 over all prime divisors of the level of M}
 
    // TO DO: was this require supposed to be required, or not?
-   require IsCuspidal(M) : 
+// require IsCuspidal(M) : 
       "The given space must be contained in the cuspidal subspace";
 /*
    if not IsOfGammaType(M) then
@@ -631,8 +632,8 @@ end intrinsic;
 intrinsic OldSubspace(M::ModSym) -> ModSym
 {The old subspace of M.   This is simply the complement
 in M of NewSubspace(M).  Note that M is required to be cuspidal.}
-   require IsCuspidal(M) :
-         "Argument 1 must be cuspidal.";
+//   require IsCuspidal(M) :
+//         "Argument 1 must be cuspidal.";
    if not assigned M`old_part then
       vprintf ModularSymbols : "Computing new part of %o.\n",M;
       M`old_part := Complement(NewSubspace(M)) meet M;

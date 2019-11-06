@@ -583,7 +583,7 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
  
    uvg := (Parent(g[2])!Matrix(uv))* g[2];
    // That's for the case of involution
-   if (Determinant(g[2]) eq -1) then
+   if (Determinant(g[2]) ne 1) then
      uvg := g[2] * uvg;
    end if;
    act_uv, s := CosetReduce(uvg, find_coset);
