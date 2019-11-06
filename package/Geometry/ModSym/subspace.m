@@ -412,6 +412,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 
    AM := AmbientSpace(M);
    N := Level(M);
+   G := LevelSubgroup(M);
    if IsOfGammaType(M) then
       Neps := Conductor(DirichletCharacter(M));
       primes := Sort([p : p in primes | N mod (p*Neps) eq 0]);
@@ -433,8 +434,14 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       for p in primes do
 	 oldp := ModularSymbols(PSL2Subgroup(p, false));
          if Dimension(oldp) gt 0 then
-            Append(~Dmats, ActionOnModularSymbolsBasisBetween([1,0,0,1],
-							      AM, oldp));
+            conjs := Conjugates(p,ImageInLevelGL(G));
+            for conj in conjs do
+	       is_conj, alpha := IsConjugate(p, ImageInLevelGL(G), conj);
+               assert is_conj;
+               alpha_inv := [Integers()!x : x in Eltseq(alpha^(-1))];
+               Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
+	    						      AM, oldp));
+            end for;
          end if;
       end for;
    end if;
@@ -470,11 +477,16 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 	 for p in primes do
 	    oldp := ModularSymbols(PSL2Subgroup(p, false));
             if Dimension(oldp) gt 0 then
-               R := Transversal(p, ImageInLevel(LevelSubgroup(M)));
-               R := [[Integers()!x : x in Eltseq(r)] : r in R];
-               mat := &+[ActionOnModularSymbolsBasisBetween(r, oldp, AM) :
+              conjs := Conjugates(p,ImageInLevelGL(G));
+              for conj in conjs do
+		 is_conj, alpha := IsConjugate(p, ImageInLevelGL(G), conj);
+                 assert is_conj;
+                 R := [alpha*r : r in Transversal(p, conj)];
+                 R := [[Integers()!x : x in Eltseq(r)] : r in R];
+                 mat := &+[ActionOnModularSymbolsBasisBetween(r, oldp, AM) :
 				       r in R];
-               Append(~DDmats, Transpose(mat));
+                 Append(~DDmats, Transpose(mat));
+               end for;
             end if;
 	 end for;
       end if;
