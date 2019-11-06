@@ -538,34 +538,18 @@ function ManinSymbolApply(g, i, mlist, eps, k)
    coset_list := mlist`coset_list;
 
    if Type(g) eq SeqEnum then 
-     if Type(eps) eq GrpPSL2 then
-        //g := <g, GL(2,Integers())!g> ;
-        g := <g, GL(2,Integers(Level(eps)))!g> ;
-      else
-        g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
-    end if;
+     g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
    end if;
  
-   if Type(eps) eq GrpPSL2 then
-     uvg := (Parent(g[2])!Matrix(uv))* g[2];
-     // That's for the case of involution
-     if (Determinant(g[2]) eq -1) then
-       uvg := g[2] * uvg;
-     end if;
-     // uvg := PSL2(Integers())!uvg;
-     find_coset := mlist`find_coset;
-     act_uv, s := CosetReduce(uvg, find_coset);
-   else
-     uvg := uv * g[2];
-     act_uv, scalar := P1Reduce(uvg, coset_list);
-   end if;
-
+   uvg := uv * g[2];
+   act_uv, scalar := P1Reduce(uvg, coset_list);
+ 
    if act_uv eq 0 then
       return [<0,1>];
    end if;
 
    if k eq 2 then
-      if (Type(eps) eq GrpPSL2) or (IsTrivial(eps)) then
+      if (IsTrivial(eps)) then
 	 return [<1,act_uv>];
       else
          return [<Evaluate(eps,scalar),act_uv>]; 
@@ -576,7 +560,7 @@ function ManinSymbolApply(g, i, mlist, eps, k)
    R := PolynomialRing(mlist`F); x := R.1;    // univariate is fine for computation
    hP := (g[1][1]*x+g[1][2])^w*(g[1][3]*x+g[1][4])^(k-2-w);
 
-   if (Type(eps) ne GrpPSL2) and (not IsTrivial(eps)) then
+   if (not IsTrivial(eps)) then
       hP *:= Evaluate(eps,scalar);
    end if;
    pol := ElementToSequence(hP);
@@ -594,7 +578,7 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    find_coset := mlist`find_coset;
 
    if Type(g) eq SeqEnum then
-       g := <g,(G`ModLevelGL)!g>;
+      g := <g,(G`ModLevelGL)!g>;
    end if;
  
    uvg := (Parent(g[2])!Matrix(uv))* g[2];
@@ -1572,7 +1556,7 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
 	      if IsOfGammaType(M) then
                a := Evaluate(char,Integers()!s);
               else
-	       a := char(Domain(char)!ElementToSequence(s))[1,1];
+	       a := s@char;
               end if;
             end if;
             Append(~symbols, <a*P,ind>);

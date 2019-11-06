@@ -529,8 +529,8 @@ over all prime divisors of the level of M}
          primes := [tup[1] : tup in Factorization(Level(M))];
       else
          G := LevelSubgroup(M);
-         G_N := ModLevelGL(G);
-         H := ImageInLevelGL(G);
+         G_N := ModLevel(G);
+         H := ImageInLevel(G);
 /*
          subgroup_lattice := SubgroupLattice(G_N);
          // find H in the lattice. !!! TODO : there are better ways
@@ -543,7 +543,7 @@ over all prime divisors of the level of M}
 
       if IsMultiChar(M) then
          // This is the old version of NewSubspace (TO DO)
-         // !!! TODO : adapt this one to arbitrary gamma as well
+
          Mnew := NewSubspace(M, primes[1]);
          for i in [2..#primes] do 
             p := primes[i];

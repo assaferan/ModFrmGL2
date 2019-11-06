@@ -68,32 +68,6 @@ intrinsic ImageInLevel(G::GrpPSL2) -> GrpMat
   end if;
 end intrinsic;
 
-intrinsic ImageInLevelGL(G::GrpPSL2) -> GrpMat
-{The image of G in SL_2(Z/NZ), where N is the level.}
-  if not assigned G`ImageInLevelGL then 
-     modLevel := ModLevelGL(G);
-     if #modLevel eq 1 then
-        G`ImageInLevelGL := modLevel;
-     else
-       gens := [[1,1,0,1],[-1,0,0,-1]];
-       if IsGamma0(G) then
-          N := Level(G);
-          Z_N := Integers(N);
-          U, psi := UnitGroup(Z_N);
-          for t in Generators(U) do
-	    Append(~gens, [psi(t),0,0,1]);
-            Append(~gens, [1,0,0,psi(t)]);
-          end for;
-       elif not IsGamma1(G) then
-          gens := Generators(G);
-       end if;
-       G`ImageInLevelGL := sub< modLevel | [modLevel!Eltseq(g) : g in gens]>;
-     end if;
-  end if;
-
-  return G`ImageInLevelGL; 
-end intrinsic;
-
 intrinsic ModLevel(G::GrpPSL2) -> GrpMat
   {SL_2(Z/NZ), where N is the level.}
   if assigned G`ModLevel then
@@ -108,20 +82,6 @@ intrinsic ModLevel(G::GrpPSL2) -> GrpMat
      end if;
      return G`ModLevel;
   end if;
-end intrinsic;
-
-intrinsic ModLevelGL(G::GrpPSL2) -> GrpMat
-  {GL_2(Z/NZ), where N is the level.}
-  if not assigned G`ModLevelGL then
-     N := Level(G);
-     if N eq 1 then return GL(1, IntegerRing(2)); end if;
-     if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
-        G`ModLevelGL := GL(2,quo<G`BaseRing | N>);
-     else
-        G`ModLevelGL := MatrixAlgebra(quo<G`BaseRing | N>,2);
-     end if;
-  end if;
-  return G`ModLevelGL;
 end intrinsic;
 
 intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt

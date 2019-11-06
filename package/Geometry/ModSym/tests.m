@@ -389,14 +389,17 @@ function my_Gamma(N, type)
      // just take en entire GL(2,N) for some N
     return PSL2Subgroup(GL(2,IntegerRing(2)), false);
   end if;
-  G_N := GL(2, IntegerRing(N));
+  Z_N := IntegerRing(N);
+  G_N := GL(2, Z_N);
   gens := [-G_N!1];
   if Type(type) eq RngIntElt then
      Append(~gens, G_N![1,1,0,1]);
      if type eq 0 then
-       t := PrimitiveElement(IntegerRing(N));
-       Append(~gens, G_N![t,0,0,1]);
-       Append(~gens, G_N![1,0,0,t]);
+       U, psi := UnitGroup(Z_N);
+       for t in Generators(U) do
+	  Append(~gens, G_N![psi(t),0,0,1]);
+          Append(~gens, G_N![1,0,0,psi(t)]);
+       end for;
      end if;
   end if;
   H_N := sub<G_N | gens>;
@@ -500,6 +503,8 @@ procedure Test_Stein()
   Test_Stein_8_34();
   Test_Stein_8_35();
   Test_Stein_8_36();
+// Here it takes quite a while to generate the group Gamma0(2004)
+// in an alternative way - intersection with SL2 takes too much time
 // Test_Stein_8_37();
   Test_Stein_9_6();
 end procedure;

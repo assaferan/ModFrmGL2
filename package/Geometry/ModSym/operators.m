@@ -601,6 +601,10 @@ end function;
 // Here H = alpha * Gamma(1) * alpha^(-1) meet Gamma(1)
 // for alpha=diag(a,b) with a|b, this is simply Gamma0(b/a)
 
+// TODO !!! This is just wrong !!!
+// In general [1,0,0,p] might not be the correct global representative
+// Works for subgroups containing Gamma1(N)
+
 function HeckeGeneralCaseRepresentatives(G,p)
   alpha := GL(2,Rationals())![1,0,0,p];
   H := Gamma0(p);
@@ -638,7 +642,6 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;
 
-// TODO: Have to add here the action of epsilon, later !!!
 function ManinSymbolsAction2(defining_tuple, uv, Heil)
   find_coset := defining_tuple[1];
   G := defining_tuple[2];
@@ -656,7 +659,6 @@ function ManinSymbolsAction2(defining_tuple, uv, Heil)
       ind, s := CosetReduce(uvM, find_coset);
       s := det_rep * ModLevel(G)!Eltseq(s);
       e := s@eps;
-//if ind ne 0 then
       res +:= e*Scoef[ind]*Tquot[Squot[ind]];
     end if;
   end for;
@@ -664,7 +666,6 @@ function ManinSymbolsAction2(defining_tuple, uv, Heil)
 end function;
 
 
-// TODO: !!! Add polynomial action for arbitrary weight
 function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
   find_coset := defining_tuple[1];
   G := defining_tuple[2];
@@ -672,7 +673,6 @@ function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
   Squot := defining_tuple[4];
   Scoef := defining_tuple[5];
   eps := defining_tuple[6];
-// K := Parent(eps[1]);
   K := BaseRing(eps);
   R<X> := PolynomialRing(K);
   coset_list_size := #Codomain(find_coset);
@@ -687,10 +687,8 @@ function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
       ind, s := CosetReduce(uvM, find_coset);
       s := det_rep * ModLevel(G)!Eltseq(s);
       e := s@eps;
-//if ind ne 0 then
       H := Heil_0[idx];
       h := e*(R![H[1,2],H[1,1]])^w*(R![H[2,2],H[2,1]])^(k-2-w);
-// val := Scoef[ind]*Tquot[Squot[ind]];
       for a in Eltseq(h) do
 	 res[Squot[ind]] +:= a*Scoef[ind];
          ind +:= coset_list_size;

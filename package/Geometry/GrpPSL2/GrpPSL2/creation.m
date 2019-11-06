@@ -213,9 +213,9 @@ end intrinsic;
 
 intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
 {Currently assumes the same level.}
-   require ModLevel(G) eq ModLevel(H) : "the groups must be of the same level";
-// return ImageInLevel(G)/ImageInLevel(H);
-   return G`ImageInLevelGL / H`ImageInLevelGL;
+   require ModLevelGL(G) eq ModLevelGL(H) :
+          "the groups must be of the same level";
+   return ImageInLevelGL(G)/ImageInLevelGL(H);
 end intrinsic;
 
 //////////////////////////////////////////////////////////
@@ -237,8 +237,7 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
      H`LevelFactorization := F;
      H`AtkinLehnerInvolutions := VectorSpace(FiniteField(2),r);
    else     
-     //N_G := Normalizer(ModLevel(G), ImageInLevel(G));
-     N_G := Normalizer(G`ModLevelGL, G`ImageInLevelGL);
+   N_G := Normalizer(ModLevelGL(G), ImageInLevelGL(G));
      H := PSL2Subgroup(N_G);
    end if;
    H`IsNormalizer := true;
@@ -419,7 +418,7 @@ end intrinsic;
 import "../../ModSym/core.m" : CosetReduce, ManinSymbolGenList;
 
 intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
-{calculates the level of a subgroups of PSL2}
+{calculates the level of a subgroup of PSL2}
   mlist := ManinSymbolGenList(2,G,G`BaseRing);
   coset_list := mlist`coset_list;
   find_coset := mlist`find_coset;

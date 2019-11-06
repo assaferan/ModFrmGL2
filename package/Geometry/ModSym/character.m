@@ -103,7 +103,7 @@ end intrinsic;
 
 intrinsic Modulus(eps::GrpChrElt) -> RngIntElt
 {compute the level of the domain of eps}
-   return BaseRing(Parent(eps)`OriginalDomain);;
+   return Modulus(BaseRing(Parent(eps)`OriginalDomain));
 end intrinsic;
 
 function initGrpChrElt(G, rep)
