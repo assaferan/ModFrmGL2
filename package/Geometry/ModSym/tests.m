@@ -392,12 +392,14 @@ function my_Gamma(N, type)
   Z_N := IntegerRing(N);
   G_N := GL(2, Z_N);
   gens := [-G_N!1];
+  U, psi := UnitGroup(Z_N);
+  for t in Generators(U) do
+     Append(~gens, G_N![psi(t),0,0,1]);
+  end for;
   if Type(type) eq RngIntElt then
-     Append(~gens, G_N![1,1,0,1]);
+     Append(~gens, G_N![1,1,0,1]);   
      if type eq 0 then
-       U, psi := UnitGroup(Z_N);
        for t in Generators(U) do
-	  Append(~gens, G_N![psi(t),0,0,1]);
           Append(~gens, G_N![1,0,0,psi(t)]);
        end for;
      end if;
@@ -479,6 +481,8 @@ procedure Test_Stein_9_6()
   f2 := CharacteristicPolynomial(T2);
   x := Parent(f2).1;
   assert f2 eq (x^2+2*x+2)^2;
+//  Snew := NewSubspace(S);
+//  assert Dimension(Snew) eq 0;
 end procedure;
 
 procedure Test_Stein_9_7()
@@ -492,10 +496,6 @@ procedure Test_Stein_9_7()
   M := ModularSymbols(my_Gamma(45,0));
   S := CuspidalSubspace(M);
   assert Dimension(S) eq 6;
-  T2 := HeckeOperator(S,2);
-  f2 := CharacteristicPolynomial(T2);
-  x := Parent(f2).1;
-  assert f2 eq (x^2+2*x+2)^2;
 end procedure;
 
 procedure Test_Stein()
@@ -507,6 +507,7 @@ procedure Test_Stein()
 // in an alternative way - intersection with SL2 takes too much time
 // Test_Stein_8_37();
   Test_Stein_9_6();
+  Test_Stein_9_7();
 end procedure;
 
 function make_group_copy(M)
@@ -770,7 +771,7 @@ procedure DoTests(numchecks)
    Test_qExpansionBasis(numchecks);
    Test_Rouse();
    Test_Stein();
-   Test_NS_cartan(50);
+   Test_NS_cartan(30);
    TestNSCartan_11();
    TestNSCartan_17();
 // Test_Zywina();

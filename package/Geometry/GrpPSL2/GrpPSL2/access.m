@@ -76,12 +76,14 @@ intrinsic ImageInLevelGL(G::GrpPSL2) -> GrpMat
         G`ImageInLevelGL := modLevel;
      else
        gens := [[1,1,0,1],[-1,0,0,-1]];
+       N := Level(G);
+       Z_N := Integers(N);
+       U, psi := UnitGroup(Z_N);
+       for t in Generators(U) do
+	  Append(~gens, [psi(t),0,0,1]);
+       end for;
        if IsGamma0(G) then
-          N := Level(G);
-          Z_N := Integers(N);
-          U, psi := UnitGroup(Z_N);
           for t in Generators(U) do
-	    Append(~gens, [psi(t),0,0,1]);
             Append(~gens, [1,0,0,psi(t)]);
           end for;
        elif not IsGamma1(G) then

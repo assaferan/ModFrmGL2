@@ -383,14 +383,12 @@ function CuspToFreeHelper(M, sign, a)
    is_trivial_eps := IsTrivial(eps);
    if not IsOfGammaType(M) then
       G     := LevelSubgroup(M);
-      if not (IsGammaNS(G) or IsGammaNSplus(G)) then
-         coset_list :=  M`mlist`coset_list;
-         find_coset := M`mlist`find_coset;
-         if not assigned M`orbit_table then
-           M`orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
-         end if;
-         orbit_table := M`orbit_table;
+      coset_list :=  M`mlist`coset_list;
+      find_coset := M`mlist`find_coset;
+      if not assigned M`orbit_table then
+        M`orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
       end if;
+      orbit_table := M`orbit_table;
    end if;
    N     := Level(M);
    k     := Weight(M);
@@ -406,14 +404,10 @@ function CuspToFreeHelper(M, sign, a)
       b          := list[i];
       if IsOfGammaType(M) then
         equiv, alp := CuspEquiv(N, b[1], a);   // [gam_alp(b[1])]=?=[a].
-      else
-	if (IsGammaNS(G) or IsGammaNSplus(G)) then
-	   equiv, alp := CuspEquivNS(G, b[1],a);
-	else					
-           find_coset := M`mlist`find_coset;
-           equiv, alp := CuspEquivGrp(coset_list, find_coset,
+      else					
+        find_coset := M`mlist`find_coset;
+        equiv, alp := CuspEquivGrp(coset_list, find_coset,
 				   G, orbit_table, b[1],a);
-        end if;
       end if;
       if equiv then
          if b[2] eq 0 then
@@ -422,14 +416,12 @@ function CuspToFreeHelper(M, sign, a)
          if is_trivial_eps then
             return <1,i>;
          else	    
-            return <Evaluate(eps,alp)^(-1),i>;       
+	   return <Evaluate(eps,alp)^(-1),i>;
          end if;
       end if;
       if sign ne 0 then
          if IsOfGammaType(M) then
             equiv, alp := CuspEquiv(N, b[1], [-a[1],a[2]]);
-         elif IsGammaNS(G) or IsGammaNSplus(G) then
-	    equiv, alp := CuspEquivNS(G, b[1], [-a[1],a[2]]);
          else
 	    find_coset := M`mlist`find_coset;
             equiv, alp := CuspEquivGrp(coset_list, find_coset,
@@ -470,27 +462,14 @@ function CuspToFreeHelper(M, sign, a)
         pi_Q := Parent(eps)`QuotientMap;
         Q := Codomain(pi_Q);
         H := PSL2Subgroup(Kernel(pi_Q));
-        if IsGammaNS(H) or IsGammaNSplus(H) then
-          for q in Q do	    
-            q_lift := q @@ pi_Q;
-            det_rep := H`DetRep(Determinant(q_lift)^(-1));
-            q_elt := FindLiftToSL2(det_rep * q_lift);
-            q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt`Element));
-            equiv, tmp := CuspEquivNS(H,q_a,a);
-            if equiv and q_elt@eps ne 1 then
-              c := F!0;
-              break;
-            end if;
-          end for;
-        else
-          mlist_H := ManinSymbolGenList(2,H,F);
-          coset_list_H := mlist_H`coset_list;
-          find_coset_H := mlist_H`find_coset;
-          if not assigned M`orbit_table_H then
-             M`orbit_table_H := BuildTOrbitTable(coset_list_H, find_coset_H, H);
-          end if;
-          orbit_table_H := M`orbit_table_H;
-          for q in Q do
+        mlist_H := ManinSymbolGenList(2,H,F);
+        coset_list_H := mlist_H`coset_list;
+        find_coset_H := mlist_H`find_coset;
+        if not assigned M`orbit_table_H then
+          M`orbit_table_H := BuildTOrbitTable(coset_list_H, find_coset_H, H);
+        end if;
+        orbit_table_H := M`orbit_table_H;
+        for q in Q do
             q_lift := q @@ pi_Q;
             det_rep := H`DetRep(Determinant(q_lift)^(-1));
             q_elt := FindLiftToSL2(det_rep * q_lift);
@@ -501,8 +480,7 @@ function CuspToFreeHelper(M, sign, a)
               c := F!0;
               break;
             end if;
-           end for;
-        end if;
+        end for;
       end if;
    end if;
 
@@ -574,7 +552,20 @@ function CuspToFreeHelperNS(M, sign, a)
               det_rep := H`DetRep(Determinant(q_lift)^(-1));
               q_elt := FindLiftToSL2(det_rep * q_lift);
               q_a := ElementToSequence(Matrix([a]) * Transpose(q_elt`Element));
-              equiv, tmp := CuspEquivNS(H,q_a,a);
+              if (IsGammaNS(H) or IsGammaNSplus(H)) then
+                equiv, tmp := CuspEquivNS(H,q_a,a);
+              else
+		mlist_H := ManinSymbolGenList(2,H,F);
+                coset_list_H := mlist_H`coset_list;
+                find_coset_H := mlist_H`find_coset;
+                if not assigned M`orbit_table_H then
+                   M`orbit_table_H :=
+		     BuildTOrbitTable(coset_list_H, find_coset_H, H);
+                end if;
+                orbit_table_H := M`orbit_table_H;
+		equiv, tmp := CuspEquivGrp(coset_list_H, find_coset_H,
+					   H, orbit_table_H, q_a,a);;
+              end if;
               if equiv then
                  c := F!0;
                  break;

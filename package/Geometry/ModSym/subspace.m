@@ -438,7 +438,9 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
             for conj in conjs do
 	       is_conj, alpha_inv := IsConjugate(p, ImageInLevelGL(G), conj);
                assert is_conj;
-               alpha_inv := [Integers()!x : x in Eltseq(alpha_inv)];
+               det_rep := G`DetRep(Determinant(alpha_inv));
+               alpha_inv_lift := FindLiftToSL2(det_rep^(-1)*alpha_inv);
+               alpha_inv := [Integers()!x : x in Eltseq(alpha_inv_lift)];
                Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
 	    						      AM, oldp));
             end for;
@@ -483,7 +485,11 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 		 is_conj, alpha_inv := IsConjugate(p, ImageInLevelGL(G), conj);
                  assert is_conj;
                  R := [alpha_inv^(-1)*r : r in Transversal(p, conj)];
-                 R := [[Integers()!x : x in Eltseq(r)] : r in R];
+                 det_reps := [G`DetRep(Determinant(r)) : r in R];
+                 R_lift := [PSL2(Integers()) |
+			       FindLiftToSL2(det_reps[i]^(-1)*R[i]) :
+			       i in [1..#R]];
+                 R := [[Integers()!x : x in Eltseq(r)] : r in R_lift];
                  mat := &+[ActionOnModularSymbolsBasisBetween(r, oldp, AM) :
 				       r in R];
                  Append(~DDmats, Transpose(mat));
@@ -518,16 +524,6 @@ intrinsic NewSubspace(M::ModSym : ComputeDual:=true) -> ModSym
 This is the intersection of NewSubspace(M,p) as p varies 
 over all prime divisors of the level of M}
 
-   // TO DO: was this require supposed to be required, or not?
-// require IsCuspidal(M) : 
-      "The given space must be contained in the cuspidal subspace";
-/*
-   if not IsOfGammaType(M) then
-      require false : "Modular space must be of level 
-                    Gamma0(N), Gamma1(N) or Gamma(N)
-                    for new to be meaningful.";
-   end if;
-*/
    if assigned M`is_new and M`is_new 
       or Level(M) eq 1 
       or Dimension(M) eq 0
@@ -544,14 +540,15 @@ over all prime divisors of the level of M}
          G := LevelSubgroup(M);
          G_N := ModLevelGL(G);
          H := ImageInLevelGL(G);
+
+// This should have worked, but there's an internal bug in Magma
 /*
          subgroup_lattice := SubgroupLattice(G_N);
          // find H in the lattice. !!! TODO : there are better ways
          idx := [i : i in subgroup_lattice | H eq Group(i)][1];
          primes := [Group(i) : i in MinimalOvergroups(idx)];
 */
-         import "../../Group/GrpPerm/max/oddfns.m" : MinimalOvergroupsH;
-         primes := MinimalOvergroupsH(G_N,H);
+         primes := MinimalOvergroups(G_N,H);
       end if;
 
       if IsMultiChar(M) then
@@ -632,8 +629,8 @@ end intrinsic;
 intrinsic OldSubspace(M::ModSym) -> ModSym
 {The old subspace of M.   This is simply the complement
 in M of NewSubspace(M).  Note that M is required to be cuspidal.}
-//   require IsCuspidal(M) :
-//         "Argument 1 must be cuspidal.";
+   require IsCuspidal(M) :
+         "Argument 1 must be cuspidal.";
    if not assigned M`old_part then
       vprintf ModularSymbols : "Computing new part of %o.\n",M;
       M`old_part := Complement(NewSubspace(M)) meet M;

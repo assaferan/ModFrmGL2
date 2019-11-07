@@ -188,6 +188,7 @@ intrinsic GaloisConjugacyRepresentatives(S::[GrpChrElt]) -> SeqEnum
              R := [j : j in [i+1..#S_parts[idx]] | gen_images[j] in gal_conj];
              for j in Reverse(R) do    // important to reverse.
                Remove(~S_parts[idx],j);
+               Remove(~gen_images, j);
              end for;
              i +:= 1;
         end while;
