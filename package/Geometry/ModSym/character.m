@@ -153,9 +153,10 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
       end if;
    elif Type(x) eq RngIntElt and x eq 1 then
      return true, initGrpChrElt(G,TrivialRepresentation(G`Domain));
-   elif (Type(x) eq HomGrp) and (Domain(x) eq G`Domain)
+//   elif (Type(x) eq HomGrp) and (Domain(x) eq G`Domain)
+   elif (Type(x) eq Map) and (Domain(x) eq G`Domain)
         and (BaseRing(Codomain(x)) subset G`BaseRing)
-        and Dimension(Codomain(x)) eq 1 then
+        and Degree(Codomain(x)) eq 1 then
         return true, initGrpChrElt(G,x);
    end if;
    return false, "Invalid coercion.";

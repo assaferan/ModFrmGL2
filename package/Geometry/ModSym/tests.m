@@ -686,7 +686,7 @@ procedure Test_Zywina()
   G := my_Gamma(N, "full");
   M := ModularSymbols(G);
   S := CuspidalSubspace(M);
-  f := qIntegralBasis(S, 12 : Al := "Universal");
+  f := qIntegralBasis(S, 12);
   q := Universe(f).1;
   assert f[1] eq q-3*q^8+O(q^12);
   assert f[2] eq q^2-3*q^9+O(q^12);
@@ -774,5 +774,5 @@ procedure DoTests(numchecks)
    Test_NS_cartan(30);
    TestNSCartan_11();
    TestNSCartan_17();
-// Test_Zywina();
+   Test_Zywina();
 end procedure;

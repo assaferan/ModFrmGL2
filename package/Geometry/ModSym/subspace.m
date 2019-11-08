@@ -363,7 +363,8 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    Q, pi_Q := p_prime / p;
    eps_res := FullCharacterGroup(pi_Q, oldp_prime, oldp)!eps;
 
-   old  := ModularSymbols(eps_res, Weight(M), Sign(M));
+   old  := ModularSymbols(MinimalBaseRingCharacter(eps_res), 
+			  Weight(M), Sign(M));
 
    if Dimension(old) eq 0 then
       return M;
@@ -527,8 +528,38 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       Neps := Conductor(DirichletCharacter(M));
       primes := Sort([p : p in primes | N mod (p*Neps) eq 0]);
       // Sort so that below, the blocks of D with largest rank at the left
-   else  // for now we assume no characters for general Gamma
-      Neps := 1;
+   else  
+      G_N := ImageInLevelGL(G);
+      eps   := DirichletCharacter(M);
+      H := Parent(eps)`Gamma;
+      H_N := ImageInLevelGL(H);
+      pi_Q := Parent(eps)`QuotientMap;
+      
+      primes := [p : p in primes | (G_N meet p)@pi_Q subset Kernel(eps)];
+      N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
+
+      good := [i : i in [1..#primes] | G_N subset N_p[i]];
+      primes := [primes[i] : i in good];
+      N_p := [N_p[i] : i in good];
+  
+      is_ab := [];
+      for i in [1..#primes] do
+	 Q, pi_Q := N_p[i] / primes[i];
+         G_N_im := G_N@pi_Q;
+         Append(~is_ab, IsAbelian(G_N_im));
+      end for;
+
+      primes := [primes[i] : i in [1..#is_ab] | is_ab[i]];
+      N_p := [MaximalNormalizingWithAbelianQuotient(ModLevelGL(H),p,G_N) :
+					       p in primes];
+      oldp_prime := [PSL2Subgroup(p_prime) : p_prime in N_p]; // maybe false?
+      oldp := [PSL2Subgroup(p) : p in primes]; // as well?
+      old := [];
+      for i in [1..#primes] do
+	 Q, pi_Q := N_p[i] / primes[i];
+         eps_res := FullCharacterGroup(pi_Q, oldp_prime[i], oldp[i])!eps;
+	 Append(~old,ModularSymbols(eps_res, Weight(M), Sign(M)));
+      end for;
    end if;
 
    Dmats := <>;
@@ -541,8 +572,10 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
          end if;
       end for;
    else
-      for p in primes do
-	 oldp := ModularSymbols(PSL2Subgroup(p, false),Weight(M),Sign(M));
+      for i in [1..#primes] do
+	 p := primes[i];
+	 oldp := old[i];
+	 // oldp := ModularSymbols(PSL2Subgroup(p, false),Weight(M),Sign(M));
          if Dimension(oldp) gt 0 then
             conjs := Conjugates(p,ImageInLevelGL(G));
             for conj in conjs do
@@ -586,9 +619,11 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
             end if;
          end for;
       else
-	 for p in primes do
-	    oldp := ModularSymbols(PSL2Subgroup(p, false),
-				      Weight(M), Sign(M));
+	 for i in [1..#primes] do
+	    p := primes[i];
+	    oldp := old[i];
+		//oldp := ModularSymbols(PSL2Subgroup(p, false),
+		//		      Weight(M), Sign(M));
             if Dimension(oldp) gt 0 then
               conjs := Conjugates(p,ImageInLevelGL(G));
               for conj in conjs do

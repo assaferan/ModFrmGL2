@@ -190,7 +190,7 @@ end intrinsic;
 
 intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
 {"} // "
-   if IsMultiChar(M) and IsOfGammaType(M) then
+   if IsMultiChar(M) then
       return qEigenform(AssociatedNewformSpace(M), prec);
    end if;
 
@@ -199,7 +199,7 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
 
 //      require IsCuspidal(M) : "Argument 1 must be cuspidal.";
 
-      if IsMultiChar(AmbientSpace(M)) and IsOfGammaType(M) then
+      if IsMultiChar(AmbientSpace(M)) then
          return qEigenform(AssociatedNewformSpace(M),prec);
       end if;
 
@@ -209,12 +209,8 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
          end if;
       end if;
 
-      if Characteristic(BaseField(M)) eq 0 then
-	 if IsOfGammaType(M) then		 
-            D := NewformDecomposition(M);
-	 else
-	    D := Decomposition(M,HeckeBound(M));
-         end if;
+      if Characteristic(BaseField(M)) eq 0 then		 
+         D := NewformDecomposition(M);	 
          require #D eq 1 : "Argument 1 must correspond to a single Galois-conjugacy class of newforms.";
          M := D[1]; 
          if assigned M`qeigenform and M`qeigenform[1] ge prec then

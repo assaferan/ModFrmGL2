@@ -784,28 +784,6 @@ function MC_CutSubspace(M, cut_function)
    B := [V| ];
    offset := 0;
 
-  // If M is not of Gamma type, the multispaces are already embedded
-  if not M`isgamma_type then
-      for MS in MultiSpaces(M) do
-	  K := BaseField(MS);
-          basis := Basis(K);
-	  for x in Basis(cut_function(MS)) do
-	     for alpha in basis do
-                 y := Solution(Matrix(Basis(Representation(MS))), Vector(Eltseq(alpha*x)));
-                 v := V!0;
-                 for i in [1..#basis] do 
-                    for j in [1..Dimension(MS)] do
-                       v[offset + (i-1)*Dimension(MS) + j] := Eltseq(y[j])[i];
-                    end for;
-                 end for;
-                 Append(~B, v);
-             end for;
-          end for;
-          offset := offset + Degree(BaseField(MS))*Dimension(MS);
-      end for;
-      return ModularSymbolsSub(M,sub<V|B>);
-   end if;
-
    for MS in MultiSpaces(M) do
       K := BaseField(MS);
       basis := Basis(K);
