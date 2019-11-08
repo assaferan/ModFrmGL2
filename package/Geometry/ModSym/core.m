@@ -422,9 +422,11 @@ end function;
 // ...                                                                  //
 //////////////////////////////////////////////////////////////////////////
  
-function ManinSymbolGenList(k,G,F) 
-   coset_list := [PSL2(Integers()) | FindLiftToSL2(c) : c in
+function ManinSymbolGenList(k,G,F)
+/*  coset_list := [PSL2(Integers()) | FindLiftToSL2(c) : c in
 		      Codomain(Components(G`FindCoset)[1])];   
+*/
+   coset_list := [c : c in Codomain(Components(G`FindCoset)[1])];
    find_coset := G`FindCoset;
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
@@ -1312,8 +1314,8 @@ end function;
    so that ad-bc=1. 
    **********************************************************/  
 function LiftToCosetRep(x, N)
-   if Type(x) eq GrpPSL2Elt then
-     return ElementToSequence(x);
+   if Type(x) eq GrpMatElt then
+     return Eltseq(FindLiftToSL2(x));
    end if;
    c:=Integers()!x[1]; d:=Integers()!x[2];
    g, z1, z2 := Xgcd(c,d);

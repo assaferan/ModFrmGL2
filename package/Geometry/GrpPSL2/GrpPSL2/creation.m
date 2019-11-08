@@ -195,6 +195,7 @@ intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
   G := PSL2Subgroup(C_N);
   G`Label := Sprintf("Gamma_ns(%o)", N);
   G`IsReal := true;
+  G`NSCartanU := u;
   return G;
 end intrinsic;
 
@@ -242,12 +243,17 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
      H`LevelFactorization := F;
      H`AtkinLehnerInvolutions := VectorSpace(FiniteField(2),r);
    else     
-   N_G := Normalizer(ModLevelGL(G), ImageInLevelGL(G));
+     N_G := Normalizer(ModLevelGL(G), ImageInLevelGL(G));
      H := PSL2Subgroup(N_G);
    end if;
    H`IsNormalizer := true;
    H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat Label(G);
    if IsOfRealType(G) then H`IsReal := true; end if;
+   if IsGammaNS(G) then
+     H`NSCartanU := G`NSCartanU;
+     H`IsNSCartan := false;
+     H`IsNSCartanPlus := true;
+   end if;
    return H;
 end intrinsic;
 
@@ -295,6 +301,12 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
     H := PSL2Subgroup(G_prime, false);
     H`Label := Sprintf("Maximal Abelian Subgroup of Normalizer in 
                         PSL_2(%o) of ", G`BaseRing) cat Label(G);
+    if IsOfRealType(G) then H`IsReal := true; end if;
+    if IsGammaNS(G) then
+      H`NSCartanU := G`NSCartanU;
+      H`IsNSCartan := false;
+      H`IsNSCartanPlus := true;
+    end if;
     return H;
 end intrinsic;
 

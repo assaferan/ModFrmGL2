@@ -498,16 +498,7 @@ with respect to Basis(M).}
          if IsOfGammaType(M) then
             eps_val := Evaluate(eps,p);
 	 else
-	    // Check that this is really what we want
-	    d,x,y := ExtendedGreatestCommonDivisor(Level(M),p);
-            if d ne 1 then
-	       eps_val := 0;
-            else
-	       eps_val := 1;
-	      // something is not right here -
-	      // have to correct the representative
-	      // eps_val := eps(Domain(eps)![y,-x,Level(M),p]);
-            end if;
+	    eps_val := Evaluate(eps, Parent(eps)`OriginalDomain![p,0,0,p]);
          end if;
          T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
             - eps_val*p^(Weight(M)-1)*HeckeOperator(M,p^(r-2));
@@ -986,10 +977,10 @@ function TnSparse(M, Heil, sparsevec)
       // For now we always simply compute the whole Hecke operator,
       // because this seems more efficient, since it is properly cached, etc.
       // if (not IsPrime(n) then   // just compute the whole Hecke operator.
-      if GCD(N,n) ne 1 then 
+      if GCD(N,n) ne 1 then      
          Tn := HeckeOperator(M,n);
          V := VectorSpace(M);
-         v := &+[s[1]*V.s[2] : s in sparsevec];
+         v := &+[s[1]*V.s[2] : s in sparsevec];      
          return v*Tn;
       end if;
 /*
@@ -1485,8 +1476,15 @@ transpose of HeckeOperator(M,n).}
          // T_{p^r} := T_p * T_{p^{r-1}} - eps(p)p^{k-1} T_{p^{r-2}}.
          p  := fac[1][1];
          r  := fac[1][2];
+         eps := DirichletCharacter(M);
+         if IsOfGammaType(M) then
+           eps_p := Evaluate(eps,p);
+         else
+	   eps_p := Evaluate(eps,
+			     Parent(eps)`OriginalDomain![p,0,0,p]);
+         end if;
          T  := DualHeckeOperator(M,p) * DualHeckeOperator(M,p^(r-1))
-        - Evaluate(DirichletCharacter(M),p)*p^(Weight(M)-1)*DualHeckeOperator(M,p^(r-2));
+        - eps_p*p^(Weight(M)-1)*DualHeckeOperator(M,p^(r-2));
       else  // T_m*T_r := T_{mr} and we know all T_i for i<n.
          m  := fac[1][1]^fac[1][2];
          T  := DualHeckeOperator(M,m)*DualHeckeOperator(M,n div m);
