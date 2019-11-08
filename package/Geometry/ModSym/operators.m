@@ -456,7 +456,7 @@ with respect to Basis(M).}
 
    elif IsPrime(n) then
       if IsAmbientSpace(M) then
- // Before adjusting Heilbronn to work for our case
+      // Before adjusting Heilbronn to work for our case
       if (GCD(n, Level(M)) ne 1) and
         (not IsOfGammaType(M)) and (not IsGammaNS(M`G)) and
 				  (not IsGammaNSplus(M`G)) then
@@ -623,14 +623,6 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
    else
      N := Level(M);
      if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) and (N ne p) then
-	/*					 
-        if (p^2 - 1 mod N eq 0) then
-	  R := HeckeFullCongruenceRepresentatives(N,p);
-        else
-	  plus := (N mod 4 eq 3) and IsGammaNSplus(M`G);
-	  R := HeckeNSCartanRepresentatives(M`G,p,plus);
-        end if;
-	*/
 	plus := (N mod 4 eq 3) and IsGammaNSplus(M`G);
 	R := HeckeNSCartanRepresentatives(M`G,p,plus);
      elif (M`G eq CongruenceSubgroup(N)) then
@@ -652,7 +644,7 @@ function ManinSymbolsAction2(defining_tuple, uv, Heil)
   res := Universe(Tquot)!0;
   for mat in Heil do
     uvM := Parent(mat)!Eltseq(uv) * mat;
-    det := Determinant(uvM); // mod Level(G);
+    det := Determinant(uvM); 
     if det in Domain(G`DetRep) then
       det_rep := G`DetRep(det);
       uvM := ModLevel(G)!(det_rep^(-1) * uvM);
@@ -981,6 +973,7 @@ function TnSparse(M, Heil, sparsevec)
    In order to always use Heilbronn matrices, this is
    now commented out.  WAS, 09/15/01.
   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
+*/
 
   if (not IsOfGammaType(M)) and
      (not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) then
@@ -989,13 +982,16 @@ function TnSparse(M, Heil, sparsevec)
       else
 	 n := Determinant(Heil[1][1]);
       end if;
+      N := Level(M);
       // For now we always simply compute the whole Hecke operator,
       // because this seems more efficient, since it is properly cached, etc.
       // if (not IsPrime(n) then   // just compute the whole Hecke operator.
-	 Tn := HeckeOperator(M,n);
-	 V := VectorSpace(M);
-	 v := &+[s[1]*V.s[2] : s in sparsevec];
-	 return v*Tn;
+      if GCD(N,n) ne 1 then 
+         Tn := HeckeOperator(M,n);
+         V := VectorSpace(M);
+         v := &+[s[1]*V.s[2] : s in sparsevec];
+         return v*Tn;
+      end if;
 /*
       else  // n is prime   -- this code isn't used, as it is slower.
          matrices := [[1,r,0,n] : r in [0..n-1]];
@@ -1007,7 +1003,7 @@ function TnSparse(M, Heil, sparsevec)
     	           g in matrices] : s in sparsevec];
       end if;
 */
-//   end if;
+  end if;
 
    // Now consider the characteristic-zero case.
    if Level(M) eq 1 then
@@ -1226,18 +1222,11 @@ require computing the full Hecke operator.}
    if #M`standard_images[i] lt PrimePos(n) then  // generate more images...
       p := NthPrime(#M`standard_images[i]+1);
       new_images := [Universe(M`standard_images[i])|]; // avoid copy inside loop
-      if IsOfGammaType(M) then
-         s := SparseRepresentation(VectorSpace(M).i);  
-         while p le n do 
-            Append(~new_images, TnSparse(M, p, s));
-            p := NextPrime(p);
-         end while;
-      else
-	 while p le n do 
-	    Append(~new_images, VectorSpace(M).i * HeckeOperator(M, p));
-            p := NextPrime(p);
-         end while;
-      end if;
+      s := SparseRepresentation(VectorSpace(M).i);  
+      while p le n do 
+         Append(~new_images, TnSparse(M, p, s));
+         p := NextPrime(p);
+      end while;
       M`standard_images[i] := M`standard_images[i] cat new_images;
    end if;      
    return M`standard_images[i];       

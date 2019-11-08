@@ -175,18 +175,23 @@ intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
   require N gt 0: "N must be a positive integer";
   require Modulus(Parent(u)) eq N: "u must be a mod N residue";
   primes := [x[1] : x in Factorization(N)];
-  good_u := &and[not IsSquare(IntegerRing(p)!u) : p in primes];
+  good_u := &and[not IsSquare(IntegerRing(p)!u) : p in primes | p ne 2];
   require good_u: "u must be a nonsquare mod every prime dividing N";
   G_N := GL(2, IntegerRing(N));
   // currently assumes N=p is prime
   // In general will have to consider arbitrary irreducibles
   F := GF(N);
-  F2<t> := ExtensionField<F,t | t^2-F!u>;
-  zeta := PrimitiveElement(F2);
-  a := F!((zeta + Frobenius(zeta))/2);
-  b := F!((zeta - Frobenius(zeta))/(2*t));
-  g := [a,F!u*b,b,a];
-  C_N := sub<G_N | [IntegerRing(N)!x : x in g]>;
+  // TODO : Treat the general case for N 
+  if N eq 2 then
+    C_N := sub<G_N | [0,1,1,1]>; 
+  else
+    F2<t> := ExtensionField<F,t | t^2-F!u>;
+    zeta := PrimitiveElement(F2);
+    a := F!((zeta + Frobenius(zeta))/2);
+    b := F!((zeta - Frobenius(zeta))/(2*t));
+    g := [a,F!u*b,b,a];
+    C_N := sub<G_N | [IntegerRing(N)!x : x in g]>;
+  end if;
   G := PSL2Subgroup(C_N);
   G`Label := Sprintf("Gamma_ns(%o)", N);
   G`IsReal := true;
@@ -246,10 +251,15 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
    return H;
 end intrinsic;
 
-intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
+intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
+						G::GrpMat,
+						H::GrpMat) -> GrpMat
 {}
-    N_G := Normalizer(G);
+    N_G := Normalizer(G_prime, G);
+    require H subset N_G : "H must normalize G";
     Q, pi_Q := N_G / G;
+    H_im := H@pi_Q;
+    require IsAbelian(H_im) : "HG/G must be Abelian";
     // At the moment, magma cannot compute irreducible modules for
     // non soluble groups over characteristic 0 fields
     // if (not IsSoluble(Q)) or (#Q eq 1) then
@@ -258,10 +268,10 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
     if IsAbelian(Q) then
        return N_G;
     elif not IsNilpotent(Q) then
-       return G;
+       return H;
     else
-      // find a maximal abelian subgroup
-      A := Center(Q);
+      // find a maximal abelian subgroup containing H
+      A := sub<Q | Center(Q), H_im>;
       C := Centralizer(Q,A);
       while (C ne A) do
 	gens := Generators(C);
@@ -274,8 +284,15 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
         C := Centralizer(Q,A);
       end while;
     end if;
-    G_prime := A @@ pi_Q;
-    H := PSL2Subgroup(G_prime);
+    return A @@ pi_Q;
+end intrinsic;
+
+intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
+{}
+    im_G  := ImageInLevelGL(G);
+    G_prime := MaximalNormalizingWithAbelianQuotient(ModLevelGL(G),
+						     im_G, im_G);
+    H := PSL2Subgroup(G_prime, false);
     H`Label := Sprintf("Maximal Abelian Subgroup of Normalizer in 
                         PSL_2(%o) of ", G`BaseRing) cat Label(G);
     return H;

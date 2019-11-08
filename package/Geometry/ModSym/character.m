@@ -16,6 +16,7 @@ declare attributes GrpChr:  // Call this GrpChr object G.
    Domain,        // The domain of the characters (the finite group Q)
    OriginalDomain, // The domain before the quotient - the finite level group
    Gamma,              // the GrpPSL2 group
+   GammaPrime,         // the larger group
    QuotientMap,   // The quotient map from the finite level group
    Exponent,      // Exponent of the group Q
    RootOf1,       // A root of unity z in R^*
@@ -41,6 +42,7 @@ declare attributes GrpChrElt:
    Domain,        // = x`Parent`Domain
    Element,       // corresponding element in the abelian group
    Conductor,     // Quotient by the kernel of Q--> R^*.
+   Kernel,
    Map,           // the actual map
    ReducedMap,    // the map from the conductor
    ValueList     // [eps(q) : q in Q];   (useful sometimes for efficiency).
@@ -50,7 +52,8 @@ declare attributes GrpChrElt:
 //                   Creation functions                       // 
 ////////////////////////////////////////////////////////////////
 
-intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng, Gamma::GrpPSL2) -> GrpChr
+intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng,
+			 GammaPrime::GrpPSL2,Gamma::GrpPSL2) -> GrpChr
  {The group of characters of Q with image in the ring R.}
    require Type(R) in {RngInt, FldRat, FldCyc, FldFin, FldQuad, FldNum} :
        "Argument 2 must be of type RngInt, FldRat, FldCyc, FldFin, FldQuad, or FldNum.";
@@ -62,6 +65,7 @@ intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng, Gamma::GrpPSL2) -> GrpChr
    G`AbGrpMap := phi;
    G`QuotientMap := pi_Q;
    G`Gamma := Gamma;
+   G`GammaPrime := GammaPrime;
    G`OriginalDomain := Domain(pi_Q);
    G`BaseRing := R;
    G`Exponent := Exponent(G`Domain);
@@ -72,20 +76,29 @@ intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng, Gamma::GrpPSL2) -> GrpChr
    return G;
 end intrinsic;
 
-intrinsic CharacterGroup(pi_Q::HomGrp, G::GrpPSL2) -> GrpChr
+intrinsic CharacterGroup(pi_Q::HomGrp, G_prime::GrpPSL2, G::GrpPSL2) -> GrpChr
  {The group of characters of Q with image in the rationals.}
-   return CharacterGroup(pi_Q,Rationals(), G);
+   return CharacterGroup(pi_Q,Rationals(), G_prime, G);
 end intrinsic;
 
-intrinsic FullCharacterGroup(pi_Q::HomGrp, G::GrpPSL2) -> GrpChr
+intrinsic FullCharacterGroup(pi_Q::HomGrp, G_prime::GrpPSL2, G::GrpPSL2) -> GrpChr
 {The group of characters of Q with values in Q(zeta_m), where
 m is the exponent of Q.}
    mu := Exponent(Codomain(pi_Q));
    if mu gt 2 then
-     return CharacterGroup(pi_Q,CyclotomicField(mu),G);
+      return CharacterGroup(pi_Q,CyclotomicField(mu),G_prime, G);
    else
-     return CharacterGroup(pi_Q,G);   
+     return CharacterGroup(pi_Q,G_prime,G);   
    end if;
+end intrinsic;
+
+intrinsic Kernel(x::GrpChrElt) -> GrpFin
+{Compute the kernel of x}
+  if not assigned x`Kernel then
+     K := sub< Domain(x) | [y : y in Domain(x) | Evaluate(x,y) eq 1]>;
+     x`Kernel := K;
+  end if;
+  return x`Kernel;
 end intrinsic;
 
 intrinsic Conductor(x::GrpChrElt) -> GrpFin
@@ -93,7 +106,8 @@ intrinsic Conductor(x::GrpChrElt) -> GrpFin
   // Currently this is not working - Magma claims this is not computable
   // K := Kernel(x`Map);
   if not assigned x`Conductor then
-     K := sub< Domain(x) | [y : y in Domain(x) | Evaluate(x,y) eq 1]>;
+	 //K := sub< Domain(x) | [y : y in Domain(x) | Evaluate(x,y) eq 1]>;
+     K := Kernel(x);
      C, pi_C := x`Domain / K;
      x`ReducedMap := map<C->Codomain(x`Map) | [<c,x`Map(c @@ pi_C)> : c in C]>;
      x`Conductor := C;
@@ -203,6 +217,7 @@ intrinsic MinimalBaseRingCharacter(eps::GrpChrElt) -> GrpChrElt
    // N := Modulus(eps);
    pi_Q := Parent(eps)`QuotientMap;
    Q := Domain(eps);
+   G_prime := Parent(eps)`GammaPrime;
    G := Parent(eps)`Gamma;
    case Type(F):
       when FldRat:
@@ -214,7 +229,7 @@ intrinsic MinimalBaseRingCharacter(eps::GrpChrElt) -> GrpChrElt
       when FldCyc:
          n := Order(eps);
          if n eq 1 then
-	    return CharacterGroup(pi_Q, G)!1;
+	    return CharacterGroup(pi_Q, G_prime, G)!1;
          end if;
          if n gt 2 and EulerPhi(n) eq Degree(F) then
             return eps;
@@ -224,7 +239,7 @@ intrinsic MinimalBaseRingCharacter(eps::GrpChrElt) -> GrpChrElt
             else
                K := CyclotomicField(n);
             end if;
-               G := CharacterGroup(pi_Q,K,G);
+               G := CharacterGroup(pi_Q,K,G_prime, G);
             return G!eps;
          end if;
    end case;   
@@ -271,7 +286,8 @@ end intrinsic;
 intrinsic 'eq' (G::GrpChr,H::GrpChr) -> BoolElt
   {True iff the given groups of characters are functionally the same}
    return IsIdentical(G,H) or 
-          G`Domain eq H`Domain and G`BaseRing cmpeq H`BaseRing;
+   //          G`Domain eq H`Domain and G`BaseRing cmpeq H`BaseRing;
+          IsIdentical(G`Domain, H`Domain) and G`BaseRing cmpeq H`BaseRing;
 end intrinsic;
 
 intrinsic 'eq' (x::GrpChrElt,y::GrpChrElt) -> BoolElt
@@ -440,6 +456,7 @@ intrinsic CharacterGroupCopy(G::GrpChr) -> GrpChr
    GG`Domain  := G`Domain;
    GG`OriginalDomain  := G`OriginalDomain;
    GG`Gamma  := G`Gamma;
+   GG`GammaPrime := GG`GammaPrime;
    GG`QuotientMap := G`QuotientMap;
    GG`BaseRing := G`BaseRing;
    GG`Exponent := G`Exponent;

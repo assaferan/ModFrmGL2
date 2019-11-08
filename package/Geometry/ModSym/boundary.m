@@ -264,8 +264,8 @@ function CuspEquivGrp(coset_list, find_coset, G, orbit_table, a, b)
   if orbit[1][1] ne orbit[2][1] then // They are not in the same orbit
      return false, PSL2(Integers())!1;
   end if;
-  t := PSL2(Integers())![1, orbit[1][2] - orbit[2][2], 0, 1];
-  gamma  := gs[2] * Matrix(t) * gs[1]^(-1);
+  t := PSL2(Integers())![1, orbit[2][2] - orbit[1][2], 0, 1];
+  gamma  := gs[1] * Matrix(t) * gs[2]^(-1);
   return true, PSL2(Integers())!gamma;
 end function; 
 
@@ -461,7 +461,7 @@ function CuspToFreeHelper(M, sign, a)
      else
         pi_Q := Parent(eps)`QuotientMap;
         Q := Codomain(pi_Q);
-        H := PSL2Subgroup(Kernel(pi_Q));
+        H := Parent(eps)`Gamma;
         mlist_H := ManinSymbolGenList(2,H,F);
         coset_list_H := mlist_H`coset_list;
         find_coset_H := mlist_H`find_coset;
@@ -545,7 +545,7 @@ function CuspToFreeHelperNS(M, sign, a)
         pi_Q := Parent(eps)`QuotientMap;
         Q := Codomain(pi_Q);
         // if we are here this is the non-split cartan
-        H := PSL2Subgroup(Kernel(pi_Q));     
+        H := Parent(eps)`Gamma;   
         for q in Q do
            if q@eps ne 1 then
 	      q_lift := q @@ pi_Q;

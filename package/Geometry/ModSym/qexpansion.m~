@@ -265,7 +265,12 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
       Tpei := HeckeImages(AmbientSpace(M),i, prec);   // "time critical"
       vprintf ModularSymbols,2: "%os\n", Cputime(time0);
 
-      eps := DirichletCharacter(M);
+      if IsOfGammaType(M) then
+	 eps := DirichletCharacter(M);
+      else
+	// !!! check that it does what we want !!!
+         eps := DirichletGroup(Level(M),M`F)!1;
+      end if;
       
       M`qeigenform[2], new_one_over_ei := Compute_qExpansion(M`qeigenform[1], M`qeigenform[2],
                                        prec, Tpei,
@@ -339,15 +344,8 @@ if debug then SetVerbose("ModularSymbols",3); end if;
             // a_{p^r} := a_p * a_{p^{r-1}} - eps(p)p^{k-1} a_{p^{r-2}}.
             p  := fac[1][1];
             r  := fac[1][2];
-	    if Type(eps) eq GrpDrchElt then
-	      eps_p := Evaluate(eps,p);
-	    else
-	      // TODO :: Is this really what we want always?
-	      // Wht do we really want ? 
-	      eps_p := Evaluate(eps,Parent(eps)`OriginalDomain![p,0,0,p]);
-	    end if;
             an := Coefficient(f,p) * Coefficient(f,p^(r-1))
-                     - eps_p*p^(k-1)*Coefficient(f,p^(r-2));
+                     - Evaluate(eps,p)*p^(k-1)*Coefficient(f,p^(r-2));
          else  // a_m*a_r := a_{mr} and we know all a_i for i<n.
             m  := fac[1][1]^fac[1][2];
             an := Coefficient(f,m)*Coefficient(f,n div m);

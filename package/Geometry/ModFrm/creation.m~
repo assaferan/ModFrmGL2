@@ -128,7 +128,7 @@ intrinsic ModularFormsGroup(G::GrpPSL2, k::RngIntElt) -> ModFrm
 {"} // "
    requirege k,1;
    Q, pi_Q := G / G;
-  return ModularForms([CharacterGroup(pi_Q, G, G)!1], k);
+   return ModularForms([CharacterGroup(pi_Q, G)!1], k);
 end intrinsic;
 
 function ModularFormsGamma1(N, k)

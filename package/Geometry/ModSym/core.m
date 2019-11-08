@@ -600,7 +600,6 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    pol := ElementToSequence(hP);
 
    // Put it together
-   // n   := #coset_list_inv;
    n := #mlist`coset_list;
    ans := [<pol[w+1],  w*n + act_uv> : w in [0..#pol-1]];
    return [x : x in ans | x[1] ne 0];

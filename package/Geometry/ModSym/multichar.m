@@ -280,7 +280,7 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
     else 
       G_prime := MaximalNormalizingWithAbelianQuotient(G);
       Q, pi_Q := G_prime / G;
-      D := FullCharacterGroup(pi_Q, G_prime);
+      D := FullCharacterGroup(pi_Q, G_prime, G);
       chars := GaloisConjugacyRepresentatives(D);
       M := ModularSymbols(chars, k, sign, G);
       return M;

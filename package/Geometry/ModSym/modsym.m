@@ -534,7 +534,7 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    require IsSupportedField(F) : SupportMessage;
 
    Q, pi_Q := G/G;
-   eps := CharacterGroup(pi_Q, F, G)!1;
+   eps := CharacterGroup(pi_Q, F, G, G)!1;
    return ModularSymbols(eps,G,k,F,sign);
 end intrinsic;
 
@@ -570,7 +570,7 @@ intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt,
    F := BaseRing(eps);
    require IsSupportedField(F) : SupportMessage;
 
-   G := Gamma1(N);
+   G := Gamma0(N);
 
    if GetVerbose("ModularSymbols") gt 0 and 
       BaseRing(eps) ne BaseRing(MinimalBaseRingCharacter(eps)) then
@@ -731,7 +731,7 @@ intrinsic ModularSymbols(eps::GrpChrElt, G::GrpPSL2, k::RngIntElt,
    end if;
    dim := #Tgens;
    if dim lt 1 then
-   return CreateTrivialSpaceGenEps(k,eps,sign,G);
+     return CreateTrivialSpaceGenEps(k,eps,sign,G);
    end if;
 
    M := New(ModSym);
@@ -796,7 +796,7 @@ intrinsic ModularSymbols(eps::GrpChrElt, k::RngIntElt,
       end if;
    end if;
 
-   G := Parent(eps)`Gamma;
+   G := Parent(eps)`GammaPrime;
 
    if IsVerbose("ModularSymbols") then
       tt := Cputime();

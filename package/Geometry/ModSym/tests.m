@@ -706,7 +706,7 @@ function Test_John_timing(N)
   G := GammaNSplus(N);
   p := NextPrime(Index(G));
   // Constructing a Gamma0(p) with ~ same number of representatives
-  time_0 :=  benchmark(Gamma0(p));
+  time_0 := benchmark(Gamma0(p));
   time_1 := benchmark(G);
   return [time_0, time_1];
 end function;
