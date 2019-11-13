@@ -531,7 +531,7 @@ end intrinsic;
 
 function HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H)
   // This is not very efficient but it works 
-  H := Conjugate(G meet H, alpha^(-1)) meet G;
+  H := Conjugate(G meet H, alpha) meet G;
   // What we really want here is just alpha * Transversal(G,H);
   reprs := [alpha * GL(2,Rationals())!Eltseq(x) :
 		       x in CosetRepresentatives(H) | x in G];

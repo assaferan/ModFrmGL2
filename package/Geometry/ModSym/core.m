@@ -580,7 +580,11 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    find_coset := mlist`find_coset;
 
    if Type(g) eq SeqEnum then
-      g := <g,(G`ModLevelGL)!g>;
+      if Level(G) eq 1 then
+        g := <g, (G`ModLevelGL)!1>;
+      else
+        g := <g, (G`ModLevelGL)!g>;
+      end if;
    end if;
  
    uvg := (Parent(g[2])!Matrix(uv))* g[2];
@@ -780,7 +784,9 @@ function lev1_ManinSymbolsGeneralizedWeightedAction(
       return v;
    end if;
 
-   uv := Universe(M)!Eltseq(uv);
+   elt_uv := Eltseq(uv);
+   if #elt_uv eq 1 then elt_uv := [1,0,0,1]; end if;
+   uv := Universe(M)!elt_uv;
 
    for i in [1..#M] do
       H := W[i];
@@ -1498,7 +1504,11 @@ function ConvFromManinSymbol (M, P, uv)
      ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list); 
    else
      find_coset := mlist`find_coset;
-     ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset);
+     if Level(M) eq 1 then
+       ind, s := CosetReduce(ModLevel(M`G)!1, find_coset);
+     else
+       ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset);
+     end if;
    end if;
 
    char := DirichletCharacter(M);

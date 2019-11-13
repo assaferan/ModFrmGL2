@@ -384,12 +384,14 @@ end intrinsic;
 
 intrinsic Evaluate(x::GrpChrElt,g::GrpMatElt) -> RngElt
 {Evaluation x(g).}
+   if Dimension(Parent(g)) eq 1 then return 1; end if;
    return Evaluate(x, x`Parent`QuotientMap(g));
 end intrinsic;
 
 intrinsic Evaluate(x::GrpChrElt,g::GrpPSL2Elt) -> RngElt
 {Evaluation x(g).}
    G := Parent(x)`OriginalDomain;
+   if Dimension(G) eq 1 then return 1; end if;
    elt := G!Eltseq(g);
    return Evaluate(x, elt);
 end intrinsic;

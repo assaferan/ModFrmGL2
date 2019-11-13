@@ -244,7 +244,7 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
      H`AtkinLehnerInvolutions := VectorSpace(FiniteField(2),r);
    else     
      N_G := Normalizer(ModLevelGL(G), ImageInLevelGL(G));
-     H := PSL2Subgroup(N_G);
+     H := PSL2Subgroup(N_G, true);
    end if;
    H`IsNormalizer := true;
    H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat Label(G);
@@ -295,10 +295,11 @@ end intrinsic;
 
 intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
 {}
+    if Level(G) eq 1 then return G; end if;
     im_G  := ImageInLevelGL(G);
     G_prime := MaximalNormalizingWithAbelianQuotient(ModLevelGL(G),
 						     im_G, im_G);
-    H := PSL2Subgroup(G_prime, false);
+    H := PSL2Subgroup(G_prime, true);
     H`Label := Sprintf("Maximal Abelian Subgroup of Normalizer in 
                         PSL_2(%o) of ", G`BaseRing) cat Label(G);
     if IsOfRealType(G) then H`IsReal := true; end if;
@@ -379,7 +380,7 @@ end intrinsic;
 //////////////////////////////////////////////////////////
 
 intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
- {This function returns the conjugation of G by A.
+{This function returns the conjugation of G by A, i.e. A^(-1)*G*A
      At the moment we only support the case where
      both input and output are subgroups of PSL2(Z)}
   // At the moment we always calculate generators
@@ -388,15 +389,20 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
   gens := Generators(G);
   H_gens := [];
   for g in gens do
-      elt := A * GL(2,Rationals())!Eltseq(g) * A^(-1);
+      elt := A^(-1) * GL(2,Rationals())!Eltseq(g) * A;
       new_g := PSL2(Integers())!Eltseq(elt);
       Append(~H_gens, new_g);
   end for;
-  new_level := Level(G) * Integers()!(Determinant(A)^(-1));
+  new_level := Level(G) * Integers()!(Determinant(A));
   mod_level :=  SL(2,quo<G`BaseRing | new_level>);
   gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
   im_in_level := sub<mod_level | gens_level >;
   return PSL2Subgroup(im_in_level, false);
+end intrinsic;
+
+intrinsic '^'(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
+{}
+  return Conjugate(G,A);
 end intrinsic;
 
 intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
@@ -494,7 +500,9 @@ end intrinsic;
  
 intrinsic FindLiftToSL2(g::GrpMatElt) -> GrpPSL2Elt
 {finds a lift in SL2 for g}
-     a,b,c,d := Explode(ElementToSequence(g)); 
+     elt_g := ElementToSequence(g);
+     if #elt_g eq 1 then return PSL2(Integers())!1; end if;
+     a,b,c,d := Explode(elt_g); 
      N := Modulus(Parent(a));
      Z := Integers();
      a_prime := Z!a;
@@ -515,6 +523,25 @@ intrinsic FindLiftToSL2(g::GrpMatElt) -> GrpPSL2Elt
      return lift_g;
 end intrinsic;
 
+function get_mod_level(H, N)
+     if N eq 1 then
+       dim := 1;
+       level := 2;
+     else
+       dim := 2;
+       level := N;
+     end if;
+     is_gl := (Type(H`BaseRing) in {Rng,RngInt,FldRat});
+     if is_gl then 
+        ModLevel := SL(dim, quo<H`BaseRing | level>);
+        ModLevelGL := GL(dim, quo<H`BaseRing | level>);
+     else
+        ModLevel := MatrixAlgebra(quo<H`BaseRing | level>, dim);
+        ModLevelGL := MatrixAlgebra(quo<H`BaseRing | level>, dim);
+     end if;
+     return ModLevel, ModLevelGL;
+end function;
+
 intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
 			  IsExactLevel::BoolElt) -> GrpPSL2
      {returns the subgroup of G generated whose image is H0.}
@@ -522,16 +549,20 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
      H`MatrixGroup := G`MatrixGroup;
      H`BaseRing := G`BaseRing;
      H`IsOfGammaType := false;
-     if (Type(H`BaseRing) in {Rng,RngInt,FldRat}) then 
-        H`ModLevel := SL(2,quo<H`BaseRing | N>);
-        H`ModLevelGL := GL(2, quo<H`BaseRing | N>);
+     H`ModLevel, H`ModLevelGL := get_mod_level(H, N);
+     if N eq 1 then
+       H`ImageInLevel := H`ModLevel;
+       H`ImageInLevelGL := H`ModLevelGL;
      else
-        H`ModLevel := MatrixAlgebra(quo<H`BaseRing | N>,2);
+       H`ImageInLevel := H0 meet H`ModLevel;
+       H`ImageInLevelGL := H0;
      end if;
-     H`ImageInLevel := H0 meet H`ModLevel;
-     H`ImageInLevelGL := H0;
      cosets, find_coset := Transversal(H`ModLevel, H`ImageInLevel);
-     H`FS_cosets := [PSL2(Integers()) | FindLiftToSL2(c) : c in cosets];
+     if N eq 1 then
+       H`FS_cosets := [G!1];
+     else
+       H`FS_cosets := [G | FindLiftToSL2(c) : c in cosets];
+     end if;
      codom := [<i, cosets[i]^(-1)> : i in [1..#cosets]];
      coset_idx := map<cosets -> codom |
        [<cosets[i], codom[i] > : i in [1..#cosets]] >;
@@ -543,6 +574,13 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
         H`Level := N;
      else
         H`Level := calcLevel(H);
+        H`ModLevel, H`ModLevelGL := get_mod_level(H, H`Level);
+        if H`Level eq 1 then
+	  H0bar := H`ModLevelGL;
+        else
+          H0bar := sub<H`ModLevelGL | Generators(H0) >;
+        end if;
+        return SubgroupFromMod(G, H`Level, H0bar, true);
      end if;
      return H;
 end intrinsic;

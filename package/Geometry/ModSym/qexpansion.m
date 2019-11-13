@@ -297,8 +297,8 @@ end function;
 function Compute_qExpansion(num_known, f, prec, Tpei, eps, 
                             k, i, eig, prime_only : one_over_ei:=false)
 
-debug := false;
-if debug then SetVerbose("ModularSymbols",2); end if;
+   debug := false;
+   if debug then SetVerbose("ModularSymbols",2); end if;
    
    degr := Degree(Parent(eig[i]));
    if one_over_ei cmpeq false then 
@@ -316,7 +316,7 @@ if debug then SetVerbose("ModularSymbols",2); end if;
 
    R<q> := Parent(f);
 
-if debug then SetVerbose("ModularSymbols",3); end if;
+   if debug then SetVerbose("ModularSymbols",3); end if;
    vprintf ModularSymbols,2: "Computing coefficients of eigenform:\n";
 
    for n in [num_known..prec-1] do
@@ -339,8 +339,8 @@ if debug then SetVerbose("ModularSymbols",3); end if;
 	      eps_p := Evaluate(eps,p);
 	    else
 	      // TODO :: Is this really what we want always?
-	      // Wht do we really want ? 
-	      eps_p := Evaluate(eps,Parent(eps)`OriginalDomain![p,0,0,p]);
+	      // What do we really want ? 
+	      eps_p := Evaluate(eps,Parent(eps)`GammaPrime`DetRep(p));
 	    end if;
             an := Coefficient(f,p) * Coefficient(f,p^(r-1))
                      - eps_p*p^(k-1)*Coefficient(f,p^(r-2));
