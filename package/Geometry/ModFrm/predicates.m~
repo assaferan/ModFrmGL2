@@ -76,7 +76,7 @@ function DimensionOfCuspidalSpace(M)
    assert IsAmbientSpace(M);
 
    if not IsOfGammaType(M) then
-      return &+[Dimension(CuspidalSubspace(a)) : a in MF_ModularSymbols(M,1)];
+      return &+[Dimension(a) : a in MF_ModularSymbols(M,1)];
    end if;
 
    k := Weight(M);
@@ -312,8 +312,6 @@ intrinsic IsGamma0(M::ModFrm) -> BoolElt
 {True if and only if M is a space of modular forms for Gamma_0(N).}
    if not assigned M`is_gamma0 then
      if IsRingOfAllModularForms(M) then
-        M`is_gamma0 := false;
-     elif not IsOfGammaType(M) then
         M`is_gamma0 := false;
      elif IsGamma1(M) then
         M`is_gamma0 := Level(M) le 2;

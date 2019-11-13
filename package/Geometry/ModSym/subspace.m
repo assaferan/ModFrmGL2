@@ -337,7 +337,7 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    H := Parent(eps)`Gamma;
    H_N := ImageInLevelGL(H);
 
-   if not (H_N subset p) then  
+   if (not (H_N subset p)) or (p subset G_N) then  
       return M;
    end if;
 
@@ -351,6 +351,8 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    if not (G_N subset N_p) then
      return M;
    end if;
+// unnecessary
+/*
    Q, pi_Q := N_p / p;
    G_N_im := G_N@pi_Q;
    if not IsAbelian(G_N_im) then
@@ -358,12 +360,14 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    end if;
 
    p_prime := MaximalNormalizingWithAbelianQuotient(ModLevelGL(H),p,G_N);
-   oldp_prime := PSL2Subgroup(p_prime); // maybe false?
-   oldp := PSL2Subgroup(p); // as well?
+*/
+   p_prime := sub<ModLevelGL(H) | G_N, p>;
+   oldp_prime := PSL2Subgroup(p_prime, false);
+   oldp := PSL2Subgroup(p, false);
    Q, pi_Q := p_prime / p;
    eps_res := FullCharacterGroup(pi_Q, oldp_prime, oldp)!eps;
-
-   old  := ModularSymbols(MinimalBaseRingCharacter(eps_res), 
+   eps_res := MinimalBaseRingCharacter(eps_res);
+   old  := ModularSymbols(eps_res, 
 			  Weight(M), Sign(M));
 
    if Dimension(old) eq 0 then
@@ -377,19 +381,23 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    for conj in conjs do
       is_conj, alpha_inv := IsConjugate(p, H_N, conj);
       assert is_conj;
-      det_rep := G`DetRep(Determinant(alpha_inv));
+      det_rep := H`DetRep(Determinant(alpha_inv));
       alpha_inv_lift := FindLiftToSL2(det_rep^(-1)*alpha_inv);
       alpha_inv_seq := [Integers()!x : x in Eltseq(alpha_inv_lift)];
       Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv_seq,
 	    						AM, old));
-      R := [alpha_inv^(-1)*r : r in Transversal(p, conj)];
+      alpha := alpha_inv^(-1);
+      D := Transversal(p_prime, G_N^alpha);
+      R := [alpha*d : d in D];
+      eps_vals := [(d@eps_res)^(-1) : d in D];
       det_reps := [G`DetRep(Determinant(r)) : r in R];
       R_lift := [PSL2(Integers()) |
 			       FindLiftToSL2(det_reps[i]^(-1)*R[i]) :
 			       i in [1..#R]];
       R := [[Integers()!x : x in Eltseq(r)] : r in R_lift];
-      mat := &+[ActionOnModularSymbolsBasisBetween(r, old, AM) :
-				       r in R];
+      mat := &+[eps_vals[i] *
+		ActionOnModularSymbolsBasisBetween(R[i], old, AM) :
+			       i in [1..#R]];
       Append(~DDmats, Transpose(mat));
    end for;
 
@@ -534,15 +542,18 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       H := Parent(eps)`Gamma;
       H_N := ImageInLevelGL(H);
       pi_Q := Parent(eps)`QuotientMap;
-      
+
+      primes := [p : p in primes | not p subset G_N];
       primes := [p : p in primes | (G_N meet p)@pi_Q subset Kernel(eps)];
       N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
 
       good := [i : i in [1..#primes] | G_N subset N_p[i]];
       primes := [primes[i] : i in good];
-      N_p := [N_p[i] : i in good];
+//   N_p := [N_p[i] : i in good];
+
+// This is unnecessary - the product will necessarily have abelian quotient
   
-      is_ab := [];
+/*     is_ab := [];
       for i in [1..#primes] do
 	 Q, pi_Q := N_p[i] / primes[i];
          G_N_im := G_N@pi_Q;
@@ -551,14 +562,19 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 
       primes := [primes[i] : i in [1..#is_ab] | is_ab[i]];
       N_p := [MaximalNormalizingWithAbelianQuotient(ModLevelGL(H),p,G_N) :
+
 					       p in primes];
-      oldp_prime := [PSL2Subgroup(p_prime) : p_prime in N_p]; // maybe false?
-      oldp := [PSL2Subgroup(p) : p in primes]; // as well?
+*/
+
+      N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
+      oldp_prime := [PSL2Subgroup(p_prime, false) : p_prime in N_p];
+      oldp := [PSL2Subgroup(p, false) : p in primes];
       old := [];
       for i in [1..#primes] do
 	 Q, pi_Q := N_p[i] / primes[i];
          eps_res := FullCharacterGroup(pi_Q, oldp_prime[i], oldp[i])!eps;
-	 Append(~old,ModularSymbols(eps_res, Weight(M), Sign(M)));
+         eps_res := MinimalBaseRingCharacter(eps_res);
+         Append(~old,ModularSymbols(eps_res, Weight(M), Sign(M)));
       end for;
    end if;
 
@@ -577,12 +593,15 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 	 oldp := old[i];
 	 // oldp := ModularSymbols(PSL2Subgroup(p, false),Weight(M),Sign(M));
          if Dimension(oldp) gt 0 then
-            conjs := Conjugates(p,ImageInLevelGL(G));
+            conjs := Conjugates(p,ImageInLevelGL(H));
             for conj in conjs do
-	       is_conj, alpha_inv := IsConjugate(p, ImageInLevelGL(G), conj);
+	       // This is not what we want - at the moment will simply give us
+	       // te trivial map over and over again!!!!	
+	       is_conj, alpha_inv := IsConjugate(p, ImageInLevelGL(H), conj);
                assert is_conj;
-               det_rep := G`DetRep(Determinant(alpha_inv));
-               alpha_inv_lift := FindLiftToSL2(det_rep^(-1)*alpha_inv);
+               det_rep := H`DetRep(Determinant(alpha_inv));
+// alpha_inv_lift := FindLiftToSL2(det_rep^(-1)*alpha_inv);
+               alpha_inv_lift := FindLiftToSL2(alpha_inv*det_rep^(-1));
                alpha_inv := [Integers()!x : x in Eltseq(alpha_inv_lift)];
                Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
 	    						      AM, oldp));
@@ -621,22 +640,28 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       else
 	 for i in [1..#primes] do
 	    p := primes[i];
+            p_prime := N_p[i];
 	    oldp := old[i];
+            eps_res := DirichletCharacter(oldp);
 		//oldp := ModularSymbols(PSL2Subgroup(p, false),
-		//		      Weight(M), Sign(M));
+//			      Weight(M), Sign(M));
             if Dimension(oldp) gt 0 then
-              conjs := Conjugates(p,ImageInLevelGL(G));
+              conjs := Conjugates(p,ImageInLevelGL(H));
               for conj in conjs do
-		 is_conj, alpha_inv := IsConjugate(p, ImageInLevelGL(G), conj);
+		 is_conj, alpha_inv := IsConjugate(p, ImageInLevelGL(H), conj);
                  assert is_conj;
-                 R := [alpha_inv^(-1)*r : r in Transversal(p, conj)];
-                 det_reps := [G`DetRep(Determinant(r)) : r in R];
+                 alpha := alpha_inv^(-1);
+                 D := Transversal(p_prime, G_N^alpha);
+                 R := [alpha*d : d in D];
+                 eps_vals := [(d@eps_res)^(-1) : d in D];
+                 det_reps := [H`DetRep(Determinant(r)) : r in R];
                  R_lift := [PSL2(Integers()) |
 			       FindLiftToSL2(det_reps[i]^(-1)*R[i]) :
 			       i in [1..#R]];
                  R := [[Integers()!x : x in Eltseq(r)] : r in R_lift];
-                 mat := &+[ActionOnModularSymbolsBasisBetween(r, oldp, AM) :
-				       r in R];
+                 mat := &+[eps_vals[i] *
+			   ActionOnModularSymbolsBasisBetween(R[i], oldp, AM) :
+				       i in [1..#R]];
                  Append(~DDmats, Transpose(mat));
                end for;
             end if;
@@ -682,18 +707,15 @@ over all prime divisors of the level of M}
       if IsOfGammaType(M) then 
          primes := [tup[1] : tup in Factorization(Level(M))];
       else
-         G := LevelSubgroup(M);
-         G_N := ModLevelGL(G);
-         H := ImageInLevelGL(G);
-
-// This should have worked, but there's an internal bug in Magma
-/*
-         subgroup_lattice := SubgroupLattice(G_N);
-         // find H in the lattice. !!! TODO : there are better ways
-         idx := [i : i in subgroup_lattice | H eq Group(i)][1];
-         primes := [Group(i) : i in MinimalOvergroups(idx)];
-*/
-         primes := MinimalOvergroups(G_N,H);
+	if IsMultiChar(M) then
+          G := LevelSubgroup(M);
+        else
+          eps := DirichletCharacter(M);
+          G := Parent(eps)`Gamma;
+        end if;
+        G_N := ModLevelGL(G);
+        H := ImageInLevelGL(G);   
+        primes := MinimalOvergroups(G_N,H);
       end if;
 
       if IsMultiChar(M) then
@@ -711,7 +733,7 @@ over all prime divisors of the level of M}
          end for;
 
       else
-         Mnew := NewNewSubspaceSub(M, primes : ComputeDual:=ComputeDual);
+           Mnew := NewNewSubspaceSub(M, primes : ComputeDual:=ComputeDual);
       end if;
 
       Mnew`is_new := true;

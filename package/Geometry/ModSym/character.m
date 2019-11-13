@@ -154,7 +154,7 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
    elif Type(x) eq RngIntElt and x eq 1 then
      return true, initGrpChrElt(G,TrivialRepresentation(G`Domain));
 //   elif (Type(x) eq HomGrp) and (Domain(x) eq G`Domain)
-   elif (Type(x) eq Map) and (Domain(x) eq G`Domain)
+   elif (Type(x) in {HomGrp, Map}) and (Domain(x) eq G`Domain)
         and (BaseRing(Codomain(x)) subset G`BaseRing)
         and Degree(Codomain(x)) eq 1 then
         return true, initGrpChrElt(G,x);
