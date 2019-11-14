@@ -481,8 +481,8 @@ procedure Test_Stein_9_6()
   f2 := CharacteristicPolynomial(T2);
   x := Parent(f2).1;
   assert f2 eq (x^2+2*x+2)^2;
-//  Snew := NewSubspace(S);
-//  assert Dimension(Snew) eq 0;
+  Snew := NewSubspace(S);
+  assert Dimension(Snew) eq 0;
 end procedure;
 
 procedure Test_Stein_9_7()

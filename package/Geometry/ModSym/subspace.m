@@ -551,22 +551,6 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 
       good := [i : i in [1..#primes] | G_N subset N_p[i]];
       primes := [primes[i] : i in good];
-//   N_p := [N_p[i] : i in good];
-
-// This is unnecessary - the product will necessarily have abelian quotient
-  
-/*     is_ab := [];
-      for i in [1..#primes] do
-	 Q, pi_Q := N_p[i] / primes[i];
-         G_N_im := G_N@pi_Q;
-         Append(~is_ab, IsAbelian(G_N_im));
-      end for;
-
-      primes := [primes[i] : i in [1..#is_ab] | is_ab[i]];
-      N_p := [MaximalNormalizingWithAbelianQuotient(ModLevelGL(H),p,G_N) :
-
-					       p in primes];
-*/
 
       N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
       oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
@@ -592,9 +576,6 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
    else
      alphas := [];
      for i in [1..#primes] do
-//p := primes[i];
-//	 oldp := old[i];
-	 // oldp := ModularSymbols(PSL2Subgroup(p, false),Weight(M),Sign(M));
          if Dimension(old[i]) gt 0 then
             p := Level(M) div calcLevel(oldp_prime[i]);
             assert IsPrime(p) or (p eq 1); // Else somethign is wrong here
@@ -656,8 +637,6 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       else
 	 for i in [1..#primes] do
             eps_res := DirichletCharacter(old[i]);
-		//oldp := ModularSymbols(PSL2Subgroup(p, false),
-//			      Weight(M), Sign(M));
             if Dimension(old[i]) gt 0 then
               for alpha in alphas[i] do
 		 D := Transversal(N_p[i] meet SL(2, IntegerRing(N)),

@@ -383,6 +383,9 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
 {This function returns the conjugation of G by A, i.e. A^(-1)*G*A
      At the moment we only support the case where
      both input and output are subgroups of PSL2(Z)}
+  det := Integers()!Determinant(A);
+  require Level(G) mod det eq 0 :
+    "Determinant of A must divide the level of G";
   // At the moment we always calculate generators
   // If they have not been calculated yet, can add later more efficient
   // methods
@@ -393,10 +396,8 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
       new_g := PSL2(Integers())!Eltseq(elt);
       Append(~H_gens, new_g);
   end for;
-  new_level := Level(G) * Integers()!(Determinant(A));
-  mod_level :=  SL(2,quo<G`BaseRing | new_level>);
   gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
-  im_in_level := sub<mod_level | gens_level >;
+  im_in_level := sub<ModLevel(G) | gens_level >;
   return PSL2Subgroup(im_in_level, false);
 end intrinsic;
 
