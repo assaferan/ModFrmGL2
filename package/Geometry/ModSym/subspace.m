@@ -578,7 +578,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
      for i in [1..#primes] do
          if Dimension(old[i]) gt 0 then
             p := Level(M) div calcLevel(oldp_prime[i]);
-            assert IsPrime(p) or (p eq 1); // Else somethign is wrong here
+            assert IsPrime(p) or (p eq 1); // Else something is wrong here
             // Representatives for determinant p modulo SL2(Z)
             candidates := [[1,0,0,1]];
             if p ne 1 then

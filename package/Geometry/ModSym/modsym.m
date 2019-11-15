@@ -1347,8 +1347,18 @@ Let N1 be the level of M1.  If ModularSymbols(M2,N1) is
 defined, let M3 be this modular symbols space, otherwise 
 terminate with  an error.  If M3 is contained in M1, 
 return M3, otherwise terminate with an error.}
-   require (Level(M1) mod Level(M2) eq 0 or Level(M2) mod Level(M1) eq 0) 
+   require IsOfGammaType(M1) eq IsOfGammaType(M2) :
+       "Only support cases where both spaces are of gamma type or both are not";
+
+   if not IsOfGammaType(M1) then
+      require (LevelSubgroup(M1) subset LevelSubgroup(M2)) or
+               (LevelSubgroup(M2) subset LevelSubgroup(M1)) :
+       "The level subgroups of arguments 1 and 2 must be compatible." ;
+   else
+     require (Level(M1) mod Level(M2) eq 0 or Level(M2) mod Level(M1) eq 0) 
          : "The levels of arguments 1 and 2 must be compatible.";
+   end if;
+   
    require Weight(M1) eq Weight(M2) 
          : "The weights of arguments 1 and 2 must be the same.";
    require not IsMultiChar(M1) and not IsMultiChar(M2) 
@@ -1357,18 +1367,54 @@ return M3, otherwise terminate with an error.}
                 eq DirichletCharacter(M1) 
          : "The characters of arguments 1 and 2 must be compatible.";
 
-
-   if Level(M1) eq Level(M2) then
-      require M2 subset M1 :  
+   if IsOfGammaType(M1) then
+      if Level(M1) eq Level(M2) then
+         require M2 subset M1 :  
            "Argument 2 must be contained in argument 1.";
-      return M2;
+         return M2;
+       end if;
+   else
+       if LevelSubgroup(M1) eq LevelSubgroup(M2) then
+         require M2 subset M1 :  
+           "Argument 2 must be contained in argument 1.";
+         return M2;
+       end if;
    end if;
 
    divisors := Divisors(Level(M1) mod Level(M2) eq 0 select
                            Level(M1) div Level(M2) 
                         else
                            Level(M2) div Level(M1));
-  
+
+   if not IsOfGammaType(M1) then
+      candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]] :
+		     a in Divisors(n)] : n in divisors];
+      candidates := [GL(2,Rationals())!x : x in candidates];
+      G1 := LevelSubgroup(M1);
+      G2 := LevelSubgroup(M2);
+      if (G1 subset G2) then
+	G := G1;
+        H := G2;
+      else
+        G := G2;
+        H := G1;
+      end if;
+      
+      gens := Generators(G);
+      conj_gens := [[GL(2,Rationals())!Matrix(g)^alpha : g in gens]
+			  : alpha in candidates];
+      M2Z := MatrixAlgebra(Integers(),2);
+      is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
+				cg in conj_gens];
+      candidates := [candidates[j] : j in [1..#candidates] |
+				  is_coercible[j]];
+      conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
+				  is_coercible[j]];
+      is_good := [&and[g in H : g in cg] : cg in conj_gens];
+      divisors := [candidates[j] : j in [1..#candidates] |
+			 is_good[j]];
+   end if;
+
    B := Basis(VectorSpace(M2));
    imB := [];
    for d in divisors do

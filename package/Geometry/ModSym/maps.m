@@ -361,7 +361,7 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
          return already_known;
       end if;
 
-      B   := ModularSymbolsBasis(M1); 
+      B   := ModularSymbolsBasis(M1);
       R   := DegeneracyCosetReps(N1, N2, d);
       eps := DirichletCharacter(M1);
       if IsTrivial(eps) then
@@ -390,6 +390,168 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
    end if;
    if not assigned ii_in then
       Append(~M2`degeneracy_matrices_in, <N1, [* <d,h> *]>);
+   else
+      Append(~M2`degeneracy_matrices_in[ii_in][2], <d,h>);
+   end if;
+   return h;
+
+end intrinsic;
+
+intrinsic DegeneracyMatrix(M1::ModSym, M2::ModSym,
+			   d::GrpMatElt[FldRat]) -> AlgMatElt
+{The matrix of DegeneracyMap(M1,M2,d) with respect to Basis(M1) and
+Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
+
+
+   require IsAmbientSpace(M1) : 
+          "Argument 1 must satisfy IsAmbientSpace(M1) eq true."; 
+   require IsAmbientSpace(M2) : 
+          "Argument 2 must satisfy IsAmbientSpace(M2) eq true."; 
+   require Weight(M1) eq Weight(M2) : 
+          "Arguments 1 and 2 must have the same weight.";
+   require Sign(M1) eq Sign(M2) : 
+          "Arguments 1 and 2 must have the same sign.";
+          // (the code works regardless, but the caching doesn't look at the sign)
+
+   if IsMultiChar(M1) then
+      require IsMultiChar(M2) : "Arguments 1 and 2 must both be multicharacter spaces.";
+         // TO DO: evidently this was not implemented correctly
+         require false : "DegeneracyMatrix is not implemented for multi-character spaces";
+         print "BOGUS MC degen matrix";
+         return RMatrixSpace(BaseField(M1),Dimension(M1),Dimension(M2))!0;
+         return MC_DegeneracyMatrix(M1, M2, d);
+   end if;
+ 
+   G1 := LevelSubgroup(M1);
+   G2 := LevelSubgroup(M2);
+
+   if not assigned M1`degeneracy_matrices_out then
+      M1`degeneracy_matrices_out := [* *];
+   end if;
+
+   if not assigned M2`degeneracy_matrices_in then
+      M2`degeneracy_matrices_in := [* *];
+   end if;
+
+   if exists(ii_out) { ii_out : ii_out in [1..#M1`degeneracy_matrices_out] | 
+                  G2 eq M1`degeneracy_matrices_out[ii_out][1] } then
+      if exists(jj) { jj : jj in [1..#M1`degeneracy_matrices_out[ii_out][2]] | 
+                       d eq M1`degeneracy_matrices_out[ii_out][2][jj][1] } then
+         already_known := M1`degeneracy_matrices_out[ii_out][2][jj][2];
+      end if;
+   end if;
+
+   if exists(ii_in) { ii_in : ii_in in [1..#M2`degeneracy_matrices_in] | 
+                  G1 eq M2`degeneracy_matrices_in[ii_in][1] } then
+      if exists(jj) { jj : jj in [1..#M2`degeneracy_matrices_in[ii_in][2]] | 
+                       d eq M2`degeneracy_matrices_in[ii_in][2][jj][1] } then
+         already_known := M2`degeneracy_matrices_in[ii_in][2][jj][2];
+      end if;
+   end if;
+
+   if not assigned already_known then
+      if IsVerbose("ModularSymbols") then
+         t := Cputime();
+         printf "Computing index-%o degeneracy map from level %o to %o.\n",
+                d, G1, G2;
+      end if;
+   end if;
+
+  det := Determinant(MatrixAlgebra(Integers(),2)!d);
+
+  if G1 eq G2 then
+      require d eq Parent(d)!1 : "Argument 3 must equal 1.";
+      require M1 eq M2: "Arguments 1 and 2 must be equal.";
+                       // we easily *could* write down the map between
+                       // different presentations of M_k(N), but
+                       // we won't for now, since there should
+                       // never be a need.   NOTE that at present there
+                       // *is* only one presentation for any given space,
+                       // since it's a reduced row echelon form of a matrix.
+      F := BaseField(M1);
+      return Hom(Representation(M1), 
+               Representation(M2))!MatrixAlgebra(F,Degree(M1))!1;
+
+   elif G1 subset G2 then  // G1 subset G2 -- lower  
+      require (Level(G1) div Level(G2)) mod det eq 0 :
+              "Determinant of argument 3 must divide Level(M1) div Level(M2).";
+      eps1 := DirichletCharacter(M1);
+      eps2 := DirichletCharacter(M2);
+      bool, eps21 := IsCoercible(Parent(eps1), eps2);
+      require bool and eps21 eq eps1 :
+         "Arguments 1 and 2 must have compatible dirichlet characters.";
+
+      if assigned already_known then
+         return already_known;
+      end if;
+
+
+      /* Proposition 2.6.15 of Merel's paper. */
+      Heil := Heilbronn(M1, det, true);           
+      A := GeneralizedHeilbronnOperator(M1, M2, Heil : t:=d);
+
+// Previous version -- VASTLY SLOWER, but well tested and good
+// for testing the above fast version.
+
+/*    B  := ModularSymbolsBasis(M1);
+      D  := [d,0,0,1];
+      DB := [ModularSymbolApply(M1,D, B[i])  : i in [1..#B] ];
+      otherA  := [Representation(ConvFromModularSymbol(M2,DB[i])) : i in [1..#DB]]; 
+      assert A eq Hom(Representation(M1), Representation(M2)) ! otherA; 
+*/
+
+
+   elif G2 subset G1 then// G2 subset G1 -- raise level
+      require (Level(G2) div Level(G1)) mod det eq 0 : 
+          "Determinant of Argument 3 must divide Level(M2) div Level(M1).";
+      eps1 := DirichletCharacter(M1);
+      eps2 := DirichletCharacter(M2);
+      bool, eps12 := IsCoercible(Parent(eps2), eps1);
+      require bool and eps12 eq eps2 :
+         "Arguments 1 and 2 must have compatible dirichlet characters.";
+
+      if assigned already_known then
+         return already_known;
+      end if;
+
+      B   := ModularSymbolsBasis(M1);
+      alpha := d;
+      conj := ImageInLevel(Conjugate(G2,alpha : IsExactLevel := true));
+      im_G1 := ImageInLevel(G1 : N := Level(G2));
+      require conj subset im_G1 :
+            "alpha must conjugate G1 to G2";
+      D := Transversal(im_G1, conj);
+      D_lift := [PSL2(Integers()) | FindLiftToSL2(dd) : dd in D];
+      R := [Eltseq(alpha*Parent(alpha)!Matrix(dd)) : dd in D_lift];
+      // eps_vals := [(dd@eps)^(-1) : dd in D];
+      // R   := DegeneracyCosetReps(N1, N2, d);
+      eps := DirichletCharacter(M1);
+      if IsTrivial(eps) then
+         RB := [ &cat[ModularSymbolApply(M1, r, B[i]) : r in R] 
+                                                  : i in [1..#B]];
+         // This step takes a lot of time.
+         A := [Representation(ConvFromModularSymbol(M2,RB[i])) 
+                                                  : i in [1..#RB]];
+      else
+         A   := [ &+[Evaluate(eps,r)^(-1)*
+                      Representation(ConvFromModularSymbol(M2,
+                              ModularSymbolApply(M1, r, B[i]))) : r in R] 
+               : i in [1..#B]];
+      end if;
+   else
+      assert false;
+   end if;
+
+   vprintf ModularSymbols, 2: "\t\t(%o s)\n",Cputime(t);
+
+   h := Hom(Representation(M1), Representation(M2)) ! A; 
+   if not assigned ii_out then
+      Append(~M1`degeneracy_matrices_out, <G2, [* <d,h> *]>);
+   else
+      Append(~M1`degeneracy_matrices_out[ii_out][2], <d,h>);
+   end if;
+   if not assigned ii_in then
+      Append(~M2`degeneracy_matrices_in, <G1, [* <d,h> *]>);
    else
       Append(~M2`degeneracy_matrices_in[ii_in][2], <d,h>);
    end if;

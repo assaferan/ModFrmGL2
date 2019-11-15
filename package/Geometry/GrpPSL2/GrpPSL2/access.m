@@ -40,11 +40,10 @@ intrinsic Level(G::GrpPSL2) -> RngIntElt
    end if;
 end intrinsic;
 
-intrinsic ImageInLevel(G::GrpPSL2) -> GrpMat
+intrinsic ImageInLevel(G::GrpPSL2 : N := Level(G)) -> GrpMat
 {The image of G in SL_2(Z/NZ), where N is the level.}
-  if assigned G`ImageInLevel then
-     return G`ImageInLevel;
-  else
+  require N mod Level(G) eq 0 : "N must divide level of G";
+  if not assigned G`ImageInLevel then     
      modLevel := ModLevel(G);
      if #modLevel eq 1 then
         G`ImageInLevel := modLevel;
@@ -63,9 +62,11 @@ intrinsic ImageInLevel(G::GrpPSL2) -> GrpMat
        end if;
        G`ImageInLevel := sub< modLevel | [modLevel!Eltseq(g) : g in gens]>;
      end if;
-    
-     return G`ImageInLevel;
   end if;
+  if N ne Level(G) then
+    return sub<SL(2,Integers(N)) | [Eltseq(g) : g in Generators(G)]>;
+  end if;
+  return G`ImageInLevel;
 end intrinsic;
 
 intrinsic ImageInLevelGL(G::GrpPSL2) -> GrpMat
