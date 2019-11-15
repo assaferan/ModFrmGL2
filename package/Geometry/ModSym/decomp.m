@@ -589,16 +589,18 @@ IsCuspidal(M) is true.}
       end if;
 
       D := [ ] ;
-      N := Level(M);
 
       if IsOfGammaType(M) then
+        N := Level(M);
         NN := Reverse([a : a in Divisors(N)]);
         pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
       else
         eps := DirichletCharacter(M);
         //G := LevelSubgroup(M);
+        G_N := ImageInLevelGL(LevelSubgroup(M));
         G := Parent(eps)`Gamma;
-        NN := [ImageInLevelGL(G)];
+        N := ImageInLevelGL(G);
+        NN := [N];
         NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
         Append(~NN, ModLevelGL(G));
         pnew := [p : p in MinimalOvergroups(ModLevelGL(G), ImageInLevelGL(G))
@@ -622,7 +624,7 @@ IsCuspidal(M) is true.}
            end if;
 	 else
 	   if &or[p subset NN[i] : p in pnew] or
-	      (not NN[i] subset Kernel(eps))
+	      (not (NN[i] meet G_N)  subset Kernel(eps))
 	   then
 	      continue;
            end if;

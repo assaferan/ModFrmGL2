@@ -56,7 +56,8 @@ import "arith.m"  : idxG0;
 import "core.m"   : ConvFromModularSymbol, 
                     ModularSymbolsBasis;
 
-import "modsym.m" : CreateTrivialSpace;
+import "modsym.m" : CreateTrivialSpace,
+                    CreateTrivialSpaceGenEps;
 
 import "operators.m" : GeneralizedHeilbronnOperator,
                        Heilbronn;
@@ -470,7 +471,7 @@ then the 0 space is returned.
 end intrinsic;
 
 intrinsic ModularSymbols(M::ModSym, G::GrpMat) -> ModSym
-{The modular symbols space of level N associated to M.
+{The modular symbols space of level G associated to M.
 Let GG be the image mod N of the (smaller) level subgroup of M.
 If GG is a subgroup of G, then
 this intrinsic returns the modular symbols space
@@ -488,15 +489,16 @@ then the 0 space is returned.
    else
      eps := DirichletCharacter(M);
      GG := Parent(eps)`Gamma;
+     GG_N := ImageInLevelGL(LevelSubgroup(M));
    end if;
    GG_im := ImageInLevelGL(GG);
    GG_mod := ModLevelGL(GG);
 
    require G ne GG_mod : "Argument 2 must not be GL2(Z/NZ)."; 
-   require (G subset GG) or (GG subset G) :
+   require (G subset GG_im) or (GG_im subset G) :
         "Argument 2 must be a subgroup or an overgroup of the image of the level subgroup of argument 1 when reduced modulo the level.";
 
-   if (G eq GG) then return M; end if;
+   if (G eq GG_im) then return M; end if;
 
    if IsMultiChar(M) then
       // !!! remember to create function !!!
@@ -524,18 +526,20 @@ then the 0 space is returned.
          // Step 2: We are the creator.  
          eps   := DirichletCharacter(M);
          F     := BaseField(M);
-         if (not G subset Kernel(eps)) then
-            epsG := Restrict(Parent(eps)!1,1);
-            Append(~M`other_levels, <G,CreateTrivialSpace(Weight(M),epsG,Sign(M))>);
+         if (not (G meet GG_N) subset Kernel(eps)) then
+	    quo, pi := Gamma0(1)/Gamma0(1);
+            epsG := CharacterGroup(pi, Gamma0(1), Gamma0(1))!1;
+            Append(~M`other_levels, <G,CreateTrivialSpaceGenEps(
+				       Weight(M),epsG,Sign(M),Gamma0(1))>);
          else
-            if GG subset G then
+            if GG_im subset G then
                epsG := Restrict(eps,G);
             else
                epsG := Extend(eps,G);
             end if;
             if IsAmbientSpace(M) then
                MS  := ModularSymbols(epsG,Weight(M),Sign(M));
-               if GG subset G then
+               if GG_im subset G then
                   Append(~M`other_levels, <G,MS>);
                else
                   Append(~M`other_levels, <G,MS!!M>);

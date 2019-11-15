@@ -491,7 +491,25 @@ procedure Test_Stein_9_7()
   assert Dimension(M) eq 10;
   S := CuspidalSubspace(M);
   assert Dimension(S) eq 3;
-  
+  B := Basis(S,14);
+  q := Universe(B).1;
+  assert B eq [
+    q - q^4 - q^10 - 2*q^13 + O(q^14),
+    q^2 - q^5 - 3*q^8 + 4*q^11 + O(q^14),
+    q^3 - q^6 - q^9 - q^12 + O(q^14)
+	       ];
+  Bnew := Basis(NewSubspace(S),14);
+  assert Bnew eq [
+    q + q^2 - q^4 - q^5 - 3*q^8 - q^10 + 4*q^11 - 2*q^13 + O(q^14)
+		  ];
+  M := ModularForms(my_Gamma(9,0));
+  assert Dimension(M) eq 3;
+  S := CuspidalSubspace(M);
+  assert Dimension(S) eq 0;
+  B := Basis(CuspidalSubspace(ModularForms(my_Gamma(15,0))), 10);
+  assert B eq [
+    q - q^2 - q^3 - q^4 + q^5 + q^6 + 3*q^8 + q^9 + O(q^10)
+	       ];
 end procedure;
 
 procedure Test_Stein()

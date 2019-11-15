@@ -301,9 +301,7 @@ intrinsic 'eq' (x::GrpChrElt,y::GrpChrElt) -> BoolElt
    Gy := y`Parent;
    // test the more frequent cases first
    if IsIdentical(Gx, Gy) then
-      return x`Element eq y`Element; 
-   elif Gx eq Gy then 
-      return Eltseq(x`Element) eq Eltseq(y`Element); 
+      return x`Map eq y`Map;
    elif Gx`Domain ne Gy`Domain then 
       return false;   // not sure why we want to do this
    else
@@ -471,3 +469,24 @@ intrinsic CharacterGroupCopy(G::GrpChr) -> GrpChr
    return GG;
 end intrinsic;
 
+intrinsic Restrict(eps::GrpChrElt, G::GrpMat) -> GrpChrElt
+{Restrict epsilon to G}
+   Gamma := PSL2Subgroup(G, false);
+   N_G := Normalizer(ModLevelGL(Parent(eps)`Gamma), G);
+   G_prime := sub<N_G | ImageInLevelGL(Parent(eps)`GammaPrime), G>;
+   Gamma_prime := PSL2Subgroup(G_prime, false);
+   Q, pi_Q := Gamma_prime / Gamma;
+   D := CharacterGroup(pi_Q, Gamma_prime, Gamma);
+   return D!eps;
+end intrinsic;
+
+intrinsic Extend(eps::GrpChrElt, G::GrpMat) -> GrpChrElt
+{Restrict epsilon to G}
+   Gamma := PSL2Subgroup(G, false);
+   N_G := Normalizer(ModLevelGL(Parent(eps)`Gamma), G);
+   G_prime := N_G meet ImageInLevelGL(Parent(eps)`GammaPrime);
+   Gamma_prime := PSL2Subgroup(G_prime, false);
+   Q, pi_Q := Gamma_prime / Gamma;
+   D := CharacterGroup(pi_Q, Gamma_prime, Gamma);
+   return D!eps;
+end intrinsic;

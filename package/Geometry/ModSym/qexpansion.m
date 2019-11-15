@@ -339,8 +339,12 @@ function Compute_qExpansion(num_known, f, prec, Tpei, eps,
 	      eps_p := Evaluate(eps,p);
 	    else
 	      // TODO :: Is this really what we want always?
-	      // What do we really want ? 
-	      eps_p := Evaluate(eps,Parent(eps)`GammaPrime`DetRep(p));
+	      // What do we really want ?
+	      if p in Domain(Parent(eps)`GammaPrime`DetRep) then 
+	        eps_p := Evaluate(eps,Parent(eps)`GammaPrime`DetRep(p));
+	      else
+	        eps_p := 0;
+	      end if;
 	    end if;
             an := Coefficient(f,p) * Coefficient(f,p^(r-1))
                      - eps_p*p^(k-1)*Coefficient(f,p^(r-2));

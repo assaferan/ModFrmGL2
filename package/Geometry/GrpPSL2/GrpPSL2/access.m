@@ -137,20 +137,15 @@ intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt
    if Level(G) eq 1 then G`NSCartanU := 0 ; return 0; end if;
 
    function is_good(g, G)
-     is_good_ns := (g[1,1] eq g[2,2]) and (IsUnit(g[2,1]));
+     is_good_ns := (g[1,1] eq g[2,2]) and (g[2,2] ne 0) and (IsUnit(g[2,1]));
      if is_good_ns then
        return true, g[1,2] / g[2,1];
      end if;
-     is_good_ns_plus_1 := (g[1,1] eq -g[2,2]) and (IsUnit(g[2,1]));
+     is_good_ns_plus_1 := (g[1,1] eq -g[2,2]) and (g[2,2] ne 0) and
+                          (IsUnit(g[2,1]));
      if is_good_ns_plus_1 then
        G`IsNSCartan := false;
        return true, -g[1,2] / g[2,1];
-     end if;
-     is_good_ns_plus_2 := (g[1,2] eq g[2,1]) and (g[2,2] ne g[1,1]) and
-                          (IsUnit(g[2,2]));
-     if is_good_ns_plus_2 then
-       G`IsNSCartan := false;
-       return true, g[1,1] / g[2,2];
      end if;
      return false, 0;
    end function;
