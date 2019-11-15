@@ -1575,7 +1575,7 @@ function ActionOnModularSymbolsBasis(g, M)
    // 1. Compute basis of modular symbols for M.
    B  := ModularSymbolsBasis(M);
    // 2. Apply g to each basis element. 
-   gB := [ModularSymbolApply(M, g,B[i]) : i in [1..#B]];
+   gB := [ModularSymbolApply(g,B[i]) : i in [1..#B]];
    // 3. Map the result back to M.
    gM := [Representation(ConvFromModularSymbol(M,gB[i])) : i in [1..#gB]];
    A :=  MatrixAlgebra(BaseField(M),Dimension(M))!gM;
@@ -1588,7 +1588,7 @@ function ActionOnModularSymbolsBasisBetween(g, M_dom, M_range)
    // 1. Compute basis of modular symbols for M_dom.
    B  := ModularSymbolsBasis(M_dom);
    // 2. Apply g to each basis element. 
-   gB := [ModularSymbolApply(M_dom, g,B[i]) : i in [1..#B]];
+   gB := [ModularSymbolApply(g,B[i]) : i in [1..#B]];
    // 3. Map the result back to M_range.
    gM := [Representation(ConvFromModularSymbol(M_range,gB[i])) : i in [1..#gB]];
    A :=  Matrix(gM);
@@ -1599,7 +1599,7 @@ function ActionOnModularSymbolsBasisElement(g, M, i)
    // 1. Compute basis of modular symbols for M.
    x  := ModularSymbolsBasis(M)[i];
    // 2. Apply g to x
-   gx := ModularSymbolApply(M,g,x);
+   gx := ModularSymbolApply(g,x);
    // 3. Map the result back to M.
    return Representation(ConvFromModularSymbol(M,gx));
 end function;

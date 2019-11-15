@@ -821,9 +821,7 @@ end function;
 //  After computing the action, no further reduction is done.  //
 /////////////////////////////////////////////////////////////////
 
-// TO DO: get rid of unused argument M
-
-intrinsic ModularSymbolApply(M::ModSym, g::SeqEnum, s::SeqEnum) -> SeqEnum
+intrinsic ModularSymbolApply(g::SeqEnum, s::SeqEnum) -> SeqEnum
 {Apply an element g=[a,b, c,d] of GL(2,Q) to the modular symbol s,
  given as a sequence of tuples <coeff,[cusp1,cusp2]> (as returned by
  ModularSymbolRepresentation).  The result is returned in the same format.

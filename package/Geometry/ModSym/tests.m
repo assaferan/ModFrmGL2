@@ -512,6 +512,20 @@ procedure Test_Stein_9_7()
 	       ];
 end procedure;
 
+procedure Test_Stein_9_8()
+  S_old := CuspidalSubspace(ModularSymbols(my_Gamma(11,0),2,1));
+  assert Dimension(S_old) eq 1;
+  S := CuspidalSubspace(ModularSymbols(my_Gamma(55,0),2,1));
+  assert Dimension(S) eq 5;
+  S_new := NewSubspace(S);
+  assert Dimension(S_new) eq 3;
+  T5 := HeckeOperator(S_new,5);
+  assert Eigenvalues(T5) eq {<1,1>,<-1,2>};
+  T4 := HeckeOperator(S_new,4);
+  T2 := HeckeOperator(S_new,2);
+  assert T5 eq 2*T2-T4-2;
+end procedure;
+
 procedure Test_Stein()
   Test_Stein_8_33();
   Test_Stein_8_34();
@@ -522,6 +536,7 @@ procedure Test_Stein()
 // Test_Stein_8_37();
   Test_Stein_9_6();
   Test_Stein_9_7();
+  Test_Stein_9_8();
 end procedure;
 
 function make_group_copy(M)
