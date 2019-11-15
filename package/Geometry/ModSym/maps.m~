@@ -62,8 +62,7 @@ import "operators.m" : GeneralizedHeilbronnOperator,
                        Heilbronn;
 
 import "multichar.m" : MC_DegeneracyMatrix,
-                       MC_ModularSymbols_of_LevelN,
-                       MC_ModularSymbols_of_LevelG;
+                       MC_ModularSymbols_of_LevelN;
 
 
 /*******************************************************************
@@ -469,87 +468,7 @@ then the 0 space is returned.
    return M`other_levels[pos][2];
 end intrinsic;
 
-intrinsic ModularSymbols(M::ModSym, G::GrpMat) -> ModSym
-{The modular symbols space of level N associated to M.
-Let GG be the image mod N of the (smaller) level subgroup of M.
-If GG is a subgroup of G, then
-this intrinsic returns the modular symbols space
- Sum_(d|GG^d subset G)alpha_d(M)
-If G is a subgroup of GG, then
-this intrinsic returns the modular symbols space
-Sum_(d|G^d subset GG)beta_d(M).
-In this latter case, if 
-Kernel(DirichletCharacter(M)) does not contain  G,
-then the 0 space is returned.
-}
 
-   if IsMultiChar(M) then
-     GG := LevelSubgroup(M);
-   else
-     eps := DirichletCharacter(M);
-     GG := Parent(eps)`Gamma;
-   end if;
-   GG_im := ImageInLevelGL(GG);
-   GG_mod := ModLevelGL(GG);
-
-   require G ne GG_mod : "Argument 2 must not be GL2(Z/NZ)."; 
-   require (G subset GG) or (GG subset G) :
-        "Argument 2 must be a subgroup or an overgroup of the image of the level subgroup of argument 1 when reduced modulo the level.";
-
-   if (G eq GG) then return M; end if;
-
-   if IsMultiChar(M) then
-      // !!! remember to create function !!!
-      return MC_ModularSymbols_of_LevelG(M,G);
-   end if;
-
-   if not assigned M`other_levels then
-      M`other_levels := [* *];
-   end if;
-   if not exists(pos) { pos : pos in [1..#M`other_levels] 
-                            | M`other_levels[pos][1] eq G} then
-      /****************************************************************
-         M does not know the old modular symbols at level G.  Here's what 
-         we do:
-            (1) If this object has a creator, ask it for
-                the modular symbols at level G. If so, done;
-                otherwise continue with the next step.
-            (2) If not, construct the space of symbols at level G.
-       ****************************************************************/
-
-      // Step 1.
-      if assigned M`creator then
-         Append(~M`other_levels, <G,ModularSymbols(M`creator,G)>);
-      else
-         // Step 2: We are the creator.  
-         eps   := DirichletCharacter(M);
-         F     := BaseField(M);
-         if (not G subset Kernel(eps)) then
-            epsG := Restrict(Parent(eps)!1,1);
-            Append(~M`other_levels, <G,CreateTrivialSpace(Weight(M),epsG,Sign(M))>);
-         else
-            if GG subset G then
-               epsG := Restrict(eps,G);
-            else
-               epsG := Extend(eps,G);
-            end if;
-            if IsAmbientSpace(M) then
-               MS  := ModularSymbols(epsG,Weight(M),Sign(M));
-               if GG subset G then
-                  Append(~M`other_levels, <G,MS>);
-               else
-                  Append(~M`other_levels, <G,MS!!M>);
-               end if;
-            else
-               Append(~M`other_levels, <G,ModularSymbols(AmbientSpace(M),G)!!M>);
-            end if;
-         end if;
-         (M`other_levels[#M`other_levels][2])`creator := M;  
-      end if;
-      pos := #M`other_levels;
-   end if;
-   return M`other_levels[pos][2];
-end intrinsic;
 
 
 

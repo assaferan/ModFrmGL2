@@ -335,15 +335,14 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
 
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
+   gens := Generators(H);
    H_N := ImageInLevelGL(H);
 
    if (not (H_N subset p)) or (p subset G_N) then  
       return M;
    end if;
 
-   pi_Q := Parent(eps)`QuotientMap;
-
-   if not ((G_N meet p)@pi_Q subset Kernel(eps))  then
+   if not ((G_N meet p) subset Kernel(eps))  then
      return M;
    end if;
 
@@ -351,19 +350,10 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    if not (G_N subset N_p) then
      return M;
    end if;
-// unnecessary
-/*
-   Q, pi_Q := N_p / p;
-   G_N_im := G_N@pi_Q;
-   if not IsAbelian(G_N_im) then
-     return M;
-   end if;
 
-   p_prime := MaximalNormalizingWithAbelianQuotient(ModLevelGL(H),p,G_N);
-*/
    p_prime := sub<ModLevelGL(H) | G_N, p>;
-   oldp_prime := PSL2Subgroup(p_prime, false);
-   oldp := PSL2Subgroup(p, false);
+   oldp_prime := PSL2Subgroup(p_prime, true);
+   oldp := PSL2Subgroup(p, true);
    Q, pi_Q := p_prime / p;
    eps_res := FullCharacterGroup(pi_Q, oldp_prime, oldp)!eps;
    eps_res := MinimalBaseRingCharacter(eps_res);
@@ -377,31 +367,41 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    AM := AmbientSpace(M);
    Dmats := <>;
    DDmats := <>;
-   conjs := Conjugates(p,H_N);
-   for conj in conjs do
-      is_conj, alpha_inv := IsConjugate(p, H_N, conj);
-      assert is_conj;
-      det_rep := H`DetRep(Determinant(alpha_inv));
-//     alpha_inv_lift := FindLiftToSL2(det_rep^(-1)*alpha_inv);
-      alpha_inv_lift := FindLiftToSL2(alpha_inv*det_rep^(-1));
-      alpha_inv_seq := [Integers()!x : x in Eltseq(alpha_inv_lift)];
-      Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv_seq,
+
+   l := Level(M) div calcLevel(oldp_prime);
+   assert IsPrime(l) or (l eq 1); // Else something is wrong here
+   // Representatives for determinant p modulo SL2(Z)
+   candidates := [[1,0,0,1]];
+   if l ne 1 then
+     candidates := candidates cat [[1,r,0,l] : r in [0..l-1]];
+     Append(~candidates, [l,0,0,1]);
+   end if;
+   candidates := [GL(2,Rationals())!x : x in candidates];
+   conj_gens := [[GL(2,Rationals())!Matrix(g)^alpha : g in gens]
+			  : alpha in candidates];
+   M2Z := MatrixAlgebra(Integers(),2);
+   is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
+				cg in conj_gens];
+   candidates := [candidates[i] : i in [1..#candidates] |
+				  is_coercible[i]];
+   conj_gens := [conj_gens[i] : i in [1..#conj_gens] |
+				  is_coercible[i]];
+   is_good := [&and[g in oldp : g in cg] : cg in conj_gens];
+   alphas := [candidates[i] : i in [1..#candidates] | is_good[i]];
+   for alpha in alphas do
+      alpha_inv := Eltseq(alpha^(-1));
+      Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
 	    						AM, old));
-      alpha := alpha_inv^(-1);
-      D := Transversal(p_prime, G_N^alpha);
-      R := [alpha*d : d in D];
+      D := Transversal(p_prime meet ModLevel(G),
+		    ImageInLevel(Conjugate(G,alpha : IsExactLevel := true)));
+      D_lift := [PSL2(Integers()) | FindLiftToSL2(d) : d in D];
+      R := [Eltseq(alpha*Parent(alpha)!Matrix(d)) : d in D_lift];
       eps_vals := [(d@eps_res)^(-1) : d in D];
-      det_reps := [G`DetRep(Determinant(r)) : r in R];
-      R_lift := [PSL2(Integers()) |
-			       FindLiftToSL2(det_reps[i]^(-1)*R[i]) :
-			       i in [1..#R]];
-      R := [[Integers()!x : x in Eltseq(r)] : r in R_lift];
-      mat := &+[eps_vals[i] *
-		ActionOnModularSymbolsBasisBetween(R[i], old, AM) :
-			       i in [1..#R]];
+      mat := &+[eps_vals[j] *
+		ActionOnModularSymbolsBasisBetween(R[j], old, AM)
+			     :	j in [1..#R]];
       Append(~DDmats, Transpose(mat));
    end for;
-
    D := HorizontalJoin(Dmats);
    DD := HorizontalJoin(DDmats);
    KD := Kernel(D);
@@ -546,7 +546,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       pi_Q := Parent(eps)`QuotientMap;
 
       primes := [p : p in primes | not p subset G_N];
-      primes := [p : p in primes | (G_N meet p)@pi_Q subset Kernel(eps)];
+      primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
       N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
 
       good := [i : i in [1..#primes] | G_N subset N_p[i]];
@@ -591,13 +591,13 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
             M2Z := MatrixAlgebra(Integers(),2);
             is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
 				cg in conj_gens];
-            candidates := [candidates[i] : i in [1..#candidates] |
-				  is_coercible[i]];
-            conj_gens := [conj_gens[i] : i in [1..#conj_gens] |
-				  is_coercible[i]];
+            candidates := [candidates[j] : j in [1..#candidates] |
+				  is_coercible[j]];
+            conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
+				  is_coercible[j]];
             is_good := [&and[g in oldp[i] : g in cg] : cg in conj_gens];
-            Append(~alphas,[candidates[i] : i in [1..#candidates] |
-			 is_good[i]]);
+            Append(~alphas,[candidates[j] : j in [1..#candidates] |
+			 is_good[j]]);
             for alpha in alphas[i] do
 	       alpha_inv := Eltseq(alpha^(-1));
                Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
@@ -640,7 +640,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
             if Dimension(old[i]) gt 0 then
               for alpha in alphas[i] do
 		 D := Transversal(N_p[i] meet SL(2, IntegerRing(N)),
-				  ImageInLevel(G^alpha));
+		    ImageInLevel(Conjugate(G,alpha : IsExactLevel := true)));
                  D_lift := [PSL2(Integers()) | FindLiftToSL2(d) : d in D];
                  R := [Eltseq(alpha*Parent(alpha)!Matrix(d)) : d in D_lift];
                  eps_vals := [(d@eps_res)^(-1) : d in D];

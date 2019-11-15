@@ -590,46 +590,25 @@ IsCuspidal(M) is true.}
 
       D := [ ] ;
       N := Level(M);
-
-      if IsOfGammaType(M) then
-        NN := Reverse([a : a in Divisors(N)]);
-        pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
-      else
-        eps := DirichletCharacter(M);
-        //G := LevelSubgroup(M);
-        G := Parent(eps)`Gamma;
-        NN := [ImageInLevelGL(G)];
-        NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
-        Append(~NN, ModLevelGL(G));
-        pnew := [p : p in MinimalOvergroups(ModLevelGL(G), ImageInLevelGL(G))
-					    | IsNew(M,p)];
-      end if;
+      NN := Reverse([a : a in Divisors(N)]);
+      pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
 
       for i in [1..#NN] do
          if &+[Integers()|Dimension(d) : d in D] eq Dimension(M) then 
             continue;
          end if;
 
-         if IsOfGammaType(M) then
-           if GCD(N div NN[i],pnew) gt 1 or
-              NN[i] mod Conductor(DirichletCharacter(M)) ne 0 or
-              Characteristic(BaseField(M)) eq 0 and
+         if GCD(N div NN[i],pnew) gt 1 or
+            NN[i] mod Conductor(DirichletCharacter(M)) ne 0 or
+            Characteristic(BaseField(M)) eq 0 and
                  DimensionCuspForms(
                     Restrict(DirichletCharacter(M),NN[i]),
                     Weight(M)
                  ) eq 0 then
-               continue;
-           end if;
-	 else
-	   if &or[p subset NN[i] : p in pnew] or
-	      (not NN[i] subset Kernel(eps))
-	   then
-	      continue;
-           end if;
-	 end if;    
+             continue;
+         end if;
 
          MM := CuspidalSubspace(ModularSymbols(AmbientSpace(M),NN[i]));
-         
          MMnew := NewSubspace(MM);
          if Dimension(MMnew) eq 0 then
             continue;

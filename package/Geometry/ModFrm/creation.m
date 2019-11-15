@@ -138,6 +138,7 @@ function ModularFormsGamma1(N, k)
    M`base_ring := Integers();
    M`is_gamma1 := true;
    M`level := N;
+   M`level_subgroup := Gamma1(N);
    M`weight := k;
    M`type := "full";
    return M;
@@ -300,11 +301,15 @@ function CopyOfDefiningModularFormsObject(M)
       C`dimension := M`dimension;  
    end if;
    C`base_ring := BaseRing(M);
+   /*
    if IsOfGammaType(M) then
      C`level := Level(M);
    else
      C`level := LevelSubgroup(M);
    end if;
+   */
+   C`level := Level(M);
+   C`level_subgroup := LevelSubgroup(M);
    C`weight := Weight(M);
    C`type := SpaceType(M);
    C`type_param := SpaceTypeParam(M);
@@ -350,6 +355,7 @@ of the characters.}
    T := New(ModFrm);  
    T`base_ring := BaseRing(M);
    T`level := N;
+   T`level_subgroup := LevelSubgroup(M);
    T`weight := Weight(M);
    T`is_gamma1 := IsGamma1(M);
    T`type := "full";

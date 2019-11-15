@@ -379,7 +379,7 @@ end intrinsic;
 //                                                      //
 //////////////////////////////////////////////////////////
 
-intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
+intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
 {This function returns the conjugation of G by A, i.e. A^(-1)*G*A
      At the moment we only support the case where
      both input and output are subgroups of PSL2(Z)}
@@ -398,7 +398,7 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
   end for;
   gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
   im_in_level := sub<ModLevel(G) | gens_level >;
-  return PSL2Subgroup(im_in_level, false);
+  return PSL2Subgroup(im_in_level, IsExactLevel);
 end intrinsic;
 
 intrinsic '^'(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2

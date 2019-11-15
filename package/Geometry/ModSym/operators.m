@@ -625,9 +625,74 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;
 
+function get_general_phi(G)
+  function phi(mat)
+     det := Determinant(mat);
+     if det notin Domain(G`DetRep) then return 0,0; end if;
+     det_rep := G`DetRep(det);
+     mat_sl2 := ModLevel(G)!(det_rep^(-1) * mat);
+     ind, s := CosetReduce(mat_sl2, G`FindCoset);
+     s := det_rep * ModLevel(G)!Eltseq(s);
+     return ind, s;
+  end function;
+  return phi;
+end function;
+// special function to handel the ns cartan case better
+// act by the inverse to get a right action
+
+function get_non_split_cartan_coset(g, x)
+  F := Parent(x);
+  a,b,c,d := Explode([F!y : y in Eltseq(g)]);
+  denom := -c*x+a;
+  if denom eq 0 then return F!0; end if;
+  return (d*x-b)/denom;
+end function;
+
+function get_non_split_cartan_plus_coset(g,x)
+  t := get_non_split_cartan_coset(g,x);
+  return {t,AbsoluteFrobenius(t)};
+end function;
+
+function get_Cartan_phi(G)
+  F := GF(Level(G));
+  u := F!NSCartanU(G);
+  R<x> := PolynomialRing(F);
+  F2<alpha> := ext<F | x^2-u>;
+  cosets := Codomain(Components(G`FindCoset)[1]);
+  if IsGammaNS(G) then
+    get_coset := get_non_split_cartan_coset;
+    function is_good(t)
+      return t notin F;
+    end function;
+  else
+    get_coset := get_non_split_cartan_plus_coset;
+    function is_good(t)
+      return #t eq 2;
+    end function;
+  end if;
+  pairs := [<get_coset(cosets[i], alpha),
+	       <i, cosets[i]^(-1)> > : i in [1..#cosets]];
+  find_coset := map<[p[1] : p in pairs] -> Codomain(G`FindCoset) | pairs>;
+  function phi(mat)
+    t := get_coset(mat, alpha);
+    if not is_good(t) then return 0,0; end if; 
+    ind, g := Explode(find_coset(t));
+    s  := mat * g;
+    return ind, ModLevelGL(G)!s;
+  end function;
+  return phi;
+end function;
+
+function get_phi(G)
+  if IsGammaNS(G) or IsGammaNSplus(G) then
+    return get_Cartan_phi(G);
+  else
+    return get_general_phi(G);
+  end if;
+end function;
+
 function ManinSymbolsAction2(defining_tuple, uv, Heil)
-  find_coset := defining_tuple[1];
-  G := defining_tuple[2];
+  phi := defining_tuple[1];
   Tquot := defining_tuple[3];
   Squot := defining_tuple[4];
   Scoef := defining_tuple[5];
@@ -635,12 +700,8 @@ function ManinSymbolsAction2(defining_tuple, uv, Heil)
   res := Universe(Tquot)!0;
   for mat in Heil do
     uvM := Parent(mat)!Eltseq(uv) * mat;
-    det := Determinant(uvM); 
-    if det in Domain(G`DetRep) then
-      det_rep := G`DetRep(det);
-      uvM := ModLevel(G)!(det_rep^(-1) * uvM);
-      ind, s := CosetReduce(uvM, find_coset);
-      s := det_rep * ModLevel(G)!Eltseq(s);
+    ind, s := phi(uvM);
+    if ind ne 0 then
       e := s@eps;
       res +:= e*Scoef[ind]*Tquot[Squot[ind]];
     end if;
@@ -650,25 +711,20 @@ end function;
 
 
 function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
-  find_coset := defining_tuple[1];
-  G := defining_tuple[2];
+  phi := defining_tuple[1];
+  coset_list_size := defining_tuple[2];
   Tquot := defining_tuple[3];
   Squot := defining_tuple[4];
   Scoef := defining_tuple[5];
   eps := defining_tuple[6];
   K := BaseRing(eps);
   R<X> := PolynomialRing(K);
-  coset_list_size := #Codomain(find_coset);
   res := VectorSpace(K,#Tquot)!0;
   for idx in [1..#Heil_N] do
     mat := Heil_N[idx];
     uvM := Parent(mat)!Eltseq(uv) * mat;
-    det := Determinant(uvM); // mod Level(G);
-    if det in Domain(G`DetRep) then
-      det_rep := G`DetRep(det);
-      uvM := ModLevel(G)!(det_rep^(-1) * uvM);
-      ind, s := CosetReduce(uvM, find_coset);
-      s := det_rep * ModLevel(G)!Eltseq(s);
+    ind, s := phi(uvM);
+    if ind ne 0 then
       e := s@eps;
       H := Heil_0[idx];
       h := e*(R![H[1,2],H[1,1]])^w*(R![H[2,2],H[2,1]])^(k-2-w);
@@ -793,6 +849,7 @@ function lev1_HeckeOperatorHeilbronn(M, Heil)
              j in [1..#generating_coset_list]
         ];
    else
+     phiG := get_phi(LevelSubgroup(M));
      T := [ lev1_ManinSymbolsGeneralizedWeightedAction(generating_coset_list[j],
                                generating_weights[j],
                                k, coset_list, Tquot,
@@ -800,7 +857,7 @@ function lev1_HeckeOperatorHeilbronn(M, Heil)
                                modNHeil, char0Heil,
                                eps,
                                R,
-			       1,LevelSubgroup(M)) :
+			       1,phiG) :
              j in [1..#generating_coset_list]
         ];
    end if;
@@ -862,7 +919,8 @@ function lev1_TnSparse(M, Heil, sparsevec)
    end for;
 
    R := PolynomialRing(BaseField(M)); x := R.1;
-   ans :=  &+[ m[1]* P1GeneralizedWeightedAction(generating_coset_list[m[2]],
+   if IsOfGammaType(M) then
+     ans :=  &+[ m[1]* P1GeneralizedWeightedAction(generating_coset_list[m[2]],
                                generating_weights[m[2]],
                                k, coset_list, Tquot,
                                my_phi, my_coeff,
@@ -871,6 +929,19 @@ function lev1_TnSparse(M, Heil, sparsevec)
                                R,
                                1) :
                 m in sparsevec];
+   else
+     phiG := get_phi(LevelSubgroup(M));
+     ans :=  &+[ m[1]* lev1_ManinSymbolsGeneralizedWeightedAction(
+			       generating_coset_list[m[2]],
+                               generating_weights[m[2]],
+                               k, coset_list, Tquot,
+                               my_phi, my_coeff,
+                               modNHeil, char0Heil,
+                               eps,
+                               R,
+			       1, phiG) :
+                m in sparsevec];
+   end if;
 
    if GetVerbose("ModularSymbols") eq 3 then
       printf " (%o s).\n", Cputime(t);
@@ -931,8 +1002,10 @@ function HeckeOperatorHeilbronn(M, Heil)
       CallP1Action2 := ManinSymbolsAction2;
       CallP1Action := ManinSymbolsAction;
       G := LevelSubgroup(M);
-      find_coset := M`mlist`find_coset;
-      defining_tuple := <find_coset, G, Tquot, Squot, Scoef> ;
+      // find_coset := M`mlist`find_coset;
+      num_cosets := #M`mlist`coset_list;
+      phi := get_phi(G);
+      defining_tuple := <phi, num_cosets, Tquot, Squot, Scoef> ;
    end if;
 
    Append(~defining_tuple, eps);  
@@ -1058,8 +1131,10 @@ function TnSparse(M, Heil, sparsevec)
       CallP1Action2 := ManinSymbolsAction2;
       CallP1Action := ManinSymbolsAction;
       G := LevelSubgroup(M);
-      find_coset := M`mlist`find_coset;
-      defining_tuple := <find_coset, G, Tquot, Squot, Scoef> ;
+      // find_coset := M`mlist`find_coset;
+      num_cosets := #M`mlist`coset_list;
+      phi := get_phi(G);
+      defining_tuple := <phi, num_cosets, Tquot, Squot, Scoef> ;
    end if;
 
    Append(~defining_tuple, eps);  
@@ -1166,6 +1241,7 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
              j in [1..#generating_coset_list]
            ];
    else
+       phiG := get_phi(LevelSubgroup(MM));
        T := [ ManinSymbolsGeneralizedWeightedAction(
                                generating_coset_list[j], 
                                generating_weights[j], 
@@ -1175,7 +1251,7 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
                                modNHeil, char0Heil, 
                                eps,
                                R,
-                               t) :
+                               t, phiG) :
              j in [1..#generating_coset_list]
            ];
    end if;

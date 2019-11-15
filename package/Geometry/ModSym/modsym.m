@@ -1146,6 +1146,26 @@ subspace of the ambient space.}
    return t;
 end intrinsic;
 
+intrinsic IsNew (M::ModSym, p::GrpMat[RngIntRes]) -> BoolElt
+{True if and only if M is contained in the p-new cuspidal 
+subspace of the ambient space.}
+
+  if not (ImageInLevelGL(LevelSubgroup(M)) subset p) then
+      return true;
+   end if;
+
+   if not assigned M`is_p_new then
+      M`is_p_new := [];
+   end if;
+   if exists(i) { i : i in [1..#M`is_p_new] | M`is_p_new[i][1] eq p } then
+      return M`is_p_new[i][2];
+   end if;
+   require Characteristic(BaseField(M)) eq 0 :
+          "The base field of argument 1 must be of characteristic 0.";
+   t := M subset NewSubspace(CuspidalSubspace(AmbientSpace(M)),p);
+   Append(~M`is_p_new, <p,t>);
+   return t;
+end intrinsic;
 
 intrinsic Basis(M::ModSym) -> SeqEnum
 {The basis of M.}

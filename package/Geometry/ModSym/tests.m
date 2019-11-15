@@ -487,15 +487,11 @@ end procedure;
 
 procedure Test_Stein_9_7()
   printf "Testing Stein Example 9.7\n";
-  M_old := ModularSymbols(my_Gamma(9,0));
-  S_old := CuspidalSubspace(M_old);
-  assert Dimension(S_old) eq 0;
-  M_old := ModularSymbols(my_Gamma(15,0));
-  S_old := CuspidalSubspace(M_old);
-  assert Dimension(S_old) eq 2;
-  M := ModularSymbols(my_Gamma(45,0));
+  M := ModularForms(my_Gamma(45,0));
+  assert Dimension(M) eq 10;
   S := CuspidalSubspace(M);
-  assert Dimension(S) eq 6;
+  assert Dimension(S) eq 3;
+  
 end procedure;
 
 procedure Test_Stein()

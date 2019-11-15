@@ -993,16 +993,23 @@ function MC_ModularSymbols_of_LevelN(M, N)
     
    G := DirichletGroup(N,CyclotomicField(EulerPhi(N)));
    Y := [G!eps : eps in X];
-/*   
-   for eps in X do
-      if Level(M) mod N eq 0 then
-         psi := G!eps;
-      else
-         psi := 
-      end if;
-      Append(~Y,psi);
-   end for;
-*/
+
+   return ModularSymbols(Y, Weight(M), Sign(M));
+end function;
+
+function MC_ModularSymbols_of_LevelG(M, G)
+   assert Type(M) eq ModSym;
+   assert Type(G) eq GrpMat;
+   assert IsMultiChar(M);
+
+   X := [x : x in DirichletCharacter(M) | G subset Kernel(x) eq 0];
+   if #X eq 0 then
+      return CreateTrivialSpace(Weight(M),
+				CharacterGroup(LevelSubgroup(M))!1,Sign(M));
+   end if;
+    
+   D := CharacterGroup(LevelSubgroup(M),CyclotomicField(EulerPhi(Level(G))));
+   Y := [D!eps : eps in X];
    return ModularSymbols(Y, Weight(M), Sign(M));
 end function;
 

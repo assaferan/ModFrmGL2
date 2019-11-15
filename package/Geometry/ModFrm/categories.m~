@@ -97,10 +97,7 @@ declare attributes ModFrm:
         weight,         
 
    // the level of this space of modular forms. 
-        level,
-
-   // the level subgroup of this spaceof modular forms
-        level_subgroup,
+        level,          
 
    // corresponding space(s) of modular symbols
         mf_modular_symbols,

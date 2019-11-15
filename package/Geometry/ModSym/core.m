@@ -394,16 +394,6 @@ function ManinSymbolList(k,N,F)
    >;
 end function;
 
-// special function to handel the ns cartan case better
-// act by the inverse to get a right action
-
-function get_non_split_cartan_coset(g, x)
-  a,b,c,d := Explode([Parent(x)!y : y in Eltseq(g)]);
-  denom := -c*x+a;
-  if denom eq 0 then return 0; end if;
-  return (d*x-b)/denom;
-end function;
-
 //////////////////////////////////////////////////////////////////////////
 // ManinSymbolGenList:                                                  //
 // Construct a list of distinct (Generalized) Manin symbols.            //
@@ -423,9 +413,6 @@ end function;
 //////////////////////////////////////////////////////////////////////////
  
 function ManinSymbolGenList(k,G,F)
-/*  coset_list := [PSL2(Integers()) | FindLiftToSL2(c) : c in
-		      Codomain(Components(G`FindCoset)[1])];   
-*/
    coset_list := [c : c in Codomain(Components(G`FindCoset)[1])];
    find_coset := G`FindCoset;
    n      := (k-1)*#coset_list;
@@ -709,7 +696,7 @@ function XXXManinSymbolsGeneralizedWeightedAction(
                              eps,
                                R,
 			       t,
-			       G)
+			       phiG)
 
    assert Type(w) eq RngIntElt;
    assert Type(k) eq RngIntElt;
@@ -726,12 +713,8 @@ function XXXManinSymbolsGeneralizedWeightedAction(
 
    for i in [1..#M] do
       uvM := uv*M[i];
-      det := Determinant(uvM); // mod Level(G);
-      if det notin Domain(G`DetRep) then continue; end if;
-      det_rep := G`DetRep(det);
-      uvM := det_rep^(-1) * uvM;
-      ind, s := CosetReduce(uvM,list);
-      s := det_rep * s;
+      ind, s := phiG(uvM);
+      if ind eq 0 then continue; end if;
       e := s@eps;
       H := W[i];
       h := e*(R![H[1,2],H[1,1]])^w*(R![H[2,2],H[2,1]])^(k-2-w);
@@ -757,9 +740,9 @@ function ManinSymbolsGeneralizedWeightedAction(
 					       eps,
 					       R,
 					       t,
-					       G)
+					       phiG)
    return XXXManinSymbolsGeneralizedWeightedAction(uv,w,k,list,S,
-						   phi,coeff,M,W,eps,R,t,G);
+						   phi,coeff,M,W,eps,R,t,phiG);
 end function;
 
 function lev1_ManinSymbolsGeneralizedWeightedAction(
@@ -775,7 +758,7 @@ function lev1_ManinSymbolsGeneralizedWeightedAction(
 					       eps,
 					       R,
 					       t,
-					       G)
+					       phiG)
    Z := Integers();
    coset_list_size := #list;
    K := Parent(eps[1]);

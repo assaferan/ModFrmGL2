@@ -238,7 +238,9 @@ end intrinsic;
 intrinsic Level(M::ModFrm) -> RngIntElt
 {The level of M.}
    if not assigned M`level then
-      if assigned M`dirichlet_character then
+      if not IsOfGammaType(M) then
+        M`level := Level(LevelSubgroup(M));
+      elif assigned M`dirichlet_character then
          M`level := Modulus(M`dirichlet_character[1]);
       end if;
       require assigned M`level : "The level of argument 1 is not defined.";
@@ -248,13 +250,20 @@ end intrinsic;
 
 intrinsic LevelSubgroup(M::ModFrm) -> GrpPSL2
 {The level of M.}
-   if not assigned M`level then
-      if assigned M`dirichlet_character then
-         M`level := Parent(M`dirichlet_character[1])`Gamma;
+   if not assigned M`level_subgroup then
+      if IsGamma0(M) then
+        M`level_subgroup := Gamma0(Level(M));
+      elif IsGamma1(M) then
+        M`level_subgroup := Gamma1(Level(M));
+      elif IsOfGammaType(M) then
+        M`level_subgroup := CongruenceSubgroup(Level(M));
+      elif assigned M`dirichlet_character then
+         M`level_subgroup := Parent(M`dirichlet_character[1])`Gamma;
       end if;
-      require assigned M`level : "The level of argument 1 is not defined.";
+      require assigned M`level_subgroup :
+             "The level of argument 1 is not defined.";
    end if;
-   return M`level;      
+   return M`level_subgroup;      
 end intrinsic;
 
 intrinsic Level(f::ModFrmElt) -> RngIntElt
