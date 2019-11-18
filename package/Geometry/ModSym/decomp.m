@@ -528,14 +528,22 @@ function image_of_old_newform_factor(M, A)
    assert IsIrreducible(A);
    assert IsCuspidal(M);
    assert Level(M) mod Level(A) eq 0;
-   if Level(M) eq Level(A) then
-      return A;
-   end if;
-   d := Level(M) div Level(A);
-   if IsPrime(d) then
-      return image_of_old_newform_factor_using_degen_maps(M,A);
+   if IsOfGammaType(M) then
+      if Level(M) eq Level(A) then
+         return A;
+      end if;
+      d := Level(M) div Level(A);
+      if IsPrime(d) then
+         return image_of_old_newform_factor_using_degen_maps(M,A);
+      else
+         return image_of_old_newform_factor_using_operators(M,A);
+      end if;
    else
-      return image_of_old_newform_factor_using_operators(M,A);
+     if LevelSubgroup(M) eq LevelSubgroup(A) then
+       return A;
+     end if;
+// !!! Check later if we want to change also the operators !!! 
+     return image_of_old_newform_factor_using_degen_maps(M,A);
    end if;
 end function;
 

@@ -690,14 +690,14 @@ then the 0 space is returned.
          F     := BaseField(M);
          if (not (G meet GG_N) subset Kernel(eps)) then
 	    quo, pi := Gamma0(1)/Gamma0(1);
-            epsG := CharacterGroup(pi, Gamma0(1), Gamma0(1))!1;
+            epsG := CharacterGroup(pi, BaseRing(M), Gamma0(1), Gamma0(1))!1;
             Append(~M`other_levels, <G,CreateTrivialSpaceGenEps(
 				       Weight(M),epsG,Sign(M),Gamma0(1))>);
          else
             if GG_im subset G then
-               epsG := Restrict(eps,G);
+	       epsG := ChangeRing(Restrict(eps,G),BaseRing(M));
             else
-               epsG := Extend(eps,G);
+	       epsG := ChangeRing(Extend(eps,G),BaseRing(M));
             end if;
             if IsAmbientSpace(M) then
                MS  := ModularSymbols(epsG,Weight(M),Sign(M));

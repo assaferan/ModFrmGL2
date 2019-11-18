@@ -355,8 +355,9 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    oldp_prime := PSL2Subgroup(p_prime, true);
    oldp := PSL2Subgroup(p, true);
    Q, pi_Q := p_prime / p;
-   eps_res := FullCharacterGroup(pi_Q, oldp_prime, oldp)!eps;
-   eps_res := MinimalBaseRingCharacter(eps_res);
+//eps_res := FullCharacterGroup(pi_Q, oldp_prime, oldp)!eps;
+//   eps_res := MinimalBaseRingCharacter(eps_res);
+   eps_res := CharacterGroup(pi_Q, BaseRing(M), oldp_prime, oldp)!eps;
    old  := ModularSymbols(eps_res, 
 			  Weight(M), Sign(M));
 
@@ -558,8 +559,10 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       old := [];
       for i in [1..#primes] do
 	 Q, pi_Q := N_p[i] / primes[i];
-         eps_res := FullCharacterGroup(pi_Q, oldp_prime[i], oldp[i])!eps;
-         eps_res := MinimalBaseRingCharacter(eps_res);
+         // eps_res := FullCharacterGroup(pi_Q, oldp_prime[i], oldp[i])!eps;
+         // eps_res := MinimalBaseRingCharacter(eps_res);
+         eps_res := CharacterGroup(pi_Q, BaseRing(M),
+				   oldp_prime[i], oldp[i])!eps;
          Append(~old,ModularSymbols(eps_res, Weight(M), Sign(M)));
       end for;
    end if;

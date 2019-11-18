@@ -299,10 +299,13 @@ intrinsic 'eq' (x::GrpChrElt,y::GrpChrElt) -> BoolElt
    {True iff the given characters have the same domain and values}
    Gx := x`Parent;
    Gy := y`Parent;
+   // We don't do it because they might be of different types
+   // !!! TODO : figure out why, and fix this
    // test the more frequent cases first
-   if IsIdentical(Gx, Gy) then
-      return x`Map eq y`Map;
-   elif Gx`Domain ne Gy`Domain then 
+   //if IsIdentical(Gx, Gy) then
+   //   return x`Map eq y`Map;
+   // elif
+   if Gx`Domain ne Gy`Domain then 
       return false;   // not sure why we want to do this
    else
       return ValuesOnGenerators(x) cmpeq ValuesOnGenerators(y);
@@ -324,6 +327,12 @@ end intrinsic;
 intrinsic BaseRing(x::GrpChrElt) -> Rng
    {The base ring, i.e. the codomain, of x.}
    return x`BaseRing;
+end intrinsic;
+
+intrinsic ChangeRing(x::GrpChrElt, R::Rng) -> GrpChrElt
+{.}
+   return CharacterGroup(Parent(x)`QuotientMap, R,
+		      Parent(x)`GammaPrime, Parent(x)`Gamma)!x;
 end intrinsic;
 
 intrinsic Domain(x::GrpChrElt) -> Rng
