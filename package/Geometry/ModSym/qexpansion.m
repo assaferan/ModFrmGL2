@@ -141,6 +141,7 @@ import "multichar.m":
    HasAssociatedNewformSpace;
 
 import "operators.m" :
+   ActionOnModularSymbolsBasis,
    ActionOnModularSymbolsBasisBetween;
 
 import "subspace.m":  MinusSubspaceDual,
@@ -1791,4 +1792,61 @@ intrinsic qEigenformBasis(M::ModSym, prec::RngIntElt) -> SeqEnum[RngSerPowElt]
   if #basis eq 0 then return []; end if;
   q := Universe(basis).1;
   return [f + O(q^prec) : f in basis];
+end intrinsic;
+
+// This function assumes that T=[1,1,0,1] normalizes the level subgroup
+function find_echelon_forms_vecs(M)
+  N := CuspWidth(LevelSubgroup(M), Infinity());
+  F := CyclotomicField(N);
+  zeta_N := F.1;
+  S := CuspidalSubspace(M);
+  D := NewformDecomposition(S);
+  prec := N;
+  eigenforms := &cat[get_eigenform_galois_orbit(qEigenform(d, prec),
+						BaseRing(M), prec) : d in D];
+  eigenforms_coefs := Matrix([[Coefficient(f,i) : i in [1..prec-1]] :
+							 f in eigenforms]);
+  E, I := EchelonForm(eigenforms_coefs);
+  dim := NumberOfRows(E);
+  t := Restrict(Transpose(ActionOnModularSymbolsBasis([1,1,0,1], M)),
+	      DualVectorSpace(S));
+  pivots := [PivotColumn(E,j) : j in [1..dim]];
+  t_eigvecs := Matrix([Basis(Kernel(t - zeta_N^i))[1] : i in pivots]);
+  t_eigvecs_in_M := t_eigvecs *
+    ChangeRing(Matrix(Basis(DualVectorSpace(S))), F);
+  hol_forms := sub< ChangeRing(DualVectorSpace(M),F) | Rows(t_eigvecs_in_M) >;
+  decomp := [hol_forms meet ChangeRing(DualVectorSpace(d),F) : d in D];
+  eigenvecs := Matrix(&cat[get_eigenvector_galois_orbit(
+						 my_eigenvector(d,M),
+						 F) : d in decomp]);
+  K := BaseRing(eigenvecs);
+  Embed(BaseRing(I), K, K.1);
+  t_K := ChangeRing(t_eigvecs_in_M, K);
+  R := PolynomialRing(K,2*dim);
+  e_R := ChangeRing(eigenvecs, R);
+  i_R := ChangeRing(I, R);
+  t_R := ChangeRing(t_K, R);
+  X := DiagonalMatrix(R, dim, [R.i : i in [1..dim]]);
+  Y := DiagonalMatrix(R, dim, [R.i : i in [dim+1..2*dim]]);
+  z := X*t_R - i_R * Y * e_R;
+  eqs := &cat[[[Coefficient(z[i,j], k, 1) : k in [1..2*dim]] :
+						j in [1..NumberOfColumns(z)]] :
+						i in [1..NumberOfRows(z)]];
+  mat := Matrix(eqs);
+  ker := Kernel(Transpose(ChangeRing(mat, K)));
+  x_vals := [Basis(ker)[1][i] : i in [1..dim]];
+  X := DiagonalMatrix(BaseRing(t_eigvecs_in_M), dim, x_vals);
+  return X * t_eigvecs_in_M;
+end function;
+
+intrinsic ActionOnEchelonFormBasis(g::GrpMatElt, M::ModSym) -> AlgMatElt
+{Computes the action of g on the cuspidal subspace of M with respect to the
+    basis of modular forms given in echelon form with respect to q-expansions.}
+  Z := find_echelon_forms_vecs(M);
+  F := BaseRing(Z);
+  s := Transpose(ActionOnModularSymbolsBasis(Eltseq(g), M));
+  hol_forms := sub< ChangeRing(DualVectorSpace(M), F) | Rows(Z)>;
+  s_hol := Restrict(ChangeRing(s,F), hol_forms);
+  E, I := EchelonForm(Z);
+  return I^(-1) * s_hol * I;
 end intrinsic;

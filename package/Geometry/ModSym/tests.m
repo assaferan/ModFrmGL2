@@ -775,33 +775,6 @@ procedure dec_dim_char_poly_up_to(N, max_p, output_fname)
   delete output_file;
 end procedure;
 
-
-
-
-if assigned ActionOnModularSymbolsBasis then
-  delete ActionOnModularSymbolsBasis;
-end if;
-if assigned get_eigenform_galois_orbit then
-  delete get_eigenform_galois_orbit;
-end if;
-if assigned get_eigenvector_galois_orbit then
-  delete get_eigenvector_galois_orbit;
-end if;
-if assigned my_eigenvector then
-  delete my_eigenvector;
-end if;
-if assigned Restrict then
-  delete Restrict;
-end if;
-
-import "./Geometry/ModSym/linalg.m" : Restrict;
-
-import "./Geometry/ModSym/operators.m" : ActionOnModularSymbolsBasis;
-
-import "./Geometry/ModSym/qexpansion.m" : get_eigenform_galois_orbit,
-                                          get_eigenvector_galois_orbit,
-                                          my_eigenvector;
-
 procedure Test_Zywina()
   printf "Testing the Zywina example Gamma(7)...\n";
   N := 7;
@@ -813,51 +786,14 @@ procedure Test_Zywina()
   assert f[1] eq q-3*q^8+O(q^12);
   assert f[2] eq q^2-3*q^9+O(q^12);
   assert f[3] eq q^4-4*q^11+O(q^12);
+  s := GL(2, Rationals())![0,-1,1,0];
+  s_mat := ActionOnEchelonFormBasis(s, M);
   F := CyclotomicField(7);
   zeta_7 := F.1;
-  D := NewformDecomposition(S);
-  prec := 12;
-  eigenforms := &cat[get_eigenform_galois_orbit(qEigenform(d, prec),
-						BaseRing(M), prec) : d in D];
-  eigenforms_coefs := Matrix([[Coefficient(f,i) : i in [1..prec-1]] :
-							 f in eigenforms]);
-  E, I := EchelonForm(eigenforms_coefs);
-  t := Restrict(Transpose(ActionOnModularSymbolsBasis([1,1,0,1], M)),
-	      DualVectorSpace(S));
-  t_eigvecs := Matrix([Basis(Kernel(t - zeta_7^i))[1] : i in [1,2,4]]);
-  t_eigvecs_in_M := t_eigvecs *
-    ChangeRing(Matrix(Basis(DualVectorSpace(S))), F);
-  hol_forms := sub< ChangeRing(DualVectorSpace(M),F) | Rows(t_eigvecs_in_M) >;
-  decomp := [hol_forms meet ChangeRing(DualVectorSpace(d),F) : d in D];
-  eigenvecs := Matrix(&cat[get_eigenvector_galois_orbit(
-						 my_eigenvector(d,M),
-						 F) : d in decomp]);
-  K := BaseRing(eigenvecs);
-  Embed(BaseRing(I), K, K.1);
-  t_K := ChangeRing(t_eigvecs_in_M, K);
-  R<x1,x2,x3,y1,y2,y3> := PolynomialRing(K,6);
-  e_R := ChangeRing(eigenvecs, R);
-  i_R := ChangeRing(I, R);
-  t_R := ChangeRing(t_K, R);
-  X := DiagonalMatrix(R, 3, [x1, x2, x3]);
-  Y := DiagonalMatrix(R, 3, [y1, y2, y3]);
-  z := X*t_R - i_R * Y * e_R;
-  eqs := &cat[[[Coefficient(z[i,j], k, 1) : k in [1..6]] :
-						j in [1..NumberOfColumns(z)]] :
-						i in [1..NumberOfRows(z)]];
-  mat := Matrix(eqs);
-  ker := Kernel(Transpose(ChangeRing(mat, K)));
-  s := Transpose(ActionOnModularSymbolsBasis([0,-1,1,0], M));
-  s_hol := Restrict(ChangeRing(s,F), hol_forms);
-  x_vals := [Basis(ker)[1][i] : i in [1..3]];
-  X := DiagonalMatrix(BaseRing(t_eigvecs_in_M), 3, x_vals);
-  Zywina_basis := X * t_eigvecs_in_M;
-  E, I := EchelonForm(Zywina_basis);
-  Zywina_mat := I^(-1) * s_hol * I;
   alpha := zeta_7 + zeta_7^(-1);
   vals := [-3*alpha^2-2*alpha+2, 2*alpha^2-alpha-6, alpha^2+3*alpha-3,
 	     -alpha^2-3*alpha+3, 3*alpha^2+2*alpha-2, 2*alpha^2-alpha-6];
-  s_mat := 1/7 * SymmetricMatrix(F, vals);
+  Zywina_mat := 1/7 * SymmetricMatrix(F, vals);
   assert s_mat eq Zywina_mat;
 end procedure;
 
