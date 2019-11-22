@@ -547,6 +547,17 @@ function image_of_old_newform_factor(M, A)
    end if;
 end function;
 
+function get_NN(M)
+   eps := DirichletCharacter(M);
+   G_N := ImageInLevelGL(LevelSubgroup(M));
+   G := Parent(eps)`Gamma;
+   N := ImageInLevelGL(G);
+   NN := [N];
+   NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
+   Append(~NN, ModLevelGL(G));
+   return NN;
+end function;
+
 intrinsic NewformDecomposition(M::ModSym
            : Proof := true, Sort := true) -> SeqEnum
 {Decomposition of M into factors corresponding to 

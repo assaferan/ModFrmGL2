@@ -338,10 +338,11 @@ function Compute_qExpansion(num_known, f, prec, Tpei, eps,
 	    if Type(eps) eq GrpDrchElt then
 	      eps_p := Evaluate(eps,p);
 	    else
-	      // TODO :: Is this really what we want always?
-	      // What do we really want ?
-	      if p in Domain(Parent(eps)`GammaPrime`DetRep) then 
-	        eps_p := Evaluate(eps,Parent(eps)`GammaPrime`DetRep(p));
+	      // !!! TODO : What is the correct thing here ??
+	      G := Parent(eps)`OriginalDomain;
+	      is_coercible, val := IsCoercible(G, [p,0,0,p]);
+	      if is_coercible then
+	        eps_p := Evaluate(eps, val);
 	      else
 	        eps_p := 0;
 	      end if;
@@ -1688,15 +1689,29 @@ end intrinsic;
 /* These should not really be needed - have qIntegralBasis
 and qExpansionBasis, but for some reason they fail.
 Have to figure it out */
-function get_eigenform_galois_orbit(f, prec)
+function get_eigenform_galois_orbit(f, K0, prec)
   q := Parent(f).1;
   K := BaseRing(Parent(f));
-  Gal_K := Automorphisms(K);
+  Gal_K,B,psi := AutomorphismGroup(K,K0);
   orbit := [];
   coeffs := Coefficients(f);
-  for sigma in Gal_K do
+  for g in Gal_K do
+    sigma := psi(g);
     sigma_coeffs := [sigma(c) : c in coeffs];
     Append(~orbit, &+[sigma_coeffs[i]*q^i : i in [1..#coeffs]] + O(q^prec));
+  end for;
+  return orbit;
+end function;
+
+function get_eigenvector_galois_orbit(v, K0)
+  V := Parent(v);
+  K := BaseRing(V);
+  Gal_K,B,psi := AutomorphismGroup(K,K0);
+  orbit := [];
+  for g in Gal_K do
+    sigma := psi(g);
+    sigma_vals := [sigma(v[i]) : i in [1..Dimension(V)]];
+    Append(~orbit, V!sigma_vals);
   end for;
   return orbit;
 end function;

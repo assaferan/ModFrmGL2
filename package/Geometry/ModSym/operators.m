@@ -419,9 +419,6 @@ end function;
 //  COMPUTATION of HECKE OPERATORS                           //
 ///////////////////////////////////////////////////////////////
 
-
-
-
 intrinsic HeckeOperator(M::ModSym, n::RngIntElt) -> AlgMatElt
 {A matrix representing the nth Hecke operator
 with respect to Basis(M).}
@@ -457,16 +454,15 @@ with respect to Basis(M).}
    elif IsPrime(n) then
       if IsAmbientSpace(M) then
       // Before adjusting Heilbronn to work for our case
-      if (GCD(n, Level(M)) ne 1) and
-        (not IsOfGammaType(M)) and (not IsGammaNS(M`G)) and
+        if (GCD(n, Level(M)) ne 1) and
+           (not IsOfGammaType(M)) and (not IsGammaNS(M`G)) and
 				  (not IsGammaNSplus(M`G)) then
 	   T := HeckeOperatorDirectlyOnModularSymbols(M,n);
-      else
-         //if IsOfGammaType(M) or IsGammaNS(M`G) or IsGammaNSplus(M`G) then
+        else      
            use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
                              and IsTrivial(DirichletCharacter(M));
 	   T := HeckeOperatorHeilbronn(M, Heilbronn(M, n, not use_cremona));
-      end if;
+        end if;
 
 /*  Using "DirectlyOn" fails in this example!!
     G<a>:=DirichletGroup(109,GF(4));M:=ModularSymbols(a,2);
@@ -602,6 +598,130 @@ function HeckeGeneralCaseRepresentatives(G,p)
   return HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H);
 end function;
 
+import "subspace.m" : prepare_old_spaces;
+
+import "decomp.m" : get_NN;
+
+import "modsym.m" : ModularSymbolsSub;
+
+forward ActionOnModularSymbolsBasisBetween;
+
+function HeckeNew(M)
+  // N := Level(M);
+  N := CuspWidth(LevelSubgroup(M), Infinity());
+  G := LevelSubgroup(M);
+  NN := get_NN(M);
+  old := prepare_old_spaces(M, NN);
+  cusp_widths := [CuspWidth(LevelSubgroup(m), Infinity()) : m in old]; 
+  I := [i : i in [1..#old] | cusp_widths[i] ne N];
+  Dmats := <>;
+// DDmats := <>;
+  for i in I do
+     if Dimension(old[i]) ne 0 then
+/*
+       D := Transversal(ImageInLevel(LevelSubgroup(old[i])),
+	                 ImageInLevel(G));
+       D_lift := [PSL2(Integers()) | FindLiftToSL2(d) : d in D];
+       R := [Eltseq(Matrix(d)) : d in D_lift];
+       eps_res := DirichletCharacter(old[i]);
+       eps_vals := [(d@eps_res)^(-1) : d in D];
+       mat := &+[eps_vals[j] *
+		  ActionOnModularSymbolsBasisBetween(R[j], old[i], M)
+                  : j in [1..#R]];
+       Append(~DDmats, Transpose(mat));
+*/
+       Append(~Dmats, ActionOnModularSymbolsBasisBetween([1,0,0,1], M, old[i]));
+    end if;
+  end for;
+  if #Dmats eq 0 then
+    return M;
+  end if;
+  D := HorizontalJoin(Dmats);
+//  DD := HorizontalJoin(DDmats);
+  KD := Kernel(D);
+//  KDD := Kernel(DD);
+  Mnew := ModularSymbolsSub(M, KD);
+//  Mnew`dual_representation := KDD;
+  return Mnew;
+end function;
+
+function HeckeNewDecomposition(M)
+  //N := Level(M);
+  N := CuspWidth(LevelSubgroup(M), Infinity());
+  G := LevelSubgroup(M);
+  NN := get_NN(M);
+  old := prepare_old_spaces(M, NN);
+  new_old := [HeckeNew(m) : m in old];
+  cusp_widths := [CuspWidth(LevelSubgroup(m), Infinity()) : m in old]; 
+  divs := Divisors(N);
+  V := AssociativeArray(divs);
+  for t in divs[2..#divs] do
+     I := [i : i in [1..#old] | cusp_widths[i] eq N div t];
+     im_old := [];
+     for i in I do
+	B := Basis(VectorSpace(new_old[i]));
+        f := DegeneracyMatrix(new_old[i], M, GL(2,Rationals())!1);
+        for b in B do
+	  v := b*f;
+          Append(~im_old, v);
+        end for;
+     end for;
+     V[t] := sub<VectorSpace(M) | im_old>;
+  end for;
+  V[1] := VectorSpace(HeckeNew(M));
+  return V;
+end function;
+
+function HeckeTDecomposition(M)
+  N := Level(M);
+  F := CyclotomicField(N);
+  zeta_N := F.1;
+  U, psi := UnitGroup(Integers(N));
+  U := [Integers()!psi(u) : u in U];
+  T := ActionOnModularSymbolsBasis([1,1,0,1],M); 
+  T := Transpose(ChangeRing(T, F));
+  divs := Divisors(N);
+  V := AssociativeArray(divs);
+  for t in divs do
+    zeta_N_t := zeta_N^t;
+    V[t] := ChangeRing(&+[Eigenspace(T,zeta_N_t^u) : u in U], BaseRing(M));
+  end for;
+  return V;
+end function;
+
+// This function is specific for Gamma(N)
+// It follows the treatment in Ogg
+// It would also work whenever [1,1,0,1] normalizes the group
+// Tried to change it to work for arbitrary level, but something
+// still is not working.
+function HeckeDividingTheLevel(M,p)
+  //N := Level(M);
+  N := CuspWidth(LevelSubgroup(M), Infinity());
+  divs := Divisors(N);
+  //  V := HeckeTDecomposition(M);
+  V := HeckeNewDecomposition(M);
+  dims := [Dimension(V[t]) : t in divs];
+  B := Matrix(&cat[Basis(V[t]) : t in divs]);
+  // creating projections
+  P := AssociativeArray(divs);
+  d := &+dims;
+  start := 0;
+  for i in [1..#divs] do
+     t := divs[i];
+     diag := [0 : j in [1..start]] cat [1 : j in [1..dims[i]]];
+     diag := diag cat [0 : j in [1..d-dims[i]-start]];
+     P[t] := B^(-1) * DiagonalMatrix(BaseRing(M), d, diag) * B;
+     start := start + dims[i];
+  end for;
+  // creating Hecke Operators
+  T := AssociativeArray(divs);
+  for t in divs do
+    R := [[1, b*N div t, 0, p] : b in [0..p-1]];
+    T[t] := &+[ActionOnModularSymbolsBasis(g,M) : g in R];
+  end for;
+  return &+[T[t]*P[t] : t in divs];
+end function;
+
 function HeckeOperatorDirectlyOnModularSymbols(M,p)
    assert Type(M) eq ModSym;
    assert Type(p) eq RngIntElt;
@@ -613,14 +733,8 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p)
       end if;
    else
      N := Level(M);
-     if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) and (N ne p) then
-	plus := (N mod 4 eq 3) and IsGammaNSplus(M`G);
-	R := HeckeNSCartanRepresentatives(M`G,p,plus);
-     elif (M`G eq CongruenceSubgroup(N)) then
-        R := HeckeFullCongruenceRepresentatives(N,p);
-     else
-        R := HeckeGeneralCaseRepresentatives(M`G,p);
-     end if;
+     assert N mod p eq 0;  // Otherwise we should not be here
+     return HeckeDividingTheLevel(M,p);  
    end if;
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;
@@ -1291,7 +1405,7 @@ require computing the full Hecke operator.}
       new_images := [Universe(M`standard_images[i])|]; // avoid copy inside loop
       s := SparseRepresentation(VectorSpace(M).i);  
       while p le n do 
-         Append(~new_images, TnSparse(M, p, s));
+		Append(~new_images, TnSparse(M, p, s));
          p := NextPrime(p);
       end while;
       M`standard_images[i] := M`standard_images[i] cat new_images;

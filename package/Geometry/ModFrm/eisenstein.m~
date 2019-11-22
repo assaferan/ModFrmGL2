@@ -177,8 +177,7 @@ function ExtendBaseMaximal(eps)
      else
        R := CyclotomicField(g);
      end if;
-     G := CharacterGroup(Parent(eps[1])`QuotientMap,R,
-			 Parent(eps[1])`GammaPrime, Parent(eps[1])`Gamma);
+     G := CharacterGroup(Parent(eps[1])`QuotientMap,R,Parent(eps[1])`Gamma);
      ans := [G!e : e in eps];
    else
      assert false; // Characters are only allowed to be GrpChrElt or GrpDrchElt
@@ -216,10 +215,6 @@ end function;
 function ComputeAllEisensteinSeries(M : all:=false)
    assert Type(M) eq ModFrm;
    assert SpaceType(M) in {"full", "eis"};
-   if not IsOfGammaType(M) then
-     error "This function is not implemented for levels other than 
-            Gamma0 or Gamma1";
-   end if;
 
    ans := [* *]; 
    N   := Level(M);
@@ -249,30 +244,29 @@ function ComputeAllEisensteinSeries(M : all:=false)
    end if;
 
    // Divide up Chi by conductor:
+   
+   C   := [[] : i in [1..N]];
+   for e in Elements(Chi1) do
+      Append(~C[Conductor(e)],e);
+   end for;
 
-   if IsOfGammaType(M) then
-     C   := [[] : i in [1..N]];
-     for e in Elements(Chi1) do
-        Append(~C[Conductor(e)],e);
-     end for;
-   else
-     C := [];
-     conds := {};
-     conds_inds := {};
-     for e in Elements(Chi1) do
-       c := Conductor(e);
-       if c in conds then
-         Append(~C[conds_inds(c)], e);
-       else
-         Include(~conds, c);
-         C[#C+1] := [e];
-         Include(~conds_inds, <c, #C>);
-         conds_to_ind := map< conds -> Integers() | conds_inds>;
-       end if;
-     end for;
-   end if;
+/* This is what we should do in general (one day) for an arbitrary level
 
-// Should modify what's below for the case of arbitrary level subgroup
+   C := [];
+   conds := {};
+   conds_inds := {};
+   for e in Elements(Chi1) do
+      c := Conductor(e);
+      if c in conds then
+        Append(~C[conds_to_ind(c)], e);
+      else
+        Include(~conds, c);
+        C[#C+1] := [e];
+        Include(~conds_inds, <c, #C>);
+        conds_to_ind := map< conds -> Integers() | conds_inds>;
+      end if;
+   end for;
+*/
 
 /* Find all pairs chi, psi such that
      chi * psibar = eps (nebentypus)

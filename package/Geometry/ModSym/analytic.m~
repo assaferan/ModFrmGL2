@@ -435,7 +435,7 @@ function PeriodGenerators(A, fast)
       vprintf ModularSymbols : "Computing period generators (fast=%o).\n", fast;
 
       M  := AmbientSpace(A);
-      sign := Sign(M);
+    sign := Sign(M);
       N  := Level(A);
       k  := Weight(A);
       pi := RationalPeriodMapping(A);    // M_k --> Mk/Ker(Phi)
@@ -530,9 +530,11 @@ intrinsic PeriodMapping(A::ModSym, prec::RngIntElt) -> Map
       G, fast  := PeriodGenerators(A, fast);
 
       vprint ModularSymbols : "Computing an integral basis.";
-      
-      Q  := qIntegralBasis(A, n);
-    
+      if IsOfGammaType(A) then
+         Q  := qIntegralBasis(A, n);
+      else
+         Q := qIntegralBasis(A, n : Al := "Universal");
+      end if;
       // A is cuspidal with sign 0, so dimension is twice as large
       dim := Dimension(A) * AbsoluteDegree(BaseRing(A)) / 2;
       if #Q ne dim then

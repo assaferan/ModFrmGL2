@@ -523,9 +523,9 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
       D := Transversal(im_G1, conj);
       D_lift := [PSL2(Integers()) | FindLiftToSL2(dd) : dd in D];
       R := [Eltseq(alpha*Parent(alpha)!Matrix(dd)) : dd in D_lift];
-      // eps_vals := [(dd@eps)^(-1) : dd in D];
-      // R   := DegeneracyCosetReps(N1, N2, d);
       eps := DirichletCharacter(M1);
+      eps_vals := [(dd@eps)^(-1) : dd in D];
+      // R   := DegeneracyCosetReps(N1, N2, d);
       if IsTrivial(eps) then
          RB := [ &cat[ModularSymbolApply(M1, r, B[i]) : r in R] 
                                                   : i in [1..#B]];
@@ -533,10 +533,10 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
          A := [Representation(ConvFromModularSymbol(M2,RB[i])) 
                                                   : i in [1..#RB]];
       else
-         A   := [ &+[Evaluate(eps,r)^(-1)*
+         A   := [ &+[eps_vals[j]*
                       Representation(ConvFromModularSymbol(M2,
-                              ModularSymbolApply(M1, r, B[i]))) : r in R] 
-               : i in [1..#B]];
+                              ModularSymbolApply(M1, R[j], B[i]))) :
+			       j in [1..#R]] : i in [1..#B]];
       end if;
    else
       assert false;
@@ -656,7 +656,7 @@ then the 0 space is returned.
    GG_im := ImageInLevelGL(GG);
    GG_mod := ModLevelGL(GG);
 
-   require G ne GG_mod : "Argument 2 must not be GL2(Z/NZ)."; 
+//   require G ne GG_mod : "Argument 2 must not be GL2(Z/NZ)."; 
    require (G subset GG_im) or (GG_im subset G) :
         "Argument 2 must be a subgroup or an overgroup of the image of the level subgroup of argument 1 when reduced modulo the level.";
 

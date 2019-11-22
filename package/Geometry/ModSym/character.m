@@ -470,7 +470,7 @@ intrinsic CharacterGroupCopy(G::GrpChr) -> GrpChr
    GG`Domain  := G`Domain;
    GG`OriginalDomain  := G`OriginalDomain;
    GG`Gamma  := G`Gamma;
-   GG`GammaPrime := GG`GammaPrime;
+   GG`GammaPrime := G`GammaPrime;
    GG`QuotientMap := G`QuotientMap;
    GG`BaseRing := G`BaseRing;
    GG`Exponent := G`Exponent;
