@@ -777,9 +777,7 @@ end procedure;
 
 
 
-if assigned SmallestPrimeNondivisor then
-  delete SmallestPrimeNondivisor;
-end if;
+
 if assigned ActionOnModularSymbolsBasis then
   delete ActionOnModularSymbolsBasis;
 end if;
@@ -789,20 +787,12 @@ end if;
 if assigned get_eigenvector_galois_orbit then
   delete get_eigenvector_galois_orbit;
 end if;
-if assigned EigenvectorModSymSign then
-  delete EigenvectorModSymSign;
-end if;
-if assigned EigenvectorOfMatrixWithCharpoly then
-  delete EigenvectorOfMatrixWithCharpoly;
-end if;
-if assigned QuickIrredTest then
-  delete QuickIrredTest;
+if assigned my_eigenvector then
+  delete my_eigenvector;
 end if;
 if assigned Restrict then
   delete Restrict;
 end if;
-
-import "./Geometry/ModSym/arith.m" : SmallestPrimeNondivisor;
 
 import "./Geometry/ModSym/linalg.m" : Restrict;
 
@@ -810,70 +800,7 @@ import "./Geometry/ModSym/operators.m" : ActionOnModularSymbolsBasis;
 
 import "./Geometry/ModSym/qexpansion.m" : get_eigenform_galois_orbit,
                                           get_eigenvector_galois_orbit,
-                                          EigenvectorModSymSign,
-                                          EigenvectorOfMatrixWithCharpoly,
-                                          QuickIrredTest;
-
-function my_ev_before_lift(A, M)
-  use_quick := t in {RngInt, FldRat} or ISA(t, FldAlg) where t is Type(BaseRing(A));
-  N := Level(M);
-  p := SmallestPrimeNondivisor(N, 2);
-  T := Restrict(ChangeRing(DualHeckeOperator(M, p), BaseRing(A)), A);
-
-  i := 1;
-  str := "T_" * IntegerToString(p);
-  while true do
-      vprintf ModularSymbols, 2:
-	  "FindIrreducibleHeckeOperator, try #%o, %o\n", i, str;
-      if use_quick then
-          if QuickIrredTest(T) then
-               vprintf ModularSymbols, 2: "CharacteristicPolynomial: "; 
-               vtime ModularSymbols, 2:
-               f := CharacteristicPolynomial(T);
-               // assert IsIrreducible(f);
-               break;
-          end if;
-      else
-          f := CharacteristicPolynomial(T);
-          if IsIrreducible(f) then
-              break;
-          end if;
-      end if; 
-
-      if i eq 15 then
-        "WARNING: it seems hard to find an irreducible element in the Hecke algebra.";
-	if Characteristic(BaseRing(A)) gt 0 then
-           "In characteristic p, the algorithm is not guaranteed to terminate.";
-        end if;
-      end if;
-
-      p := SmallestPrimeNondivisor(N, NextPrime(p));
-      rand := Random([-1,1]);
-      T +:= rand*Restrict(DualHeckeOperator(M,p),A);
-      str *:= " + " * IntegerToString(rand) * "*T_" * IntegerToString(p);
-      i +:= 1;
-  end while;
-   
-  IndentPop();
-  vprintf ModularSymbols,1: 
-      "Irreducible element of Hecke algebra (of dimension %o) is %o\n", Dimension(A),str;
-  return EigenvectorOfMatrixWithCharpoly(T,f);
-end function;
-
-function my_eigenvector(A, M)
-   // Returns an eigenvector of the Hecke algebra on A over
-   // a polynomial extension of the ground field.
-   // The eigenvector lies in DualSpace(A) tensor Qbar
-   e := my_ev_before_lift(A, M);
-   F := Parent(e[1]);
-   V := RSpace(F,Degree(A));
-   B := Basis(A);
-   sum := V!0;
-   for i := 1 to #B do
-      sum +:= e[i]*V!B[i];
-   end for;
-   return sum;
-end function;
+                                          my_eigenvector;
 
 procedure Test_Zywina()
   printf "Testing the Zywina example Gamma(7)...\n";

@@ -567,33 +567,12 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       Neps := Conductor(DirichletCharacter(M));
       primes := Sort([p : p in primes | N mod (p*Neps) eq 0]);
       // Sort so that below, the blocks of D with largest rank at the left
-   else  
+   else
       G_N := ImageInLevelGL(G);
       eps   := DirichletCharacter(M);
       H := Parent(eps)`Gamma;
       gens := Generators(H);
-      H_N := ImageInLevelGL(H);
-      pi_Q := Parent(eps)`QuotientMap;
-
-      primes := [p : p in primes | not p subset G_N];
-      primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
-      N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
-
-      good := [i : i in [1..#primes] | G_N subset N_p[i]];
-      primes := [primes[i] : i in good];
-
-      N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
-      oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
-      oldp := [PSL2Subgroup(p, true) : p in primes];
-      old := [];
-      for i in [1..#primes] do
-	 Q, pi_Q := N_p[i] / primes[i];
-         // eps_res := FullCharacterGroup(pi_Q, oldp_prime[i], oldp[i])!eps;
-         // eps_res := MinimalBaseRingCharacter(eps_res);
-         eps_res := CharacterGroup(pi_Q, BaseRing(M),
-				   oldp_prime[i], oldp[i])!eps;
-         Append(~old,ModularSymbols(eps_res, Weight(M), Sign(M)));
-      end for;
+      old := prepare_old_spaces(M, primes);
    end if;
 
    Dmats := <>;
@@ -607,9 +586,10 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       end for;
    else
      alphas := [];
-     for i in [1..#primes] do
+     for i in [1..#old] do
          if Dimension(old[i]) gt 0 then
-            p := Level(M) div calcLevel(oldp_prime[i]);
+	    oldp := Parent(DirichletCharacter(old[i]))`Gamma;
+	    p := Level(M) div calcLevel(LevelSubgroup(old[i]));
             assert IsPrime(p) or (p eq 1); // Else something is wrong here
             // Representatives for determinant p modulo SL2(Z)
             candidates := [[1,0,0,1]];
@@ -627,7 +607,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 				  is_coercible[j]];
             conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
 				  is_coercible[j]];
-            is_good := [&and[g in oldp[i] : g in cg] : cg in conj_gens];
+            is_good := [&and[g in oldp : g in cg] : cg in conj_gens];
             Append(~alphas,[candidates[j] : j in [1..#candidates] |
 			 is_good[j]]);
             for alpha in alphas[i] do
@@ -647,12 +627,6 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
    vtime ModularSymbols:
    KD := Kernel(D);
    AMnew := ModularSymbolsSub(AM, KD);
-   /*
-   vprintf ModularSymbols: "Intersecting kernel with space: ";
-   vtime ModularSymbols:
-   Vnew := VectorSpace(M) meet KD;
-   Mnew := ModularSymbolsSub(M, Vnew); 
-   */
 
    if ComputeDual then
       // Work out the dual representation of Mnew (repeat same method)
@@ -667,11 +641,12 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
             end if;
          end for;
       else
-	 for i in [1..#primes] do
+	 for i in [1..#old] do
             eps_res := DirichletCharacter(old[i]);
             if Dimension(old[i]) gt 0 then
               for alpha in alphas[i] do
-		 D := Transversal(N_p[i] meet SL(2, IntegerRing(N)),
+		 // D := Transversal(N_p[i] meet SL(2, IntegerRing(N)),
+		 D := Transversal(ImageInLevel(LevelSubgroup(old[i])),
 		    ImageInLevel(Conjugate(G,alpha : IsExactLevel := true)));
                  D_lift := [PSL2(Integers()) | FindLiftToSL2(d) : d in D];
                  R := [Eltseq(alpha*Parent(alpha)!Matrix(d)) : d in D_lift];

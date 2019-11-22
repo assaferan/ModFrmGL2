@@ -615,14 +615,11 @@ IsCuspidal(M) is true.}
         pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
       else
         eps := DirichletCharacter(M);
-        //G := LevelSubgroup(M);
-        G_N := ImageInLevelGL(LevelSubgroup(M));
         G := Parent(eps)`Gamma;
+        G_N := ImageInLevelGL(LevelSubgroup(M));
         N := ImageInLevelGL(G);
-        NN := [N];
-        NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
-        Append(~NN, ModLevelGL(G));
-        pnew := [p : p in MinimalOvergroups(ModLevelGL(G), ImageInLevelGL(G))
+        NN := get_NN(M);
+        pnew := [p : p in MinimalOvergroups(ModLevelGL(G), N)
 					    | IsNew(M,p)];
       end if;
 
