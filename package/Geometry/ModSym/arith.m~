@@ -171,6 +171,7 @@ function PrimePos(p)
    return i;
 end function;
 
+
 function PrimeDivPos(p, N)
 // Returns the position of the divisor p of N, or 0 if p does not divide N.
    if N mod p ne 0 then 

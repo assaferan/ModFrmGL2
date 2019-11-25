@@ -383,6 +383,7 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
 {This function returns the conjugation of G by A, i.e. A^(-1)*G*A
      At the moment we only support the case where
      both input and output are subgroups of PSL2(Z)}
+  if IsOne(A) then return G; end if;
   det := Integers()!Determinant(A);
   require Level(G) mod det eq 0 :
     "Determinant of A must divide the level of G";
@@ -558,6 +559,7 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
        H`ImageInLevel := H0 meet H`ModLevel;
        H`ImageInLevelGL := H0;
      end if;
+     H`Level := N;
      cosets, find_coset := Transversal(H`ModLevel, H`ImageInLevel);
      if N eq 1 then
        H`FS_cosets := [G!1];

@@ -73,6 +73,9 @@ intrinsic CharacterGroup(pi_Q::HomGrp, R::Rng,
    ngens := Ngens(G`OriginalDomain);
    ValsOnGens := [(pi_Q*phi*psi^(-1))(G`OriginalDomain.i) : i in [1..ngens]];
    G`QuotientMap := hom<G`OriginalDomain->G`Domain | ValsOnGens>;
+   A, phi := AbelianGroup(G`Domain);
+   G`AbGrp  := A;
+   G`AbGrpMap := phi;
    return G;
 end intrinsic;
 

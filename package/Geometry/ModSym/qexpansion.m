@@ -260,7 +260,12 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
          vprintf ModularSymbols,2: "Setting up the Tpei (for p less than %o) ... ", prec;
       end if;
       time0 := Cputime();
+      
       Tpei := HeckeImages(AmbientSpace(M),i, prec);   // "time critical"
+      if not IsOfGammaType(M) then
+	Tpei := <Tpei, HeckeImagesSquarePrimes(AmbientSpace(M), i, prec)>;
+      end if;
+   
       vprintf ModularSymbols,2: "%os\n", Cputime(time0);
 
       eps := DirichletCharacter(M);
@@ -268,7 +273,7 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
       M`qeigenform[2], new_one_over_ei := Compute_qExpansion(M`qeigenform[1], M`qeigenform[2],
                                        prec, Tpei,
                                        eps, Weight(M),
-                                       i, eig, false : one_over_ei:=one_over_ei);
+		    i, eig, false : one_over_ei:=one_over_ei);
 
       M`qeigenform[1] := prec;
       if one_over_ei cmpeq false then 
@@ -299,6 +304,10 @@ end function;
 function Compute_qExpansion(num_known, f, prec, Tpei, eps, 
                             k, i, eig, prime_only : one_over_ei:=false)
 
+  if Type(Tpei) eq Tup then
+     Tp2ei := Tpei[2];
+     Tpei := Tpei[1];
+   end if;
    debug := false;
    if debug then SetVerbose("ModularSymbols",2); end if;
    
@@ -325,7 +334,7 @@ function Compute_qExpansion(num_known, f, prec, Tpei, eps,
       if degr ge 100 then vprintf ModularSymbols,3: "coeff%o...", n; end if;
       n_time0 := Cputime();
      
-     if n eq 1 then
+      if n eq 1 then
          an := 1;
       elif IsPrime(n) then
 
@@ -339,18 +348,29 @@ function Compute_qExpansion(num_known, f, prec, Tpei, eps,
             r  := fac[1][2];
 	    if Type(eps) eq GrpDrchElt then
 	      eps_p := Evaluate(eps,p);
+	      an := Coefficient(f,p) * Coefficient(f,p^(r-1))
+                     - eps_p*p^(k-1)*Coefficient(f,p^(r-2));
+	    elif r eq 2 then
+	      // num_primes := PrimePos(NextPrime(prec)) - 1;
+	      an := DotProd(Tp2ei[PrimePos(p)],eig) * one_over_ei;
 	    else
 	      // !!! TODO : What is the correct thing here ??
+	      // meanwhile applying an ugly patch
+	      /*
 	      G := Parent(eps)`OriginalDomain;
 	      is_coercible, val := IsCoercible(G, [p,0,0,p]);
 	      if is_coercible then
 	        eps_p := Evaluate(eps, val);
+	      elif Modulus(BaseRing(G)) mod p ne 0 then
+		eps_p := 1;
 	      else
 	        eps_p := 0;
 	      end if;
-	    end if;
-            an := Coefficient(f,p) * Coefficient(f,p^(r-1))
+	      */
+	      eps_p := (Coefficient(f,p)^2 - Coefficient(f,p^2)) / p^(k-1);
+	      an := Coefficient(f,p) * Coefficient(f,p^(r-1))
                      - eps_p*p^(k-1)*Coefficient(f,p^(r-2));
+	    end if;       
          else  // a_m*a_r := a_{mr} and we know all a_i for i<n.
             m  := fac[1][1]^fac[1][2];
             an := Coefficient(f,m)*Coefficient(f,n div m);

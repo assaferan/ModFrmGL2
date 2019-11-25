@@ -47,6 +47,8 @@ intrinsic ImageInLevel(G::GrpPSL2 : N := Level(G)) -> GrpMat
      modLevel := ModLevel(G);
      if #modLevel eq 1 then
         G`ImageInLevel := modLevel;
+     elif IsGamma(G) then
+       G`ImageInLevel := sub<modLevel|-modLevel!1>;
      else
        gens := [[1,1,0,1],[-1,0,0,-1]];
        if IsGamma0(G) then
@@ -73,16 +75,19 @@ intrinsic ImageInLevelGL(G::GrpPSL2) -> GrpMat
 {The image of G in SL_2(Z/NZ), where N is the level.}
   if not assigned G`ImageInLevelGL then 
      modLevel := ModLevelGL(G);
-     if #modLevel eq 1 then
+     if (#modLevel eq 1) then
         G`ImageInLevelGL := modLevel;
      else
-       gens := [[1,1,0,1],[-1,0,0,-1]];
+       gens := [[-1,0,0,-1]];
        N := Level(G);
        Z_N := Integers(N);
        U, psi := UnitGroup(Z_N);
        for t in Generators(U) do
 	  Append(~gens, [psi(t),0,0,1]);
        end for;
+       if IsGamma1(G) or IsGamma0(G) then
+          Append(~gens, [1,1,0,1]);
+       end if;
        if IsGamma0(G) then
           for t in Generators(U) do
             Append(~gens, [1,0,0,psi(t)]);
@@ -125,6 +130,28 @@ intrinsic ModLevelGL(G::GrpPSL2) -> GrpMat
      end if;
   end if;
   return G`ModLevelGL;
+end intrinsic;
+
+intrinsic GetFindCoset(G::GrpPSL2) -> Map
+{.}
+  if not assigned G`FindCoset then
+    cosets, find_coset := Transversal(ModLevel(G), ImageInLevel(G));
+    N := Level(G);
+    if N eq 1 then
+      G`FS_cosets := [PSL2(BaseRing(G))!1];
+    else
+      G`FS_cosets := [PSL2(BaseRing(G)) | FindLiftToSL2(c) : c in cosets];
+    end if;
+    codom := [<i, cosets[i]^(-1)> : i in [1..#cosets]];
+    coset_idx := map<cosets -> codom |
+       [<cosets[i], codom[i] > : i in [1..#cosets]] >;
+    G`FindCoset := find_coset*coset_idx;
+    det_cosets := Transversal(ImageInLevelGL(G), ImageInLevel(G));
+    dom := [Determinant(x) : x in det_cosets];
+    G`DetRep := map< dom -> ImageInLevelGL(G) |
+     [<Determinant(x),x> : x in det_cosets] >;
+  end if;
+  return G`FindCoset;
 end intrinsic;
 
 intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt

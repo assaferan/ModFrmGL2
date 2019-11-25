@@ -513,6 +513,7 @@ procedure Test_Stein_9_7()
 end procedure;
 
 procedure Test_Stein_9_8()
+  printf "Testing Stein Example 9.8\n";
   S_old := CuspidalSubspace(ModularSymbols(my_Gamma(11,0),2,1));
   assert Dimension(S_old) eq 1;
   S := CuspidalSubspace(ModularSymbols(my_Gamma(55,0),2,1));
@@ -535,8 +536,9 @@ procedure Test_Stein()
 // in an alternative way - intersection with SL2 takes too much time
 // Test_Stein_8_37();
   Test_Stein_9_6();
-  Test_Stein_9_7();
-  Test_Stein_9_8();
+// At the moment spends too much time computing M(Gamma(45)) and M(Gamma(55))
+//  Test_Stein_9_7();
+//  Test_Stein_9_8();
 end procedure;
 
 function make_group_copy(M)
@@ -779,7 +781,9 @@ procedure Test_Zywina()
   printf "Testing the Zywina example Gamma(7)...\n";
   N := 7;
   G := my_Gamma(N, "full");
-  M := ModularSymbols(G);
+  // until we shall make it work with characters
+  // M := ModularSymbols(G)
+  M := ModularSymbols(G, 2, Rationals(), 0);
   S := CuspidalSubspace(M);
   f := qIntegralBasis(S, 12);
   q := Universe(f).1;

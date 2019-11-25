@@ -413,8 +413,10 @@ end function;
 //////////////////////////////////////////////////////////////////////////
  
 function ManinSymbolGenList(k,G,F)
-   coset_list := [c : c in Codomain(Components(G`FindCoset)[1])];
-   find_coset := G`FindCoset;
+   // coset_list := [c : c in Codomain(Components(G`FindCoset)[1])];
+   // find_coset := G`FindCoset;
+   find_coset := GetFindCoset(G);
+   coset_list := [c : c in Codomain(Components(find_coset)[1])];
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
    return rec<CManSymGenList |
@@ -703,7 +705,7 @@ function XXXManinSymbolsGeneralizedWeightedAction(
 
    Z := Integers();
    coset_list_size := #list;
-   K := Parent(eps[1]);
+   K := BaseRing(eps);
    v := VectorSpace(K,#S)!0;
    if #S eq 0 then 
       return v;

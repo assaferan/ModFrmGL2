@@ -318,6 +318,7 @@ declare attributes ModSym:
          dual_hecke_operator,
          projection_matrix,
          standard_images,       // images of standard basis vectors
+         standard_images_squares,
          standard_images_all, 
          degeneracy_matrices_out,    // outgoing maps
          degeneracy_matrices_in,     // incoming maps

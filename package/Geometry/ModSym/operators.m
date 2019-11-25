@@ -493,11 +493,19 @@ with respect to Basis(M).}
          eps := DirichletCharacter(M);
          if IsOfGammaType(M) then
             eps_val := Evaluate(eps,p);
-	 else
-	    eps_val := Evaluate(eps, Parent(eps)`OriginalDomain![p,0,0,p]);
-         end if;
-         T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
+            T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
             - eps_val*p^(Weight(M)-1)*HeckeOperator(M,p^(r-2));
+	 else
+	   // eps_val := Evaluate(eps, Parent(eps)`OriginalDomain![p,0,0,p]);
+	   if Level(M) div p eq 0 then
+	      T := HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := true);
+           else      
+               use_cremona := BaseField(M) cmpeq RationalField() and Weight(M)
+	                     eq 2 and IsTrivial(DirichletCharacter(M));
+	       T := HeckeOperatorHeilbronn(M, Heilbronn(M, p^2,
+							not use_cremona));
+           end if;
+         end if;
       else  // T_m*T_r := T_{mr} and we know all T_i for i<n.
          m  := fac[1][1]^fac[1][2];
          T  := HeckeOperator(M,m)*HeckeOperator(M,n div m);
@@ -577,166 +585,118 @@ function HeckeNSCartanRepresentatives(G,p,plus)
   return R;
 end function;
 
+// This was wrong - looked at representative for Gamma0(N^2)
+// instead of for Gamma1(N^2)
+/*
 function HeckeFullCongruenceRepresentatives(N,p)
-  // Assumes p does not divide N
-  d, x, y := ExtendedGreatestCommonDivisor(N^2,p); 
-  R := [[1,r*x*N^2,0,p] : r in [0..p-1]];
-  Append(~R, [p*y,-x*N,p*N,p]);
+  U, psi := UnitGroup(Integers(N));
+  U := [Integers()!psi(u) : u in U];
+  x := AssociativeArray(U);
+  y := AssociativeArray(U);
+  for d in U do
+    one, x[d], y[d] := XGCD(d, N^2);
+  end for;
+  idxs := CartesianProduct(U,[0..p-1]);
+  R := [];
+  for idx in idxs do
+    d := idx[1];
+    r := idx[2];
+    Append(~R, [x[d], (x[d]*r-y[d]*p)*N, N, N^2*r-p*d]);
+  end for;
+  if (N mod p ne 0) then
+    for d in U do
+       Append(~R, [p*x[d], -N*y[d], p*N, d]);
+    end for;
+  end if;
   return R;
 end function;
+*/
+
+function HeckeFullCongruenceRepresentatives(N,p : Squared := false)
+  GL2Q := GL(2, Rationals());
+  alpha_N := GL2Q![1,0,0,N];
+  if Squared then
+    reps := [GL2Q![1,r,0,p^2] : r in [0..p^2-1]];
+    if N mod p ne 0 then
+      reps := reps cat [GL2Q![p,r,0,p] : r in [0..p-1]] cat [GL2Q![p^2,0,0,1]];
+    end if;
+  else
+    reps := [GL2Q![1,r,0,p] : r in [0..p-1]];
+    if N mod p ne 0 then
+      Append(~reps, [GL2Q![p,0,0,1]]);
+    end if;
+  end if;
+  coset_reps := [GL2Q![1-r*N, -r^2, N^2, 1+r*N] : r in [0..N-1]];
+  R := &cat[[Eltseq(alpha_N^(-1)*c*r*alpha_N) : c in coset_reps] : r in reps];
+  return R;
+end function;
+
 
 // Here H = alpha * Gamma(1) * alpha^(-1) meet Gamma(1)
 // for alpha=diag(a,b) with a|b, this is simply Gamma0(b/a)
 
-// TODO !!! This is just wrong !!!
-// In general [1,0,0,p] might not be the correct global representative
-// Works for subgroups containing Gamma1(N)
+// TODO !!! For some reason this does not work\ !!!
+// e.g. when G := Gamma(22) and p := 2
 
 function HeckeGeneralCaseRepresentatives(G,p)
-  alpha := GL(2,Rationals())![1,0,0,p];
-  H := Gamma0(p);
-  return HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H);
+  N := Level(G);
+  GL2Q := GL(2, Rationals());
+  R_full := [GL2Q!r : r in HeckeFullCongruenceRepresentatives(N,p)];
+  D := Transversal(ImageInLevel(G), ImageInLevel(CongruenceSubgroup(N)));
+  D_lift := [Eltseq(FindLiftToSL2(d)) : d in D];
+  coset_reps := [GL2Q!([Integers()!x : x in Eltseq(g)]) : g in D_lift];
+  return &cat[[Eltseq(r*g) : g in coset_reps] : r in R_full];
 end function;
 
-import "subspace.m" : prepare_old_spaces;
-
-import "decomp.m" : get_NN;
-
-import "modsym.m" : ModularSymbolsSub;
-
-forward ActionOnModularSymbolsBasisBetween;
-
-function HeckeNew(M)
-  // N := Level(M);
-  N := CuspWidth(LevelSubgroup(M), Infinity());
-  G := LevelSubgroup(M);
-  NN := get_NN(M);
-  old := prepare_old_spaces(M, NN);
-  cusp_widths := [CuspWidth(LevelSubgroup(m), Infinity()) : m in old]; 
-  I := [i : i in [1..#old] | cusp_widths[i] ne N];
-  Dmats := <>;
-// DDmats := <>;
-  for i in I do
-     if Dimension(old[i]) ne 0 then
-/*
-       D := Transversal(ImageInLevel(LevelSubgroup(old[i])),
-	                 ImageInLevel(G));
-       D_lift := [PSL2(Integers()) | FindLiftToSL2(d) : d in D];
-       R := [Eltseq(Matrix(d)) : d in D_lift];
-       eps_res := DirichletCharacter(old[i]);
-       eps_vals := [(d@eps_res)^(-1) : d in D];
-       mat := &+[eps_vals[j] *
-		  ActionOnModularSymbolsBasisBetween(R[j], old[i], M)
-                  : j in [1..#R]];
-       Append(~DDmats, Transpose(mat));
-*/
-       Append(~Dmats, ActionOnModularSymbolsBasisBetween([1,0,0,1], M, old[i]));
-    end if;
-  end for;
-  if #Dmats eq 0 then
-    return M;
-  end if;
-  D := HorizontalJoin(Dmats);
-//  DD := HorizontalJoin(DDmats);
-  KD := Kernel(D);
-//  KDD := Kernel(DD);
-  Mnew := ModularSymbolsSub(M, KD);
-//  Mnew`dual_representation := KDD;
-  return Mnew;
-end function;
-
-function HeckeNewDecomposition(M)
-  //N := Level(M);
-  N := CuspWidth(LevelSubgroup(M), Infinity());
-  G := LevelSubgroup(M);
-  NN := get_NN(M);
-  old := prepare_old_spaces(M, NN);
-  new_old := [HeckeNew(m) : m in old];
-  cusp_widths := [CuspWidth(LevelSubgroup(m), Infinity()) : m in old]; 
-  divs := Divisors(N);
-  V := AssociativeArray(divs);
-  for t in divs[2..#divs] do
-     I := [i : i in [1..#old] | cusp_widths[i] eq N div t];
-     im_old := [];
-     for i in I do
-	B := Basis(VectorSpace(new_old[i]));
-        f := DegeneracyMatrix(new_old[i], M, GL(2,Rationals())!1);
-        for b in B do
-	  v := b*f;
-          Append(~im_old, v);
-        end for;
-     end for;
-     V[t] := sub<VectorSpace(M) | im_old>;
-  end for;
-  V[1] := VectorSpace(HeckeNew(M));
-  return V;
-end function;
-
-function HeckeTDecomposition(M)
-  N := Level(M);
-  F := CyclotomicField(N);
-  zeta_N := F.1;
-  U, psi := UnitGroup(Integers(N));
-  U := [Integers()!psi(u) : u in U];
-  T := ActionOnModularSymbolsBasis([1,1,0,1],M); 
-  T := Transpose(ChangeRing(T, F));
-  divs := Divisors(N);
-  V := AssociativeArray(divs);
-  for t in divs do
-    zeta_N_t := zeta_N^t;
-    V[t] := ChangeRing(&+[Eigenspace(T,zeta_N_t^u) : u in U], BaseRing(M));
-  end for;
-  return V;
-end function;
-
-// This function is specific for Gamma(N)
-// It follows the treatment in Ogg
-// It would also work whenever [1,1,0,1] normalizes the group
-// Tried to change it to work for arbitrary level, but something
-// still is not working.
-function HeckeDividingTheLevel(M,p)
-  //N := Level(M);
-  N := CuspWidth(LevelSubgroup(M), Infinity());
-  divs := Divisors(N);
-  //  V := HeckeTDecomposition(M);
-  V := HeckeNewDecomposition(M);
-  dims := [Dimension(V[t]) : t in divs];
-  B := Matrix(&cat[Basis(V[t]) : t in divs]);
-  // creating projections
-  P := AssociativeArray(divs);
-  d := &+dims;
-  start := 0;
-  for i in [1..#divs] do
-     t := divs[i];
-     diag := [0 : j in [1..start]] cat [1 : j in [1..dims[i]]];
-     diag := diag cat [0 : j in [1..d-dims[i]-start]];
-     P[t] := B^(-1) * DiagonalMatrix(BaseRing(M), d, diag) * B;
-     start := start + dims[i];
-  end for;
-  // creating Hecke Operators
-  T := AssociativeArray(divs);
-  for t in divs do
-    R := [[1, b*N div t, 0, p] : b in [0..p-1]];
-    T[t] := &+[ActionOnModularSymbolsBasis(g,M) : g in R];
-  end for;
-  return &+[T[t]*P[t] : t in divs];
-end function;
-
-function HeckeOperatorDirectlyOnModularSymbols(M,p)
+function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
    assert Type(M) eq ModSym;
    assert Type(p) eq RngIntElt;
    assert IsPrime(p);
+   N := Level(M);
    if IsOfGammaType(M) then
       R := [[1,r,0,p] : r in [0..p-1]];
-      if Level(M) mod p ne 0 then
+      if N mod p ne 0 then
          Append(~R,[p,0,0,1]);
       end if;
+   elif IsGamma(LevelSubgroup(M)) then  
+     R := HeckeFullCongruenceRepresentatives(N,p : Squared := Squared);
    else
-     N := Level(M);
-     assert N mod p eq 0;  // Otherwise we should not be here
-     return HeckeDividingTheLevel(M,p);  
+     /*
+     // TODO: !!! This should also work with direct action on representatives
+     M_full := ModularSymbols(CongruenceSubgroup(N), Weight(M),
+			   BaseRing(M), Sign(M));
+     i1 := DegeneracyMatrix(M, M_full, GL(2,Rationals())!1);
+     i2 := DegeneracyMatrix(M_full, M, GL(2,Rationals())!1);
+     // Heil := Heilbronn(M, 1, true);           
+     // i2 := GeneralizedHeilbronnOperator(M, M_full, Heil : t:=GL2Q!1);
+     // same as
+     // B_full := ModularSymbolsBasis(M_full);
+     // DB_full := [ModularSymbolApply([1,0,0,1], b) : b in B_full];
+     // i2  :=
+     // [Representation(ConvFromModularSymbol(M,d) : d in DB_full];
+     // B := ModularSymbolsBasis(M);
+     // im_G := ImageInLevel(LevelSubgroup(M));
+     // D := Transversal(im_G, ImageInLevel(LevelSubgroup(M_full)));
+     // D_lift := [PSL2(Integers()) | FindLiftToSL2(dd) : dd in D];
+     // R := [Eltseq(dd) : dd in D_lift];
+     // eps := DirichletCharacter(M);
+     // eps_vals := [(dd@eps)^(-1) : dd in D];
+     // i1   := [ &+[eps_vals[j]*
+     //                 Representation(ConvFromModularSymbol(M_full,
+     //                         ModularSymbolApply(M, R[j], b))) :
+     //			       j in [1..#R]] : b in B];
+     factor := Index(CongruenceSubgroup(N)) / Index(LevelSubgroup(M));
+     return i1 * HeckeOperatorModSym(M_full, p) * i2 / factor;
+     */
+     R := HeckeGeneralCaseRepresentatives(LevelSubgroup(M),p);
    end if;
-   return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
+   factor := #R;
+   if Level(M) mod p eq 0 then
+      factor := factor div p;
+   else
+      factor := factor div (p+1);
+   end if;
+   return &+[ActionOnModularSymbolsBasis(g,M) : g in R] / factor;
 end function;
 
 function get_general_phi(G)
@@ -1153,6 +1113,7 @@ function TnSparse(M, Heil, sparsevec)
   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
 */
 
+  // !!! TODO : Write a sparse version of this
   if (not IsOfGammaType(M)) and
      (not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) then
       if Type(Heil) eq RngIntElt then
@@ -1310,7 +1271,11 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
       return Hom(Representation(M), Representation(M))!0;
    end if;
 
-   eps   := ValueList(DirichletCharacter(MM));
+   if IsOfGammaType(MM) then
+     eps   := ValueList(DirichletCharacter(MM));
+   else
+     eps := DirichletCharacter(MM);
+   end if;
    k     := Weight(MM);
 
    ambM  := AmbientSpace(M);
@@ -1400,12 +1365,13 @@ require computing the full Hecke operator.}
    if not assigned M`standard_images then
       M`standard_images := [[Representation(M)|] : i in [1..Dimension(M)]];
    end if;
-   if #M`standard_images[i] lt PrimePos(n) then  // generate more images...
+   m := NextPrime(n);
+   if #M`standard_images[i] lt PrimePos(m) then  // generate more images...
       p := NthPrime(#M`standard_images[i]+1);
       new_images := [Universe(M`standard_images[i])|]; // avoid copy inside loop
       s := SparseRepresentation(VectorSpace(M).i);  
       while p le n do 
-		Append(~new_images, TnSparse(M, p, s));
+	 Append(~new_images, TnSparse(M, p, s));
          p := NextPrime(p);
       end while;
       M`standard_images[i] := M`standard_images[i] cat new_images;
@@ -1413,6 +1379,34 @@ require computing the full Hecke operator.}
    return M`standard_images[i];       
 end intrinsic;
 
+intrinsic HeckeImagesSquarePrimes(M::ModSym, i::RngIntElt,
+				  n::RngIntElt) -> SeqEnum
+{The images of the ith standard basis vector
+ under the Hecke operators Tp^2 for p^2<=n the square of a prime.
+These are computed using sparse methods that don't
+require computing the full Hecke operator.}  
+   assert 1 le i and i le Dimension(M);
+   if not IsAmbientSpace(M) then
+      return HeckeImagesSquarePrimes(AmbientSpace(M),i,n);
+   end if;
+   if not assigned M`standard_images_squares then
+      M`standard_images_squares := [
+	     [Representation(M)|] : i in [1..Dimension(M)]];
+   end if;
+   m := NextPrime(Floor(SquareRoot(n)));
+   if #M`standard_images_squares[i] lt PrimePos(m) then
+      p := NthPrime(#M`standard_images_squares[i]+1);
+      new_images := [Universe(M`standard_images_squares[i])|];
+      s := SparseRepresentation(VectorSpace(M).i);  
+      while p^2 le n do 
+	 Append(~new_images, TnSparse(M, p^2, s));
+         p := NextPrime(p);
+      end while;
+      M`standard_images_squares[i] := M`standard_images_squares[i]
+	cat new_images;
+   end if;      
+   return M`standard_images_squares[i];       
+end intrinsic;
 
 intrinsic HeckeImagesAll(M::ModSym, i::RngIntElt, n::RngIntElt) -> SeqEnum
 {The images of the ith standard basis vector

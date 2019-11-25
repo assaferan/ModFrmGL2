@@ -523,7 +523,7 @@ function prepare_old_spaces(M, primes)
    G_N := ImageInLevelGL(G);
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
-   gens := Generators(H);
+   // gens := Generators(H);
    H_N := ImageInLevelGL(H);
    pi_Q := Parent(eps)`QuotientMap;
 
