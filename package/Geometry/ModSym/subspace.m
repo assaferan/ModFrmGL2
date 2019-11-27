@@ -208,7 +208,8 @@ end intrinsic;
 */ 
 
 
-function PlusSubspaceSub(M) 
+function PlusSubspaceSub(M)
+  assert IsOfRealType(LevelSubgroup(M));
    if not assigned M`plus_part_sub then
        M`plus_part_sub := ModularSymbolsSub(M,
                            KernelOn(StarInvolution(M)-1, Representation(M)));
@@ -218,7 +219,8 @@ function PlusSubspaceSub(M)
 end function;
 
 
-function PlusSubspaceDual(M) 
+function PlusSubspaceDual(M)
+  assert IsOfRealType(LevelSubgroup(M));
    if not assigned M`plus_part_dual then
       M`plus_part_dual := ModularSymbolsDual(M,
                         KernelOn(DualStarInvolution(M)-1, DualRepresentation(M)));
@@ -229,6 +231,7 @@ end function;
 
 
 function MinusSubspaceSub(M)
+  assert IsOfRealType(LevelSubgroup(M));
    if not assigned M`minus_part_sub then
       M`minus_part_sub := ModularSymbolsSub(M,
                       KernelOn(StarInvolution(M)+1, Representation(M)));
@@ -239,6 +242,7 @@ end function;
 
 
 function MinusSubspaceDual(M)
+  assert IsOfRealType(LevelSubgroup(M));
    if not assigned M`minus_part_dual then
       M`minus_part_dual := ModularSymbolsDual(M,
                         KernelOn(DualStarInvolution(M)+1, 
@@ -250,6 +254,7 @@ end function;
 
 function PlusSubspace(M)
    assert Type(M) eq ModSym;
+   assert IsOfRealType(LevelSubgroup(M));
    if not assigned M`plus_subspace then
       M`plus_subspace := ModularSymbolsDual(M,
                                        KernelOn(DualStarInvolution(M)-1, 
@@ -264,6 +269,7 @@ end function;
 
 function MinusSubspace(M)
    assert Type(M) eq ModSym;
+   assert IsOfRealType(LevelSubgroup(M));
    if not assigned M`minus_subspace then
       M`minus_subspace := ModularSymbolsDual(M,
                                        KernelOn(DualStarInvolution(M)+1, 
@@ -585,7 +591,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
          end if;
       end for;
    else
-     alphas := [];
+     alphas := AssociativeArray([1..#old]);
      for i in [1..#old] do
          if Dimension(old[i]) gt 0 then
 	    oldp := Parent(DirichletCharacter(old[i]))`Gamma;
@@ -608,8 +614,8 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
             conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
 				  is_coercible[j]];
             is_good := [&and[g in oldp : g in cg] : cg in conj_gens];
-            Append(~alphas,[candidates[j] : j in [1..#candidates] |
-			 is_good[j]]);
+            alphas[i] := [candidates[j] : j in [1..#candidates] |
+			 is_good[j]];
             for alpha in alphas[i] do
 	       alpha_inv := Eltseq(alpha^(-1));
                Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
