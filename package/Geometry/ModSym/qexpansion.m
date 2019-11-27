@@ -206,9 +206,15 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
       end if;
 
       if assigned M`associated_new_space then
-         if Level(AssociatedNewSpace(M)) lt Level(M) then
-            return qEigenform(AssociatedNewSpace(M),prec);   
-         end if;
+	 if IsOfGammaType(M) then
+           if Level(AssociatedNewSpace(M)) lt Level(M) then
+              return qEigenform(AssociatedNewSpace(M),prec);   
+           end if;
+	 else
+	   if LevelSubgroup(M) ne LevelSubgroup(AssociatedNewSpace(M)) then
+              return qEigenform(AssociatedNewSpace(M),prec);   
+           end if;
+	 end if;
       end if;
 
       if Characteristic(BaseField(M)) eq 0 then		 
@@ -641,7 +647,9 @@ function SpaceGeneratedByImages(C, N, F, do_saturate, prec : debug:=false)
      V := VectorSpace(BaseRing(V0), prec);
      // WARNING: V0 could have dimension *less* than prec-1
      ans := [V| ];
-//"Messing around with vectors"; time 
+//"Messing around with vectors"; time
+   // !!!! TODO : Fix that for arbitrary congruence subgroup
+   // !!!! have to use appropriate degeneracy maps
      for b in C do 
         for d in Divisors(N) do 
            v := [BaseRing(V)| 0 : i in [0..Dimension(V)-1]];  // the 0'th entry will stay 0

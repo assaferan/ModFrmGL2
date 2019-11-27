@@ -474,7 +474,7 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 
    elif G1 subset G2 then  // G1 subset G2 -- lower  
       require (Level(G1) div Level(G2)) mod det eq 0 :
-              "Determinant of argument 3 must divide Level(M1) div Level(M2).";
+              "Determinant of argument 3 must divide Level(G1) div Level(G2).";
       eps1 := DirichletCharacter(M1);
       eps2 := DirichletCharacter(M2);
       bool, eps21 := IsCoercible(Parent(eps1), eps2);
@@ -503,7 +503,7 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 
    elif G2 subset G1 then// G2 subset G1 -- raise level
       require (Level(G2) div Level(G1)) mod det eq 0 : 
-          "Determinant of Argument 3 must divide Level(M2) div Level(M1).";
+          "Determinant of Argument 3 must divide Level(G2) div Level(G1).";
       eps1 := DirichletCharacter(M1);
       eps2 := DirichletCharacter(M2);
       // bool, eps12 := IsCoercible(Parent(eps2), eps1);

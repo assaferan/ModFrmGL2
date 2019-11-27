@@ -1381,12 +1381,26 @@ return M3, otherwise terminate with an error.}
          return M2;
        end if;
    end if;
-
+/*
+   if IsOfGammaType(M1) then
+     level1 := Level(M1);
+     level2 := Level(M2);
+   else
+     level1 := Index(LevelSubgroup(M1));
+     level2 := Index(LevelSubgroup(M2));
+   end if;
+*/
    divisors := Divisors(Level(M1) mod Level(M2) eq 0 select
                            Level(M1) div Level(M2) 
                         else
                            Level(M2) div Level(M1));
 
+/*
+   divisors := Divisors(level1 mod level2 eq 0 select
+                           level1 div level2 
+                        else
+                           level2 div level1);
+*/
    if not IsOfGammaType(M1) then
       candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]] :
 		     a in Divisors(n)] : n in divisors];
@@ -1412,8 +1426,21 @@ return M3, otherwise terminate with an error.}
       conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
 				  is_coercible[j]];
       is_good := [&and[g in H : g in cg] : cg in conj_gens];
-      divisors := [candidates[j] : j in [1..#candidates] |
+      single_divisors := [candidates[j] : j in [1..#candidates] |
 			 is_good[j]];
+      // Now multiplying by conjugations in SL2Z
+      conjs := Conjugates(ModLevelGL(G2), ImageInLevelGL(G2));
+      old_conjs := [c : c in conjs | ImageInLevelGL(G1) subset c];
+      alphas := [];
+      for old_conj in old_conjs do
+        con, alpha := IsConjugate(ModLevelGL(G2), ImageInLevelGL(G2), old_conj);
+        Append(~alphas, alpha);
+      end for;
+      det_reps := [G1`DetRep(Determinant(alpha)) :  alpha in alphas];
+      betas := [alphas[i] * det_reps[i]^(-1) : i in [1..#alphas]];
+      beta_lifts := [GL(2,Rationals())!Eltseq(FindLiftToSL2(beta)) :
+			beta in betas];
+      divisors := &cat[[beta * d : d in single_divisors] : beta in beta_lifts];
    end if;
 
    B := Basis(VectorSpace(M2));

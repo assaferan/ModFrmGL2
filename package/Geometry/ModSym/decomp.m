@@ -555,6 +555,28 @@ function get_NN(M)
    NN := [N];
    NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
    Append(~NN, ModLevelGL(G));
+
+   NN_idxs := AssociativeArray();
+   for nn in NN do
+     idx := Index(nn,N);
+     if IsDefined(NN_idxs,idx) then  
+       Append(~NN_idxs[idx], nn);
+     else
+       NN_idxs[idx] := [nn];         
+     end if;
+   end for;
+   // There should be a more efficient way of doing that, e.g.
+   // using union find, but I have despaired of doing so in Magma
+   idxs := Keys(NN_idxs);
+   for idx in idxs do
+      Nidx := NN_idxs[idx];
+      is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];
+      NN_idxs[idx] := {[Nidx[i] : i in [1..#Nidx] |
+			    is_conj[i][j]] : j in [1..#Nidx]};
+   end for;
+   // One of each conjugacy class
+   NN := &cat[[y[1] : y in NN_idxs[idx]] : idx in idxs];
+   
    return NN;
 end function;
 

@@ -585,33 +585,6 @@ function HeckeNSCartanRepresentatives(G,p,plus)
   return R;
 end function;
 
-// This was wrong - looked at representative for Gamma0(N^2)
-// instead of for Gamma1(N^2)
-/*
-function HeckeFullCongruenceRepresentatives(N,p)
-  U, psi := UnitGroup(Integers(N));
-  U := [Integers()!psi(u) : u in U];
-  x := AssociativeArray(U);
-  y := AssociativeArray(U);
-  for d in U do
-    one, x[d], y[d] := XGCD(d, N^2);
-  end for;
-  idxs := CartesianProduct(U,[0..p-1]);
-  R := [];
-  for idx in idxs do
-    d := idx[1];
-    r := idx[2];
-    Append(~R, [x[d], (x[d]*r-y[d]*p)*N, N, N^2*r-p*d]);
-  end for;
-  if (N mod p ne 0) then
-    for d in U do
-       Append(~R, [p*x[d], -N*y[d], p*N, d]);
-    end for;
-  end if;
-  return R;
-end function;
-*/
-
 function HeckeFullCongruenceRepresentatives(N,p : Squared := false)
   GL2Q := GL(2, Rationals());
   alpha_N := GL2Q![1,0,0,N];
@@ -631,17 +604,11 @@ function HeckeFullCongruenceRepresentatives(N,p : Squared := false)
   return R;
 end function;
 
-
-// Here H = alpha * Gamma(1) * alpha^(-1) meet Gamma(1)
-// for alpha=diag(a,b) with a|b, this is simply Gamma0(b/a)
-
-// TODO !!! For some reason this does not work\ !!!
-// e.g. when G := Gamma(22) and p := 2
-
-function HeckeGeneralCaseRepresentatives(G,p)
+function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
   N := Level(G);
   GL2Q := GL(2, Rationals());
-  R_full := [GL2Q!r : r in HeckeFullCongruenceRepresentatives(N,p)];
+  R_full := [GL2Q!r : r in HeckeFullCongruenceRepresentatives(N,p
+						 : Squared := Squared)];
   D := Transversal(ImageInLevel(G), ImageInLevel(CongruenceSubgroup(N)));
   D_lift := [Eltseq(FindLiftToSL2(d)) : d in D];
   coset_reps := [GL2Q!([Integers()!x : x in Eltseq(g)]) : g in D_lift];
@@ -662,39 +629,23 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
      R := HeckeFullCongruenceRepresentatives(N,p : Squared := Squared);
    else
      /*
-     // TODO: !!! This should also work with direct action on representatives
+     // Here i the conceptual way of what is going on here
      M_full := ModularSymbols(CongruenceSubgroup(N), Weight(M),
 			   BaseRing(M), Sign(M));
      i1 := DegeneracyMatrix(M, M_full, GL(2,Rationals())!1);
      i2 := DegeneracyMatrix(M_full, M, GL(2,Rationals())!1);
-     // Heil := Heilbronn(M, 1, true);           
-     // i2 := GeneralizedHeilbronnOperator(M, M_full, Heil : t:=GL2Q!1);
-     // same as
-     // B_full := ModularSymbolsBasis(M_full);
-     // DB_full := [ModularSymbolApply([1,0,0,1], b) : b in B_full];
-     // i2  :=
-     // [Representation(ConvFromModularSymbol(M,d) : d in DB_full];
-     // B := ModularSymbolsBasis(M);
-     // im_G := ImageInLevel(LevelSubgroup(M));
-     // D := Transversal(im_G, ImageInLevel(LevelSubgroup(M_full)));
-     // D_lift := [PSL2(Integers()) | FindLiftToSL2(dd) : dd in D];
-     // R := [Eltseq(dd) : dd in D_lift];
-     // eps := DirichletCharacter(M);
-     // eps_vals := [(dd@eps)^(-1) : dd in D];
-     // i1   := [ &+[eps_vals[j]*
-     //                 Representation(ConvFromModularSymbol(M_full,
-     //                         ModularSymbolApply(M, R[j], b))) :
-     //			       j in [1..#R]] : b in B];
      factor := Index(CongruenceSubgroup(N)) / Index(LevelSubgroup(M));
      return i1 * HeckeOperatorModSym(M_full, p) * i2 / factor;
      */
-     R := HeckeGeneralCaseRepresentatives(LevelSubgroup(M),p);
+     R := HeckeGeneralCaseRepresentatives(LevelSubgroup(M),p :
+					Squared := Squared);
    end if;
+   r := Squared select 2 else 1;
    factor := #R;
    if Level(M) mod p eq 0 then
-      factor := factor div p;
+      factor := factor div p^r;
    else
-      factor := factor div (p+1);
+      factor := factor div &+[p^j : j in [0..r]];
    end if;
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R] / factor;
 end function;
@@ -1124,25 +1075,27 @@ function TnSparse(M, Heil, sparsevec)
       N := Level(M);
       // For now we always simply compute the whole Hecke operator,
       // because this seems more efficient, since it is properly cached, etc.
-      // if (not IsPrime(n) then   // just compute the whole Hecke operator.
-      if GCD(N,n) ne 1 then      
-         Tn := HeckeOperator(M,n);
-         V := VectorSpace(M);
-         v := &+[s[1]*V.s[2] : s in sparsevec];      
-         return v*Tn;
-      end if;
-/*
-      else  // n is prime   -- this code isn't used, as it is slower.
-         matrices := [[1,r,0,n] : r in [0..n-1]];
-         if Level(M) mod n ne 0 then
-     	    Append(~matrices,[n,0,0,1]);
-         end if;
-         return &+[s[1]*
+      if GCD(N,n) ne 1 then
+        fac := Factorization(n);
+        compute_direct := (#fac eq 1) and (fac[1][2] le 2);
+        if not compute_direct then   // just compute the whole Hecke operator.
+          Tn := HeckeOperator(M,n);
+          V := VectorSpace(M);
+          v := &+[s[1]*V.s[2] : s in sparsevec];      
+          return v*Tn;
+        else  // n is prime or a   -- this code isn't used, as it is slower.
+	  p := fac[1][1];
+          squared := fac[1][2] eq 2;
+          matrices := HeckeGeneralCaseRepresentatives(LevelSubgroup(M), p :
+					    Squared := squared);
+          factor := #matrices div n;
+          return &+[s[1]*
    	      &+[ActionOnModularSymbolsBasisElement(g,M,s[2]) :
-    	           g in matrices] : s in sparsevec];
+    	           g in matrices] : s in sparsevec] / factor;
+        end if;
       end if;
-*/
-  end if;
+   end if;    
+         
 
    // Now consider the characteristic-zero case.
    if Level(M) eq 1 then
@@ -1500,7 +1453,7 @@ end intrinsic;
 
 
 intrinsic HeckeBound(M::ModSym) -> RngIntElt
-{A positive integer n = (k/12)*[SL_2(Z):Gamma_0(N)] 
+{A positive integer n = (k/12)*[SL_2(Z):Gamma] 
 such that the Hecke operators  T1,...,Tn acting on cusp forms
 generate the Hecke algebra as a Z-module when
 the character is trivial or quadratic.  Otherwise, T1,...,Tn 
@@ -1511,12 +1464,13 @@ where Z[eps] is the ring generated by the values of eps.}
       return HeckeBound(AmbientSpace(M));
    end if;
    if not assigned M`hecke_bound then
-      if IsMultiChar(M) then
-         M`hecke_bound := Ceiling(Weight(M) * idxG1(Level(M)) / 12);
-         return M`hecke_bound;
-      end if;
+      if IsOfGammaType(M) then
+         if IsMultiChar(M) then
+            M`hecke_bound := Ceiling(Weight(M) * idxG1(Level(M)) / 12);
+            return M`hecke_bound;
+         end if;
 
-      b := Ceiling(Weight(M) * idxG0(Level(M)) / 12);
+         b := Ceiling(Weight(M) * idxG0(Level(M)) / 12);
 
 /*  I was really worried about the following for a while.  The counterexample I point
     out below doesn't seem to be a problem -- maybe it was the result of a different
@@ -1545,8 +1499,12 @@ where Z[eps] is the ring generated by the values of eps.}
          b *:= 2;
       end if;
 */
-      M`hecke_bound := b;
-   end if;
+         M`hecke_bound := b;
+      else
+        G := LevelSubgroup(M);
+        M`hecke_bound := Ceiling(Weight(M) * Index(G) / 12);
+      end if; 
+    end if;   // if not assigned M`hecke_bound   
    return M`hecke_bound;
 end intrinsic;
 
