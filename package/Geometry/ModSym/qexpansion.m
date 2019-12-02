@@ -190,6 +190,66 @@ extension of the base field of M.}
    return qEigenform(M,prec);
 end intrinsic;
 
+intrinsic eigenvecToEigenform(M::ModSym, eig::ModTupFldElt,
+			      prec::RngIntElt) -> RngSerPowElt
+{.}
+   if IsVerbose("ModularSymbols") then
+      printf "Computing q-expansion of eigenform ... \n";
+      IndentPush();
+      tm := Cputime();
+  end if; 
+  require not (eig cmpeq false): "Argument 1 must correspond to a newform.";
+
+  if assigned M`one_over_ei then
+     i, ei, one_over_ei := Explode(M`one_over_ei);
+     if eig[i] cmpne ei then  // it came out of some other eig (now unknown)
+       one_over_ei := false; 
+     end if;
+  else 
+     one_over_ei := false;
+  end if;
+         
+  if one_over_ei cmpeq false then 
+    dummy := exists(i) { i : i in [1..Degree(eig)] | eig[i] ne 0 };
+  end if;
+
+  qeigenform := <1, PowerSeriesRing(Parent(eig[1]))!0>;
+      
+  if prec gt 10 then 
+    vprintf ModularSymbols,2: "Setting up the Tpei (for p less than %o) ... ",
+	                      prec;
+  end if;
+  time0 := Cputime();
+      
+  Tpei := HeckeImages(AmbientSpace(M),i, prec);   // "time critical"
+  if not IsOfGammaType(M) then
+    Tpei := <Tpei, HeckeImagesSquarePrimes(AmbientSpace(M), i, prec)>;
+  end if;
+   
+  vprintf ModularSymbols,2: "%os\n", Cputime(time0);
+
+  eps := DirichletCharacter(M);
+      
+  qeigenform[2], new_one_over_ei := Compute_qExpansion(qeigenform[1],
+							 qeigenform[2],
+                                                         prec, Tpei,
+                                                         eps, Weight(M),
+		                                         i, eig, false :
+							 one_over_ei:=
+							 one_over_ei);
+
+  qeigenform[1] := prec;
+  if one_over_ei cmpeq false then 
+    M`one_over_ei := <i, eig[i], new_one_over_ei>;
+  end if;
+  if IsVerbose("ModularSymbols") then
+    IndentPop();
+    printf " ... %os for computing q-expansion of eigenform\n", Cputime(tm);
+  end if;
+  
+  return qeigenform[2] + O((Parent(qeigenform[2]).1)^prec);
+end intrinsic;   
+ 
 intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
 {"} // "
    if IsMultiChar(M) then
@@ -737,50 +797,78 @@ function qExpansionBasisNewform(A, prec, do_saturate)
          print "Calling qEigenform ...";
          IndentPush(); time0 := Cputime();
       end if;
-      f := qEigenform(A,prec : debug:=debug);
+      old_eigforms := [qEigenform(A,prec : debug:=debug)];
+      if (not IsOfGammaType(A)) and
+	 (LevelSubgroup(A) ne LevelSubgroup(AssociatedNewSpace(A))) then
+	// This should exist now  !!! TODO : adapt for minus spaces
+	orig_eigvec := AssociatedNewSpace(A)`eigenplus;
+        F := BaseRing(orig_eigvec);
+        M_old := AmbientSpace(AssociatedNewSpace(A));
+        M := AmbientSpace(A);
+        dummy := exists(ii_out) { ii_out : ii_out in
+				  [1..#M_old`degeneracy_matrices_out] | 
+				  LevelSubgroup(M) eq
+				  M_old`degeneracy_matrices_out[ii_out][1] };
+        divs := [x[1] : x in M_old`degeneracy_matrices_out[ii_out][2] ];
+        alphas := [ChangeRing(DegeneracyMatrix(M, M_old, d),F) : d in divs];
+        old_eigvecs := [orig_eigvec * Transpose(alpha) : alpha in alphas];
+        old_eigforms := [eigenvecToEigenform(A, eig, prec) :
+					  eig in old_eigvecs];
+      end if;
+      //f := qEigenform(A,prec : debug:=debug);
       if debug then 
          IndentPop();
          printf " ... qEigenform took %os\n", Cputime(time0);
       end if;
-      Q := BaseRing(Parent(f));
-      V := VectorSpace(BaseField(A),#Eltseq(f));
-      if Q cmpeq BaseField(A) then
-         seq := Eltseq(f);
-         B := [V!seq];
-         F := (do_saturate and Type(BaseField(A)) eq FldRat) 
+      all_B := [];
+      dim := Maximum([#Eltseq(f) : f in old_eigforms] cat [prec-1]);
+      for f in old_eigforms do
+        Q := BaseRing(Parent(f));
+      //V := VectorSpace(BaseField(A),#Eltseq(f));
+        V := VectorSpace(BaseField(A), dim);
+        if Q cmpeq BaseField(A) then
+	   // seq := Eltseq(f);
+	   seq := Eltseq(f) cat [0 : i in [#Eltseq(f)+1..dim]];
+           B := [V!seq];
+           F := (do_saturate and Type(BaseField(A)) eq FldRat) 
                              select Integers() else BaseField(A);
-      else
-         if ISA( Type(Q), FldNum) then
-            V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
+        else
+           if ISA( Type(Q), FldNum) then
+              V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
                                                     // because Eltseq(f) omits trailing zeros
-            // TO DO: make the next line optimal
-            // time 
-            coeffs := [ Eltseq(Coefficient(f,i)) : i in [1..prec-1] ];
-            B := [V! [coeffs[i][j] : i in [1..#coeffs]] : j in [1..Degree(Q)]];
-            delete coeffs;
-         else
-            assert Type(Q) eq RngUPolRes;
-            // this is what was here previously:
-            g := Modulus(Q);
-            n := Degree(g);
-            R := PreimageRing(Q);
-            B := [V![Coefficient(R!a,j) : a in Eltseq(f)] : j in [0..n-1]];
-         end if;
-         if do_saturate 
-            and Type(BaseField(A)) eq FldRat then
-               // Steve changed this
-               // C := Basis(Saturate(B));
-               B := Saturation(Matrix(B));
-               r := Nrows(B);
-               B := [ B[i] : i in [1..r] ];
-               F := Integers();
-         else
-            F := BaseField(A);
-         end if;
-      end if;
-      assert #B gt 0;
+              // TO DO: make the next line optimal
+              // time 
+              coeffs := [ Eltseq(Coefficient(f,i)) : i in [1..prec-1] ];
+              B := [V! [coeffs[i][j] : i in [1..#coeffs]] : j in [1..Degree(Q)]];
+              delete coeffs;
+           else
+              assert Type(Q) eq RngUPolRes;
+              // this is what was here previously:
+              g := Modulus(Q);
+              n := Degree(g);
+              R := PreimageRing(Q);
+	      //B := [V![Coefficient(R!a,j) : a in Eltseq(f)] : j in [0..n-1]];
+	      seq := Eltseq(f) cat [0 : i in [#Eltseq(f)+1..dim]];
+	      B := [V![Coefficient(R!a,j) : a in seq] : j in [0..n-1]];
+           end if;
+           if do_saturate 
+              and Type(BaseField(A)) eq FldRat then
+                 // Steve changed this
+                 // C := Basis(Saturate(B));
+                 B := Saturation(Matrix(B));
+                 r := Nrows(B);
+                 B := [ B[i] : i in [1..r] ];
+                 F := Integers();
+           else
+              F := BaseField(A);
+           end if;
+        end if;
+        assert #B gt 0;
+	all_B cat:= B;
+      end for;
       // B may contain either vectors or power series (see SpaceGeneratedByImages)
-      return SpaceGeneratedByImages(B, Level(A) div Level(AssociatedNewSpace(A)), 
+      //      return SpaceGeneratedByImages(B, Level(A) div Level(AssociatedNewSpace(A)),
+      return SpaceGeneratedByImages(all_B, Level(A) div Level(AssociatedNewSpace(A)), 
                                     F, do_saturate, prec : debug:=debug);
    end if;
 end function;

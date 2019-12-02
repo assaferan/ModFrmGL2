@@ -654,11 +654,14 @@ then the 0 space is returned.
      eps := DirichletCharacter(M);
      GG := Parent(eps)`Gamma;
      GG_N := ImageInLevelGL(LevelSubgroup(M));
+//GG_N := ImageInLevel(LevelSubgroup(M));
    end if;
    GG_im := ImageInLevelGL(GG);
    GG_mod := ModLevelGL(GG);
 
-//   require G ne GG_mod : "Argument 2 must not be GL2(Z/NZ)."; 
+//GG_im := ImageInLevel(GG);
+// GG_mod := ModLevel(GG);
+
    require (G subset GG_im) or (GG_im subset G) :
         "Argument 2 must be a subgroup or an overgroup of the image of the level subgroup of argument 1 when reduced modulo the level.";
 

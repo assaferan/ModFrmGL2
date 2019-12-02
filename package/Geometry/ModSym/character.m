@@ -485,7 +485,9 @@ intrinsic Restrict(eps::GrpChrElt, G::GrpMat) -> GrpChrElt
 {Restrict epsilon to G}
    Gamma := PSL2Subgroup(G, false);
    N_G := Normalizer(ModLevelGL(Parent(eps)`Gamma), G);
+//N_G := Normalizer(ModLevel(Parent(eps)`Gamma), G);
    G_prime := sub<N_G | ImageInLevelGL(Parent(eps)`GammaPrime), G>;
+//G_prime := sub<N_G | ImageInLevel(Parent(eps)`GammaPrime), G>;
    Gamma_prime := PSL2Subgroup(G_prime, false);
    Q, pi_Q := Gamma_prime / Gamma;
    D := CharacterGroup(pi_Q, Gamma_prime, Gamma);
@@ -496,7 +498,9 @@ intrinsic Extend(eps::GrpChrElt, G::GrpMat) -> GrpChrElt
 {Restrict epsilon to G}
    Gamma := PSL2Subgroup(G, false);
    N_G := Normalizer(ModLevelGL(Parent(eps)`Gamma), G);
+//N_G := Normalizer(ModLevel(Parent(eps)`Gamma), G);
    G_prime := N_G meet ImageInLevelGL(Parent(eps)`GammaPrime);
+//G_prime := N_G meet ImageInLevel(Parent(eps)`GammaPrime);
    Gamma_prime := PSL2Subgroup(G_prime, false);
    Q, pi_Q := Gamma_prime / Gamma;
    D := CharacterGroup(pi_Q, Gamma_prime, Gamma);

@@ -550,11 +550,15 @@ end function;
 function get_NN(M)
    eps := DirichletCharacter(M);
    G_N := ImageInLevelGL(LevelSubgroup(M));
+//G_N := ImageInLevel(LevelSubgroup(M));
    G := Parent(eps)`Gamma;
    N := ImageInLevelGL(G);
+//N := ImageInLevel(G);
    NN := [N];
    NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
    Append(~NN, ModLevelGL(G));
+//NN := NN cat IntermediateSubgroups(ModLevel(G), ImageInLevel(G));
+// Append(~NN, ModLevel(G));
 
    NN_idxs := AssociativeArray();
    for nn in NN do
@@ -571,6 +575,7 @@ function get_NN(M)
    for idx in idxs do
       Nidx := NN_idxs[idx];
       is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];
+//      is_conj := [[IsConjugate(ModLevel(G), x, y) : x in Nidx] : y in Nidx];
       NN_idxs[idx] := {[Nidx[i] : i in [1..#Nidx] |
 			    is_conj[i][j]] : j in [1..#Nidx]};
    end for;
@@ -640,8 +645,11 @@ IsCuspidal(M) is true.}
         G := Parent(eps)`Gamma;
         G_N := ImageInLevelGL(LevelSubgroup(M));
         N := ImageInLevelGL(G);
+//G_N := ImageInLevel(LevelSubgroup(M));
+//      N := ImageInLevel(G);
         NN := get_NN(M);
         pnew := [p : p in MinimalOvergroups(ModLevelGL(G), N)
+//        pnew := [p : p in MinimalOvergroups(ModLevel(G), N)
 					    | IsNew(M,p)];
       end if;
 

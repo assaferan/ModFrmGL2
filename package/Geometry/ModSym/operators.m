@@ -453,10 +453,11 @@ with respect to Basis(M).}
 
    elif IsPrime(n) then
       if IsAmbientSpace(M) then
-      // Before adjusting Heilbronn to work for our case
-        if (GCD(n, Level(M)) ne 1) and
-           (not IsOfGammaType(M)) and (not IsGammaNS(M`G)) and
-				  (not IsGammaNSplus(M`G)) then
+      // Before adjusting Heilbronn to work for our case        
+        if (not IsOfGammaType(M))
+	  and ( ( ( not IsGammaNS(M`G) ) and ( not IsGammaNSplus(M`G) ) and
+		( GCD(n, Level(M)) ne 1 ) ) or
+	        ( #Domain(M`G`DetRep) eq 1 ) ) then
 	   T := HeckeOperatorDirectlyOnModularSymbols(M,n);
         else      
            use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
@@ -596,7 +597,7 @@ function HeckeFullCongruenceRepresentatives(N,p : Squared := false)
   else
     reps := [GL2Q![1,r,0,p] : r in [0..p-1]];
     if N mod p ne 0 then
-      Append(~reps, [GL2Q![p,0,0,1]]);
+      Append(~reps, GL2Q![p,0,0,1]);
     end if;
   end if;
   coset_reps := [GL2Q![1-r*N, -r^2, N^2, 1+r*N] : r in [0..N-1]];
@@ -1064,9 +1065,9 @@ function TnSparse(M, Heil, sparsevec)
   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
 */
 
-  // !!! TODO : Write a sparse version of this
   if (not IsOfGammaType(M)) and
-     (not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) then
+     ((not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) or
+      (#Domain(M`G`DetRep) eq 1) )  then
       if Type(Heil) eq RngIntElt then
 	 n := Heil;
       else
@@ -1075,7 +1076,7 @@ function TnSparse(M, Heil, sparsevec)
       N := Level(M);
       // For now we always simply compute the whole Hecke operator,
       // because this seems more efficient, since it is properly cached, etc.
-      if GCD(N,n) ne 1 then
+      if (GCD(N,n) ne 1) or (#Domain(M`G`DetRep) eq 1) then
         fac := Factorization(n);
         compute_direct := (#fac eq 1) and (fac[1][2] le 2);
         if not compute_direct then   // just compute the whole Hecke operator.

@@ -338,11 +338,13 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    G     := LevelSubgroup(M);
    k     := Weight(M);
    G_N := ImageInLevelGL(G);
-
+   //G_N := ImageInLevel(G);
+ 
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
    gens := Generators(H);
    H_N := ImageInLevelGL(H);
+   //H_N := ImageInLevel(H);
 
    if (not (H_N subset p)) or (p subset G_N) then  
       return M;
@@ -353,11 +355,13 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    end if;
 
    N_p := Normalizer(ModLevelGL(H), p);
+   //N_p := Normalizer(ModLevel(H),p);
    if not (G_N subset N_p) then
      return M;
    end if;
 
    p_prime := sub<ModLevelGL(H) | G_N, p>;
+//p_prime := sub<ModLevel(H) | G_N, p>;
    oldp_prime := PSL2Subgroup(p_prime, true);
    oldp := PSL2Subgroup(p, true);
    Q, pi_Q := p_prime / p;
@@ -527,20 +531,23 @@ end intrinsic;
 function prepare_old_spaces(M, primes)
    G := LevelSubgroup(M);
    G_N := ImageInLevelGL(G);
+//G_N := ImageInLevel(G);
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
-   // gens := Generators(H);
    H_N := ImageInLevelGL(H);
+//H_N := ImageInLevel(H);
    pi_Q := Parent(eps)`QuotientMap;
 
    primes := [p : p in primes | not p subset G_N];
    primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
    N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
+//N_p := [Normalizer(ModLevel(H), p) : p in primes];
 
    good := [i : i in [1..#primes] | G_N subset N_p[i]];
    primes := [primes[i] : i in good];
 
    N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
+//N_p := [sub<ModLevel(G) | G_N, p> : p in primes];
    oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
    oldp := [PSL2Subgroup(p, true) : p in primes];
    old := [];
@@ -575,6 +582,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       // Sort so that below, the blocks of D with largest rank at the left
    else
       G_N := ImageInLevelGL(G);
+//G_N := ImageInLevel(G);
       eps   := DirichletCharacter(M);
       H := Parent(eps)`Gamma;
       gens := Generators(H);
@@ -713,6 +721,8 @@ over all prime divisors of the level of M}
         end if;
         G_N := ModLevelGL(G);
         H := ImageInLevelGL(G);
+//G_N := ModLevel(G);
+//H := ImageInLevel(G);
         primes := MinimalOvergroups(G_N,H);
       end if;
 
