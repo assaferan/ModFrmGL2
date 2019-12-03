@@ -236,21 +236,13 @@ function SaturatePolySeq(P, prec)
    // !!! How do I get the matrix operation for the saturation??
    satM := Saturation(IntegralMatrix(M));
    E,T := EchelonForm(M);
-   submat := ColumnSubmatrix(satM, [PivotColumn(E,j) : j in [1..Nrows(satM)]]);
-   submat := ChangeRing(submat, Rationals());
-   if Nrows(E) eq Nrows(satM) then
-     zero := RMatrixSpace(Rationals(), Nrows(satM),0)!0;
-   else
-     zero := Matrix([[Rationals()!0 : j in [1..Nrows(E)-Nrows(satM)]] :
-				   i in [1..Nrows(satM)]]);
-   end if;
-   I := HorizontalJoin(submat, zero)  * T;
+   I := ColumnSubmatrix(satM, [PivotColumn(E,j) : j in [1..Nrows(E)]]) * T;
    //M, I := HermiteForm(Saturation(IntegralMatrix(M)));
    M, J := HermiteForm(satM);
    vprintf ModularSymbols: " %o\n", Cputime(time0);
    R := PowerSeriesRing(Integers());
    ans := [R! Eltseq(M[i]) : i in [1..Nrows(M)]];
-   return ans, ChangeRing(J, Rationals())*I;
+   return ans, J*I;
 end function;
 
 

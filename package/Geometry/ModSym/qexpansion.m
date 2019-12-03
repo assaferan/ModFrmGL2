@@ -469,10 +469,25 @@ The base field must be either the rationals or a cyclotomic field.}
 /*   require BaseField(D[1]) cmpeq RationalField():
           "The base field of argument 1 must be the rationals.";
 */
-   S := SaturatePolySeq(&cat[qIntegralBasis(B,prec : Al := Al) : B in D ],prec);
+   // S, I := SaturatePolySeq(&cat[qIntegralBasis(B,prec : Al := Al) : B in D ],prec);
+   mats := [* *];
+   forms := [];
+   for B in D do
+     form, mat := qIntegralBasis(B,prec : Al := Al);
+     Append(~forms, form);
+     Append(~mats, mat);
+   end for;
+   J := mats[1];
+   K := BaseRing(J);
+   for mat in mats[2..#mats] do
+     K := Compositum(K, BaseRing(mat));
+     J := DirectSum(ChangeRing(J,K), ChangeRing(mat, K));
+   end for;
+   S, I := SaturatePolySeq(&cat forms, prec);
    R:=Parent(S[1]);
    q:=R.1;
-   return [ f+O(q^prec) : f in S | not IsWeaklyZero(f+O(q^prec)) ];
+   return [ f+O(q^prec) : f in S | not IsWeaklyZero(f+O(q^prec)) ],
+     ChangeRing(I,K)*J;
 end intrinsic;
 
 
@@ -657,7 +672,7 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    end if;
 
    if not assigned A`qintbasis then
-      A`qintbasis := [* 0,[PowerSeriesRing(Integers())!0] *];
+      A`qintbasis := [* 0,[PowerSeriesRing(Integers())!0], Matrix([[1]]) *];
    end if;
    if A`qintbasis[1] lt prec then
       if IsVerbose("ModularSymbols") then
@@ -668,18 +683,19 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
       end if;
       if Al eq "Universal" then 
          prec := Max(prec, HeckeBound(A));
-         ans := qExpansionBasisUniversal(A, prec, true);
+         ans, I := qExpansionBasisUniversal(A, prec, true);
       else
-         ans := qExpansionBasisNewform(A, prec, true);
+	 ans, I := qExpansionBasisNewform(A, prec, true);
       end if;
       A`qintbasis[2] := ans;
       A`qintbasis[1] := prec;
+      A`qintbasis[3] := I;
    end if;
    if BaseRing(Universe(A`qintbasis[2])) eq Rationals() then 
       ChangeUniverse( ~A`qintbasis[2], PowerSeriesRing(Integers()) );
    end if;
    _<q> := Universe(A`qintbasis[2]);
-   return [f + O(q^prec) : f in A`qintbasis[2] | not IsWeaklyZero(f+O(q^prec)) ];
+   return [f + O(q^prec) : f in A`qintbasis[2] | not IsWeaklyZero(f+O(q^prec)) ], A`qintbasis[3];
 end intrinsic;
 
 function SpaceGeneratedByImages(C, N, F, do_saturate, prec : debug:=false)
@@ -756,8 +772,8 @@ function SpaceGeneratedByImages(C, N, F, do_saturate, prec : debug:=false)
       end if;
       return SaturatePolySeq(ans,prec);
    end if;  
-   ans := EchelonPolySeq(ans,prec);
-   return ans;
+   ans, I := EchelonPolySeq(ans,prec);
+   return ans, I;
 end function;
 
 function qExpansionBasisNewform(A, prec, do_saturate)
@@ -768,7 +784,7 @@ function qExpansionBasisNewform(A, prec, do_saturate)
    if debug then SetVerbose("ModularSymbols",2); end if;                          
 
    if debug then
-   print "**** Called qExpansionBasisNewform with prec", prec, "and do_saturate", do_saturate;
+      print "**** Called qExpansionBasisNewform with prec", prec, "and do_saturate", do_saturate;
    end if;
 
    if do_saturate then
@@ -821,6 +837,7 @@ function qExpansionBasisNewform(A, prec, do_saturate)
          printf " ... qEigenform took %os\n", Cputime(time0);
       end if;
       all_B := [];
+      all_I := [* *];
       dim := Maximum([#Eltseq(f) : f in old_eigforms] cat [prec-1]);
       for f in old_eigforms do
         Q := BaseRing(Parent(f));
@@ -832,6 +849,7 @@ function qExpansionBasisNewform(A, prec, do_saturate)
            B := [V!seq];
            F := (do_saturate and Type(BaseField(A)) eq FldRat) 
                              select Integers() else BaseField(A);
+           I := Matrix([[Q!1]]);
         else
            if ISA( Type(Q), FldNum) then
               V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
@@ -839,7 +857,13 @@ function qExpansionBasisNewform(A, prec, do_saturate)
               // TO DO: make the next line optimal
               // time 
               coeffs := [ Eltseq(Coefficient(f,i)) : i in [1..prec-1] ];
-              B := [V! [coeffs[i][j] : i in [1..#coeffs]] : j in [1..Degree(Q)]];
+              B := [V! [coeffs[i][j] : i in [1..#coeffs]] :
+		       j in [1..Degree(Q)]];
+              gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
+					       BaseField(A));
+              T := Matrix([[(g@psi)(Coefficient(f,j)) :
+				      j in [1..prec-1]] : g in gal]);
+	      E, I := EchelonForm(T);
               delete coeffs;
            else
               assert Type(Q) eq RngUPolRes;
@@ -850,6 +874,11 @@ function qExpansionBasisNewform(A, prec, do_saturate)
 	      //B := [V![Coefficient(R!a,j) : a in Eltseq(f)] : j in [0..n-1]];
 	      seq := Eltseq(f) cat [0 : i in [#Eltseq(f)+1..dim]];
 	      B := [V![Coefficient(R!a,j) : a in seq] : j in [0..n-1]];
+	      // !!! TODO: Is this correct???
+              gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
+					       BaseField(A));
+              I := Matrix([[(g@psi)(Coefficient(f,j)) :
+				      j in [1..#gal]] :	g in gal])^(-1);
            end if;
            if do_saturate 
               and Type(BaseField(A)) eq FldRat then
@@ -865,11 +894,18 @@ function qExpansionBasisNewform(A, prec, do_saturate)
         end if;
         assert #B gt 0;
 	all_B cat:= B;
+	Append(~all_I,I); 
+      end for;
+      assert #all_I gt 0;
+      I := all_I[1];
+      for I_other in all_I[2..#all_I] do
+	 I := DirectSum(I, I_other);
       end for;
       // B may contain either vectors or power series (see SpaceGeneratedByImages)
       //      return SpaceGeneratedByImages(B, Level(A) div Level(AssociatedNewSpace(A)),
-      return SpaceGeneratedByImages(all_B, Level(A) div Level(AssociatedNewSpace(A)), 
+      ans, J := SpaceGeneratedByImages(all_B, Level(A) div Level(AssociatedNewSpace(A)), 
                                     F, do_saturate, prec : debug:=debug);
+      return ans, J*I;
    end if;
 end function;
 
@@ -1911,22 +1947,25 @@ intrinsic qEigenformBasis(M::ModSym, prec::RngIntElt) -> SeqEnum[RngSerPowElt]
 end intrinsic;
 
 // This function assumes that T=[1,1,0,1] normalizes the level subgroup
-function find_echelon_forms_vecs(M)
+ function find_echelon_forms_vecs(M)
   N := CuspWidth(LevelSubgroup(M), Infinity());
   F := CyclotomicField(N);
   zeta_N := F.1;
   S := CuspidalSubspace(M);
   D := NewformDecomposition(S);
-  prec := N;
-  eigenforms := &cat[get_eigenform_galois_orbit(qEigenform(d, prec),
-						BaseRing(M), prec) : d in D];
-  eigenforms_coefs := Matrix([[Coefficient(f,i) : i in [1..prec-1]] :
-							 f in eigenforms]);
-  E, I := EchelonForm(eigenforms_coefs);
-  dim := NumberOfRows(E);
+  prec := 2*N;
+  // That should be enough precision;
+  echelon, I := qIntegralBasis(S, prec);
+  dim := NumberOfRows(I);
+  E := Matrix([[Coefficient(f,i) : i in [1..prec-1]] : f in echelon]);
   t := Restrict(Transpose(ActionOnModularSymbolsBasis([1,1,0,1], M)),
 	      DualVectorSpace(S));
   pivots := [PivotColumn(E,j) : j in [1..dim]];
+// !!! TODO :
+// This does not work in general, as the eigenspaces are larger and sometimes
+// contain both holomorphic and anti-holomorphic forms
+// e.g. when N = 8, the eigenspaces for zeta_N^3 and zeta_N^5 are such spaces
+// Should find another way of cutting the holomorphic subspace
   t_eigvecs := Matrix([Basis(Kernel(t - zeta_N^i))[1] : i in pivots]);
   t_eigvecs_in_M := t_eigvecs *
     ChangeRing(Matrix(Basis(DualVectorSpace(S))), F);
