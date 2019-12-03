@@ -497,22 +497,33 @@ with respect to Basis(M).}
             T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
             - eps_val*p^(Weight(M)-1)*HeckeOperator(M,p^(r-2));
 	 else
-	   // eps_val := Evaluate(eps, Parent(eps)`OriginalDomain![p,0,0,p]);
-	   if Level(M) div p eq 0 then
-	      T := HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := true);
-           else      
-               use_cremona := BaseField(M) cmpeq RationalField() and Weight(M)
+	   if IsAmbientSpace(M) then
+	     // eps_val := Evaluate(eps, Parent(eps)`OriginalDomain![p,0,0,p]);
+	     if Level(M) div p eq 0 then
+	        T := HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := true);
+             else      
+                use_cremona := BaseField(M) cmpeq RationalField() and Weight(M)
 	                     eq 2 and IsTrivial(DirichletCharacter(M));
-	       T := HeckeOperatorHeilbronn(M, Heilbronn(M, p^2,
+	        T := HeckeOperatorHeilbronn(M, Heilbronn(M, p^2,
 							not use_cremona));
+            end if;
+	 else
+	   if Characteristic(BaseField(M)) eq 0 and 
+              Dimension(M) lt 0.5*Dimension(AmbientSpace(M)) then
+              // Uses complements which don't work well in char p, since Hecke
+              // isn't semisimple in char p.   I have no idea how often
+              // 0.5*dim(amb) is the right cut off. 
+              T := HeckeOperator_OnSubspace_UsingComplement(M,n);
+           else
+              T := Restrict(HeckeOperator(AmbientSpace(M),n), VectorSpace(M));
            end if;
-         end if;
+	 end if;
+        end if;
       else  // T_m*T_r := T_{mr} and we know all T_i for i<n.
          m  := fac[1][1]^fac[1][2];
          T  := HeckeOperator(M,m)*HeckeOperator(M,n div m);
       end if;            
    end if;
-
 
    Append(~M`hecke_operator,<n,T>);
 
@@ -663,7 +674,8 @@ function get_general_phi(G)
   end function;
   return phi;
 end function;
-// special function to handel the ns cartan case better
+
+// special function to handle the ns cartan case better
 // act by the inverse to get a right action
 
 function get_non_split_cartan_coset(g, x)
@@ -1089,7 +1101,13 @@ function TnSparse(M, Heil, sparsevec)
           squared := fac[1][2] eq 2;
           matrices := HeckeGeneralCaseRepresentatives(LevelSubgroup(M), p :
 					    Squared := squared);
-          factor := #matrices div n;
+          r := squared select 2 else 1;
+          factor := #matrices;
+          if Level(M) mod p eq 0 then
+             factor := factor div p^r;
+          else
+             factor := factor div &+[p^j : j in [0..r]];
+          end if;
           return &+[s[1]*
    	      &+[ActionOnModularSymbolsBasisElement(g,M,s[2]) :
     	           g in matrices] : s in sparsevec] / factor;

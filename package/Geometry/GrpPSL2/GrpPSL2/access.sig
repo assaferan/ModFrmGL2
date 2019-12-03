@@ -6,7 +6,7 @@ S,Eltseq,Eltseq for the given element A in PSL_2(Z),0,1,0,0,0,0,0,0,0,GrpPSL2Elt
 S,Parent,,0,1,0,0,0,0,0,0,0,GrpPSL2Elt,,GrpPSL2,-38,-38,-38,-38,-38
 S,Level,The level of G,0,1,0,0,0,0,0,0,0,GrpPSL2,,148,-38,-38,-38,-38,-38
 S,ImageInLevel,"The image of G in SL_2(Z/NZ), where N is the level",0,1,0,0,0,0,0,0,0,GrpPSL2,,178,-38,-38,-38,-38,-38
-S,ImageInLevelGL,"The image of G in SL_2(Z/NZ), where N is the level",0,1,0,0,0,0,0,0,0,GrpPSL2,,178,-38,-38,-38,-38,-38
+S,ImageInLevelGL,"The image of G in GL_2(Z/NZ), where N is the level",0,1,0,0,0,0,0,0,0,GrpPSL2,,178,-38,-38,-38,-38,-38
 S,ModLevel,"SL_2(Z/NZ), where N is the level",0,1,0,0,0,0,0,0,0,GrpPSL2,,178,-38,-38,-38,-38,-38
 S,ModLevelGL,"GL_2(Z/NZ), where N is the level",0,1,0,0,0,0,0,0,0,GrpPSL2,,178,-38,-38,-38,-38,-38
 S,GetFindCoset,,0,1,0,0,0,0,0,0,0,GrpPSL2,,175,-38,-38,-38,-38,-38

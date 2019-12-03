@@ -571,7 +571,7 @@ function get_NN(M)
    end for;
    // There should be a more efficient way of doing that, e.g.
    // using union find, but I have despaired of doing so in Magma
-   idxs := Keys(NN_idxs);
+   idxs := Sort(SetToSequence(Keys(NN_idxs)));
    for idx in idxs do
       Nidx := NN_idxs[idx];
       is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];

@@ -536,9 +536,10 @@ procedure Test_Stein()
 // in an alternative way - intersection with SL2 takes too much time
 // Test_Stein_8_37();
   Test_Stein_9_6();
-// At the moment spends too much time computing M(Gamma(45)) and M(Gamma(55))
-//  Test_Stein_9_7();
-//  Test_Stein_9_8();
+// At the moment spends too much time computing Hecke operators
+// at primes dividing the level, so we don't run them every time
+   Test_Stein_9_7();
+   Test_Stein_9_8();
 end procedure;
 
 function make_group_copy(M)

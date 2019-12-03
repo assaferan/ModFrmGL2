@@ -1369,24 +1369,31 @@ function get_degeneracy_reps(M1, M2, divisors)
   is_good := [&and[g in H : g in cg] : cg in conj_gens];
   single_divisors := [candidates[j] : j in [1..#candidates] |
 			 is_good[j]];
+
+  // I thought this should help, but these maps don't necessarily commute
+  // with the Hecke Operators
+/*
   // Now multiplying by conjugations in SL2Z
-  conjs := Conjugates(ModLevelGL(G2), ImageInLevelGL(G2));
-  old_conjs := [c : c in conjs | ImageInLevelGL(G1) subset c];
-//conjs := Conjugates(ModLevel(G2), ImageInLevel(G2));
-// old_conjs := [c : c in conjs | ImageInLevel(G1) subset c];
+  conjs := Conjugates(ModLevel(G), ImageInLevel(H : N := Level(G)));
+// for some weird reason the first works with Gamma(N), the second with
+// Gamma0(N) - what is it? 
+// old_conjs := [c : c in conjs | ImageInLevelGL(G) subset c];
+  old_conjs := [c : c in conjs | ImageInLevel(G) subset c];
   alphas := [];
   for old_conj in old_conjs do
-     con, alpha := IsConjugate(ModLevelGL(G2), ImageInLevelGL(G2), old_conj);
-//con, alpha := IsConjugate(ModLevel(G2), ImageInLevel(G2), old_conj);
+     con, alpha := IsConjugate(ModLevel(G),
+			       ImageInLevel(H : N := Level(G)), old_conj);
      Append(~alphas, alpha);
    end for;
 // !!! TODO: What do I do here when det is not surjective ???
-   det_reps := [G1`DetRep(Determinant(alpha)) :  alpha in alphas];
-   betas := [alphas[i] * det_reps[i]^(-1) : i in [1..#alphas]];
-//betas := alphas;
+//   det_reps := [G`DetRep(Determinant(alpha)) :  alpha in alphas];
+//   betas := [alphas[i] * det_reps[i]^(-1) : i in [1..#alphas]];
+   betas := alphas;
    beta_lifts := [GL(2,Rationals())!Eltseq(FindLiftToSL2(beta)) :
 			beta in betas];
    return &cat[[beta * d : d in single_divisors] : beta in beta_lifts];
+*/
+   return single_divisors;
 end function;
 
 

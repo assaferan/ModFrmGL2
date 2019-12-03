@@ -52,9 +52,9 @@ intrinsic ImageInLevel(G::GrpPSL2 : N := Level(G)) -> GrpMat
      else
        gens := [[1,1,0,1],[-1,0,0,-1]];
        if IsGamma0(G) then
-          N := Level(G);
-          for t in [1..N-1] do
-	    d,x,y:= ExtendedGreatestCommonDivisor(t,N);
+          level := Level(G);
+          for t in [1..level-1] do
+	    d,x,y:= ExtendedGreatestCommonDivisor(t,level);
             if d eq 1 then
 	       Append(~gens, [t,0,0,x]);
             end if;
@@ -71,16 +71,17 @@ intrinsic ImageInLevel(G::GrpPSL2 : N := Level(G)) -> GrpMat
   return G`ImageInLevel;
 end intrinsic;
 
-intrinsic ImageInLevelGL(G::GrpPSL2) -> GrpMat
-{The image of G in SL_2(Z/NZ), where N is the level.}
+intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
+{The image of G in GL_2(Z/NZ), where N is the level.}
+  require N mod Level(G) eq 0 : "N must divide level of G";
   if not assigned G`ImageInLevelGL then 
      modLevel := ModLevelGL(G);
      if (#modLevel eq 1) then
         G`ImageInLevelGL := modLevel;
      else
        gens := [[-1,0,0,-1]];
-       N := Level(G);
-       Z_N := Integers(N);
+       level := Level(G);
+       Z_N := Integers(level);
        U, psi := UnitGroup(Z_N);
        for t in Generators(U) do
 	  Append(~gens, [psi(t),0,0,1]);
@@ -98,7 +99,9 @@ intrinsic ImageInLevelGL(G::GrpPSL2) -> GrpMat
        G`ImageInLevelGL := sub< modLevel | [modLevel!Eltseq(g) : g in gens]>;
      end if;
   end if;
-
+  if N ne Level(G) then
+    return sub<GL(2,Integers(N)) | [Eltseq(g) : g in Generators(G)]>;
+  end if;
   return G`ImageInLevelGL; 
 end intrinsic;
 

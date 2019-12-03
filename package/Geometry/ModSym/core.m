@@ -718,7 +718,7 @@ function XXXManinSymbolsGeneralizedWeightedAction(
       uvM := uv*M[i];
       uvM := t_inv * MatrixAlgebra(Rationals(),2)![Z!x : x in Eltseq(uvM)];
       if not IsCoercible(MatrixAlgebra(Z,2), uvM) then continue; end if;
-      uvM := Universe(M)!(MatrixAlgebra(Z,2)!uvM);
+      uvM := MatrixAlgebra(Integers(Modulus(eps)),2)!(MatrixAlgebra(Z,2)!uvM);
       ind, s := phiG(uvM);
       if ind eq 0 then continue; end if;
       e := s@eps;

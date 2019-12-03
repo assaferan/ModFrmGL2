@@ -814,10 +814,12 @@ function qExpansionBasisNewform(A, prec, do_saturate)
          IndentPush(); time0 := Cputime();
       end if;
       old_eigforms := [qEigenform(A,prec : debug:=debug)];
+      Anew := AssociatedNewSpace(A);
       if (not IsOfGammaType(A)) and
-	 (LevelSubgroup(A) ne LevelSubgroup(AssociatedNewSpace(A))) then
-	// This should exist now  !!! TODO : adapt for minus spaces
-	orig_eigvec := AssociatedNewSpace(A)`eigenplus;
+	  (LevelSubgroup(A) ne LevelSubgroup(Anew)) then
+        orig_eigvec := EigenvectorModSymSign(Anew,
+				      IsMinusQuotient(Anew) 
+                                        select -1 else +1);
         F := BaseRing(orig_eigvec);
         M_old := AmbientSpace(AssociatedNewSpace(A));
         M := AmbientSpace(A);
@@ -828,10 +830,9 @@ function qExpansionBasisNewform(A, prec, do_saturate)
         divs := [x[1] : x in M_old`degeneracy_matrices_out[ii_out][2] ];
         alphas := [ChangeRing(DegeneracyMatrix(M, M_old, d),F) : d in divs];
         old_eigvecs := [orig_eigvec * Transpose(alpha) : alpha in alphas];
-        old_eigforms := [eigenvecToEigenform(A, eig, prec) :
-					  eig in old_eigvecs];
+        old_eigforms := {eigenvecToEigenform(A, eig, prec) :
+		  eig in old_eigvecs};
       end if;
-      //f := qEigenform(A,prec : debug:=debug);
       if debug then 
          IndentPop();
          printf " ... qEigenform took %os\n", Cputime(time0);
@@ -903,7 +904,9 @@ function qExpansionBasisNewform(A, prec, do_saturate)
       end for;
       // B may contain either vectors or power series (see SpaceGeneratedByImages)
       //      return SpaceGeneratedByImages(B, Level(A) div Level(AssociatedNewSpace(A)),
-      ans, J := SpaceGeneratedByImages(all_B, Level(A) div Level(AssociatedNewSpace(A)), 
+      N := (IsOfGammaType(A) select
+	    Level(A) div Level(AssociatedNewSpace(A)) else 1);
+      ans, J := SpaceGeneratedByImages(all_B, N, 
                                     F, do_saturate, prec : debug:=debug);
       return ans, J*I;
    end if;
