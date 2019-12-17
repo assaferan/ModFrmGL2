@@ -278,7 +278,11 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
       end if;
 
       if Characteristic(BaseField(M)) eq 0 then		 
-         D := NewformDecomposition(M);	 
+	 if IsOfGammaType(M) then
+	    D := NewformDecomposition(M);
+	 else
+	    D := Decomposition(M, HeckeBound(M));
+         end if;
          require #D eq 1 : "Argument 1 must correspond to a single Galois-conjugacy class of newforms.";
          M := D[1]; 
          if assigned M`qeigenform and M`qeigenform[1] ge prec then
@@ -624,6 +628,11 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    require Al eq "Universal" or Al eq "Newform" :
          "Al paramater must equal either \"Universal\" or \"Newform\".";
 
+   // At the moment, newform decomposition is not supported in general
+   if not IsOfGammaType(A) then
+      Al := "Universal";
+   end if;
+   
    if Dimension(A) eq 0 then
       return [];
    end if;
@@ -631,12 +640,12 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    if IsMultiChar(A) then
       if HasAssociatedNewformSpace(A) then
          B := AssociatedNewformSpace(A);
-         Q := qIntegralBasis(B, prec: Al := Al);
+         Q,I  := qIntegralBasis(B, prec: Al := Al);
          // Include to level the level of A.
          // R := SpaceGeneratedByImages(Q, Level(A) div Level(B), IntegerRing(), true, prec);
          // Steve's comment: I'm not sure why this call to 'SpaceGeneratedByImages' 
          // was commented out ... is it redundant, or just in the wrong place?  
-         return Q;
+         return Q, I;
       else
          // I think this was wrong -- we should include the 'SpaceGeneratedByImages'
          // of pieces of the NewformDecomposition that have lower level than A.
@@ -657,7 +666,7 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
             end if;
             unsaturated cat:= qexps_NF;
          end for;
-         S := SaturatePolySeq(unsaturated, prec);
+         S, I := SaturatePolySeq(unsaturated, prec);
          delete unsaturated;
          _<q> := Universe(S);
          for i := #S to 1 by -1 do 
@@ -667,7 +676,7 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
               Remove(~S,i); 
             end if;
          end for;
-         return S;
+         return S, I;
       end if;
    end if;
 
@@ -677,18 +686,19 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    if A`qintbasis[1] lt prec then
       if IsVerbose("ModularSymbols") then
          printf "Computing q-integral basis at level %o.\n", Level(A);
-         if Al eq "Univeral" then
+         if Al eq "Universal" then
             printf "Using Universal Fourier expansion algorithm.\n";
          end if;
       end if;
       if Al eq "Universal" then 
-         prec := Max(prec, HeckeBound(A));
-         ans, I := qExpansionBasisUniversal(A, prec, true);
+         prec_new := Max(prec, HeckeBound(A));
+         ans, I := qExpansionBasisUniversal(A, prec_new, true);
       else
-	 ans, I := qExpansionBasisNewform(A, prec, true);
+         prec_new := prec;
+	 ans, I := qExpansionBasisNewform(A, prec_new, true);
       end if;
       A`qintbasis[2] := ans;
-      A`qintbasis[1] := prec;
+      A`qintbasis[1] := prec_new;
       A`qintbasis[3] := I;
    end if;
    if BaseRing(Universe(A`qintbasis[2])) eq Rationals() then 
@@ -758,19 +768,36 @@ function SpaceGeneratedByImages(C, N, F, do_saturate, prec : debug:=false)
 
    if do_saturate then
       if Type(BaseRing(Parent(C[1]))) eq FldCyc then
+	 gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(C[1])),
+					      Rationals());
          // project ans onto rational field, using restriction of scalars:
          Q<q> := PowerSeriesRing(Integers());
          ans2 := [];
+         all_I := [* *];
          for f in ans do
             d := LCM([Denominator(Coefficient(f,n)) : n in [0..Degree(f)]]);
             g := d*f;
             for i in [1..Degree(BaseRing(Parent(C[1])))] do
                Append(~ans2, &+[Integers()!(Eltseq(Coefficient(g,n))[i])*q^n : n in [0..Degree(g)]]);
             end for;
+	    // !!! TODO: Is this correct???
+            mat := Matrix([[(g@psi)(Coefficient(f,j)) :
+				 j in [0..Degree(f)]] : g in gal]);
+	    E, I := EchelonForm(mat);
+	    I := d*I;
+	    Append(~all_I, I);
          end for;
          ans := ans2;
+         assert #all_I gt 0;
+         I := all_I[1];
+         for I_other in all_I[2..#all_I] do
+	    I := DirectSum(I, I_other);
+         end for;
+      else
+         I := IdentityMatrix(BaseRing(Parent(C[1])), #ans);  
       end if;
-      return SaturatePolySeq(ans,prec);
+      ans, J := SaturatePolySeq(ans,prec);
+      return ans, J*I;
    end if;  
    ans, I := EchelonPolySeq(ans,prec);
    return ans, I;
@@ -878,8 +905,9 @@ function qExpansionBasisNewform(A, prec, do_saturate)
 	      // !!! TODO: Is this correct???
               gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
 					       BaseField(A));
-              I := Matrix([[(g@psi)(Coefficient(f,j)) :
-				      j in [1..#gal]] :	g in gal])^(-1);
+              mat := Matrix([[(g@psi)(Coefficient(f,j)) :
+				 j in [1..Degree(f)]] :	g in gal]);
+	      E, I := EchelonForm(mat);
            end if;
            if do_saturate 
               and Type(BaseField(A)) eq FldRat then
@@ -908,6 +936,8 @@ function qExpansionBasisNewform(A, prec, do_saturate)
 	    Level(A) div Level(AssociatedNewSpace(A)) else 1);
       ans, J := SpaceGeneratedByImages(all_B, N, 
                                     F, do_saturate, prec : debug:=debug);
+     
+      I := TensorProduct(I, IdentityMatrix(BaseRing(I), Nrows(J) div Nrows(I)));
       return ans, J*I;
    end if;
 end function;

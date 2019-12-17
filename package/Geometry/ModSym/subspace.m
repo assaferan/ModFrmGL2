@@ -109,7 +109,8 @@ freeze;
 import "linalg.m" : KernelOn; 
 
 import "modsym.m" : ModularSymbolsDual,
-                    ModularSymbolsSub;
+                    ModularSymbolsSub,
+                    get_degeneracy_reps;
 
 import "multichar.m" : MC_CutSubspace;
 
@@ -338,13 +339,11 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    G     := LevelSubgroup(M);
    k     := Weight(M);
    G_N := ImageInLevelGL(G);
-   //G_N := ImageInLevel(G);
  
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
    gens := Generators(H);
    H_N := ImageInLevelGL(H);
-   //H_N := ImageInLevel(H);
 
    if (not (H_N subset p)) or (p subset G_N) then  
       return M;
@@ -354,14 +353,12 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
      return M;
    end if;
 
-   N_p := Normalizer(ModLevelGL(H), p);
-   //N_p := Normalizer(ModLevel(H),p);
+   N_p := Normalizer(ModLevelGL(H),p);
    if not (G_N subset N_p) then
      return M;
    end if;
 
    p_prime := sub<ModLevelGL(H) | G_N, p>;
-//p_prime := sub<ModLevel(H) | G_N, p>;
    oldp_prime := PSL2Subgroup(p_prime, true);
    oldp := PSL2Subgroup(p, true);
    Q, pi_Q := p_prime / p;
@@ -381,37 +378,10 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
 
    l := Level(M) div calcLevel(oldp_prime);
    assert IsPrime(l) or (l eq 1); // Else something is wrong here
-   // Representatives for determinant p modulo SL2(Z)
-   candidates := [[1,0,0,1]];
-   if l ne 1 then
-     candidates := candidates cat [[1,r,0,l] : r in [0..l-1]];
-     Append(~candidates, [l,0,0,1]);
-   end if;
-   candidates := [GL(2,Rationals())!x : x in candidates];
-   conj_gens := [[GL(2,Rationals())!Matrix(g)^alpha : g in gens]
-			  : alpha in candidates];
-   M2Z := MatrixAlgebra(Integers(),2);
-   is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
-				cg in conj_gens];
-   candidates := [candidates[i] : i in [1..#candidates] |
-				  is_coercible[i]];
-   conj_gens := [conj_gens[i] : i in [1..#conj_gens] |
-				  is_coercible[i]];
-   is_good := [&and[g in oldp : g in cg] : cg in conj_gens];
-   alphas := [candidates[i] : i in [1..#candidates] | is_good[i]];
+   alphas := get_degeneracy_reps(AM, old, [1,l]);
    for alpha in alphas do
-      alpha_inv := Eltseq(alpha^(-1));
-      Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
-	    						AM, old));
-      D := Transversal(p_prime meet ModLevel(G),
-		    ImageInLevel(Conjugate(G,alpha : IsExactLevel := true)));
-      D_lift := [PSL2(Integers()) | FindLiftToSL2(d) : d in D];
-      R := [Eltseq(alpha*Parent(alpha)!Matrix(d)) : d in D_lift];
-      eps_vals := [(d@eps_res)^(-1) : d in D];
-      mat := &+[eps_vals[j] *
-		ActionOnModularSymbolsBasisBetween(R[j], old, AM)
-			     :	j in [1..#R]];
-      Append(~DDmats, Transpose(mat));
+      Append(~Dmats, DegeneracyMatrix(AM, old, alpha));
+      Append(~DDmats, Transpose(DegeneracyMatrix(old, AM, alpha)));
    end for;
    D := HorizontalJoin(Dmats);
    DD := HorizontalJoin(DDmats);
@@ -530,24 +500,20 @@ end intrinsic;
 
 function prepare_old_spaces(M, primes)
    G := LevelSubgroup(M);
-//   G_N := ImageInLevelGL(G);
-   G_N := ImageInLevel(G);
+   G_N := ImageInLevelGL(G);
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
-//   H_N := ImageInLevelGL(H);
-   H_N := ImageInLevel(H);
+   H_N := ImageInLevelGL(H);
    pi_Q := Parent(eps)`QuotientMap;
 
    primes := [p : p in primes | not p subset G_N];
    primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
-//   N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
-   N_p := [Normalizer(ModLevel(H), p) : p in primes];
+   N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
 
    good := [i : i in [1..#primes] | G_N subset N_p[i]];
    primes := [primes[i] : i in good];
 
-//   N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
-   N_p := [sub<ModLevel(G) | G_N, p> : p in primes];
+   N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
    oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
    oldp := [PSL2Subgroup(p, true) : p in primes];
    old := [];
@@ -582,7 +548,6 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       // Sort so that below, the blocks of D with largest rank at the left
    else
       G_N := ImageInLevelGL(G);
-//G_N := ImageInLevel(G);
       eps   := DirichletCharacter(M);
       H := Parent(eps)`Gamma;
       gens := Generators(H);
@@ -602,32 +567,11 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
      alphas := AssociativeArray([1..#old]);
      for i in [1..#old] do
          if Dimension(old[i]) gt 0 then
-	    oldp := Parent(DirichletCharacter(old[i]))`Gamma;
 	    p := Level(M) div calcLevel(LevelSubgroup(old[i]));
             assert IsPrime(p) or (p eq 1); // Else something is wrong here
-            // Representatives for determinant p modulo SL2(Z)
-            candidates := [[1,0,0,1]];
-            if p ne 1 then
-              candidates := candidates cat [[1,r,0,p] : r in [0..p-1]];
-              Append(~candidates, [p,0,0,1]);
-            end if;
-            candidates := [GL(2,Rationals())!x : x in candidates];
-            conj_gens := [[GL(2,Rationals())!Matrix(g)^alpha : g in gens]
-			  : alpha in candidates];
-            M2Z := MatrixAlgebra(Integers(),2);
-            is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
-				cg in conj_gens];
-            candidates := [candidates[j] : j in [1..#candidates] |
-				  is_coercible[j]];
-            conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
-				  is_coercible[j]];
-            is_good := [&and[g in oldp : g in cg] : cg in conj_gens];
-            alphas[i] := [candidates[j] : j in [1..#candidates] |
-			 is_good[j]];
+            alphas[i] := get_degeneracy_reps(AM, old[i], [1,p]);
             for alpha in alphas[i] do
-	       alpha_inv := Eltseq(alpha^(-1));
-               Append(~Dmats, ActionOnModularSymbolsBasisBetween(alpha_inv,
-	    						      AM, old[i]));
+	       Append(~Dmats, DegeneracyMatrix(AM, old[i], alpha));
             end for;
          end if;
       end for;
@@ -659,17 +603,8 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
             eps_res := DirichletCharacter(old[i]);
             if Dimension(old[i]) gt 0 then
               for alpha in alphas[i] do
-		 // D := Transversal(N_p[i] meet SL(2, IntegerRing(N)),
-		 D := Transversal(ImageInLevel(LevelSubgroup(old[i])),
-		    ImageInLevel(Conjugate(G,alpha : IsExactLevel := true)));
-                 D_lift := [PSL2(Integers()) | FindLiftToSL2(d) : d in D];
-                 R := [Eltseq(alpha*Parent(alpha)!Matrix(d)) : d in D_lift];
-                 eps_vals := [(d@eps_res)^(-1) : d in D];
-                 mat := &+[eps_vals[j] *
-			   ActionOnModularSymbolsBasisBetween(R[j], old[i], AM)
-			      :	j in [1..#R]];
-                 Append(~DDmats, Transpose(mat));
-               end for;
+		Append(~DDmats, Transpose(DegeneracyMatrix(old[i], AM, alpha)));
+              end for;
             end if;
 	 end for;
       end if;
@@ -719,10 +654,8 @@ over all prime divisors of the level of M}
           eps := DirichletCharacter(M);
           G := Parent(eps)`Gamma;
         end if;
-//G_N := ModLevelGL(G);
-//      H := ImageInLevelGL(G);
-        G_N := ModLevel(G);
-        H := ImageInLevel(G);
+        G_N := ModLevelGL(G);
+        H := ImageInLevelGL(G);
         primes := MinimalOvergroups(G_N,H);
       end if;
 

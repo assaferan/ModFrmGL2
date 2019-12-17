@@ -389,17 +389,19 @@ function my_Gamma(N, type)
      // just take en entire GL(2,N) for some N
     return PSL2Subgroup(GL(2,IntegerRing(2)), false);
   end if;
-  G_N := GL(2, IntegerRing(N));
+  Z_N := IntegerRing(N);
+  G_N := GL(2, Z_N);
   gens := [-G_N!1];
+  U, psi := UnitGroup(Z_N);
+  for t in Generators(U) do
+     Append(~gens, G_N![psi(t),0,0,1]);
+  end for;
   if Type(type) eq RngIntElt then
-     Append(~gens, G_N![1,1,0,1]);
+     Append(~gens, G_N![1,1,0,1]);   
      if type eq 0 then
-        for t in [1..N-1] do
-	    d,x,y:= ExtendedGreatestCommonDivisor(t,N);
-            if d eq 1 then
-	       Append(~gens, G_N![t,0,0,x]);
-            end if;
-        end for; 
+       for t in Generators(U) do
+          Append(~gens, G_N![1,0,0,psi(t)]);
+       end for;
      end if;
   end if;
   H_N := sub<G_N | gens>;
@@ -479,31 +481,65 @@ procedure Test_Stein_9_6()
   f2 := CharacteristicPolynomial(T2);
   x := Parent(f2).1;
   assert f2 eq (x^2+2*x+2)^2;
+  Snew := NewSubspace(S);
+  assert Dimension(Snew) eq 0;
 end procedure;
 
 procedure Test_Stein_9_7()
   printf "Testing Stein Example 9.7\n";
-  M_old := ModularSymbols(my_Gamma(9,0));
-  S_old := CuspidalSubspace(M_old);
-  assert Dimension(S_old) eq 0;
-  M_old := ModularSymbols(my_Gamma(15,0));
-  S_old := CuspidalSubspace(M_old);
-  assert Dimension(S_old) eq 2;
-  M := ModularSymbols(my_Gamma(45,0));
+  M := ModularForms(my_Gamma(45,0));
+  assert Dimension(M) eq 10;
   S := CuspidalSubspace(M);
-  assert Dimension(S) eq 6;
-  T2 := HeckeOperator(S,2);
-  f2 := CharacteristicPolynomial(T2);
-  x := Parent(f2).1;
-  assert f2 eq (x^2+2*x+2)^2;
+  assert Dimension(S) eq 3;
+  B := Basis(S,14);
+  q := Universe(B).1;
+  assert B eq [
+    q - q^4 - q^10 - 2*q^13 + O(q^14),
+    q^2 - q^5 - 3*q^8 + 4*q^11 + O(q^14),
+    q^3 - q^6 - q^9 - q^12 + O(q^14)
+	       ];
+  Bnew := Basis(NewSubspace(S),14);
+  assert Bnew eq [
+    q + q^2 - q^4 - q^5 - 3*q^8 - q^10 + 4*q^11 - 2*q^13 + O(q^14)
+		  ];
+  M := ModularForms(my_Gamma(9,0));
+  assert Dimension(M) eq 3;
+  S := CuspidalSubspace(M);
+  assert Dimension(S) eq 0;
+  B := Basis(CuspidalSubspace(ModularForms(my_Gamma(15,0))), 10);
+  assert B eq [
+    q - q^2 - q^3 - q^4 + q^5 + q^6 + 3*q^8 + q^9 + O(q^10)
+	       ];
+end procedure;
+
+procedure Test_Stein_9_8()
+  printf "Testing Stein Example 9.8\n";
+  S_old := CuspidalSubspace(ModularSymbols(my_Gamma(11,0),2,1));
+  assert Dimension(S_old) eq 1;
+  S := CuspidalSubspace(ModularSymbols(my_Gamma(55,0),2,1));
+  assert Dimension(S) eq 5;
+  S_new := NewSubspace(S);
+  assert Dimension(S_new) eq 3;
+  T5 := HeckeOperator(S_new,5);
+  assert Eigenvalues(T5) eq {<1,1>,<-1,2>};
+  T4 := HeckeOperator(S_new,4);
+  T2 := HeckeOperator(S_new,2);
+  assert T5 eq 2*T2-T4-2;
 end procedure;
 
 procedure Test_Stein()
+  Test_Stein_8_33();
   Test_Stein_8_34();
   Test_Stein_8_35();
   Test_Stein_8_36();
+// Here it takes quite a while to generate the group Gamma0(2004)
+// in an alternative way - intersection with SL2 takes too much time
 // Test_Stein_8_37();
   Test_Stein_9_6();
+// At the moment spends too much time computing Hecke operators
+// at primes dividing the level, so we don't run them every time
+   Test_Stein_9_7();
+   Test_Stein_9_8();
 end procedure;
 
 function make_group_copy(M)
@@ -676,19 +712,6 @@ procedure Test_NS_cartan(max_N)
   end for;
 end procedure;
 
-procedure Test_Zywina()
-  printf "Testing the Zywina example Gamma(7)...\n";
-  N := 7;
-  G := my_Gamma(N, "full");
-  M := ModularSymbols(G);
-  S := CuspidalSubspace(M);
-  f := qIntegralBasis(S, 12 : Al := "Universal");
-  q := Universe(f).1;
-  assert f[1] eq q-3*q^8+O(q^12);
-  assert f[2] eq q^2-3*q^9+O(q^12);
-  assert f[3] eq q^4-4*q^11+O(q^12);
-end procedure;
-
 function benchmark(G)
   M := ModularForms(G);
   Snew := NewSubspace(CuspidalSubspace(M));
@@ -702,7 +725,7 @@ function Test_John_timing(N)
   G := GammaNSplus(N);
   p := NextPrime(Index(G));
   // Constructing a Gamma0(p) with ~ same number of representatives
-  time_0 :=  benchmark(Gamma0(p));
+  time_0 := benchmark(Gamma0(p));
   time_1 := benchmark(G);
   return [time_0, time_1];
 end function;
@@ -755,6 +778,144 @@ procedure dec_dim_char_poly_up_to(N, max_p, output_fname)
   delete output_file;
 end procedure;
 
+procedure Test_Zywina()
+  printf "Testing the Zywina example Gamma(7)...\n";
+  N := 7;
+  G := my_Gamma(N, "full");
+  // until we shall make it work with characters
+  // M := ModularSymbols(G)
+  M := ModularSymbols(G, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  f := qIntegralBasis(S, 12);
+  q := Universe(f).1;
+  assert f[1] eq q-3*q^8+O(q^12);
+  assert f[2] eq q^2-3*q^9+O(q^12);
+  assert f[3] eq q^4-4*q^11+O(q^12);
+  s := GL(2, Rationals())![0,-1,1,0];
+  s_mat := ActionOnEchelonFormBasis(s, M);
+  F := CyclotomicField(7);
+  zeta_7 := F.1;
+  alpha := zeta_7 + zeta_7^(-1);
+  vals := [-3*alpha^2-2*alpha+2, 2*alpha^2-alpha-6, alpha^2+3*alpha-3,
+	     -alpha^2-3*alpha+3, 3*alpha^2+2*alpha-2, 2*alpha^2-alpha-6];
+  Zywina_mat := 1/7 * SymmetricMatrix(F, vals);
+  assert s_mat eq Zywina_mat;
+end procedure;
+
+function get_eigenforms(N, gens)
+  if N eq 1 then
+    return [];
+  end if;
+  SL_N := SL(2, Integers(N));
+  GL_N := GL(2, Integers(N));
+  H := sub<SL_N | gens>;
+  N_H := Normalizer(GL_N, H);
+  N_H_conjs := Conjugates(GL_N, N_H);
+  eta := GL_N![-1,0,0,1];
+  assert exists(c){ c : c in N_H_conjs | eta in c};
+  dummy, alpha := IsConjugate(GL_N,N_H,c);
+  real_H := H^alpha;
+  assert real_H^eta eq real_H;
+  G := PSL2Subgroup(real_H);
+  M := ModularSymbols(G, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  B := qIntegralBasis(S, 2*Dimension(S) + 10);
+  return B;
+end function;
+
+function get_eigenforms_gl(N, gens)
+  if N eq 1 then
+    return [];
+  end if;
+  Z_N := Integers(N);
+  U, psi := UnitGroup(Z_N);
+  for t in Generators(U) do
+    Append(~gens, [psi(t),0,0,1]);
+  end for;
+  GL_N := GL(2, Integers(N));
+  H := sub<GL_N | gens>;
+  G := PSL2Subgroup(H);
+  M := ModularSymbols(G, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  B := qIntegralBasis(S, 2*Dimension(S) + 10);
+  return B;
+end function;
+
+function get_all_eigenforms_level(N, grps)
+  M_full := ModularSymbols(CongruenceSubgroup(N));
+  D := NewformDecomposition(CuspidalSubspace(M_full));
+  eigs := [* qEigenform(d, 14) : d in D*];
+  result := AssociativeArray();
+  not_real := [];
+  not_in_eigs := [];
+  Hecke_errors := [];
+  for G in grps do
+    try
+      result[G[1]] := get_eigenforms(N, G[2]);
+      are_in_eigs := true;
+      for f in result[G[1]] do
+	is_in_eigs := &or [f eq eig : eig in eigs];
+        are_in_eigs := are_in_eigs and is_in_eigs;
+      end for;
+      if not are_in_eigs then
+        Append(~not_in_eigs, G[1]);
+      end if;
+    catch err
+      if "assert exists(c){ c : c in N_H_conjs | eta in c}" in err`Position then
+        Append(~not_real, G[1]);
+      elif ("R := MatrixAlgebra(F, Nrows(B)) ! Solution(B, B*A);" in
+	    err`Position) or ("return MA ! Solution(B, B*T);" in
+			      err`Position) then
+        Append(~Hecke_errors, G[1]);
+      else
+	print err;
+        assert false;
+      end if;
+    end try;
+  end for;
+  return result, not_real, not_in_eigs, Hecke_errors;
+end function;
+
+function get_all_eigenforms(grps)
+  result := AssociativeArray();
+  not_real := [];
+  not_in_eigs := [];
+  Hecke_errors := [];
+  for N in Keys(grps) do
+	  res, nr, neig, hecke := get_all_eigenforms_level(N, grps[N]);
+     for k in Keys(res) do
+	result[k] := res[k];
+     end for;
+     not_real cat:= nr;
+     not_in_eigs cat:= neig;
+     Hecke_errors cat:= hecke;
+  end for;
+  return result, not_real, not_in_eigs;
+end function;
+
+// The load can't be in a function. do that before.
+// Have to change original data files to be able to import them.
+
+  dir := GetCurrentDirectory();
+  ChangeDirectory("/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/");
+  if assigned L then
+    delete L;
+  end if;
+  load "/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/csg3-lev96.dat";
+  ChangeDirectory(dir);
+
+function load_groups(L)
+  gens_by_level := AssociativeArray();
+  for l in L do
+     if IsDefined(gens_by_level, l`level) then
+       Append(~gens_by_level[l`level], <l`name, l`matgens>);
+     else
+       gens_by_level[l`level] := [<l`name, l`matgens>];
+     end if;
+  end for;
+  return gens_by_level;
+end function;
+
 procedure DoTests(numchecks)
    Test_Eigenforms(numchecks);
    Test_NewformDecomposition(numchecks);
@@ -767,8 +928,8 @@ procedure DoTests(numchecks)
    Test_qExpansionBasis(numchecks);
    Test_Rouse();
    Test_Stein();
-   Test_NS_cartan(50);
+   Test_NS_cartan(30);
    TestNSCartan_11();
    TestNSCartan_17();
-// Test_Zywina();
+   Test_Zywina();
 end procedure;

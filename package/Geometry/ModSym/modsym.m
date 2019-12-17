@@ -521,6 +521,9 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    return ModularSymbols(G,k,Rationals(),sign);
 end intrinsic;
 
+forward get_real_conjugate;
+forward get_gl_model;
+
 intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, 
 			 F::Fld, sign::RngIntElt) -> ModSym
 {The space of modular symbols of level G, weight k, 
@@ -533,6 +536,11 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    
    requirege k,2;
    require IsSupportedField(F) : SupportMessage;
+
+   H := ImageInLevel(G);
+   real_H := get_real_conjugate(H);
+   c := get_gl_model(real_H);
+   G := PSL2Subgroup(c);
 
    Q, pi_Q := G/G;
    eps := CharacterGroup(pi_Q, F, G, G)!1;
@@ -1151,8 +1159,7 @@ intrinsic IsNew (M::ModSym, p::GrpMat[RngIntRes]) -> BoolElt
 {True if and only if M is contained in the p-new cuspidal 
 subspace of the ambient space.}
 
- if not (ImageInLevelGL(LevelSubgroup(M)) subset p) then
-	//   if not (ImageInLevel(LevelSubgroup(M)) subset p) then
+   if not (ImageInLevelGL(LevelSubgroup(M)) subset p) then
       return true;
    end if;
 
@@ -1343,8 +1350,12 @@ intrinsic IsCoercible(M::ModSym,x::.) -> BoolElt, ModSymElt
 end intrinsic;
 
 function get_degeneracy_reps(M1, M2, divisors)
+/*
   candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]] :
 		     a in Divisors(n)] : n in divisors];
+*/
+// at the moment we only support trivial (type I) degeneracy reps
+  candidates := [[1,0,0,1]];
   candidates := [GL(2,Rationals())!x : x in candidates];
   G1 := LevelSubgroup(M1);
   G2 := LevelSubgroup(M2);
@@ -2134,3 +2145,38 @@ intrinsic '-'(x::ModSymElt,y::ModSymElt) -> ModSymElt
    require Parent(y) eq M : "Elements have different parents."; 
    return init_ModSymElt(M,x`element - y`element);
 end intrinsic;
+
+// Helper functions for creation
+function get_real_conjugate(H)
+  GL_N := GL(2, BaseRing(H));
+  N_H := Normalizer(GL_N, H);
+  N_H_conjs := Conjugates(GL_N, N_H);
+  eta := GL_N![-1,0,0,1];
+  real := exists(real_N_H){ real_N_H : real_N_H in N_H_conjs | eta in real_N_H};
+  error if not real, Error("No real type conjugate");
+  dummy, alpha := IsConjugate(GL_N,N_H,real_N_H);
+  real_H := H^alpha;
+  assert real_H^eta eq real_H;
+  return real_H; 
+end function;
+
+function get_gl_model(H)
+  N := Modulus(BaseRing(H));
+  SL_N := SL(2, Integers(N));
+  GL_N := GL(2, BaseRing(H));
+  N_H := Normalizer(GL_N, H);
+  Q, pi_Q := N_H / H;
+  subs := SubgroupClasses(N_H/H : OrderEqual := EulerPhi(N));
+  cands := [s`subgroup@@pi_Q : s in subs];
+// This was too slow
+// subs := [H] cat IntermediateSubgroups(N_H, H) cat [N_H];
+//  cands := [s : s in subs | Index(s, H) eq EulerPhi(N)];
+  cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
+  error if IsEmpty(cands), Error("No model with surjective determinant");
+  if exists(c){c : c in cands |
+      ImageInLevelGL(CongruenceSubgroup(N)) subset c} then
+      return c;
+  else
+      return Random(cands);
+  end if;
+end function;

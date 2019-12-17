@@ -183,6 +183,8 @@ import "core.m":
    ConvFromModularSymbol,
    ConvToModularSymbol,
    CosetReduce,
+   lev1_ManinSymbolsGeneralizedWeightedAction,
+   ManinSymbolsGeneralizedWeightedAction,
    ModularSymbolsBasis,
    P1GeneralizedWeightedAction,
    UnwindManinSymbol;
@@ -417,9 +419,6 @@ end function;
 //  COMPUTATION of HECKE OPERATORS                           //
 ///////////////////////////////////////////////////////////////
 
-
-
-
 intrinsic HeckeOperator(M::ModSym, n::RngIntElt) -> AlgMatElt
 {A matrix representing the nth Hecke operator
 with respect to Basis(M).}
@@ -454,14 +453,17 @@ with respect to Basis(M).}
 
    elif IsPrime(n) then
       if IsAmbientSpace(M) then
- // Before adjusting Heilbronn to work for our case
-         if IsOfGammaType(M) or IsGammaNS(M`G) or IsGammaNSplus(M`G) then
+      // Before adjusting Heilbronn to work for our case        
+        if (not IsOfGammaType(M))
+	  and ( ( ( not IsGammaNS(M`G) ) and ( not IsGammaNSplus(M`G) ) and
+		( GCD(n, Level(M)) ne 1 ) ) or
+	        ( #Domain(M`G`DetRep) eq 1 ) ) then
+	   T := HeckeOperatorDirectlyOnModularSymbols(M,n);
+        else      
            use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
                              and IsTrivial(DirichletCharacter(M));
 	   T := HeckeOperatorHeilbronn(M, Heilbronn(M, n, not use_cremona));
-         else
-           T := HeckeOperatorDirectlyOnModularSymbols(M,n);
-         end if;
+        end if;
 
 /*  Using "DirectlyOn" fails in this example!!
     G<a>:=DirichletGroup(109,GF(4));M:=ModularSymbols(a,2);
@@ -492,26 +494,36 @@ with respect to Basis(M).}
          eps := DirichletCharacter(M);
          if IsOfGammaType(M) then
             eps_val := Evaluate(eps,p);
-	 else
-	    // Check that this is really what we want
-	    d,x,y := ExtendedGreatestCommonDivisor(Level(M),p);
-            if d ne 1 then
-	       eps_val := 0;
-            else
-	       eps_val := 1;
-	      // something is not right here -
-	      // have to correct the representative
-	      // eps_val := eps(Domain(eps)![y,-x,Level(M),p]);
-            end if;
-         end if;
-         T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
+            T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
             - eps_val*p^(Weight(M)-1)*HeckeOperator(M,p^(r-2));
+	 else
+	   if IsAmbientSpace(M) then
+	     // eps_val := Evaluate(eps, Parent(eps)`OriginalDomain![p,0,0,p]);
+	     if Level(M) div p eq 0 then
+	        T := HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := true);
+             else      
+                use_cremona := BaseField(M) cmpeq RationalField() and Weight(M)
+	                     eq 2 and IsTrivial(DirichletCharacter(M));
+	        T := HeckeOperatorHeilbronn(M, Heilbronn(M, p^2,
+							not use_cremona));
+            end if;
+	 else
+	   if Characteristic(BaseField(M)) eq 0 and 
+              Dimension(M) lt 0.5*Dimension(AmbientSpace(M)) then
+              // Uses complements which don't work well in char p, since Hecke
+              // isn't semisimple in char p.   I have no idea how often
+              // 0.5*dim(amb) is the right cut off. 
+              T := HeckeOperator_OnSubspace_UsingComplement(M,n);
+           else
+              T := Restrict(HeckeOperator(AmbientSpace(M),n), VectorSpace(M));
+           end if;
+	 end if;
+        end if;
       else  // T_m*T_r := T_{mr} and we know all T_i for i<n.
          m  := fac[1][1]^fac[1][2];
          T  := HeckeOperator(M,m)*HeckeOperator(M,n div m);
       end if;            
    end if;
-
 
    Append(~M`hecke_operator,<n,T>);
 
@@ -535,7 +547,7 @@ end intrinsic;
 
 function HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H)
   // This is not very efficient but it works 
-  H := Conjugate(G meet H, alpha^(-1)) meet G;
+  H := Conjugate(G meet H, alpha) meet G;
   // What we really want here is just alpha * Transversal(G,H);
   reprs := [alpha * GL(2,Rationals())!Eltseq(x) :
 		       x in CosetRepresentatives(H) | x in G];
@@ -585,87 +597,188 @@ function HeckeNSCartanRepresentatives(G,p,plus)
   return R;
 end function;
 
-function HeckeFullCongruenceRepresentatives(N,p)
-  // Assumes p does not divide N
-  d, x, y := ExtendedGreatestCommonDivisor(N^2,p); 
-  R := [[1,r*x*N^2,0,p] : r in [0..p-1]];
-  Append(~R, [p*y,-x*N,p*N,p]);
+function HeckeFullCongruenceRepresentatives(N,p : Squared := false)
+  if (N mod p ne 0) then
+      // !!! TODO : This is not necessarily the correct global representative
+     alpha := GL2Q![1,0,0,p];
+     G := CongruenceSubgroup(N);
+     return HeckeGeneralCaseRepresentativesDoubleCoset(G, alpha, Gamma0(p));
+  end if;
+//GL2Q := GL(2, Rationals());
+  alpha_N := GL2Q![1,0,0,N];
+  if Squared then
+    reps := [GL2Q![1,r,0,p^2] : r in [0..p^2-1]];
+    if N mod p ne 0 then
+      reps := reps cat [GL2Q![p,r,0,p] : r in [0..p-1]] cat [GL2Q![p^2,0,0,1]];
+    end if;
+  else
+    reps := [GL2Q![1,r,0,p] : r in [0..p-1]];
+    if N mod p ne 0 then
+      Append(~reps, GL2Q![p,0,0,1]);
+    end if;
+  end if;
+  coset_reps := [GL2Q![1-r*N, -r^2, N^2, 1+r*N] : r in [0..N-1]];
+  R := &cat[[Eltseq(alpha_N^(-1)*c*r*alpha_N) : c in coset_reps] : r in reps];
   return R;
 end function;
 
-// Here H = alpha * Gamma(1) * alpha^(-1) meet Gamma(1)
-// for alpha=diag(a,b) with a|b, this is simply Gamma0(b/a)
-
-function HeckeGeneralCaseRepresentatives(G,p)
-  alpha := GL(2,Rationals())![1,0,0,p];
-  H := Gamma0(p);
-  return HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H);
+function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
+  N := Level(G);
+  GL2Q := GL(2, Rationals());
+  R_full := [GL2Q!r : r in HeckeFullCongruenceRepresentatives(N,p
+						 : Squared := Squared)];
+  D := Transversal(ImageInLevel(G), ImageInLevel(CongruenceSubgroup(N)));
+  D_lift := [Eltseq(FindLiftToSL2(d)) : d in D];
+  coset_reps := [GL2Q!([Integers()!x : x in Eltseq(g)]) : g in D_lift];
+  return &cat[[Eltseq(r*g) : g in coset_reps] : r in R_full];
 end function;
 
-function HeckeOperatorDirectlyOnModularSymbols(M,p)
+function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
    assert Type(M) eq ModSym;
    assert Type(p) eq RngIntElt;
    assert IsPrime(p);
+   N := Level(M);
    if IsOfGammaType(M) then
       R := [[1,r,0,p] : r in [0..p-1]];
-      if Level(M) mod p ne 0 then
+      if N mod p ne 0 then
          Append(~R,[p,0,0,1]);
       end if;
+   elif IsGamma(LevelSubgroup(M)) then  
+     R := HeckeFullCongruenceRepresentatives(N,p : Squared := Squared);
    else
-     N := Level(M);
-     if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) and (N ne p) then
-	/*					 
-        if (p^2 - 1 mod N eq 0) then
-	  R := HeckeFullCongruenceRepresentatives(N,p);
-        else
-	  plus := (N mod 4 eq 3) and IsGammaNSplus(M`G);
-	  R := HeckeNSCartanRepresentatives(M`G,p,plus);
-        end if;
-	*/
-	plus := (N mod 4 eq 3) and IsGammaNSplus(M`G);
-	R := HeckeNSCartanRepresentatives(M`G,p,plus);
-     elif (M`G eq CongruenceSubgroup(N)) then
-        R := HeckeFullCongruenceRepresentatives(N,p);
-     else
-        R := HeckeGeneralCaseRepresentatives(M`G,p);
-     end if;
+     /*
+     // Here i the conceptual way of what is going on here
+     M_full := ModularSymbols(CongruenceSubgroup(N), Weight(M),
+			   BaseRing(M), Sign(M));
+     i1 := DegeneracyMatrix(M, M_full, GL(2,Rationals())!1);
+     i2 := DegeneracyMatrix(M_full, M, GL(2,Rationals())!1);
+     factor := Index(CongruenceSubgroup(N)) / Index(LevelSubgroup(M));
+     return i1 * HeckeOperatorModSym(M_full, p) * i2 / factor;
+     */
+     R := HeckeGeneralCaseRepresentatives(LevelSubgroup(M),p :
+					Squared := Squared);
    end if;
-   return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
+   r := Squared select 2 else 1;
+   factor := #R;
+   if Level(M) mod p eq 0 then
+      factor := factor div p^r;
+   else
+      factor := factor div &+[p^j : j in [0..r]];
+   end if;
+   return &+[ActionOnModularSymbolsBasis(g,M) : g in R] / factor;
 end function;
 
-// TODO: Have to add here the action of epsilon, later !!!
+function get_general_phi(G)
+  function phi(mat)
+     det := Determinant(mat);
+     if det notin Domain(G`DetRep) then return 0,0; end if;
+     det_rep := G`DetRep(det);
+     mat_sl2 := ModLevel(G)!(det_rep^(-1) * mat);
+     ind, s := CosetReduce(mat_sl2, G`FindCoset);
+     s := det_rep * ModLevel(G)!Eltseq(s);
+     return ind, s;
+  end function;
+  return phi;
+end function;
+
+// special function to handle the ns cartan case better
+// act by the inverse to get a right action
+
+function get_non_split_cartan_coset(g, x)
+  F := Parent(x);
+  a,b,c,d := Explode([F!y : y in Eltseq(g)]);
+  denom := -c*x+a;
+  if denom eq 0 then return F!0; end if;
+  return (d*x-b)/denom;
+end function;
+
+function get_non_split_cartan_plus_coset(g,x)
+  t := get_non_split_cartan_coset(g,x);
+  return {t,AbsoluteFrobenius(t)};
+end function;
+
+function get_Cartan_phi(G)
+  F := GF(Level(G));
+  u := F!NSCartanU(G);
+  R<x> := PolynomialRing(F);
+  F2<alpha> := ext<F | x^2-u>;
+  cosets := Codomain(Components(G`FindCoset)[1]);
+  if IsGammaNS(G) then
+    get_coset := get_non_split_cartan_coset;
+    function is_good(t)
+      return t notin F;
+    end function;
+  else
+    get_coset := get_non_split_cartan_plus_coset;
+    function is_good(t)
+      return #t eq 2;
+    end function;
+  end if;
+  pairs := [<get_coset(cosets[i], alpha),
+	       <i, cosets[i]^(-1)> > : i in [1..#cosets]];
+  find_coset := map<[p[1] : p in pairs] -> Codomain(G`FindCoset) | pairs>;
+  function phi(mat)
+    t := get_coset(mat, alpha);
+    if not is_good(t) then return 0,0; end if; 
+    ind, g := Explode(find_coset(t));
+    s  := mat * g;
+    return ind, ModLevelGL(G)!s;
+  end function;
+  return phi;
+end function;
+
+function get_phi(G)
+  if IsGammaNS(G) or IsGammaNSplus(G) then
+    return get_Cartan_phi(G);
+  else
+    return get_general_phi(G);
+  end if;
+end function;
+
 function ManinSymbolsAction2(defining_tuple, uv, Heil)
-  find_coset := defining_tuple[1];
-  G := defining_tuple[2];
+  phi := defining_tuple[1];
   Tquot := defining_tuple[3];
   Squot := defining_tuple[4];
   Scoef := defining_tuple[5];
+  eps := defining_tuple[6];
   res := Universe(Tquot)!0;
   for mat in Heil do
     uvM := Parent(mat)!Eltseq(uv) * mat;
-    ind, s := CosetReduce(uvM, find_coset, G);
+    ind, s := phi(uvM);
     if ind ne 0 then
-      res +:= Scoef[ind]*Tquot[Squot[ind]];
+      e := s@eps;
+      res +:= e*Scoef[ind]*Tquot[Squot[ind]];
     end if;
   end for;
   return res;
 end function;
 
 
-// TODO: !!! Add polynomial action for arbitrary weight
-function ManinSymbolsAction(defining_tuple, uv, weight, Heil)
-  find_coset := defining_tuple[1];
-  G := defining_tuple[2];
+function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
+  phi := defining_tuple[1];
+  coset_list_size := defining_tuple[2];
   Tquot := defining_tuple[3];
   Squot := defining_tuple[4];
   Scoef := defining_tuple[5];
-  res := Universe(Tquot)!0;
-  for mat in Heil do
+  eps := defining_tuple[6];
+  K := BaseRing(eps);
+  R<X> := PolynomialRing(K);
+  res := VectorSpace(K,#Tquot)!0;
+  for idx in [1..#Heil_N] do
+    mat := Heil_N[idx];
     uvM := Parent(mat)!Eltseq(uv) * mat;
-    ind, s := CosetReduce(uvM, find_coset, G);
-    res +:= Scoef[ind]*Tquot[Squot[ind]];
+    ind, s := phi(uvM);
+    if ind ne 0 then
+      e := s@eps;
+      H := Heil_0[idx];
+      h := e*(R![H[1,2],H[1,1]])^w*(R![H[2,2],H[2,1]])^(k-2-w);
+      for a in Eltseq(h) do
+	 res[Squot[ind]] +:= a*Scoef[ind];
+         ind +:= coset_list_size;
+      end for;
+    end if;
   end for;
-  return res;
+  return res * RMatrixSpace(K,Degree(res),Degree(Tquot[1]))!Tquot;
 end function;
 
 procedure Get_Tquot(~quot, ~Tquot, ~CallP1Action2, ~CallP1Action)
@@ -768,7 +881,8 @@ function lev1_HeckeOperatorHeilbronn(M, Heil)
    end for;
 
    R := PolynomialRing(BaseField(M)); x := R.1;
-   T := [ P1GeneralizedWeightedAction(generating_coset_list[j],
+   if IsOfGammaType(M) then
+     T := [ P1GeneralizedWeightedAction(generating_coset_list[j],
                                generating_weights[j],
                                k, coset_list, Tquot,
                                my_phi, my_coeff,
@@ -778,6 +892,19 @@ function lev1_HeckeOperatorHeilbronn(M, Heil)
                                1) :
              j in [1..#generating_coset_list]
         ];
+   else
+     phiG := get_phi(LevelSubgroup(M));
+     T := [ lev1_ManinSymbolsGeneralizedWeightedAction(generating_coset_list[j],
+                               generating_weights[j],
+                               k, coset_list, Tquot,
+                               my_phi, my_coeff,
+                               modNHeil, char0Heil,
+                               eps,
+                               R,
+			       1,phiG) :
+             j in [1..#generating_coset_list]
+        ];
+   end if;
 
    return MatrixAlgebra(BaseField(M),Dimension(M))!T;
 end function;
@@ -836,7 +963,8 @@ function lev1_TnSparse(M, Heil, sparsevec)
    end for;
 
    R := PolynomialRing(BaseField(M)); x := R.1;
-   ans :=  &+[ m[1]* P1GeneralizedWeightedAction(generating_coset_list[m[2]],
+   if IsOfGammaType(M) then
+     ans :=  &+[ m[1]* P1GeneralizedWeightedAction(generating_coset_list[m[2]],
                                generating_weights[m[2]],
                                k, coset_list, Tquot,
                                my_phi, my_coeff,
@@ -845,6 +973,19 @@ function lev1_TnSparse(M, Heil, sparsevec)
                                R,
                                1) :
                 m in sparsevec];
+   else
+     phiG := get_phi(LevelSubgroup(M));
+     ans :=  &+[ m[1]* lev1_ManinSymbolsGeneralizedWeightedAction(
+			       generating_coset_list[m[2]],
+                               generating_weights[m[2]],
+                               k, coset_list, Tquot,
+                               my_phi, my_coeff,
+                               modNHeil, char0Heil,
+                               eps,
+                               R,
+			       1, phiG) :
+                m in sparsevec];
+   end if;
 
    if GetVerbose("ModularSymbols") eq 3 then
       printf " (%o s).\n", Cputime(t);
@@ -864,7 +1005,11 @@ function HeckeOperatorHeilbronn(M, Heil)
 
    M := AmbientSpace(M);
 
-   eps   := ValueList(DirichletCharacter(M));
+   if IsOfGammaType(M) then
+      eps   := ValueList(DirichletCharacter(M));
+   else
+      eps := DirichletCharacter(M);
+   end if;
    k     := Weight(M);
 
    quot  := M`quot;
@@ -901,8 +1046,10 @@ function HeckeOperatorHeilbronn(M, Heil)
       CallP1Action2 := ManinSymbolsAction2;
       CallP1Action := ManinSymbolsAction;
       G := LevelSubgroup(M);
-      find_coset := M`mlist`find_coset;
-      defining_tuple := <find_coset, G, Tquot, Squot, Scoef> ;
+      // find_coset := M`mlist`find_coset;
+      num_cosets := #M`mlist`coset_list;
+      phi := get_phi(G);
+      defining_tuple := <phi, num_cosets, Tquot, Squot, Scoef> ;
    end if;
 
    Append(~defining_tuple, eps);  
@@ -935,32 +1082,45 @@ function TnSparse(M, Heil, sparsevec)
    now commented out.  WAS, 09/15/01.
   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
 */
+
   if (not IsOfGammaType(M)) and
-     (not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) then
+     ((not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) or
+      (#Domain(M`G`DetRep) eq 1) )  then
       if Type(Heil) eq RngIntElt then
 	 n := Heil;
       else
 	 n := Determinant(Heil[1][1]);
       end if;
+      N := Level(M);
       // For now we always simply compute the whole Hecke operator,
       // because this seems more efficient, since it is properly cached, etc.
-      // if (not IsPrime(n) then   // just compute the whole Hecke operator.
-	 Tn := HeckeOperator(M,n);
-	 V := VectorSpace(M);
-	 v := &+[s[1]*V.s[2] : s in sparsevec];
-	 return v*Tn;
-/*
-      else  // n is prime   -- this code isn't used, as it is slower.
-         matrices := [[1,r,0,n] : r in [0..n-1]];
-         if Level(M) mod n ne 0 then
-     	    Append(~matrices,[n,0,0,1]);
-         end if;
-         return &+[s[1]*
+      if (GCD(N,n) ne 1) or (#Domain(M`G`DetRep) eq 1) then
+        fac := Factorization(n);
+        compute_direct := (#fac eq 1) and (fac[1][2] le 2);
+        if not compute_direct then   // just compute the whole Hecke operator.
+          Tn := HeckeOperator(M,n);
+          V := VectorSpace(M);
+          v := &+[s[1]*V.s[2] : s in sparsevec];      
+          return v*Tn;
+        else  // n is prime or a   -- this code isn't used, as it is slower.
+	  p := fac[1][1];
+          squared := fac[1][2] eq 2;
+          matrices := HeckeGeneralCaseRepresentatives(LevelSubgroup(M), p :
+					    Squared := squared);
+          r := squared select 2 else 1;
+          factor := #matrices;
+          if Level(M) mod p eq 0 then
+             factor := factor div p^r;
+          else
+             factor := factor div &+[p^j : j in [0..r]];
+          end if;
+          return &+[s[1]*
    	      &+[ActionOnModularSymbolsBasisElement(g,M,s[2]) :
-    	           g in matrices] : s in sparsevec];
+    	           g in matrices] : s in sparsevec] / factor;
+        end if;
       end if;
-*/
-   end if;
+   end if;    
+         
 
    // Now consider the characteristic-zero case.
    if Level(M) eq 1 then
@@ -985,7 +1145,11 @@ function TnSparse(M, Heil, sparsevec)
       char0Heil, modNHeil := Explode(Heil);      
    end if;
 
-   eps   := ValueList(DirichletCharacter(M));
+   if IsOfGammaType(M) then
+      eps   := ValueList(DirichletCharacter(M));
+   else
+      eps := DirichletCharacter(M);
+   end if;
    k     := Weight(M);
 
    quot  := M`quot;
@@ -1020,8 +1184,10 @@ function TnSparse(M, Heil, sparsevec)
       CallP1Action2 := ManinSymbolsAction2;
       CallP1Action := ManinSymbolsAction;
       G := LevelSubgroup(M);
-      find_coset := M`mlist`find_coset;
-      defining_tuple := <find_coset, G, Tquot, Squot, Scoef> ;
+      // find_coset := M`mlist`find_coset;
+      num_cosets := #M`mlist`coset_list;
+      phi := get_phi(G);
+      defining_tuple := <phi, num_cosets, Tquot, Squot, Scoef> ;
    end if;
 
    Append(~defining_tuple, eps);  
@@ -1083,7 +1249,11 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
       return Hom(Representation(M), Representation(M))!0;
    end if;
 
-   eps   := ValueList(DirichletCharacter(MM));
+   if IsOfGammaType(MM) then
+     eps   := ValueList(DirichletCharacter(MM));
+   else
+     eps := DirichletCharacter(MM);
+   end if;
    k     := Weight(MM);
 
    ambM  := AmbientSpace(M);
@@ -1114,7 +1284,8 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
 
    R := PolynomialRing(BaseField(M)); x := R.1;
 
-   T := [ P1GeneralizedWeightedAction(
+   if IsOfGammaType(MM) then
+      T := [ P1GeneralizedWeightedAction(
                                generating_coset_list[j], 
                                generating_weights[j], 
                                k, 
@@ -1126,6 +1297,21 @@ function GeneralizedHeilbronnOperator(M, MM, Heil : t:=1)
                                t) :
              j in [1..#generating_coset_list]
            ];
+   else
+       phiG := get_phi(LevelSubgroup(MM));
+       T := [ ManinSymbolsGeneralizedWeightedAction(
+                               generating_coset_list[j], 
+                               generating_weights[j], 
+                               k, 
+                               MM_coset_list, MM_Tquot, 
+                               my_MM_phi, my_MM_coeff, 
+                               modNHeil, char0Heil, 
+                               eps,
+                               R,
+                               t, phiG) :
+             j in [1..#generating_coset_list]
+           ];
+   end if;
 
    return Hom(VectorSpace(M),VectorSpace(MM))!T;
 end function;
@@ -1157,26 +1343,48 @@ require computing the full Hecke operator.}
    if not assigned M`standard_images then
       M`standard_images := [[Representation(M)|] : i in [1..Dimension(M)]];
    end if;
-   if #M`standard_images[i] lt PrimePos(n) then  // generate more images...
+   m := NextPrime(n);
+   if #M`standard_images[i] lt PrimePos(m) then  // generate more images...
       p := NthPrime(#M`standard_images[i]+1);
       new_images := [Universe(M`standard_images[i])|]; // avoid copy inside loop
-      if IsOfGammaType(M) then
-         s := SparseRepresentation(VectorSpace(M).i);  
-         while p le n do 
-            Append(~new_images, TnSparse(M, p, s));
-            p := NextPrime(p);
-         end while;
-      else
-	 while p le n do 
-	    Append(~new_images, VectorSpace(M).i * HeckeOperator(M, p));
-            p := NextPrime(p);
-         end while;
-      end if;
+      s := SparseRepresentation(VectorSpace(M).i);  
+      while p le n do 
+	 Append(~new_images, TnSparse(M, p, s));
+         p := NextPrime(p);
+      end while;
       M`standard_images[i] := M`standard_images[i] cat new_images;
    end if;      
    return M`standard_images[i];       
 end intrinsic;
 
+intrinsic HeckeImagesSquarePrimes(M::ModSym, i::RngIntElt,
+				  n::RngIntElt) -> SeqEnum
+{The images of the ith standard basis vector
+ under the Hecke operators Tp^2 for p^2<=n the square of a prime.
+These are computed using sparse methods that don't
+require computing the full Hecke operator.}  
+   assert 1 le i and i le Dimension(M);
+   if not IsAmbientSpace(M) then
+      return HeckeImagesSquarePrimes(AmbientSpace(M),i,n);
+   end if;
+   if not assigned M`standard_images_squares then
+      M`standard_images_squares := [
+	     [Representation(M)|] : i in [1..Dimension(M)]];
+   end if;
+   m := NextPrime(Floor(SquareRoot(n)));
+   if #M`standard_images_squares[i] lt PrimePos(m) then
+      p := NthPrime(#M`standard_images_squares[i]+1);
+      new_images := [Universe(M`standard_images_squares[i])|];
+      s := SparseRepresentation(VectorSpace(M).i);  
+      while p^2 le n do 
+	 Append(~new_images, TnSparse(M, p^2, s));
+         p := NextPrime(p);
+      end while;
+      M`standard_images_squares[i] := M`standard_images_squares[i]
+	cat new_images;
+   end if;      
+   return M`standard_images_squares[i];       
+end intrinsic;
 
 intrinsic HeckeImagesAll(M::ModSym, i::RngIntElt, n::RngIntElt) -> SeqEnum
 {The images of the ith standard basis vector
@@ -1270,7 +1478,7 @@ end intrinsic;
 
 
 intrinsic HeckeBound(M::ModSym) -> RngIntElt
-{A positive integer n = (k/12)*[SL_2(Z):Gamma_0(N)] 
+{A positive integer n = (k/12)*[SL_2(Z):Gamma] 
 such that the Hecke operators  T1,...,Tn acting on cusp forms
 generate the Hecke algebra as a Z-module when
 the character is trivial or quadratic.  Otherwise, T1,...,Tn 
@@ -1281,12 +1489,13 @@ where Z[eps] is the ring generated by the values of eps.}
       return HeckeBound(AmbientSpace(M));
    end if;
    if not assigned M`hecke_bound then
-      if IsMultiChar(M) then
-         M`hecke_bound := Ceiling(Weight(M) * idxG1(Level(M)) / 12);
-         return M`hecke_bound;
-      end if;
+      if IsOfGammaType(M) then
+         if IsMultiChar(M) then
+            M`hecke_bound := Ceiling(Weight(M) * idxG1(Level(M)) / 12);
+            return M`hecke_bound;
+         end if;
 
-      b := Ceiling(Weight(M) * idxG0(Level(M)) / 12);
+         b := Ceiling(Weight(M) * idxG0(Level(M)) / 12);
 
 /*  I was really worried about the following for a while.  The counterexample I point
     out below doesn't seem to be a problem -- maybe it was the result of a different
@@ -1315,8 +1524,12 @@ where Z[eps] is the ring generated by the values of eps.}
          b *:= 2;
       end if;
 */
-      M`hecke_bound := b;
-   end if;
+         M`hecke_bound := b;
+      else
+        G := LevelSubgroup(M);
+        M`hecke_bound := Ceiling(Weight(M) * Index(G) / 12);
+      end if; 
+    end if;   // if not assigned M`hecke_bound   
    return M`hecke_bound;
 end intrinsic;
 
@@ -1430,8 +1643,15 @@ transpose of HeckeOperator(M,n).}
          // T_{p^r} := T_p * T_{p^{r-1}} - eps(p)p^{k-1} T_{p^{r-2}}.
          p  := fac[1][1];
          r  := fac[1][2];
+         eps := DirichletCharacter(M);
+         if IsOfGammaType(M) then
+           eps_p := Evaluate(eps,p);
+         else
+	   eps_p := Evaluate(eps,
+			     Parent(eps)`OriginalDomain![p,0,0,p]);
+         end if;
          T  := DualHeckeOperator(M,p) * DualHeckeOperator(M,p^(r-1))
-        - Evaluate(DirichletCharacter(M),p)*p^(Weight(M)-1)*DualHeckeOperator(M,p^(r-2));
+        - eps_p*p^(Weight(M)-1)*DualHeckeOperator(M,p^(r-2));
       else  // T_m*T_r := T_{mr} and we know all T_i for i<n.
          m  := fac[1][1]^fac[1][2];
          T  := DualHeckeOperator(M,m)*DualHeckeOperator(M,n div m);
@@ -1446,7 +1666,7 @@ function ActionOnModularSymbolsBasis(g, M)
    // 1. Compute basis of modular symbols for M.
    B  := ModularSymbolsBasis(M);
    // 2. Apply g to each basis element. 
-   gB := [ModularSymbolApply(M, g,B[i]) : i in [1..#B]];
+   gB := [ModularSymbolApply(g,B[i]) : i in [1..#B]];
    // 3. Map the result back to M.
    gM := [Representation(ConvFromModularSymbol(M,gB[i])) : i in [1..#gB]];
    A :=  MatrixAlgebra(BaseField(M),Dimension(M))!gM;
@@ -1459,7 +1679,7 @@ function ActionOnModularSymbolsBasisBetween(g, M_dom, M_range)
    // 1. Compute basis of modular symbols for M_dom.
    B  := ModularSymbolsBasis(M_dom);
    // 2. Apply g to each basis element. 
-   gB := [ModularSymbolApply(M_dom, g,B[i]) : i in [1..#B]];
+   gB := [ModularSymbolApply(g,B[i]) : i in [1..#B]];
    // 3. Map the result back to M_range.
    gM := [Representation(ConvFromModularSymbol(M_range,gB[i])) : i in [1..#gB]];
    A :=  Matrix(gM);
@@ -1470,7 +1690,7 @@ function ActionOnModularSymbolsBasisElement(g, M, i)
    // 1. Compute basis of modular symbols for M.
    x  := ModularSymbolsBasis(M)[i];
    // 2. Apply g to x
-   gx := ModularSymbolApply(M,g,x);
+   gx := ModularSymbolApply(g,x);
    // 3. Map the result back to M.
    return Representation(ConvFromModularSymbol(M,gx));
 end function;

@@ -528,15 +528,65 @@ function image_of_old_newform_factor(M, A)
    assert IsIrreducible(A);
    assert IsCuspidal(M);
    assert Level(M) mod Level(A) eq 0;
-   if Level(M) eq Level(A) then
-      return A;
-   end if;
-   d := Level(M) div Level(A);
-   if IsPrime(d) then
-      return image_of_old_newform_factor_using_degen_maps(M,A);
+   if IsOfGammaType(M) then
+      if Level(M) eq Level(A) then
+         return A;
+      end if;
+      d := Level(M) div Level(A);
+      if IsPrime(d) then
+         return image_of_old_newform_factor_using_degen_maps(M,A);
+      else
+         return image_of_old_newform_factor_using_operators(M,A);
+      end if;
    else
-      return image_of_old_newform_factor_using_operators(M,A);
+     if LevelSubgroup(M) eq LevelSubgroup(A) then
+       return A;
+     end if;
+// !!! Check later if we want to change also the operators !!! 
+     return image_of_old_newform_factor_using_degen_maps(M,A);
    end if;
+end function;
+
+function get_NN(M)
+   eps := DirichletCharacter(M);
+   G_N := ImageInLevelGL(LevelSubgroup(M));
+//G_N := ImageInLevel(LevelSubgroup(M));
+   G := Parent(eps)`Gamma;
+   N := ImageInLevelGL(G);
+//N := ImageInLevel(G);
+   NN := [N];
+   NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
+   Append(~NN, ModLevelGL(G));
+//NN := NN cat IntermediateSubgroups(ModLevel(G), ImageInLevel(G));
+// Append(~NN, ModLevel(G));
+   eta := ModLevelGL(G)![-1,0,0,1];
+   NN := [nn : nn in NN | nn^eta eq nn];
+// For now, just return all of them - see if it helps
+   return NN;
+
+   NN_idxs := AssociativeArray();
+   for nn in NN do
+     idx := Index(nn,N);
+     if IsDefined(NN_idxs,idx) then  
+       Append(~NN_idxs[idx], nn);
+     else
+       NN_idxs[idx] := [nn];         
+     end if;
+   end for;
+   // There should be a more efficient way of doing that, e.g.
+   // using union find, but I have despaired of doing so in Magma
+   idxs := Sort(SetToSequence(Keys(NN_idxs)));
+   for idx in idxs do
+      Nidx := NN_idxs[idx];
+      is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];
+//      is_conj := [[IsConjugate(ModLevel(G), x, y) : x in Nidx] : y in Nidx];
+      NN_idxs[idx] := {[Nidx[i] : i in [1..#Nidx] |
+			    is_conj[i][j]] : j in [1..#Nidx]};
+   end for;
+   // One of each conjugacy class
+   NN := &cat[[y[1] : y in NN_idxs[idx]] : idx in idxs];
+   
+   return NN;
 end function;
 
 intrinsic NewformDecomposition(M::ModSym
@@ -545,6 +595,8 @@ intrinsic NewformDecomposition(M::ModSym
 the Galois conjugacy classes of newforms of level 
 a divisor of the level of M. We require that
 IsCuspidal(M) is true.}
+
+   require IsOfGammaType(M) : "At the moment, this feature is not supported for spaces not of Gamma type";
 
    require Type(BaseField(M)) in {FldRat, FldCyc, FldNum} :
       "The base field must be either the rationals, a cyclotomic field, or a number field.";
@@ -589,26 +641,49 @@ IsCuspidal(M) is true.}
       end if;
 
       D := [ ] ;
-      N := Level(M);
-      NN := Reverse([a : a in Divisors(N)]);
-      pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
+
+      if IsOfGammaType(M) then
+        N := Level(M);
+        NN := Reverse([a : a in Divisors(N)]);
+        pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
+      else
+        eps := DirichletCharacter(M);
+        G := Parent(eps)`Gamma;
+        G_N := ImageInLevelGL(LevelSubgroup(M));
+        N := ImageInLevelGL(G);
+//G_N := ImageInLevel(LevelSubgroup(M));
+//      N := ImageInLevel(G);
+        NN := get_NN(M);
+        pnew := [p : p in MinimalOvergroups(ModLevelGL(G), N)
+//        pnew := [p : p in MinimalOvergroups(ModLevel(G), N)
+					    | IsNew(M,p)];
+      end if;
 
       for i in [1..#NN] do
          if &+[Integers()|Dimension(d) : d in D] eq Dimension(M) then 
             continue;
          end if;
 
-         if GCD(N div NN[i],pnew) gt 1 or
-            NN[i] mod Conductor(DirichletCharacter(M)) ne 0 or
-            Characteristic(BaseField(M)) eq 0 and
+         if IsOfGammaType(M) then
+           if GCD(N div NN[i],pnew) gt 1 or
+              NN[i] mod Conductor(DirichletCharacter(M)) ne 0 or
+              Characteristic(BaseField(M)) eq 0 and
                  DimensionCuspForms(
                     Restrict(DirichletCharacter(M),NN[i]),
                     Weight(M)
                  ) eq 0 then
-             continue;
-         end if;
+               continue;
+           end if;
+	 else
+	   if &or[p subset NN[i] : p in pnew] or
+	      (not (NN[i] meet G_N)  subset Kernel(eps))
+	   then
+	      continue;
+           end if;
+	 end if;    
 
          MM := CuspidalSubspace(ModularSymbols(AmbientSpace(M),NN[i]));
+         
          MMnew := NewSubspace(MM);
          if Dimension(MMnew) eq 0 then
             continue;

@@ -72,6 +72,11 @@ end intrinsic;
 
 intrinsic IsGammaNS(G::GrpPSL2) -> BoolElt
 {returns true if and only if G is Gamma non split Cartan}
+// Since there are different orders whose units are GammaNS
+   // at the moment we only return true if the group was explicitly built
+   // using GammaNS
+   if not assigned G`IsNSCartan then G`IsNSCartan := false; end if;
+/*
    if assigned G`IsNSCartan then return G`IsNSCartan; end if;
    // at the moment we ony support prime non-split Cartan
    if IsPrime(Level(G)) then     
@@ -80,17 +85,24 @@ intrinsic IsGammaNS(G::GrpPSL2) -> BoolElt
        G`IsNSCartan := false;
        G`IsNSCartanPlus := false;
      else
-       G`IsNSCartan :=  (G eq GammaNS(Level(G), u));
+       H := GammaNS(Level(G), u);
+       G`IsNSCartan :=  (G eq H);
      end if;
    else
      G`IsNSCartan := false;
      G`IsNSCartanPlus := false;
    end if;
+*/
    return G`IsNSCartan;
 end intrinsic;
 
 intrinsic IsGammaNSplus(G::GrpPSL2) -> BoolElt
 {returns true if and only if G is the normalizer of Gamma non split Cartan}
+// Since there are different orders whose units are GammaNS
+   // at the moment we only return true if the group was explicitly built
+   // using GammaNS
+   if not assigned G`IsNSCartanPlus then G`IsNSCartanPlus := false; end if;
+/*
    if assigned G`IsNSCartanPlus then return G`IsNSCartanPlus; end if;
    // at the moment we ony support prime non-split Cartan
    if IsPrime(Level(G)) then     
@@ -99,12 +111,14 @@ intrinsic IsGammaNSplus(G::GrpPSL2) -> BoolElt
        G`IsNSCartan := false;
        G`IsNSCartanPlus := false;
      else
-       G`IsNSCartanPlus :=  (G eq GammaNSplus(Level(G), u));
+       H := GammaNSplus(Level(G), u);
+       G`IsNSCartanPlus := (G eq H);
      end if;
    else
      G`IsNSCartan := false;
      G`IsNSCartanPlus := false;
    end if;
+*/
    return G`IsNSCartanPlus;
 end intrinsic;
 

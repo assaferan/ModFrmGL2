@@ -684,6 +684,7 @@ function XXXP1GeneralizedWeightedAction(
    return v * RMatrixSpace(K,Degree(v),Degree(S[1]))!S;
 end function;
 
+forward get_phi;
 
 function XXXManinSymbolsGeneralizedWeightedAction(
                               uv,  // element of P1(Z/NZ)
@@ -698,7 +699,7 @@ function XXXManinSymbolsGeneralizedWeightedAction(
                              eps,
                                R,
 			       t,
-			       phiG)
+			       G)
 
    assert Type(w) eq RngIntElt;
    assert Type(k) eq RngIntElt;
@@ -713,13 +714,14 @@ function XXXManinSymbolsGeneralizedWeightedAction(
 
    uv := Universe(M)!Eltseq(uv);
    t_inv := t^(-1);
+   phiG, phi_data := get_phi(G);
 
    for i in [1..#M] do
       uvM := uv*M[i];
       uvM := t_inv * MatrixAlgebra(Rationals(),2)![Z!x : x in Eltseq(uvM)];
       if not IsCoercible(MatrixAlgebra(Z,2), uvM) then continue; end if;
       uvM := MatrixAlgebra(Integers(Modulus(eps)),2)!(MatrixAlgebra(Z,2)!uvM);
-      ind, s := phiG(uvM);
+      ind, s := phiG(uvM, phi_data);
       if ind eq 0 then continue; end if;
       e := s@eps;
       H := W[i];
@@ -746,9 +748,9 @@ function ManinSymbolsGeneralizedWeightedAction(
 					       eps,
 					       R,
 					       t,
-					       phiG)
+					       G)
    return XXXManinSymbolsGeneralizedWeightedAction(uv,w,k,list,S,
-						   phi,coeff,M,W,eps,R,t,phiG);
+						   phi,coeff,M,W,eps,R,t,G);
 end function;
 
 function lev1_ManinSymbolsGeneralizedWeightedAction(
@@ -764,7 +766,7 @@ function lev1_ManinSymbolsGeneralizedWeightedAction(
 					       eps,
 					       R,
 					       t,
-					       phiG)
+					       G)
    Z := Integers();
    coset_list_size := #list;
    K := Parent(eps[1]);
@@ -1731,3 +1733,73 @@ function ManinSymbolRepresentation(x)
 end function;
 */
 
+function get_general_phi(G)
+  function phi(mat, G)
+     det := Determinant(mat);
+     if det notin Domain(G`DetRep) then return 0,0; end if;
+     det_rep := G`DetRep(det);
+     mat_sl2 := ModLevel(G)!(det_rep^(-1) * mat);
+     ind, s := CosetReduce(mat_sl2, G`FindCoset);
+     s := det_rep * ModLevel(G)!Eltseq(s);
+     return ind, s;
+  end function;
+  return phi, G;
+end function;
+
+// special function to handle the ns cartan case better
+// act by the inverse to get a right action
+
+function get_non_split_cartan_coset(g, x)
+  F := Parent(x);
+  a,b,c,d := Explode([F!y : y in Eltseq(g)]);
+  denom := -c*x+a;
+  if denom eq 0 then return F!0; end if;
+  return (d*x-b)/denom;
+end function;
+
+function get_non_split_cartan_plus_coset(g,x)
+  t := get_non_split_cartan_coset(g,x);
+  return {t,AbsoluteFrobenius(t)};
+end function;
+
+function get_Cartan_phi(G)
+  F := GF(Level(G));
+  u := F!NSCartanU(G);
+  R<x> := PolynomialRing(F);
+  F2<alpha> := ext<F | x^2-u>;
+  cosets := Codomain(Components(G`FindCoset)[1]);
+  if IsGammaNS(G) then
+    get_coset := get_non_split_cartan_coset;
+    function is_good(t)
+      return t notin F;
+    end function;
+  else
+    get_coset := get_non_split_cartan_plus_coset;
+    function is_good(t)
+      return #t eq 2;
+    end function;
+  end if;
+  pairs := [<get_coset(cosets[i], alpha),
+	       <i, cosets[i]^(-1)> > : i in [1..#cosets]];
+  find_coset := map<[p[1] : p in pairs] -> Codomain(G`FindCoset) | pairs>;
+  function phi(mat, phi_data)
+    G := phi_data[1];
+    alpha := phi_data[2];
+    is_good := phi_data[3];
+    find_coset := phi_data[4];
+    t := get_coset(mat, alpha);
+    if not is_good(t) then return 0,0; end if; 
+    ind, g := Explode(find_coset(t));
+    s  := mat * g;
+    return ind, ModLevelGL(G)!s;
+  end function;
+  return phi, <G, alpha, is_good, find_coset>;
+end function;
+
+function get_phi(G)
+  if IsGammaNS(G) or IsGammaNSplus(G) then
+    return get_Cartan_phi(G);
+  else
+    return get_general_phi(G);
+  end if;
+end function;

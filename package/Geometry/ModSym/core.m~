@@ -334,27 +334,24 @@ end function;
 
 //////////////////////////////////////////////////////////////////////////
 //  CosetReduce:                                                        //
-//  INPUT: gamma in PSL2(Z), G                                          //
+//  INPUT: x in GL(2,Z/NZ), find_coset - a map                          //
+//                          sending elements of GL(2,Z/NZ) to a pair    //
+//                          <idx, g> such that x belongs to coset no.   //
+//                          idx, which is represented by g^(-1)         //
 //  OUTPUT:  1) the *index* of a fixed choice r of representative       //
-//              in the coset of gamma - G * gamma in G\PSL2(Z)          //
+//              in the coset of x - G * x in G\PSL2(Z)                  //
 //                                                                      //
-//           2) an element s in G such that gamma = s * r               //
+//           2) an element s in GL(2,Z/NZ) such that x = s * r          //
 //              so the representation relation is                       //
-//                   eps(s)(r) = gamma                                  //
+//                   eps(s)(r) = x                                      //
 //////////////////////////////////////////////////////////////////////////
-
-forward get_non_split_cartan_coset;
 
 // The original is now in the C - we might want to change the corresponding
 // C code
 
-// We want x to be in SL(2,Z/NZ) as well as s
+function CosetReduce(x, find_coset)
 
-function CosetReduce(x, find_coset, G)
-
-//index := G`FindCoset(ModLevel(G)!Eltseq(x));
-  index := G`FindCoset(x);
-  g := find_coset[index];
+  index, g := Explode(find_coset(x));
   //s := x*g^(-1);
   // we now work with the list of inverses
   s := x*g;
@@ -397,16 +394,6 @@ function ManinSymbolList(k,N,F)
    >;
 end function;
 
-// special function to handel the ns cartan case better
-// act by the inverse to get a right action
-
-function get_non_split_cartan_coset(g, x)
-  a,b,c,d := Explode([Parent(x)!y : y in Eltseq(g)]);
-  denom := -c*x+a;
-  if denom eq 0 then return 0; end if;
-  return (d*x-b)/denom;
-end function;
-
 //////////////////////////////////////////////////////////////////////////
 // ManinSymbolGenList:                                                  //
 // Construct a list of distinct (Generalized) Manin symbols.            //
@@ -425,9 +412,11 @@ end function;
 // ...                                                                  //
 //////////////////////////////////////////////////////////////////////////
  
-function ManinSymbolGenList(k,G,F) 
-   coset_list := CosetRepresentatives(G);
-   find_coset := [*g^(-1) : g in coset_list*];
+function ManinSymbolGenList(k,G,F)
+   // coset_list := [c : c in Codomain(Components(G`FindCoset)[1])];
+   // find_coset := G`FindCoset;
+   find_coset := GetFindCoset(G);
+   coset_list := [c : c in Codomain(Components(find_coset)[1])];
    n      := (k-1)*#coset_list;
    R<X,Y> := PolynomialRing(F,2);
    return rec<CManSymGenList |
@@ -540,33 +529,18 @@ function ManinSymbolApply(g, i, mlist, eps, k)
    coset_list := mlist`coset_list;
 
    if Type(g) eq SeqEnum then 
-     if Type(eps) eq GrpPSL2 then
-        g := <g, GL(2,Integers())!g> ;
-      else
-        g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
-      end if;
+     g := <g, MatrixAlgebra(Integers(Modulus(eps)),2)!g> ;
    end if;
  
-   if Type(eps) eq GrpPSL2 then
-     uvg := Matrix(uv)* g[2];
-     // That's for the case of involution
-     if (Determinant(g[2]) eq -1) then
-       uvg := g[2] * uvg;
-     end if;
-     uvg := PSL2(Integers())!uvg;
-     find_coset := mlist`find_coset;
-     act_uv, s := CosetReduce(uvg, find_coset, eps);
-   else
-     uvg := uv * g[2];
-     act_uv, scalar := P1Reduce(uvg, coset_list);
-   end if;
-
+   uvg := uv * g[2];
+   act_uv, scalar := P1Reduce(uvg, coset_list);
+ 
    if act_uv eq 0 then
       return [<0,1>];
    end if;
 
    if k eq 2 then
-      if (Type(eps) eq GrpPSL2) or (IsTrivial(eps)) then
+      if (IsTrivial(eps)) then
 	 return [<1,act_uv>];
       else
          return [<Evaluate(eps,scalar),act_uv>]; 
@@ -577,7 +551,7 @@ function ManinSymbolApply(g, i, mlist, eps, k)
    R := PolynomialRing(mlist`F); x := R.1;    // univariate is fine for computation
    hP := (g[1][1]*x+g[1][2])^w*(g[1][3]*x+g[1][4])^(k-2-w);
 
-   if (Type(eps) ne GrpPSL2) and (not IsTrivial(eps)) then
+   if (not IsTrivial(eps)) then
       hP *:= Evaluate(eps,scalar);
    end if;
    pol := ElementToSequence(hP);
@@ -595,17 +569,19 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    find_coset := mlist`find_coset;
 
    if Type(g) eq SeqEnum then
-        // g := <g, Parent(uv)!g> ;
-       g := <g, GL(2, Integers())!g>;
+      if Level(G) eq 1 then
+        g := <g, (G`ModLevelGL)!1>;
+      else
+        g := <g, (G`ModLevelGL)!g>;
+      end if;
    end if;
  
-   uvg := Matrix(uv)* g[2];
+   uvg := (Parent(g[2])!Matrix(uv))* g[2];
    // That's for the case of involution
-   if (Determinant(g[2]) eq -1) then
+   if (Determinant(g[2]) ne 1) then
      uvg := g[2] * uvg;
    end if;
-   uvg := PSL2(Integers())!uvg;
-   act_uv, s := CosetReduce(uvg, find_coset, G);
+   act_uv, s := CosetReduce(uvg, find_coset);
 
    if k eq 2 then
       return [<s@eps,act_uv>]; 
@@ -619,7 +595,6 @@ function ManinSymbolApplyGen(g, i, mlist, eps, k, G)
    pol := ElementToSequence(hP);
 
    // Put it together
-   // n   := #coset_list_inv;
    n := #mlist`coset_list;
    ans := [<pol[w+1],  w*n + act_uv> : w in [0..#pol-1]];
    return [x : x in ans | x[1] ne 0];
@@ -723,29 +698,29 @@ function XXXManinSymbolsGeneralizedWeightedAction(
                              eps,
                                R,
 			       t,
-			       G)
+			       phiG)
 
    assert Type(w) eq RngIntElt;
    assert Type(k) eq RngIntElt;
 
    Z := Integers();
    coset_list_size := #list;
-   K := Parent(eps[1]);
+   K := BaseRing(eps);
    v := VectorSpace(K,#S)!0;
    if #S eq 0 then 
       return v;
    end if;
 
    uv := Universe(M)!Eltseq(uv);
+   t_inv := t^(-1);
 
    for i in [1..#M] do
       uvM := uv*M[i];
-      det := Determinant(uvM); // mod Level(G);
-      if det notin Domain(G`DetRep) then continue; end if;
-      det_rep := G`DetRep(det);
-      uvM := det_rep^(-1) * uvM;
-      ind, s := CosetReduce(uvM,list,G);
-      s := det_rep * s;
+      uvM := t_inv * MatrixAlgebra(Rationals(),2)![Z!x : x in Eltseq(uvM)];
+      if not IsCoercible(MatrixAlgebra(Z,2), uvM) then continue; end if;
+      uvM := MatrixAlgebra(Integers(Modulus(eps)),2)!(MatrixAlgebra(Z,2)!uvM);
+      ind, s := phiG(uvM);
+      if ind eq 0 then continue; end if;
       e := s@eps;
       H := W[i];
       h := e*(R![H[1,2],H[1,1]])^w*(R![H[2,2],H[2,1]])^(k-2-w);
@@ -771,9 +746,9 @@ function ManinSymbolsGeneralizedWeightedAction(
 					       eps,
 					       R,
 					       t,
-					       G)
+					       phiG)
    return XXXManinSymbolsGeneralizedWeightedAction(uv,w,k,list,S,
-						   phi,coeff,M,W,eps,R,t,G);
+						   phi,coeff,M,W,eps,R,t,phiG);
 end function;
 
 function lev1_ManinSymbolsGeneralizedWeightedAction(
@@ -789,7 +764,7 @@ function lev1_ManinSymbolsGeneralizedWeightedAction(
 					       eps,
 					       R,
 					       t,
-					       G)
+					       phiG)
    Z := Integers();
    coset_list_size := #list;
    K := Parent(eps[1]);
@@ -798,7 +773,9 @@ function lev1_ManinSymbolsGeneralizedWeightedAction(
       return v;
    end if;
 
-   uv := Universe(M)!Eltseq(uv);
+   elt_uv := Eltseq(uv);
+   if #elt_uv eq 1 then elt_uv := [1,0,0,1]; end if;
+   uv := Universe(M)!elt_uv;
 
    for i in [1..#M] do
       H := W[i];
@@ -850,9 +827,7 @@ end function;
 //  After computing the action, no further reduction is done.  //
 /////////////////////////////////////////////////////////////////
 
-// TO DO: get rid of unused argument M
-
-intrinsic ModularSymbolApply(M::ModSym, g::SeqEnum, s::SeqEnum) -> SeqEnum
+intrinsic ModularSymbolApply(g::SeqEnum, s::SeqEnum) -> SeqEnum
 {Apply an element g=[a,b, c,d] of GL(2,Q) to the modular symbol s,
  given as a sequence of tuples <coeff,[cusp1,cusp2]> (as returned by
  ModularSymbolRepresentation).  The result is returned in the same format.
@@ -1332,8 +1307,8 @@ end function;
    so that ad-bc=1. 
    **********************************************************/  
 function LiftToCosetRep(x, N)
-   if Type(x) eq GrpPSL2Elt then
-     return ElementToSequence(x);
+   if Type(x) eq GrpMatElt then
+     return Eltseq(FindLiftToSL2(x));
    end if;
    c:=Integers()!x[1]; d:=Integers()!x[2];
    g, z1, z2 := Xgcd(c,d);
@@ -1515,10 +1490,12 @@ function ConvFromManinSymbol (M, P, uv)
    if IsOfGammaType(M) then
      ind,s := P1Reduce(Parent(coset_list[1])!uv, coset_list); 
    else
-     // coset_list_inv := mlist`coset_list_inv;  
-     // ind,s := CosetReduce(Parent(coset_list[1])!uv, coset_list_inv, M`G);
-     find_coset := mlist`find_coset;  
-     ind,s := CosetReduce(Parent(coset_list[1])!uv, find_coset, M`G);
+     find_coset := mlist`find_coset;
+     if Level(M) eq 1 then
+       ind, s := CosetReduce(ModLevel(M`G)!1, find_coset);
+     else
+       ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset);
+     end if;
    end if;
 
    char := DirichletCharacter(M);
@@ -1567,10 +1544,8 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
 	 if IsOfGammaType(M) then
             ind,s := P1Reduce(coset_parent!uv, coset_list);
          else
-	   // coset_list_inv := mlist`coset_list_inv;
-	   //  ind,s := CosetReduce(p1parent!uv, coset_list_inv, M`G);
 	   find_coset := mlist`find_coset;
-	   ind,s := CosetReduce(coset_parent!uv, find_coset, M`G);
+           ind,s := CosetReduce(ModLevel(M`G)!Eltseq(uv), find_coset);
          end if;
          if (Type(s) ne RngIntElt) or (s ne 0) then 
             if trivial then
@@ -1579,7 +1554,7 @@ function ConvFromManinSymbols (M, mlist, P, uvs)
 	      if IsOfGammaType(M) then
                a := Evaluate(char,Integers()!s);
               else
-	       a := char(Domain(char)!ElementToSequence(s))[1,1];
+	       a := s@char;
               end if;
             end if;
             Append(~symbols, <a*P,ind>);

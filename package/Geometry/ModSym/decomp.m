@@ -550,15 +550,16 @@ end function;
 function get_NN(M)
    eps := DirichletCharacter(M);
    G_N := ImageInLevelGL(LevelSubgroup(M));
-//G_N := ImageInLevel(LevelSubgroup(M));
    G := Parent(eps)`Gamma;
    N := ImageInLevelGL(G);
-//N := ImageInLevel(G);
    NN := [N];
+   // !!! TODO : This might be slow - change it later
    NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
    Append(~NN, ModLevelGL(G));
-//NN := NN cat IntermediateSubgroups(ModLevel(G), ImageInLevel(G));
-// Append(~NN, ModLevel(G));
+   eta := ModLevelGL(G)![-1,0,0,1];
+   NN := [nn : nn in NN | nn^eta eq nn];
+// For now, just return all of them - see if it helps
+   return NN;
 
    NN_idxs := AssociativeArray();
    for nn in NN do
@@ -575,7 +576,6 @@ function get_NN(M)
    for idx in idxs do
       Nidx := NN_idxs[idx];
       is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];
-//      is_conj := [[IsConjugate(ModLevel(G), x, y) : x in Nidx] : y in Nidx];
       NN_idxs[idx] := {[Nidx[i] : i in [1..#Nidx] |
 			    is_conj[i][j]] : j in [1..#Nidx]};
    end for;
@@ -592,6 +592,9 @@ the Galois conjugacy classes of newforms of level
 a divisor of the level of M. We require that
 IsCuspidal(M) is true.}
 
+/*
+   require IsOfGammaType(M) : "At the moment, this feature is not supported for spaces not of Gamma type";
+*/
    require Type(BaseField(M)) in {FldRat, FldCyc, FldNum} :
       "The base field must be either the rationals, a cyclotomic field, or a number field.";
 
@@ -645,11 +648,8 @@ IsCuspidal(M) is true.}
         G := Parent(eps)`Gamma;
         G_N := ImageInLevelGL(LevelSubgroup(M));
         N := ImageInLevelGL(G);
-//G_N := ImageInLevel(LevelSubgroup(M));
-//      N := ImageInLevel(G);
         NN := get_NN(M);
         pnew := [p : p in MinimalOvergroups(ModLevelGL(G), N)
-//        pnew := [p : p in MinimalOvergroups(ModLevel(G), N)
 					    | IsNew(M,p)];
       end if;
 

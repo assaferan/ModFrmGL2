@@ -196,6 +196,7 @@ intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
   G`Label := Sprintf("Gamma_ns(%o)", N);
   G`IsReal := true;
   G`NSCartanU := u;
+  G`IsNSCartan := true;
   return G;
 end intrinsic;
 
@@ -249,7 +250,7 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
    H`IsNormalizer := true;
    H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat Label(G);
    if IsOfRealType(G) then H`IsReal := true; end if;
-   if IsGammaNS(G) then
+   if IsGammaNS(G) or IsGammaNSplus(G) then
      H`NSCartanU := G`NSCartanU;
      H`IsNSCartan := false;
      H`IsNSCartanPlus := true;
@@ -303,7 +304,7 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
     H`Label := Sprintf("Maximal Abelian Subgroup of Normalizer in 
                         PSL_2(%o) of ", G`BaseRing) cat Label(G);
     if IsOfRealType(G) then H`IsReal := true; end if;
-    if IsGammaNS(G) then
+    if IsGammaNS(G) or IsGammaNSplus(G) then
       H`NSCartanU := G`NSCartanU;
       H`IsNSCartan := false;
       H`IsNSCartanPlus := true;
@@ -384,9 +385,11 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
      At the moment we only support the case where
      both input and output are subgroups of PSL2(Z)}
   if IsOne(A) then return G; end if;
-  det := Integers()!Determinant(A);
-  require Level(G) mod det eq 0 :
-    "Determinant of A must divide the level of G";
+//det := Integers()!Determinant(A);
+  det_num := Numerator(Determinant(A));
+  det_denom := Denominator(Determinant(A));
+  require Level(G) mod det_num eq 0 :
+    "Numerator of the Determinant of A must divide the level of G";
   // At the moment we always calculate generators
   // If they have not been calculated yet, can add later more efficient
   // methods
@@ -398,7 +401,11 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
       Append(~H_gens, new_g);
   end for;
   gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
-  im_in_level := sub<ModLevel(G) | gens_level >;
+  mod_level := ModLevel(G);
+  if det_denom gt 1 then
+    mod_level := SL(2, Integers(Level(G) * det_denom));
+  end if;
+  im_in_level := sub<mod_level | gens_level >;
   return PSL2Subgroup(im_in_level, IsExactLevel);
 end intrinsic;
 
