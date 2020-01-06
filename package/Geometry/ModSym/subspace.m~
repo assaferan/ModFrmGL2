@@ -657,6 +657,10 @@ over all prime divisors of the level of M}
         G_N := ModLevelGL(G);
         H := ImageInLevelGL(G);
         primes := MinimalOvergroups(G_N,H);
+// Is this necessary?
+        eta := G_N![-1,0,0,1];
+        SL_N := ModLevel(G);
+        primes := [p : p in primes | (p meet SL_N)^eta eq p meet SL_N];
       end if;
 
       if IsMultiChar(M) then

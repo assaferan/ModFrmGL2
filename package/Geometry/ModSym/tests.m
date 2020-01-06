@@ -538,14 +538,11 @@ procedure Test_Stein()
 // Here it takes quite a while to generate the group Gamma0(2004)
 // in an alternative way - intersection with SL2 takes too much time
 // Test_Stein_8_37();
-// for now, we disable newform decomposition
-/*
-  Test_Stein_9_6();
+   Test_Stein_9_6();
 // At the moment spends too much time computing Hecke operators
 // at primes dividing the level, so we don't run them every time
-   Test_Stein_9_7();
-   Test_Stein_9_8();
-*/
+// Test_Stein_9_7();
+// Test_Stein_9_8();
 end procedure;
 
 function make_group_copy(M)
@@ -969,9 +966,7 @@ procedure DoTests(numchecks)
    Test_NS_cartan(30);
    TestNSCartan_11();
    TestNSCartan_17();
-// This will only work once we have newform decompoition, at the moment
-// (for the echelonization process)
-//   Test_Zywina();
+   Test_Zywina();
 end procedure;
 
 function get_det_n_order(G, n)
