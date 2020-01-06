@@ -429,6 +429,14 @@ intrinsic '@'(g::GrpPSL2Elt, x::GrpChrElt) -> RngElt
 {"} // "
    return Evaluate(x,g);
 end intrinsic;
+
+intrinsic '@'(M::AlgMatElt[RngIntRes], x::GrpChrElt) -> RngElt
+{"} // "
+   // !!!! TODO : Change this for treating the general case
+   // This should be an extension of epsilon to the order generated
+   // by the group (additively)
+   return 1;
+end intrinsic;
  
 intrinsic ValuesOnGenerators(x::GrpChrElt) -> SeqEnum
 {The values of x on the ordered sequence generators of Q, where

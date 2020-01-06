@@ -556,6 +556,67 @@ function HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H)
   return R;
 end function;
 
+function HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha)
+  GL2Q := GL(2, Rationals());
+  M2Z := MatrixAlgebra(Integers(),2);
+  n := Determinant(alpha);
+  N := Level(G);
+  alpha_tilde := ScalarMatrix(2,n)*alpha^(-1);
+  n := Integers()!n;
+  gamma1_reps := &cat[[GL2Q![n div a, b, 0, a] : b in [0..a-1]] :
+			   a in Divisors(n) | GCD(n div a, N) eq 1];
+  for r in gamma1_reps do
+     if IsCoercible(M2Z,alpha_tilde * r^(-1)) then
+        beta := r;
+        break;
+     end if;	  
+  end for;
+  // For now we assert that n is a prime, otherwise this part gets complicated
+  assert IsPrime(n);
+  alpha_n := GL2Q![beta[1,1],0,0,beta[2,2]];
+  t := alpha_n^(-1)*beta;
+  assert IsCoercible(M2Z, t);
+  if beta[1,1] eq 1 then
+    gamma1_conj := GammaUpper0(n);
+  else
+    gamma1_conj := Gamma0(n);
+  end if;
+
+  gamma1_alpha_conj := Conjugate(gamma1_conj, t);
+
+  // verify that this is indeed the alpha*Gamma(1)*alpha^(-1) meet Gamma(1)
+  gens := [GL2Q!Eltseq(g) : g in Generators(gamma1_alpha_conj)];
+  assert &and[IsCoercible(M2Z,alpha^(-1)*g*alpha) : g in gens];
+  assert Index(gamma1_alpha_conj) eq #gamma1_reps;
+
+  gamma_alpha_conj := Conjugate(G meet gamma1_alpha_conj, alpha);
+  // verify that this is contained in alpha^(-1)*Gamma*alpha meet Gamma(1)
+  // This suggests that here we don't have the full intersection
+  gens := [GL2Q!Eltseq(g) : g in Generators(gamma_alpha_conj)];
+  assert &and[alpha*g*alpha^(-1) in G : g in gens];
+
+  H := G meet gamma_alpha_conj;
+
+  // Check that H is contained in alpha^(-1)*Gamma*alpha
+  gens := [GL2Q!Eltseq(g) : g in Generators(H)];
+  assert &and[alpha*g*alpha^(-1) in G : g in gens];
+
+  // Here we want Transversal(G,H);
+  coset_reps := [GL2Q!Eltseq(x) : x in CosetRepresentatives(H) | x in G];
+  assert &and &cat[[coset_reps[i]*coset_reps[j]^(-1) notin H : j in [1..i-1]] : i in [2..#coset_reps]];
+
+  R :=  [alpha * x : x in coset_reps];
+
+  // Check that they indeed represent different cosets
+  assert &and &cat[[R[i]*R[j]^(-1) notin G : j in [1..i-1]] : i in [2..#R]];
+
+  // This fails meaning that H is not the intersection. Where did we go wrong?
+  // It is smaller (!?)
+
+  return [Eltseq(r) : r in R];
+  
+end function;
+
 function HeckeNSCartanRepresentatives(G,p,plus)
   // Assumes N = Level(G) is prime,  different from p
   // and p is not +-1 mod N
@@ -626,6 +687,14 @@ end function;
 
 function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
   N := Level(G);
+  if N mod p eq 0 then
+     H := ImageInLevel(G);
+     O := sub<MatrixAlgebra(GF(p),2) | Generators(H)>;
+     singulars := {x : x in O | Determinant(x) eq 0};
+     if singulars eq {O!0} then
+       return [];
+     end if;
+  end if;
   GL2Q := GL(2, Rationals());
   R_full := [GL2Q!r : r in HeckeFullCongruenceRepresentatives(N,p
 						 : Squared := Squared)];
@@ -633,6 +702,37 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
   D_lift := [Eltseq(FindLiftToSL2(d)) : d in D];
   coset_reps := [GL2Q!([Integers()!x : x in Eltseq(g)]) : g in D_lift];
   return &cat[[Eltseq(r*g) : g in coset_reps] : r in R_full];
+end function;
+
+// Trying to use John's idea
+
+function HeckeComponents(M,p)
+  GL2Q := GL(2, Rationals());
+  G := LevelSubgroup(M);
+  R := HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q![1,0,0,p]);
+  N := Level(M);
+  // find a prime q such that q = p mod N
+  // n is chosen to be big enough to find one such number with high probability
+  n := 2 * N * EulerPhi(N);
+  log_n := Ceiling(Log(2,n));
+  found, q := RandomPrime(log_n, p, N, n);
+  assert found;
+  R := [[r[1],r[2],r[3]/q, r[4]/q] :  r in R];
+  return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
+end function;
+
+function HeckeAdelic(M,w)
+  G := LevelSubgroup(M);
+  GL2Q := GL(2, Rationals());
+  alphas := HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!w);
+  xs := [(GL2Q!alpha)^(GL2Q!w) : alpha in alphas];
+  x_invs := [(ModLevelGL(G)!x)^(-1) : x in xs];
+  p := Determinant(GL2Q!w);
+  assert IsPrime(Integers()!p);
+  betas := [GL2Q!Eltseq(FindLiftToSL2(x_inv * G`DetRep(p))) : x_inv in x_invs];
+  qs := [xs[i]*betas[i] : i in [1..#xs]];
+  R := [Eltseq(q^(-1)) : q in qs];
+  return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
 end function;
 
 // For some strange reason, this does not always work
@@ -672,17 +772,21 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
    else
       factor := factor div &+[p^j : j in [0..r]];
    end if;
+   if IsEmpty(R) then
+     return MatrixAlgebra(BaseField(M),Dimension(M))!0;
+   end if;
    return &+[ActionOnModularSymbolsBasis(g,M) : g in R] / factor;
 end function;
 
 function ManinSymbolsAction2(defining_tuple, uv, Heil)
   G := defining_tuple[1];
+  det := defining_tuple[2];
   Tquot := defining_tuple[3];
   Squot := defining_tuple[4];
   Scoef := defining_tuple[5];
   eps := defining_tuple[6];
   res := Universe(Tquot)!0;
-  phi, phi_data := get_phi(G);
+  phi, phi_data := get_phi(G, det);
   for mat in Heil do
     uvM := Parent(mat)!Eltseq(uv) * mat;
     ind, s := phi(uvM, phi_data);
@@ -703,7 +807,7 @@ function ManinSymbolsAction(defining_tuple, uv, w, Heil_N, Heil_0, k)
   Scoef := defining_tuple[5];
   eps := defining_tuple[6];
   K := BaseRing(eps);
-  phi, phi_data := get_phi(G);
+  phi, phi_data := get_phi(G, Determinant(Heil_0[1]));
   R<X> := PolynomialRing(K);
   res := VectorSpace(K,#Tquot)!0;
   for idx in [1..#Heil_N] do
@@ -971,7 +1075,7 @@ function HeckeOperatorHeilbronn(M, Heil)
    coset_list := M`mlist`coset_list;
 
    char0Heil, modNHeil := Explode(Heil);
-   // det := Determinant(char0Heil[1]);
+   det := Determinant(char0Heil[1]);
 
    generating_coset_list  := [];
    generating_weights := [];
@@ -994,7 +1098,8 @@ function HeckeOperatorHeilbronn(M, Heil)
       num_cosets := #M`mlist`coset_list;
       //phi := get_phi(G);
       // defining_tuple := <phi, num_cosets, Tquot, Squot, Scoef> ;
-      defining_tuple := <G, num_cosets, Tquot, Squot, Scoef> ;
+      param :=  Weight(M) eq 2 select det else num_cosets;
+      defining_tuple := <G, param, Tquot, Squot, Scoef> ;
    end if;
 
    Append(~defining_tuple, eps);
@@ -1039,7 +1144,7 @@ function TnSparse(M, Heil, sparsevec)
       N := Level(M);
       // For now we always simply compute the whole Hecke operator,
       // because this seems more efficient, since it is properly cached, etc.
-if (GCD(N,n) ne 1) or (#Domain(M`G`DetRep) lt EulerPhi(Level(M))) then
+      if (GCD(N,n) ne 1) or (#Domain(M`G`DetRep) lt EulerPhi(Level(M))) then
         fac := Factorization(n);
         compute_direct := (#fac eq 1) and (fac[1][2] le 2);
         if not compute_direct then   // just compute the whole Hecke operator.
@@ -1058,6 +1163,9 @@ if (GCD(N,n) ne 1) or (#Domain(M`G`DetRep) lt EulerPhi(Level(M))) then
              factor := factor div p^r;
           else
              factor := factor div &+[p^j : j in [0..r]];
+          end if;
+          if IsEmpty(matrices) then
+             return 0;
           end if;
           return &+[s[1]*
    	      &+[ActionOnModularSymbolsBasisElement(g,M,s[2]) :

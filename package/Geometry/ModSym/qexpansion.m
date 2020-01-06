@@ -628,10 +628,12 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    require Al eq "Universal" or Al eq "Newform" :
          "Al paramater must equal either \"Universal\" or \"Newform\".";
 
+   /*
    // At the moment, newform decomposition is not supported in general
    if not IsOfGammaType(A) then
       Al := "Universal";
    end if;
+   */
    
    if Dimension(A) eq 0 then
       return [];
@@ -850,11 +852,19 @@ function qExpansionBasisNewform(A, prec, do_saturate)
         F := BaseRing(orig_eigvec);
         M_old := AmbientSpace(AssociatedNewSpace(A));
         M := AmbientSpace(A);
-        dummy := exists(ii_out) { ii_out : ii_out in
+        in_out := exists(ii_out) { ii_out : ii_out in
 				  [1..#M_old`degeneracy_matrices_out] | 
 				  LevelSubgroup(M) eq
 				  M_old`degeneracy_matrices_out[ii_out][1] };
-        divs := [x[1] : x in M_old`degeneracy_matrices_out[ii_out][2] ];
+        if not in_out then
+	   dummy := exists(ii_in) { ii_in : ii_in in
+				  [1..#M`degeneracy_matrices_in] | 
+				  LevelSubgroup(M_old) eq
+				  M`degeneracy_matrices_in[ii_in][1] };
+           divs := [x[1] : x in M`degeneracy_matrices_in[ii_in][2] ];
+	else
+	   divs := [x[1] : x in M_old`degeneracy_matrices_out[ii_out][2] ];
+	end if;
         alphas := [ChangeRing(DegeneracyMatrix(M, M_old, d),F) : d in divs];
         old_eigvecs := [orig_eigvec * Transpose(alpha) : alpha in alphas];
         old_eigforms := {eigenvecToEigenform(A, eig, prec) :
@@ -1980,7 +1990,7 @@ intrinsic qEigenformBasis(M::ModSym, prec::RngIntElt) -> SeqEnum[RngSerPowElt]
 end intrinsic;
 
 // This function assumes that T=[1,1,0,1] normalizes the level subgroup
- function find_echelon_forms_vecs(M)
+function find_echelon_forms_vecs(M)
   N := CuspWidth(LevelSubgroup(M), Infinity());
   F := CyclotomicField(N);
   zeta_N := F.1;

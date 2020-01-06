@@ -714,7 +714,7 @@ function XXXManinSymbolsGeneralizedWeightedAction(
 
    uv := Universe(M)!Eltseq(uv);
    t_inv := t^(-1);
-   phiG, phi_data := get_phi(G);
+   phiG, phi_data := get_phi(G, Determinant(W[1]));
 
    for i in [1..#M] do
       uvM := uv*M[i];
@@ -1746,6 +1746,33 @@ function get_general_phi(G)
   return phi, G;
 end function;
 
+function get_general_phi_bad_primes(G, p)
+  H := ImageInLevel(G);
+  assert IsPrime(p);
+  O := sub<MatrixAlgebra(GF(p),2) | Generators(H)>;
+  singulars := {x : x in O | Determinant(x) eq 0};
+  function phi(mat, phi_data)
+    G := phi_data[1];
+    singulars := phi_data[2];
+    p := phi_data[3];
+    good := exists(lam){lam : lam in singulars | lam * Parent(lam)!mat eq 0};
+    if not good then return 0,0; end if;
+    delta := FindLiftToM2Z(MatrixAlgebra(Integers(p),2)!lam : det := p);
+// !!! Check : we might not want this ,and simply work always with char 0
+//    mat_lift := FindLiftToM2Z(mat : det := p);
+//    mat_sl2 := ModLevel(G)!(delta * mat_lift div p);
+    mat_sl2 := ModLevel(G)!(delta * mat div p);
+    ind, s := CosetReduce(mat_sl2, G`FindCoset);
+    a,b,c,d := Explode(Eltseq(delta));
+    N := Level(G);
+    delta_tilde := MatrixAlgebra(Integers(N),2)![d,-b,-c,a];
+    s := delta_tilde * s;
+    return ind, s;
+  end function;
+  return phi, <G, singulars, p>;
+end function;
+
+
 // special function to handle the ns cartan case better
 // act by the inverse to get a right action
 
@@ -1796,9 +1823,14 @@ function get_Cartan_phi(G)
   return phi, <G, alpha, is_good, find_coset>;
 end function;
 
-function get_phi(G)
+function get_phi(G,p)
   if IsGammaNS(G) or IsGammaNSplus(G) then
     return get_Cartan_phi(G);
+// Once we figure out how to do it correctly, that's what will happen here.
+/*
+  elif (p ne 1) and (Level(G) mod p eq 0) then
+    return get_general_phi_bad_primes(G,p);
+*/
   else
     return get_general_phi(G);
   end if;

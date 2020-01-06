@@ -537,10 +537,17 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    requirege k,2;
    require IsSupportedField(F) : SupportMessage;
 
-   H := ImageInLevel(G);
-   real_H := get_real_conjugate(H);
-   c := get_gl_model(real_H);
-   G := PSL2Subgroup(c);
+   H := ImageInLevelGL(G);
+
+   if not IsOfRealType(G) then
+     H := get_real_conjugate(H);
+     G := PSL2Subgroup(H);
+   end if;
+
+   if assigned G`DetRep and #Domain(G`DetRep) lt EulerPhi(Level(G)) then
+     H := get_gl_model(H);
+     G := PSL2Subgroup(H);
+   end if;
 
    Q, pi_Q := G/G;
    eps := CharacterGroup(pi_Q, F, G, G)!1;
@@ -2172,6 +2179,13 @@ function get_gl_model(H)
 // subs := [H] cat IntermediateSubgroups(N_H, H) cat [N_H];
 //  cands := [s : s in subs | Index(s, H) eq EulerPhi(N)];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
+// Is this necessary?
+// Yes, if we would like the Hecke operators to commute with the Star
+// involution !!!!
+/*
+  eta := GL_N![-1,0,0,1];
+  cands := [c : c in cands | c^eta eq c];
+*/
   error if IsEmpty(cands), Error("No model with surjective determinant");
   if exists(c){c : c in cands |
       ImageInLevelGL(CongruenceSubgroup(N)) subset c} then

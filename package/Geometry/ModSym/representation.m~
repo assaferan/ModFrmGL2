@@ -304,18 +304,19 @@ that is isomorphic to M as module of the Hecke algebra}
 
          p := 2;
          while Dimension(V) gt Dimension(M) do
-	    if assigned M`al_decomp then
+	    if (assigned M`al_decomp) then
                p := NextPrime(p); 
                continue;
             end if;
-
+	    
             Tp := FastTn(AmbientSpace(M),V,p);
             // We do the following to avoid an infinite recursion, since
-            // the optimized HeckeOperator on subspaces *uses* ProjectionMatrix
+            // the optimized HeckeOperator on subspaces *uses*
+            // ProjectionMatrix
             // which calls Complement, which in turn calls us!  All the full
             // space the ProjectionMatrix problem doesn't arise.
-            Tsub := Restrict(HeckeOperator(AmbientSpace(M),p), VectorSpace(M));
-
+            Tsub := Restrict(HeckeOperator(AmbientSpace(M),p),
+				VectorSpace(M));
             cp := CharacteristicPolynomial(Tsub);
  
             vprintf ModularSymbols, 3: "charpoly = %o\n", cp;

@@ -169,6 +169,63 @@ intrinsic GammaUpper1(N::RngIntElt) -> GrpPSL2
     return G;
 end intrinsic;
 
+intrinsic GammaS(N::RngIntElt) -> GrpPSL2
+{creates the congruence subgroup Gamma_s(N) which is split at all primes dividing N}
+  Z_N := Integers(N);
+  U, psi := UnitGroup(Z_N);
+  gens := [psi(u) : u in Generators(U)];
+  mat_gens := [[g,0,0,1] : g in gens] cat [[1,0,0,g] : g in gens];
+  G_N := GL(2, Integers(N));
+  C_N := sub<G_N | mat_gens>;
+  G := PSL2Subgroup(C_N);
+  G`Label := Sprintf("Gamma_s(%o)", N);
+  G`IsReal := true;
+  return G;
+end intrinsic;
+
+/*
+intrinsic GammaNSGeneral(N::RngIntElt, f::RngUPolElt[RngInt]) -> GrpPSL2
+{creates the congruence subgroup Gamma_ns(N), choosing alpha as the root of the polynomial f, which should be irreducible modulo each prime dividing N}
+*/
+function GammaNSGeneral(N, f)
+// require N gt 0 : "N must be a positive integer";
+   
+   primes := [x[1] : x in Factorization(N)];
+   for p in primes do
+     Fp_x := PolynomialRing(Integers(p));
+//   require IsIrreducible(Fp_x!f) :
+//             "f must be irreducible mod every prime dividing N";
+   end for;
+   F := ext<Rationals() | f>;
+   alpha := F.1;
+   assert Evaluate(f,alpha) eq 0;
+   R := Order([1,alpha]);
+   // This is needed for Magma to be able to compute the unit groups
+   // !!! problem : this is not always maximal
+   // We want to use the generators for fast generation of the group
+   assert IsMaximal(R);
+   pi_1 := hom< R -> Integers() | [1,0]>;
+   pi_2 := hom< R -> Integers() | [0,1]>;
+   NR := ideal<R | N>;
+   A, phi := quo< R | NR>;
+   // This is the non-split Cartan group abstractly
+   U, psi := UnitGroup(A);
+   // These are the generators under the regular representations
+   gens := [[psi(u)*A![1,0],psi(u)*A![0,1]] : u in Generators(U)];
+   // Same, only as matrices
+   mat_gens := [Transpose(Matrix([[pi_1(g@@phi), pi_2(g@@phi)] : g in gen])) :
+			gen in gens];
+   G_N := GL(2, IntegerRing(N));
+   C_N := sub<G_N | mat_gens>;
+   G := PSL2Subgroup(C_N);
+   G`Label := Sprintf("Gamma_ns(%o)", N);
+   G`IsReal := true;
+   G`NSCartanU := f;
+   G`IsNSCartan := true;
+   return G;
+// end intrinsic;
+end function;
+
 intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns(N), choosing u as the nonsquare
     such that N | a-d, N | b-uc}
@@ -204,6 +261,11 @@ intrinsic GammaNS(N::RngIntElt) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns(N)}
    u := PrimitiveElement(IntegerRing(N));
    return GammaNS(N,u);
+end intrinsic;
+
+intrinsic GammaSplus(N::RngIntElt) -> GrpPSL2
+{creates the congruence subgroup Gamma_s^plus(N)}
+   return Normalizer(GammaS(N));
 end intrinsic;
 
 intrinsic GammaNSplus(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
@@ -525,10 +587,42 @@ intrinsic FindLiftToSL2(g::GrpMatElt) -> GrpPSL2Elt
            gcd_res, x, y := Xgcd(a_prime, b_prime);
      end while;
      det := a_prime * Z!d - b_prime*Z!c;
-     c_prime := Z!c - y * (1 -det);
+     c_prime := Z!c - y * (1 - det);
      d_prime := Z!d + x * (1 - det);       
 //lift_g := SL(2,Z)![a_prime, b_prime, c_prime, d_prime];
      lift_g := PSL2(Integers())![a_prime, b_prime, c_prime, d_prime];
+     return lift_g;
+end intrinsic;
+
+// For now assume det is either 1 or a prime
+intrinsic FindLiftToM2Z(g::AlgMatElt[RngIntRes] : det := 1) -> AlgMatElt[RngInt]
+{finds a lift in M2Z for g}
+     M2Z := MatrixAlgebra(Integers(), 2);
+     elt_g := ElementToSequence(g);
+     if #elt_g eq 1 then return PSL2(Integers())!1; end if;
+     a,b,c,d := Explode(elt_g); 
+     N := Modulus(Parent(a));
+     Z := Integers();
+     a_prime := Z!a;
+     b_prime := Z!b;
+     if a_prime eq 0 then
+        a_prime +:= N;
+     end if;
+     gcd_res, x, y := Xgcd(a_prime, b_prime);
+     if GCD(gcd_res, det) ne 1 then
+       rev := FindLiftToM2Z(Parent(g)![d,c,b,a] : det := det);
+       d_prime,c_prime,b_prime,a_prime := Explode(Eltseq(rev));
+       return M2Z![a_prime, b_prime, c_prime, d_prime];
+     end if;
+     while gcd_res ne 1 do
+        b_prime +:= N; 
+        gcd_res, x, y := Xgcd(a_prime, b_prime);
+     end while;
+     det_prime := a_prime * Z!d - b_prime*Z!c;
+     mult := det - det_prime;
+     c_prime := Z!c - y * mult;
+     d_prime := Z!d + x * mult;
+     lift_g := M2Z![a_prime, b_prime, c_prime, d_prime];
      return lift_g;
 end intrinsic;
 

@@ -819,7 +819,7 @@ function all_hecke(N, p)
   return [* HeckeOperator(M,p) : M in Ms *];
 end function;
 
-function get_eigenforms(N, gens)
+function get_eigenforms(N, gens : prec := -1)
   if N eq 1 then
     return [];
   end if;
@@ -831,9 +831,14 @@ function get_eigenforms(N, gens)
   // When we make this one work as well, we will use it
   // D := Decomposition(S, HeckeBound(S));
   D := NewformDecomposition(S);
-  B := [*qEigenform(d, 2*Dimension(S)+10) : d in D*]; 
+  if prec eq -1 then prec := 2*Dimension(S)+10; end if;
+  B := [*qEigenform(d, prec) : d in D*]; 
   // B := qIntegralBasis(S, 2*Dimension(S) + 10);
   return B;
+end function;
+
+function GetEigenforms(grp : prec := -1)
+  return get_eigenforms(grp`level, grp`matgens : prec := prec);
 end function;
 
 function is_same_eigenform(f,g)
@@ -968,3 +973,80 @@ procedure DoTests(numchecks)
 // (for the echelonization process)
 //   Test_Zywina();
 end procedure;
+
+function get_det_n_order(G, n)
+  N := Level(G);
+  H := ImageInLevelGL(G);
+  gens := Generators(H);
+  prods := {H!1};
+  old_prods := {};
+  while #old_prods ne #prods do
+    old_prods := prods;
+    new_prods := &join{{g1*g2 : g2 in prods} : g1 in gens};
+    new_prods := new_prods join &join{{g2*g1 : g2 in prods} : g1 in gens};
+    prods := prods join new_prods;
+  end while;
+  basis := [Vector(prod) : prod in prods];
+  U := sub<Universe(basis) | basis>;
+  M2N := MatrixAlgebra(Integers(N),2);
+  det_n_reps := [M2N!Eltseq(x) : x in U | (x[1]*x[4]-x[2]*x[3] eq n) and
+		    (x ne 0)];
+  return det_n_reps;
+end function;
+
+function involution(A)
+  a,b,c,d := Explode(Eltseq(A));
+  return Parent(A)![d,-b,-c,a];
+end function;
+
+// This is incredibly slow, but seems to at least work...
+
+function get_hecke_representatives(G,n)
+  N := Level(G);
+  M2N := MatrixAlgebra(Integers(N),2);
+  M2Z := MatrixAlgebra(Integers(), 2);
+  det_n_reps := get_det_n_order(G,n);
+  H := ImageInLevel(G);
+  // !!! TODO : This could be done much more efficiently, using Todd-Coxeter
+  // Unfortunately, at the moment Magma would only do it with groups as
+  // arguments
+  good_idxs := [1..#det_n_reps];
+  equivalents := [];
+  i := 1;
+  while i lt #good_idxs do
+       for_removal := [];                    
+       for j in good_idxs[i+1..#good_idxs] do
+	  if exists(h){h : h in H | det_n_reps[good_idxs[i]] eq
+		       h*det_n_reps[j]} then
+	     Append(~for_removal, j);
+          end if;
+       end for;
+       good_idxs := [j : j in good_idxs | j notin for_removal];
+       Append(~equivalents, [good_idxs[i]] cat for_removal);
+       i +:= 1;
+  end while;
+  R := &cat[[[n div a, b, 0, a] : b in [0..a-1]] : a in Divisors(n)];
+  d, n_inv, dummy := XGCD(n,N);
+  reps := [];
+  for r in R do
+    for j in [1..#equivalents] do
+       idx := 1;
+       found := false;
+       while (not found) and (idx le #equivalents[j]) do
+          xr := det_n_reps[equivalents[j][idx]] * involution(M2N!r);
+          // We lift to ZZ because magma can't compute ideal<M2N | d>
+          if M2Z!xr in ideal<M2Z | d> then
+            mod_rep := MatrixAlgebra(Integers(N div d), 2)!(M2Z!xr div d);
+            mod_rep := n_inv * mod_rep;
+            rep := FindLiftToM2Z(mod_rep)*M2Z!r;
+            if M2N!rep eq det_n_reps[equivalents[j][idx]] then
+              Append(~reps, rep);
+              found := true;
+            end if;
+          end if;
+          idx +:= 1;
+      end while;
+    end for;
+  end for;
+  return [Eltseq(rep) : rep in reps];
+end function;
