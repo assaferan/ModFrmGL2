@@ -556,6 +556,8 @@ function HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H)
   return R;
 end function;
 
+// Here we compute H, but only when det(alpha) is prime
+
 function HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha)
   GL2Q := GL(2, Rationals());
   M2Z := MatrixAlgebra(Integers(),2);
@@ -706,34 +708,62 @@ end function;
 
 // Trying to use John's idea
 
-function HeckeComponents(M,p)
-  GL2Q := GL(2, Rationals());
-  G := LevelSubgroup(M);
-  R := HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q![1,0,0,p]);
-  N := Level(M);
-  // find a prime q such that q = p mod N
-  // n is chosen to be big enough to find one such number with high probability
-  n := 2 * N * EulerPhi(N);
-  log_n := Ceiling(Log(2,n));
-  found, q := RandomPrime(log_n, p, N, n);
-  assert found;
-  R := [[r[1],r[2],r[3]/q, r[4]/q] :  r in R];
-  return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
-end function;
-
-function HeckeAdelic(M,w)
+intrinsic HeckeAdelic(M::ModSym, w::GrpMatElt[FldRat]) -> AlgMatElt
+{This function computes the Hecke operator corresponding to the element of the
+    finite adeles which is trivial at all places different from p=det(w),
+    and equal to w at p. At the moment we assume that p is prime}
   G := LevelSubgroup(M);
   GL2Q := GL(2, Rationals());
-  alphas := HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!w);
-  xs := [(GL2Q!alpha)^(GL2Q!w) : alpha in alphas];
-  x_invs := [(ModLevelGL(G)!x)^(-1) : x in xs];
-  p := Determinant(GL2Q!w);
+//  w := GL2Q!w;
+  w_tilde := GL2Q!(ScalarMatrix(2, Determinant(w)) * w^(-1));
+  alphas := HeckeGeneralCaseRepresentativesDoubleCoset2(G, w_tilde);
+  xs := [(GL2Q!alpha)^(-1) : alpha in alphas];
+  w_inv := (ModLevelGL(G)!w)^(-1);
+  p := Determinant(w);
   assert IsPrime(Integers()!p);
-  betas := [GL2Q!Eltseq(FindLiftToSL2(x_inv * G`DetRep(p))) : x_inv in x_invs];
-  qs := [xs[i]*betas[i] : i in [1..#xs]];
+  beta := GL2Q!Eltseq(FindLiftToSL2(w_inv * G`DetRep(p)));
+  qs := [x*beta : x in xs]; 
   R := [Eltseq(q^(-1)) : q in qs];
   return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
-end function;
+end intrinsic;
+
+intrinsic HeckeAdelicComponents(M::ModSym, w::GrpMatElt[FldRat]) -> AlgMatElt
+{This function computes the Hecke Operator on the disconnected Shimura variety
+    which depends only on the level subgroup (and not on the GL2 model),
+    corresponding to the element of the finite adeles which is trivial at
+    all places different from p=det(w),
+    and equal to w at p. At the moment we assume that p is prime}
+  G := LevelSubgroup(M);
+  GL2Q := GL(2, Rationals());
+//  w := GL2Q!w;
+  w_tilde := GL2Q!(ScalarMatrix(2, Determinant(w)) * w^(-1));
+  alphas := HeckeGeneralCaseRepresentativesDoubleCoset2(G, w_tilde);
+  xs := [(GL2Q!alpha)^(-1) : alpha in alphas];
+  w_inv := (ModLevelGL(G)!w)^(-1);
+  p := Integers()!Determinant(w);
+  assert IsPrime(p);
+  transitions := [G`DetRep(i)*G`DetRep(p*i)^(-1)*G`DetRep(p^2) :
+		   i in Domain(G`DetRep)];
+  betas := [GL2Q!Eltseq(FindLiftToSL2(w_inv * t)) : t in transitions];
+  qss := [[x*beta : x in xs] : beta in betas]; 
+  Rs := [[Eltseq(q^(-1)) : q in qs] : qs in qss];
+  blocks := [&+[ActionOnModularSymbolsBasis(g,M) : g in R] : R in Rs];
+  Z_N_star := Set(Domain(G`DetRep));
+  perm := SymmetricGroup(Z_N_star)![p*i : i in Z_N_star];
+  perm_mat := PermutationMatrix(Rationals(), perm);
+  mats := [[perm_mat[i,j]*blocks[i] : j in [1..#blocks]] : i in [1..#blocks]];
+  return BlockMatrix(mats);
+end intrinsic;
+
+intrinsic HeckeOperator(M::ModSym , alpha::GrpMatElt[FldRat]) -> AlgMatElt
+  {This function computes the Hecke operator corresponding to the double coset
+      G\G*alpha*G directly. At the moment we assume p = det(alpha) is prime.}
+  p := Integers()!Determinant(alpha);
+  assert IsPrime(p);
+  G := LevelSubgroup(M);
+  R := HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha);
+  return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
+end intrinsic;
 
 // For some strange reason, this does not always work
 

@@ -24,7 +24,12 @@ freeze;
 function MemberTest(G,g)
    // currently only works for congruence subgroups:
    // assert IsCongruence(G);
-   if not IsCoercible(SL(2, Integers()), g) then return false; end if;
+   is_integral, g_new := IsCoercible(SL(2, Integers()), g);
+   if not is_integral  then
+      return false;
+   else
+      g := g_new;
+   end if;
    if not G`IsOfGammaType then
       if #ModLevel(G) eq 1 then
          return true;
