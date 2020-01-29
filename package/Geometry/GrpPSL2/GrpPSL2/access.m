@@ -95,9 +95,9 @@ intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
             Append(~gens, [1,0,0,psi(t)]);
           end for;
        elif not (IsGamma1(G) or IsGamma(G)) then
-	  gens := gens cat Generators(G);
+	 gens := gens cat [Eltseq(x) : x in Generators(G)];
        end if;
-       G`ImageInLevelGL := sub< modLevel | [modLevel!Eltseq(g) : g in gens]>;
+       G`ImageInLevelGL := sub< modLevel | [modLevel!g : g in gens]>;
      end if;
   end if;
   if N ne Level(G) then

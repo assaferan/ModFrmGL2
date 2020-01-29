@@ -278,11 +278,7 @@ intrinsic qEigenform(M::ModSym, prec::RngIntElt : debug:=false) -> RngSerPowElt
       end if;
 
       if Characteristic(BaseField(M)) eq 0 then		 
-	 if IsOfGammaType(M) then
-	    D := NewformDecomposition(M);
-	 else
-	    D := Decomposition(M, HeckeBound(M));
-         end if;
+	 D := NewformDecomposition(M);
          require #D eq 1 : "Argument 1 must correspond to a single Galois-conjugacy class of newforms.";
          M := D[1]; 
          if assigned M`qeigenform and M`qeigenform[1] ge prec then
@@ -865,7 +861,8 @@ function qExpansionBasisNewform(A, prec, do_saturate)
 	else
 	   divs := [x[1] : x in M_old`degeneracy_matrices_out[ii_out][2] ];
 	end if;
-        alphas := [ChangeRing(DegeneracyMatrix(M, M_old, d),F) : d in divs];
+        alphas := [ChangeRing(DegeneracyMatrix(M, M_old, d),F) : d in divs |
+		      d[1,2] eq 0 and d[2,1] eq 0];
         old_eigvecs := [orig_eigvec * Transpose(alpha) : alpha in alphas];
         old_eigforms := {eigenvecToEigenform(A, eig, prec) :
 		  eig in old_eigvecs};
@@ -1975,15 +1972,15 @@ function get_eigenvector_galois_orbit(v, K0)
 end function;
 
 intrinsic qEigenformBasis(M::ModSym, prec::RngIntElt) -> SeqEnum[RngSerPowElt]
-{Computes an echelon basis of eigenforms for M.}
+{Computes a basis of eigenforms for M.}
   S := CuspidalSubspace(M);
-  D := Decomposition(S, HeckeBound(S));
-/*
+// D := Decomposition(S, HeckeBound(S));
+  D := NewformDecomposition(S);
   eigenforms := &cat[get_eigenform_galois_orbit(qEigenform(d, prec),prec) :
 		    d in D];
-*/
-  eigenforms := &cat[qIntegralBasis(d, prec :Al := "Universal") : d in D];
-  basis := EchelonPolySeq(eigenforms, prec);
+//  eigenforms := &cat[qIntegralBasis(d, prec :Al := "Universal") : d in D];
+  basis := eigenforms;
+//  basis := EchelonPolySeq(eigenforms, prec);
   if #basis eq 0 then return []; end if;
   q := Universe(basis).1;
   return [f + O(q^prec) : f in basis];

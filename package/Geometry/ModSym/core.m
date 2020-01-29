@@ -707,6 +707,7 @@ function XXXManinSymbolsGeneralizedWeightedAction(
    Z := Integers();
    coset_list_size := #list;
    K := BaseRing(eps);
+//   K := Parent(eps[1]);
    v := VectorSpace(K,#S)!0;
    if #S eq 0 then 
       return v;
@@ -735,24 +736,6 @@ function XXXManinSymbolsGeneralizedWeightedAction(
    return v * RMatrixSpace(K,Degree(v),Degree(S[1]))!S;
 end function;
 
-function ManinSymbolsGeneralizedWeightedAction(
-					       uv,
-					       w,
-					       k,
-					       list,
-					       S,
-					       phi,
-					       coeff,
-					       M,
-					       W,
-					       eps,
-					       R,
-					       t,
-					       G)
-   return XXXManinSymbolsGeneralizedWeightedAction(uv,w,k,list,S,
-						   phi,coeff,M,W,eps,R,t,G);
-end function;
-
 function lev1_ManinSymbolsGeneralizedWeightedAction(
 					       uv,
 					       w,
@@ -769,7 +752,8 @@ function lev1_ManinSymbolsGeneralizedWeightedAction(
 					       G)
    Z := Integers();
    coset_list_size := #list;
-   K := Parent(eps[1]);
+//   K := Parent(eps[1]);
+   K := BaseRing(eps);
    v := VectorSpace(K,#S)!0;
    if #S eq 0 then 
       return v;
@@ -790,7 +774,29 @@ function lev1_ManinSymbolsGeneralizedWeightedAction(
    end for;
    return v * RMatrixSpace(K,Degree(v),Degree(S[1]))!S;
 end function;
-					      
+
+function ManinSymbolsGeneralizedWeightedAction(
+					       uv,
+					       w,
+					       k,
+					       list,
+					       S,
+					       phi,
+					       coeff,
+					       M,
+					       W,
+					       eps,
+					       R,
+					       t,
+					       G)
+  if Level(G) eq 1 then
+     return lev1_ManinSymbolsGeneralizedWeightedAction(uv,w,k,list,S,
+						   phi,coeff,M,W,eps,R,t,G);
+  else
+     return XXXManinSymbolsGeneralizedWeightedAction(uv,w,k,list,S,
+						   phi,coeff,M,W,eps,R,t,G);
+  end if;
+end function;
 
 function P1GeneralizedWeightedAction(
                               uv,  // element of P1(Z/NZ)
@@ -1733,14 +1739,19 @@ function ManinSymbolRepresentation(x)
 end function;
 */
 
+// This change is to make this operator compatible with
+// HeckeOperator for double cosets
+
 function get_general_phi(G)
   function phi(mat, G)
      det := Determinant(mat);
      if det notin Domain(G`DetRep) then return 0,0; end if;
      det_rep := G`DetRep(det);
-     mat_sl2 := ModLevel(G)!(det_rep^(-1) * mat);
+// mat_sl2 := ModLevel(G)!(det_rep^(-1) * mat);
+     mat_sl2 := ModLevel(G)!(det_rep * mat * ScalarMatrix(2,det)^(-1));
      ind, s := CosetReduce(mat_sl2, G`FindCoset);
-     s := det_rep * ModLevel(G)!Eltseq(s);
+// s := det_rep * ModLevel(G)!Eltseq(s);
+     s := det_rep^(-1) * ScalarMatrix(2,det) * ModLevel(G)!Eltseq(s);
      return ind, s;
   end function;
   return phi, G;

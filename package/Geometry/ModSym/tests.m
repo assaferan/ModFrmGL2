@@ -545,6 +545,31 @@ procedure Test_Stein()
 // Test_Stein_9_8();
 end procedure;
 
+// just to record the actions 
+function action_on_mod_sym(N)
+  M := ModularSymbols(CongruenceSubgroup(N), 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  D := NewformDecomposition(S);
+  G := SL(2, Integers(N));
+  gens := [Eltseq(FindLiftToSL2(x)): x in Generators(G)];
+  import "./Geometry/ModSym/operators.m" : ActionOnModularSymbolsBasis;
+  actions := [ActionOnModularSymbolsBasis(g, M) : g in gens];
+  F := CyclotomicField(7);
+  S_action := [ChangeRing(Restrict(a, VectorSpace(S)),F) : a in actions];
+  S_mod := GModule(G, S_action);
+  irred := Decomposition(S_mod);
+  irr := [S_mod!b : b in Basis(irred[1])];
+  irr_in_M := Matrix(irr)*ChangeRing(BasisMatrix(VectorSpace(S)),F);
+  s := actions[3];
+  t := actions[1];
+  mults :=[Parent(t)!1, s, t, s*t, t*s, t^2];
+  v := Basis(ChangeRing(VectorSpace(D[1]),F) meet
+	     sub<ChangeRing(VectorSpace(M),F) | Rows(irr_in_M)>)[1];
+
+  vecs := [v*ChangeRing(g,F) : g in mults];
+  return 0;
+end function;
+
 function make_group_copy(M)
   k := Weight(M);
   sign := Sign(M);
@@ -966,7 +991,7 @@ procedure DoTests(numchecks)
    Test_NS_cartan(30);
    TestNSCartan_11();
    TestNSCartan_17();
-   Test_Zywina();
+// Test_Zywina();
 end procedure;
 
 function get_det_n_order(G, n)

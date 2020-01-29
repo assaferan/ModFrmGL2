@@ -1990,7 +1990,7 @@ intrinsic qEigenformBasis(M::ModSym, prec::RngIntElt) -> SeqEnum[RngSerPowElt]
 end intrinsic;
 
 // This function assumes that T=[1,1,0,1] normalizes the level subgroup
- function find_echelon_forms_vecs(M)
+function find_echelon_forms_vecs(M)
   N := CuspWidth(LevelSubgroup(M), Infinity());
   F := CyclotomicField(N);
   zeta_N := F.1;

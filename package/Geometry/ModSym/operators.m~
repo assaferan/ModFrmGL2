@@ -556,6 +556,69 @@ function HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H)
   return R;
 end function;
 
+// Here we compute H, but only when det(alpha) is prime
+
+function HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha)
+  GL2Q := GL(2, Rationals());
+  M2Z := MatrixAlgebra(Integers(),2);
+  n := Determinant(alpha);
+  N := Level(G);
+  alpha_tilde := ScalarMatrix(2,n)*alpha^(-1);
+  n := Integers()!n;
+  gamma1_reps := &cat[[GL2Q![n div a, b, 0, a] : b in [0..a-1]] :
+			   a in Divisors(n) | GCD(n div a, N) eq 1];
+  for r in gamma1_reps do
+     if IsCoercible(M2Z,alpha_tilde * r^(-1)) then
+        beta := r;
+        break;
+     end if;	  
+  end for;
+  // For now we assert that n is a prime, otherwise this part gets complicated
+  assert IsPrime(n);
+  alpha_n := GL2Q![beta[1,1],0,0,beta[2,2]];
+  t := alpha_n^(-1)*beta;
+  assert IsCoercible(M2Z, t);
+  if beta[1,1] eq 1 then
+    gamma1_conj := GammaUpper0(n);
+  else
+    gamma1_conj := Gamma0(n);
+  end if;
+
+  gamma1_alpha_conj := Conjugate(gamma1_conj, t);
+
+  // verify that this is indeed the alpha*Gamma(1)*alpha^(-1) meet Gamma(1)
+  gens := [GL2Q!Eltseq(g) : g in Generators(gamma1_alpha_conj)];
+  assert &and[IsCoercible(M2Z,alpha^(-1)*g*alpha) : g in gens];
+  assert Index(gamma1_alpha_conj) eq #gamma1_reps;
+
+  gamma_alpha_conj := Conjugate(G meet gamma1_alpha_conj, alpha);
+  // verify that this is contained in alpha^(-1)*Gamma*alpha meet Gamma(1)
+  // This suggests that here we don't have the full intersection
+  gens := [GL2Q!Eltseq(g) : g in Generators(gamma_alpha_conj)];
+  assert &and[alpha*g*alpha^(-1) in G : g in gens];
+
+  H := G meet gamma_alpha_conj;
+
+  // Check that H is contained in alpha^(-1)*Gamma*alpha
+  gens := [GL2Q!Eltseq(g) : g in Generators(H)];
+  assert &and[alpha*g*alpha^(-1) in G : g in gens];
+
+  // Here we want Transversal(G,H);
+  coset_reps := [GL2Q!Eltseq(x) : x in CosetRepresentatives(H) | x in G];
+  assert &and &cat[[coset_reps[i]*coset_reps[j]^(-1) notin H : j in [1..i-1]] : i in [2..#coset_reps]];
+
+  R :=  [alpha * x : x in coset_reps];
+
+  // Check that they indeed represent different cosets
+  assert &and &cat[[R[i]*R[j]^(-1) notin G : j in [1..i-1]] : i in [2..#R]];
+
+  // This fails meaning that H is not the intersection. Where did we go wrong?
+  // It is smaller (!?)
+
+  return [Eltseq(r) : r in R];
+  
+end function;
+
 function HeckeNSCartanRepresentatives(G,p,plus)
   // Assumes N = Level(G) is prime,  different from p
   // and p is not +-1 mod N
@@ -642,6 +705,65 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
   coset_reps := [GL2Q!([Integers()!x : x in Eltseq(g)]) : g in D_lift];
   return &cat[[Eltseq(r*g) : g in coset_reps] : r in R_full];
 end function;
+
+// Trying to use John's idea
+
+intrinsic HeckeAdelic(M::ModSym, w::GrpMatElt[FldRat]) -> AlgMatElt
+{This function computes the Hecke operator corresponding to the element of the
+    finite adeles which is trivial at all places different from p=det(w),
+    and equal to w at p. At the moment we assume that p is prime}
+  G := LevelSubgroup(M);
+  GL2Q := GL(2, Rationals());
+//  w := GL2Q!w;
+  w_tilde := GL2Q!(ScalarMatrix(2, Determinant(w)) * w^(-1));
+  alphas := HeckeGeneralCaseRepresentativesDoubleCoset2(G, w_tilde);
+  xs := [(GL2Q!alpha)^(-1) : alpha in alphas];
+  w_inv := (ModLevelGL(G)!w)^(-1);
+  p := Determinant(w);
+  assert IsPrime(Integers()!p);
+  beta := GL2Q!Eltseq(FindLiftToSL2(w_inv * G`DetRep(p)));
+  qs := [x*beta : x in xs]; 
+  R := [Eltseq(q^(-1)) : q in qs];
+  return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
+end intrinsic;
+
+intrinsic HeckeAdelicComponents(M::ModSym, w::GrpMatElt[FldRat]) -> AlgMatElt
+{This function computes the Hecke Operator on the disconnected Shimura variety
+    which depends only on the level subgroup (and not on the GL2 model),
+    corresponding to the element of the finite adeles which is trivial at
+    all places different from p=det(w),
+    and equal to w at p. At the moment we assume that p is prime}
+  G := LevelSubgroup(M);
+  GL2Q := GL(2, Rationals());
+//  w := GL2Q!w;
+  w_tilde := GL2Q!(ScalarMatrix(2, Determinant(w)) * w^(-1));
+  alphas := HeckeGeneralCaseRepresentativesDoubleCoset2(G, w_tilde);
+  xs := [(GL2Q!alpha)^(-1) : alpha in alphas];
+  w_inv := (ModLevelGL(G)!w)^(-1);
+  p := Integers()!Determinant(w);
+  assert IsPrime(p);
+  transitions := [G`DetRep(i)*G`DetRep(p*i)^(-1)*G`DetRep(p^2) :
+		   i in Domain(G`DetRep)];
+  betas := [GL2Q!Eltseq(FindLiftToSL2(w_inv * t)) : t in transitions];
+  qss := [[x*beta : x in xs] : beta in betas]; 
+  Rs := [[Eltseq(q^(-1)) : q in qs] : qs in qss];
+  blocks := [&+[ActionOnModularSymbolsBasis(g,M) : g in R] : R in Rs];
+  Z_N_star := Set(Domain(G`DetRep));
+  perm := SymmetricGroup(Z_N_star)![p*i : i in Z_N_star];
+  perm_mat := PermutationMatrix(Rationals(), perm);
+  mats := [[perm_mat[i,j]*blocks[i] : j in [1..#blocks]] : i in [1..#blocks]];
+  return BlockMatrix(mats);
+end intrinsic;
+
+intrinsic HeckeOperator(M::ModSym , alpha::GrpMatElt[FldRat]) -> AlgMatElt
+  {This function computes the Hecke operator corresponding to the double coset
+      G\G*alpha*G directly. At the moment we assume p = det(alpha) is prime.}
+  p := Integers()!Determinant(alpha);
+  assert IsPrime(p);
+  G := LevelSubgroup(M);
+  R := HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha);
+  return &+[ActionOnModularSymbolsBasis(g,M) : g in R];
+end intrinsic;
 
 // For some strange reason, this does not always work
 

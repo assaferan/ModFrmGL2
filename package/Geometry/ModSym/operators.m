@@ -556,64 +556,129 @@ function HeckeGeneralCaseRepresentativesDoubleCoset(G,alpha,H)
   return R;
 end function;
 
-// Here we compute H, but only when det(alpha) is prime
+// Here we compute H
 
 function HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha)
   GL2Q := GL(2, Rationals());
   M2Z := MatrixAlgebra(Integers(),2);
-  n := Determinant(alpha);
+  D := Rationals()!LCM([Denominator(x) : x in Eltseq(alpha)]);
+  det := Determinant(M2Z!(ScalarMatrix(2,D) * alpha));
   N := Level(G);
-  alpha_tilde := ScalarMatrix(2,n)*alpha^(-1);
-  n := Integers()!n;
-  gamma1_reps := &cat[[GL2Q![n div a, b, 0, a] : b in [0..a-1]] :
-			   a in Divisors(n) | GCD(n div a, N) eq 1];
-  for r in gamma1_reps do
-     if IsCoercible(M2Z,alpha_tilde * r^(-1)) then
-        beta := r;
-        break;
-     end if;	  
-  end for;
-  // For now we assert that n is a prime, otherwise this part gets complicated
-  assert IsPrime(n);
-  alpha_n := GL2Q![beta[1,1],0,0,beta[2,2]];
-  t := alpha_n^(-1)*beta;
-  assert IsCoercible(M2Z, t);
-  if beta[1,1] eq 1 then
-    gamma1_conj := GammaUpper0(n);
+
+  if (GCD(det,N) eq 1) then
+    // apparently, creation of the PSL2Subgroups is costly,
+    // because of the transversl computation.
+    // So we try very hard to go around it. 
+    // gamma_alpha_conj := Conjugate(G, alpha : IsExactLevel := true);
+    A := M2Z!(ScalarMatrix(2,D) * alpha);
+    AmodN := ModLevelGL(G)!A;
+    mod_N := Conjugate(ImageInLevelGL(G), AmodN);
+    snf, x, y := SmithForm(A);
+    quot := snf[2,2] div snf[1,1];
+    y_mod := GL(2, Integers(det))!y;
+    mod_det := Conjugate(ImageInLevelGL(GammaUpper0(quot) : N := det),
+			 y_mod^(-1));
+    gens_N := [[Integers()!y : y in Eltseq(x)] : x in Generators(mod_N)];
+    gens_det := [[Integers()!y : y in Eltseq(x)] : x in Generators(mod_det)];
+    one := [1,0,0,1];
+    gens_1 := [[ChineseRemainderTheorem([g[i], one[i]], [N,det])
+	       : i in [1..4]] : g in gens_N];
+    gens_2 := [[ChineseRemainderTheorem([one[i], g[i]], [N,det])
+	       : i in [1..4]] : g in gens_det];
+    gens := gens_1 cat gens_2;
+    if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
+        ModLevelGL := GL(2,quo<G`BaseRing | N*det>);
+    else
+        ModLevelGL := MatrixAlgebra(quo<G`BaseRing | N*det>,2);
+    end if;
+    H := sub<ModLevelGL | gens>;
+
+    import "../GrpPSL2/GrpPSL2/creation.m" : get_coercion_hom;
+    red_H := get_coercion_hom(H, GL(2, Integers(N)));
+    H_d := Kernel(red_H);
+    im_d := ImageInLevelGL(G) meet Image(red_H);
+    gens_H_d := [[Integers()!y : y in Eltseq(g)] : g in Generators(H_d)];
+    equalizer := [[* z, z@@red_H *] : z in Generators(im_d)];
+    gens_im_d := [[[Integers()!y : y in Eltseq(g)] : g in x] : x in equalizer];
+    one := [1,0,0,1];
+    gens_2 := [[ChineseRemainderTheorem([one[i], g[i]], [N, N*det])
+	       : i in [1..4]] : g in gens_H_d];
+    gens_3 := [[ChineseRemainderTheorem([g[1][i], g[2][i]], [N, N*det])
+	       : i in [1..4]] : g in gens_im_d];
+    gens := gens_2 cat gens_3;
+    G_meet_H := sub< ModLevelGL | gens>;
+
+    gens_G := [[Integers()!y : y in Eltseq(g)] :
+		g in Generators(ImageInLevelGL(G))];
+    gens_det := [[Integers()!y : y in Eltseq(g)] :
+		g in Generators(GL(2, Integers(det)))];
+    gens_1 := [[ChineseRemainderTheorem([g[i], one[i]], [N, det])
+	       : i in [1..4]] : g in gens_G];
+    gens_2 := [[ChineseRemainderTheorem([one[i], g[i]], [N, det])
+	       : i in [1..4]] : g in gens_det];
+    gens := gens_1 cat gens_2;
+    im_G := sub<ModLevelGL | gens>;
+
+    U, phi := UnitGroup(Integers(N*det));
+    det_hom := hom<im_G->U | [Determinant(im_G.i)@(phi^(-1)) :
+			      i in [1..NumberOfGenerators(im_G)]]>;
+    im_G0 := Kernel(det_hom);
+    G_meet_H_0 := im_G0 meet G_meet_H;
+    coset_reps := Transversal(im_G0, G_meet_H_0);
+    lifts := [GL2Q!Eltseq(FindLiftToSL2(x)) : x in coset_reps];
+
+    R :=  [alpha * x : x in lifts];
+    return [Eltseq(r) : r in R];
   else
-    gamma1_conj := Gamma0(n);
-  end if;
+   alpha_inv := alpha^(-1);
+   D := Rationals()!LCM([Denominator(x) : x in Eltseq(alpha_inv)]);
+   alpha_tilde := M2Z!(ScalarMatrix(2,D) * alpha_inv);
+   r , dummy , t := SmithForm(M2Z!alpha_tilde);
+   gamma1_conj := GammaUpper0(r[2,2] div r[1,1]);
 
-  gamma1_alpha_conj := Conjugate(gamma1_conj, t);
+   gamma1_alpha_conj := Conjugate(gamma1_conj, GL2Q!t^(-1));
 
+/*
   // verify that this is indeed the alpha*Gamma(1)*alpha^(-1) meet Gamma(1)
   gens := [GL2Q!Eltseq(g) : g in Generators(gamma1_alpha_conj)];
   assert &and[IsCoercible(M2Z,alpha^(-1)*g*alpha) : g in gens];
   assert Index(gamma1_alpha_conj) eq #gamma1_reps;
+*/
 
-  gamma_alpha_conj := Conjugate(G meet gamma1_alpha_conj, alpha);
+   gamma_alpha_conj := Conjugate(G meet gamma1_alpha_conj, alpha);
+
+  end if;
+
+/*
   // verify that this is contained in alpha^(-1)*Gamma*alpha meet Gamma(1)
   // This suggests that here we don't have the full intersection
   gens := [GL2Q!Eltseq(g) : g in Generators(gamma_alpha_conj)];
   assert &and[alpha*g*alpha^(-1) in G : g in gens];
+*/
 
   H := G meet gamma_alpha_conj;
 
+/*
   // Check that H is contained in alpha^(-1)*Gamma*alpha
   gens := [GL2Q!Eltseq(g) : g in Generators(H)];
   assert &and[alpha*g*alpha^(-1) in G : g in gens];
+*/
 
   // Here we want Transversal(G,H);
   coset_reps := [GL2Q!Eltseq(x) : x in CosetRepresentatives(H) | x in G];
+/*
   assert &and &cat[[coset_reps[i]*coset_reps[j]^(-1) notin H : j in [1..i-1]] : i in [2..#coset_reps]];
+*/
 
   R :=  [alpha * x : x in coset_reps];
 
+/*
   // Check that they indeed represent different cosets
   assert &and &cat[[R[i]*R[j]^(-1) notin G : j in [1..i-1]] : i in [2..#R]];
 
   // This fails meaning that H is not the intersection. Where did we go wrong?
   // It is smaller (!?)
+*/
 
   return [Eltseq(r) : r in R];
   
@@ -689,13 +754,120 @@ end function;
 
 function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
   N := Level(G);
+  GL2Q := GL(2, Rationals());
+  M2Z := MatrixAlgebra(Integers(),2);
+  eta := GL2Q![-1,0,0,1];
+  alpha_p := GL2Q![1,0,0,p];
   if N mod p eq 0 then
      H := ImageInLevel(G);
-     O := sub<MatrixAlgebra(GF(p),2) | Generators(H)>;
-     singulars := {x : x in O | Determinant(x) eq 0};
-     if singulars eq {O!0} then
+     Zp_gamma := sub<MatrixAlgebra(GF(p),2) | Generators(H)>;
+     singulars := {x : x in Zp_gamma | Determinant(x) eq 0};
+     if singulars eq {Zp_gamma!0} then
        return [];
      end if;
+// This does not always work, sadly
+//     alpha := FindLiftToM2Z(MatrixAlgebra(Integers(p),2)!Random(singulars) :
+//			    det := p);
+//     return HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!alpha);
+     // The following (correct) version encounters an internal error of Magma
+     // until we understand how to circumvent it, we just settle for returning
+     // the double coset of some element of determinant p normalizing Gamma
+     // and such that eta normalizes the double coset
+     // This turns out not to work even for Gamma0. ?
+     im_gamma0 := ImageInLevel(Gamma0(p) : N := N);
+     conj := Conjugates(SL(2, Integers(N)), im_gamma0);
+     good_conj := [c : c in conj | H subset c];
+     found := false;
+     for c in good_conj do
+       dummy, x := IsConjugate(SL(2,Integers(N)), c, im_gamma0);
+       x_lift := GL2Q!Eltseq(FindLiftToSL2(x));
+       alpha := x_lift * alpha_p;
+       // This is conjugating by alpha
+       // Given the choice of c, it is OK   
+       p_conj := Conjugate(G,alpha);
+       new_N := Level(p_conj);
+       is_conj, y := IsConjugate(SL(2,Integers(new_N)), ImageInLevel(p_conj),
+				 ImageInLevel(G : N := new_N));
+       if is_conj then     
+ // y_lift := GL2Q!Eltseq(FindLiftToSL2(y));
+//alpha := x_lift * alpha_p  * y_lift;
+           R := HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha);
+//  R_eta := HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha^eta);
+//          return R cat R_eta;
+           found := true;
+           break;
+       end if;
+     end for;
+     
+     // Clearly wrong, but gives some Hecke operator at p
+     if (not found) then
+         printf "** WARNING! The Hecke operator at %o is NOT computed correctly! **\n",p;
+         R := HeckeGeneralCaseRepresentativesDoubleCoset2(G,alpha_p);
+     end if;
+
+     if exists(r){r : r in R | eta*alpha_p*eta*(GL2Q!r)^(-1) in G} then
+        return R;
+     else
+       return R cat
+	 HeckeGeneralCaseRepresentativesDoubleCoset2(G,eta*alpha_p*eta);
+     end if;
+     
+     // Here we compute the double coset representatives
+     // for the matrices in the order generated by G with
+     // Determinant p.
+     // Problem : For Gamma0(p), it is not Delta0(p)!
+     // On the contrary, it is the other double coset Gamma0(p)*[p,0,0,1]!
+     
+
+// The only way I could get it to work -
+// We first look for those that have det p mod p^2
+// !!! TODO !!! Check if this is still true when N != p^e !!!
+// Then among them we choose the ones that have det p
+     dummy := exists(x){x : x in Factorization(N) | x[1] eq p};
+     M2Zp := MatrixAlgebra(Integers(p^x[2]),2);
+     M2ZZp := MatrixAlgebra(pAdicRing(p,x[2]),2);
+     H := sub<GL(2,Integers(p^x[2])) | [M2Zp!h : h in Generators(H)]>;
+//     O := sub< M2ZZp | [M2ZZp!(M2Zp!h) : h in Generators(H)]>;
+     Zp_gamma := sub<M2ZZp | Generators(H)>;
+     try
+       singulars := {x : x in Zp_gamma | Determinant(x) eq p and x ne 0};
+     catch e
+       printf "WARNING! Internal Error of Magma prevented us from computing T_%o", p;
+       return [];
+     end try;
+/*
+     is_nz := exists(x){x : x in singulars | Determinant(GL2Q!x) eq 3};
+     if not is_nz then
+       return [];
+     end if;
+*/
+// We convert H to a permutation group, because that is the only way we
+// could get magma to compute the orbits for us
+// !!! TODO - compute the orbits directly !!!
+     if IsEmpty(singulars) then
+        return [];
+     end if;
+     fpH, fp_iso := FPGroup(H);
+     prmH, prm_iso := PermutationGroup(fpH);
+     phi := prm_iso^(-1)*fp_iso;
+// We first find orbits for the left action
+     action := map<CartesianProduct(singulars, prmH)->singulars |
+       x :-> (O!phi(x[2]^(-1)))*x[1]>;
+     gset := GSet(prmH, singulars, action);
+     orbs := Orbits(prmH, gset);
+// and now for the right action on orbits of the left action
+     orb_sets := {Set(orb) : orb in orbs};
+     orb_action := map<CartesianProduct(orb_sets, prmH)->orb_sets |
+       x :-> { y*(O!phi(x[2])) : y in x[1] }>;
+     double_gset := GSet(prmH, orb_sets, orb_action);
+     double_coset_orbs := Orbits(prmH, double_gset);
+// Here any element of the orbit would do, so we puck at random
+     double_coset_reps := [Random(Random(x)) : x in double_coset_orbs];
+// Finally we lift to those eith actual determinant p
+     final_list := [FindLiftToM2Z(M2Zp!(M2Z!x) : det := p) :
+				   x in double_coset_reps];
+     return &cat [HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!x) :
+							       x in final_list];
   end if;
   GL2Q := GL(2, Rationals());
   R_full := [GL2Q!r : r in HeckeFullCongruenceRepresentatives(N,p
@@ -712,6 +884,10 @@ intrinsic HeckeAdelic(M::ModSym, w::GrpMatElt[FldRat]) -> AlgMatElt
 {This function computes the Hecke operator corresponding to the element of the
     finite adeles which is trivial at all places different from p=det(w),
     and equal to w at p. At the moment we assume that p is prime}
+  if (not IsAmbientSpace(M)) then
+     T := HeckeAdelic(AmbientSpace(M), w);
+     return Restrict(T, VectorSpace(M));
+  end if;
   G := LevelSubgroup(M);
   GL2Q := GL(2, Rationals());
 //  w := GL2Q!w;
@@ -734,6 +910,10 @@ intrinsic HeckeAdelicComponents(M::ModSym, w::GrpMatElt[FldRat]) -> AlgMatElt
     all places different from p=det(w),
     and equal to w at p. At the moment we assume that p is prime}
   G := LevelSubgroup(M);
+  if (not IsAmbientSpace(M)) then
+     T := HeckeAdelicComponents(AmbientSpace(M), w);
+     return Restrict(T, DirectSum([VectorSpace(M) : i in Domain(G`DetRep)]));
+  end if;
   GL2Q := GL(2, Rationals());
 //  w := GL2Q!w;
   w_tilde := GL2Q!(ScalarMatrix(2, Determinant(w)) * w^(-1));
@@ -758,6 +938,10 @@ end intrinsic;
 intrinsic HeckeOperator(M::ModSym , alpha::GrpMatElt[FldRat]) -> AlgMatElt
   {This function computes the Hecke operator corresponding to the double coset
       G\G*alpha*G directly. At the moment we assume p = det(alpha) is prime.}
+  if (not IsAmbientSpace(M)) then
+     T := HeckeOperator(AmbientSpace(M), alpha);
+     return Restrict(T, VectorSpace(M));
+  end if;
   p := Integers()!Determinant(alpha);
   assert IsPrime(p);
   G := LevelSubgroup(M);
@@ -798,7 +982,8 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
    r := Squared select 2 else 1;
    factor := #R;
    if Level(M) mod p eq 0 then
-      factor := factor div p^r;
+      // factor := factor div p^r;
+      factor := 1;
    else
       factor := factor div &+[p^j : j in [0..r]];
    end if;
@@ -928,7 +1113,11 @@ function lev1_HeckeOperatorHeilbronn(M, Heil)
 
    assert Level(M) eq 1;
 
-   eps   := ValueList(DirichletCharacter(M));
+   if IsOfGammaType(M) then
+      eps   := ValueList(DirichletCharacter(M));
+   else
+      eps := DirichletCharacter(M);
+   end if;
    k     := Weight(M);
 
    quot  := M`quot;
@@ -1011,8 +1200,11 @@ function lev1_TnSparse(M, Heil, sparsevec)
       char0Heil, modNHeil := Explode(Heil);
    end if;
 
-
-   eps   := ValueList(DirichletCharacter(M));
+   if IsOfGammaType(M) then
+      eps   := ValueList(DirichletCharacter(M));
+   else
+      eps := DirichletCharacter(M);
+   end if;
    k     := Weight(M);
 
    quot  := M`quot;
@@ -1190,12 +1382,13 @@ function TnSparse(M, Heil, sparsevec)
           r := squared select 2 else 1;
           factor := #matrices;
           if Level(M) mod p eq 0 then
-             factor := factor div p^r;
+	     //factor := factor div p^r;
+	     factor := 1;
           else
              factor := factor div &+[p^j : j in [0..r]];
           end if;
           if IsEmpty(matrices) then
-             return 0;
+	     return VectorSpace(M)!0;
           end if;
           return &+[s[1]*
    	      &+[ActionOnModularSymbolsBasisElement(g,M,s[2]) :

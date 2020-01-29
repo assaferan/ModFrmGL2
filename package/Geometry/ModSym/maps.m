@@ -518,8 +518,9 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 
       B   := ModularSymbolsBasis(M1);
       alpha := d;
-      conj := ImageInLevel(Conjugate(G2,alpha : IsExactLevel := true));
-      im_G1 := ImageInLevel(G1 : N := Level(G2));
+      alpha_conj := Conjugate(G2,alpha : IsExactLevel := true);
+      conj := ImageInLevel(alpha_conj);
+      im_G1 := ImageInLevel(G1 : N := Level(alpha_conj));
       require conj subset im_G1 :
             "alpha must conjugate G1 to G2";
       D := Transversal(im_G1, conj);

@@ -66,7 +66,8 @@ intrinsic ImageInLevel(G::GrpPSL2 : N := Level(G)) -> GrpMat
      end if;
   end if;
   if N ne Level(G) then
-    return sub<SL(2,Integers(N)) | [Eltseq(g) : g in Generators(G)]>;
+    gens := [Eltseq(g) : g in Generators(G)] cat [[-1,0,0,-1]];
+    return sub<SL(2,Integers(N)) | gens>;
   end if;
   return G`ImageInLevel;
 end intrinsic;
@@ -100,7 +101,10 @@ intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
      end if;
   end if;
   if N ne Level(G) then
-    return sub<GL(2,Integers(N)) | [Eltseq(g) : g in Generators(G)]>;
+    gens := Generators(ImageInLevelGL(G));
+    gens := [x : x in GL(2,Integers(N)) | GL(2, Integers(N))!x in gens];
+       // return sub<GL(2,Integers(N)) | [Eltseq(g) : g in Generators(G)]>;
+    return sub<GL(2,Integers(N)) | gens>;
   end if;
   return G`ImageInLevelGL; 
 end intrinsic;

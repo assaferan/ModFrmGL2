@@ -359,9 +359,12 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    end if;
 
    p_prime := sub<ModLevelGL(H) | G_N, p>;
-   oldp_prime := PSL2Subgroup(p_prime, true);
-   oldp := PSL2Subgroup(p, true);
-   Q, pi_Q := p_prime / p;
+//   oldp_prime := PSL2Subgroup(p_prime, true);
+//   oldp := PSL2Subgroup(p, true);
+   oldp_prime := PSL2Subgroup(p_prime, false);
+   oldp := PSL2Subgroup(p, false);
+   // Q, pi_Q := p_prime / p;
+   Q, pi_Q := oldp_prime / oldp;
 //eps_res := FullCharacterGroup(pi_Q, oldp_prime, oldp)!eps;
 //   eps_res := MinimalBaseRingCharacter(eps_res);
    eps_res := CharacterGroup(pi_Q, BaseRing(M), oldp_prime, oldp)!eps;
@@ -514,11 +517,14 @@ function prepare_old_spaces(M, primes)
    primes := [primes[i] : i in good];
 
    N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
-   oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
-   oldp := [PSL2Subgroup(p, true) : p in primes];
+//   oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
+//   oldp := [PSL2Subgroup(p, true) : p in primes];
+   oldp_prime := [PSL2Subgroup(p_prime, false) : p_prime in N_p];
+   oldp := [PSL2Subgroup(p, false) : p in primes];
    old := [];
    for i in [1..#primes] do
-      Q, pi_Q := N_p[i] / primes[i];
+      //Q, pi_Q := N_p[i] / primes[i];
+      Q, pi_Q := oldp_prime[i] / oldp[i];
       eps_res := CharacterGroup(pi_Q, BaseRing(M),
 				oldp_prime[i], oldp[i])!eps;
       Append(~old,ModularSymbols(eps_res, Weight(M), Sign(M)));

@@ -556,8 +556,10 @@ function get_NN(M)
    // !!! TODO : This might be slow - change it later
    NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
    Append(~NN, ModLevelGL(G));
+// Is this necessary? Currently we need it for the complete decomposition
    eta := ModLevelGL(G)![-1,0,0,1];
-   NN := [nn : nn in NN | nn^eta eq nn];
+   SL_N := ModLevel(G);
+   NN := [nn : nn in NN | (nn meet SL_N)^eta eq (nn meet SL_N)];
 // For now, just return all of them - see if it helps
    return NN;
 
@@ -649,8 +651,11 @@ IsCuspidal(M) is true.}
         G_N := ImageInLevelGL(LevelSubgroup(M));
         N := ImageInLevelGL(G);
         NN := get_NN(M);
-        pnew := [p : p in MinimalOvergroups(ModLevelGL(G), N)
-					    | IsNew(M,p)];
+        primes := MinimalOvergroups(ModLevelGL(G), N);
+        SL_N := ModLevel(G);
+        eta := ModLevelGL(G)![-1,0,0,1];
+        primes := [p : p in primes | (p meet SL_N)^eta eq (p meet SL_N)];
+        pnew := [p : p in primes | IsNew(M,p)];
       end if;
 
       for i in [1..#NN] do
@@ -1316,6 +1321,13 @@ function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
    N := Level(M);
 
    primes := [2]; // or could use []
+
+   // until we can correctly write down
+   // Hecke operators at primes dividing the level
+
+   if not IsOfGammaType(M) then
+      primes := [SmallestPrimeNondivisor(N,2)];
+   end if;
 
    procedure get_heckes_modp(~heckes, primes, GFp, BMp)
       ls := [l : l in primes | l notin Keys(heckes)];

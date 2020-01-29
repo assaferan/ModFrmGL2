@@ -663,10 +663,16 @@ over all prime divisors of the level of M}
         G_N := ModLevelGL(G);
         H := ImageInLevelGL(G);
         primes := MinimalOvergroups(G_N,H);
-// Is this necessary?
+// Is this necessary? yes!!! For the hecke operators in the source to commute
+// with the star involution
         eta := G_N![-1,0,0,1];
-        SL_N := ModLevel(G);
-        primes := [p : p in primes | (p meet SL_N)^eta eq p meet SL_N];
+// SL_N := ModLevel(G);
+//        primes := [p : p in primes | (p meet SL_N)^eta eq p meet SL_N];
+        primes := [p : p in primes | p^eta eq p];
+        is_conj := [[IsConjugate(G_N, x, y) : x in primes] : y in primes];
+        primes := {[primes[i] : i in [1..#primes] |
+			    is_conj[i][j]] : j in [1..#primes]};
+        primes := [y[1] : y in primes];
       end if;
 
       if IsMultiChar(M) then

@@ -186,7 +186,7 @@ end intrinsic;
 /*
 intrinsic GammaNSGeneral(N::RngIntElt, f::RngUPolElt[RngInt]) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns(N), choosing alpha as the root of the polynomial f, which should be irreducible modulo each prime dividing N}
-*/
+*/ 
 function GammaNSGeneral(N, f)
 // require N gt 0 : "N must be a positive integer";
    
@@ -447,11 +447,38 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
      At the moment we only support the case where
      both input and output are subgroups of PSL2(Z)}
   if IsOne(A) then return G; end if;
-//det := Integers()!Determinant(A);
-  det_num := Numerator(Determinant(A));
-  det_denom := Denominator(Determinant(A));
-  require Level(G) mod det_num eq 0 :
-    "Numerator of the Determinant of A must divide the level of G";
+  M2Z := MatrixAlgebra(Integers(),2);
+  // reducing to an integral matrix
+  D := Rationals()!LCM([Denominator(x) : x in Eltseq(A)]);
+  A := ScalarMatrix(2,D) * A;
+  det := Integers()!Determinant(A);
+
+  if (A in Gamma0(1)) then
+     return PSL2Subgroup(Conjugate(ImageInLevelGL(G),ModLevelGL(G)!A));		
+  end if;
+
+  N := Level(G);
+
+  if GCD(det, N) eq 1 then
+    AmodN := ModLevelGL(G)!A;
+    mod_N := Conjugate(ImageInLevelGL(G), AmodN);
+    snf, x, y := SmithForm(M2Z!A);
+    quot := snf[2,2] div snf[1,1];
+    y_mod := GL(2, Integers(det))!y;
+    mod_det := Conjugate(ImageInLevelGL(GammaUpper0(quot) : N := det),
+			 y_mod^(-1));
+    gens_N := [[Integers()!y : y in Eltseq(x)] : x in Generators(mod_N)];
+    gens_det := [[Integers()!y : y in Eltseq(x)] : x in Generators(mod_det)];
+    one := [1,0,0,1];
+    gens_1 := [[ChineseRemainderTheorem([g[i], one[i]], [N,det])
+	       : i in [1..4]] : g in gens_N];
+    gens_2 := [[ChineseRemainderTheorem([one[i], g[i]], [N,det])
+	       : i in [1..4]] : g in gens_det];
+    gens := gens_1 cat gens_2;
+    H := sub<GL(2,Integers(N*det)) | gens>;
+    return PSL2Subgroup(H, IsExactLevel);
+  end if;
+
   // At the moment we always calculate generators
   // If they have not been calculated yet, can add later more efficient
   // methods
@@ -464,9 +491,7 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
   end for;
   gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
   mod_level := ModLevel(G);
-  if det_denom gt 1 then
-    mod_level := SL(2, Integers(Level(G) * det_denom));
-  end if;
+  mod_level := SL(2, Integers(Level(G) * det));
   im_in_level := sub<mod_level | gens_level >;
   return PSL2Subgroup(im_in_level, IsExactLevel);
 end intrinsic;
@@ -475,6 +500,12 @@ intrinsic '^'(G::GrpPSL2, A::GrpMatElt) -> GrpPSL2
 {}
   return Conjugate(G,A);
 end intrinsic;
+
+// This was the only way I could get the reduction morphism
+
+function get_coercion_hom(G,H)
+  return hom<G->H | [H!G.i : i in [1..NumberOfGenerators(G)]]>;
+end function;
 
 intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
     {returns the intersection of two congruence subgroups.}
@@ -491,20 +522,44 @@ intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
     groups you have entered";
     // initiate group
     // find the 3 integers giving group
-    HL := (H`gammaType_list)[1];
-    GL := (G`gammaType_list)[1];
-    A := [Lcm(HL[i],GL[i]) : i in [1..3]];   
+    Hlist := (H`gammaType_list)[1];
+    Glist := (G`gammaType_list)[1];
+    A := [Lcm(Hlist[i],Glist[i]) : i in [1..3]];   
     K := init_psl2_group(Lcm(A),Integers());
     K`gammaType_list := [A];
     K`IsOfGammaType := true;
     return K;
   else
-    N := LeastCommonMultiple(Level(G), Level(H));   
+    N_G := Level(G);
+    N_H := Level(H);
+    d := GCD(N_G, N_H);
+    N := LeastCommonMultiple(N_G, N_H);   
     if (Type(G`BaseRing) in {Rng,RngInt,FldRat}) then 
-        ModLevel := SL(2,quo<G`BaseRing | N>);
+        ModLevelGL := GL(2,quo<G`BaseRing | N>);
     else
-        ModLevel := MatrixAlgebra(quo<G`BaseRing | N>,2);
+        ModLevelGL := MatrixAlgebra(quo<G`BaseRing | N>,2);
     end if;
+    red_G := get_coercion_hom(ImageInLevelGL(G), GL(2, Integers(d)));
+    red_H := get_coercion_hom(ImageInLevelGL(H), GL(2, Integers(d)));
+    G_d := Kernel(red_G);
+    H_d := Kernel(red_H);
+    im_d := Image(red_G) meet Image(red_H);
+    gens_G_d := [[Integers()!y : y in Eltseq(g)] : g in Generators(G_d)];
+    gens_H_d := [[Integers()!y : y in Eltseq(g)] : g in Generators(H_d)];
+    equalizer := [[* z@@red_G, z@@red_H *] : z in Generators(im_d)];
+    gens_im_d := [[[Integers()!y : y in Eltseq(g)] : g in x] : x in equalizer];
+    one := [1,0,0,1];
+    gens_1 := [[ChineseRemainderTheorem([g[i], one[i]], [N_G,N_H])
+	       : i in [1..4]] : g in gens_G_d];
+    gens_2 := [[ChineseRemainderTheorem([one[i], g[i]], [N_G,N_H])
+	       : i in [1..4]] : g in gens_H_d];
+    gens_3 := [[ChineseRemainderTheorem([g[1][i], g[2][i]], [N_G,N_H])
+	       : i in [1..4]] : g in gens_im_d];
+    gens := gens_1 cat gens_2 cat gens_3;
+    G_meet_H := sub< ModLevelGL | gens>;
+    return PSL2Subgroup(G_meet_H, true);
+/* old version:
+
     gens_G := [Eltseq(x) : x in Generators(G)];
     gens_H := [Eltseq(x) : x in Generators(H)];
     Append(~gens_G, [-1,0,0,-1]);
@@ -512,6 +567,7 @@ intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
     G_image := sub<ModLevel | gens_G>;
     H_image := sub<ModLevel | gens_H>;
     return PSL2Subgroup(G_image meet H_image);
+*/
   end if;
 end intrinsic;
  
@@ -525,6 +581,7 @@ import "../../ModSym/core.m" : CosetReduce, ManinSymbolGenList;
 
 intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
 {calculates the level of a subgroup of PSL2}
+  if Degree(ModLevel(G)) eq 1 then return 1; end if;
   mlist := ManinSymbolGenList(2,G,G`BaseRing);
   coset_list := mlist`coset_list;
   find_coset := mlist`find_coset;
@@ -597,6 +654,7 @@ end intrinsic;
 // For now assume det is either 1 or a prime
 intrinsic FindLiftToM2Z(g::AlgMatElt[RngIntRes] : det := 1) -> AlgMatElt[RngInt]
 {finds a lift in M2Z for g}
+     require g ne 0 : "Can not find lift for the zero matrix!";
      M2Z := MatrixAlgebra(Integers(), 2);
      elt_g := ElementToSequence(g);
      if #elt_g eq 1 then return PSL2(Integers())!1; end if;

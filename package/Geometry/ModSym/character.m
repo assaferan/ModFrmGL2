@@ -399,6 +399,7 @@ end intrinsic;
 intrinsic Evaluate(x::GrpChrElt,g::GrpMatElt) -> RngElt
 {Evaluation x(g).}
    if Dimension(Parent(g)) eq 1 then return 1; end if;
+   if Degree(Domain(x)) eq 1 then return 1; end if;
    return Evaluate(x, x`Parent`QuotientMap(g));
 end intrinsic;
 

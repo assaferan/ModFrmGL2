@@ -558,10 +558,11 @@ function get_NN(M)
    Append(~NN, ModLevelGL(G));
 // Is this necessary? Currently we need it for the complete decomposition
    eta := ModLevelGL(G)![-1,0,0,1];
-   SL_N := ModLevel(G);
-   NN := [nn : nn in NN | (nn meet SL_N)^eta eq (nn meet SL_N)];
+// SL_N := ModLevel(G);
+//   NN := [nn : nn in NN | (nn meet SL_N)^eta eq (nn meet SL_N)];
+   NN := [nn : nn in NN | nn^eta eq nn];
 // For now, just return all of them - see if it helps
-   return NN;
+//   return NN;
 
    NN_idxs := AssociativeArray();
    for nn in NN do
@@ -652,9 +653,15 @@ IsCuspidal(M) is true.}
         N := ImageInLevelGL(G);
         NN := get_NN(M);
         primes := MinimalOvergroups(ModLevelGL(G), N);
-        SL_N := ModLevel(G);
+// SL_N := ModLevel(G);
         eta := ModLevelGL(G)![-1,0,0,1];
-        primes := [p : p in primes | (p meet SL_N)^eta eq (p meet SL_N)];
+// primes := [p : p in primes | (p meet SL_N)^eta eq (p meet SL_N)];
+        primes := [p : p in primes | p^eta eq p];
+        is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in primes] :
+							    y in primes];
+        primes := {[primes[i] : i in [1..#primes] |
+			    is_conj[i][j]] : j in [1..#primes]};
+        primes := [y[1] : y in primes];
         pnew := [p : p in primes | IsNew(M,p)];
       end if;
 

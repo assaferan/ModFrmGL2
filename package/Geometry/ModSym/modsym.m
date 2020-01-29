@@ -1357,13 +1357,11 @@ intrinsic IsCoercible(M::ModSym,x::.) -> BoolElt, ModSymElt
 end intrinsic;
 
 function get_degeneracy_reps(M1, M2, divisors)
-/*
   candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]] :
 		     a in Divisors(n)] : n in divisors];
-*/
 // at the moment we only support trivial (type I) degeneracy reps
 //  candidates := [[1,0,0,1]];
-  candidates := [[1,0,0,n] : n in divisors];
+//   candidates := [[1,0,0,n] : n in divisors];
   candidates := [GL(2,Rationals())!x : x in candidates];
   G1 := LevelSubgroup(M1);
   G2 := LevelSubgroup(M2);

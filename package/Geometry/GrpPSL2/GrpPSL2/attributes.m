@@ -174,6 +174,10 @@ intrinsic Label(G::GrpPSL2) -> MonStgElt
        G`Label := Sprintf("Arithmetic Fuchsian group arising from order of level of norm %o in a quaternion algebra of discriminant of norm %o over %o", 
 			  Norm(G`ShimData[3]), Norm(G`ShimData[2]), G`ShimData[1]);
     elif not G`IsOfGammaType then
+       G`Label := Sprintf("Arithmetic subgroup of PSL2 induced by %o\n",
+		       ImageInLevelGL(G));
+    // old printing
+    /*
      if assigned G`FS_cosets then
         num_printed_gens := Minimum(5, #G`FS_cosets);
         G`Label := "Arithmetic subgroup of PSL2 with coset representatives\n";
@@ -196,6 +200,7 @@ intrinsic Label(G::GrpPSL2) -> MonStgElt
 	      Sprintf("... (there are %o generators)\n", #G`Generators);
         end if;
      end if;
+    */
    else
      G`Label := "";  
      num := #(G`gammaType_list);

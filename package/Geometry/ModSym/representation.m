@@ -164,8 +164,11 @@ intrinsic VectorSpace(M::ModSym) -> ModTupFld, Map, Map
 
          p := 2;
          while Dimension(V) gt Dimension(M) do   
-            if assigned M`al_decomp and Level(M) mod p eq 0 then
-               p := NextPrime(p); 
+/*	    if (assigned M`al_decomp or (not IsOfGammaType(M))) and
+			         (Level(M) mod p eq 0) then
+*/
+	    if (assigned M`al_decomp) and (Level(M) mod p eq 0) then
+	       p := NextPrime(p); 
                continue;
             end if;
 
@@ -306,8 +309,9 @@ that is isomorphic to M as module of the Hecke algebra}
          while Dimension(V) gt Dimension(M) do
 	    // until we are able to correctly write down Hecke operators at
 	    // primes dividing the level
-	    if (assigned M`al_decomp) or
-	       (not IsOfGammaType(M) and Level(M) mod p eq 0)  then
+	    if (assigned M`al_decomp) and
+ //	       (not IsOfGammaType(M) and Level(M) mod p eq 0)  then
+		      (Level(M) mod p eq 0) then		
                p := NextPrime(p); 
                continue;
             end if;
