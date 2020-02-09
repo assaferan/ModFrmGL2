@@ -1,9 +1,0 @@
-{
-  simple.m
-  concatenate.m
-  stitch.m
-  filter.m
-  modify.m
-  sequence.m
-  file.m
-}

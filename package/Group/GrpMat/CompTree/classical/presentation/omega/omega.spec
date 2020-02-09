@@ -1,9 +1,0 @@
-{
-   evenplus.m
-   plus.m
-   minus.m
-   circle.m
-   minus6.m
-   omega.m
-   cosets.m
-}

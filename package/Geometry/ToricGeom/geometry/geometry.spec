@@ -1,9 +1,0 @@
-{
-    coxring.m
-    map.m
-    mmp.m
-    subscheme.m
-    multivalued_sections.m
-    functionfield.m
-    utilities.m
-}

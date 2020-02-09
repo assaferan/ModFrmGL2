@@ -1,4 +1,0 @@
-LinProg
-{
-  lp.m
-}

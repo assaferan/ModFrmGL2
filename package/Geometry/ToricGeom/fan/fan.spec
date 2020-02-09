@@ -1,4 +1,0 @@
-{
-    fan.m
-    demazure.m
-}

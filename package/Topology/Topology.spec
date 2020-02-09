@@ -1,1 +1,0 @@
-simplicialhomology.m

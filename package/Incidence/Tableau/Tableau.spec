@@ -1,4 +1,0 @@
-
-Monoids.m
-TableauxOfShape.m
-
