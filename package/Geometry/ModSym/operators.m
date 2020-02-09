@@ -774,6 +774,8 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
      // the double coset of some element of determinant p normalizing Gamma
      // and such that eta normalizes the double coset
      // This turns out not to work even for Gamma0. ?
+found := false;
+/*
      im_gamma0 := ImageInLevel(Gamma0(p) : N := N);
      conj := Conjugates(SL(2, Integers(N)), im_gamma0);
      good_conj := [c : c in conj | H subset c];
@@ -781,7 +783,11 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
      for c in good_conj do
        dummy, x := IsConjugate(SL(2,Integers(N)), c, im_gamma0);
        x_lift := GL2Q!Eltseq(FindLiftToSL2(x));
-       alpha := x_lift * alpha_p;
+       // alpha := x_lift * alpha_p;
+       alpha := alpha_p^x_lift;
+       return HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha);
+           found := true;
+           break;
        // This is conjugating by alpha
        // Given the choice of c, it is OK   
        p_conj := Conjugate(G,alpha);
@@ -798,7 +804,7 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
            break;
        end if;
      end for;
-     
+*/     
      // Clearly wrong, but gives some Hecke operator at p
      if (not found) then
          printf "** WARNING! The Hecke operator at %o is NOT computed correctly! **\n",p;

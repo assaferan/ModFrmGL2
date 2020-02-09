@@ -976,6 +976,30 @@ function load_groups_genus(L)
   return grps_by_genus;
 end function;
 
+procedure DoElisa()
+  path := "/Users/eranassaf/Documents/Research/Modular Symbols/Elisa/";
+  filename := path cat "genus6.txt";
+  grps := load_groups(L);
+  grps_genus := load_groups_genus(L);
+  // errors := [];
+  R<a> := PolynomialRing(Rationals());
+  file := Open(filename, "a");
+  for grp_name in grps_genus[6] do
+    fprintf file, "Computing eigenforms for G = %o:\n", grp_name;
+    try
+      result := GetEigenforms(grps[grp_name]);
+      output := [*<r, BaseRing(Parent(r))> : r in result*];
+      fprintf file, "%o\n", output;
+    catch err
+      fprintf file, "%o\n", err`Object;
+      // Append(~errors, <grp_name,err`Object>);
+    end try;
+    // In case program collapses, let it flush everything to the file
+    Flush(file);
+  end for;
+  delete file;
+end procedure;
+
 procedure DoTests(numchecks)
    Test_Eigenforms(numchecks);
    Test_NewformDecomposition(numchecks);

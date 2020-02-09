@@ -2184,8 +2184,8 @@ function get_gl_model(H)
 // involution !!!!
   eta := GL_N![-1,0,0,1];
   cands := [c : c in cands | c^eta eq c];
-  error if IsEmpty(cands), Error("No model with surjective determinant, 
-                                  which commutes with eta");
+  error if IsEmpty(cands),
+    Error("No model with surjective determinant which commutes with eta");
   if exists(c){c : c in cands |
       ImageInLevelGL(CongruenceSubgroup(N)) subset c} then
       return c;
