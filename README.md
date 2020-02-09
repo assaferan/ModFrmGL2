@@ -10,8 +10,8 @@ generators or by their image in PSL(Z/NZ) (where N is the level).
 
 Quick Start
 -----------
-Simply run the following line in magma: (from the main directory -  package)
-load "./Geometry/ModSym/tests.m";
+Simply run the following line in magma: (from the main directory -  ModFrmGL2)
+AttachSpec("ModFrmGL2.spec");
 
 This attaches the package to your runnning magma session.
 
@@ -29,39 +29,37 @@ a place of its own.
 ------------------
 
 + The package supports construction of a space of modular symbols from a subgroup G of GL(Z/NZ) 
-with surjective determinant, and which includes -I, or by a subgroup of PSL2(Z) given by 
+of real type with surjective determinant, and which includes -I, or by a subgroup of PSL2(Z) given by 
 generators, or arbirtrary sequence of intersection and conjugation of standard subgroups.
 
 + The package supports construction of such a space for a given representation of the finite group
-N(G)/G, where N(G) is the normalizer in PSL2(Z). 
+A/G, where A is a maximal subgroup in N(G) - the normalizer of G in PSL2(Z), such that the quotient is abelian.
 
 + The package also supports computation of the boundary map and cuspidal subspace for these.
 
++ The package supports computation of Hecke operators away from the level, and in some cases, also the Hecke operators at primes dividing the level.
+
++ The package supports NewformDecomposition
+
++ The package supports q-expansions of eigenforms
+
 - At the moment, there is no support for odd characters (i.e. -I not in group)
 
-- Since Hecke operators do not always commute with the action of N(G)/G, these spaces at the moment
-do not support q-Expansions -> Should restrict to those commuting with all of them.
+- At the moment, there is no support for groups not of real type, or with non-surjective determinant. Given a subgroup of GL2(ZZ/ N ZZ), it will try to conjugate into a subgroup of real type, and to find a model with surjective determinant.
 
-- Newforms are not yet implemented.
+- At the moment, finding elliptic invariants and equations is not supported
 
-- Something doesn't work when trying to compute Zywina's example. Should check why.
+- At the moment, q-expansions of Eisenstein modular forms are not supported
 
 
 2. Profiling
 ------------
 
-The main bottleneck at the moment for creating spaces is the function CosetReduce - 
-Given an element of PSL2(Z), computes to which coset of G it belongs.
-
-At the moment, it is implemented naively, by running over the (inverses of) coset representatives.
-This can be improved, at least for small N (level), by creating a hash table from PSL(2,Z/NZ) into 
-the list of coset representatives.
-Should think if this could be improved in the general case.
-Maybe can use the Todd-Coxeter table to increase efficiency.
+The main bottleneck at the moment is the computation of the Hecke operators at primes dividing the level. This is because we use Farey symbols to find generators for the gorup in order to conjugate it.
 
 3. Testing
 ----------
-All tests are implemented in "Geometry/ModSym/tests.m" and could be run using the procedure DoTests(num);
+All tests are implemented in "tests.m" and could be run using the procedure DoTests(num);
 Currently implemented are:
 1. tests for the genera of Jeremy Rouse's 2-adic modular curves
 2. tests for specific properties of spaces of modular spaces out of Stein's book (Modular Forms : A Computational Approach)
