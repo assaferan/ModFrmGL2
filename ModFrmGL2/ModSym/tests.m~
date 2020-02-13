@@ -1,11 +1,4 @@
-// freeze;
-ROOT_DIR := "./Geometry/";
-AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2.spec");
-AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
-AttachSpec(ROOT_DIR cat "ModFrm/ModFrm.spec");
-SetHelpUseExternalBrowser(false);
-SetDebugOnError(true);
-// SetVerbose("ModularSymbols", 0);
+freeze;
 
 /****-*-magma-* EXPORT DATE: 2004-03-08 ************************************
                                                                           

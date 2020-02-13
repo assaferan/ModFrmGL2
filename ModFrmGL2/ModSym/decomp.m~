@@ -290,10 +290,8 @@ function Decomposition_recurse(M, p, stop,
          fa := f^a;
       end if;
       vprintf ModularSymbols, 2: "Cutting out subspace using f(T_%o), where f=%o.\n",p, f;
-      V_sum,_,pi := DirectSum([DualRepresentation(M) :
-						 i in [1..NumComponents(M)]]);
       fT  := Evaluate(fa,T);
-      V   := pi[1](KernelOn(fT,V_sum));
+      V   := KernelOn(fT,DualRepresentation(M));
       W   := ModularSymbolsDual(M,V);
       if assigned M`sub_representation then
          W`sub_representation := M`sub_representation;

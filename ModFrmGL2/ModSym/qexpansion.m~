@@ -1015,17 +1015,14 @@ end function;
  *                                                           *
  *************************************************************/
 
-function EigenvectorOfMatrixWithCharpoly(T, f : e := 1)
+function EigenvectorOfMatrixWithCharpoly(T, f)
 /* Let T be an nxn matrix over K with irreducible characteristic
  polynomial f.  This function returns an eigenvector for T
- over the extension field K[x]/(f(x)). 
- assaferan : added e to denot exponent, so that T could have as
- a characteristic polynomial a power of an irreducible - f^e
-*/
+ over the extension field K[x]/(f(x)). */
 
    // This is implemented using a quotient of a polynomial ring
    // because this works generically for any field.
-   n  := Degree(f) * e;
+   n  := Degree(f);
    K  := Parent(T[1,1]);
    if n eq 1 then
       return VectorSpace(K,n)![1];
@@ -1228,9 +1225,9 @@ function my_ev_before_lift(A, M)
   return EigenvectorOfMatrixWithCharpoly(T,f);
 end function;
 
-function FindIrreducibleHeckeOperator(A : e := 1)
+function FindIrreducibleHeckeOperator(A)
     // Find a linear combination of Hecke operators whose
-    // charpoly on A is irreducible to the e-th power.
+    // charpoly on A is irreducible. 
 
     vprintf ModularSymbols, 1: 
         "Looking for an irreducible element in the Hecke algebra of %o\n", A;
@@ -1259,13 +1256,6 @@ function FindIrreducibleHeckeOperator(A : e := 1)
             if IsIrreducible(f) then
                 break;
             end if;
-	    if (e gt 1) then
-	        FAC := Factorization(f);
-	        if #FAC eq 1 and FAC[1][2] eq e then
-		   f := FAC[1][1];
-		   break;
-		end if;
-	    end if;
         end if; 
 
 	if i eq 15 then

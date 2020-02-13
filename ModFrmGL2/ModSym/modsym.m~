@@ -330,7 +330,6 @@ declare attributes ModSym:
          hecke_algebra_z_basis,
          inner_twists,
          action_on_modsyms,
-         num_components,
 
 // Character groups of tori of M.
          X,                  
@@ -540,18 +539,15 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
 
    H := ImageInLevelGL(G);
 
-// Trying to make this work - start with allowing non surjective
-
    if not IsOfRealType(G) then
      H := get_real_conjugate(H);
      G := PSL2Subgroup(H);
    end if;
-/*
+
    if assigned G`DetRep and #Domain(G`DetRep) lt EulerPhi(Level(G)) then
      H := get_gl_model(H);
      G := PSL2Subgroup(H);
    end if;
-*/
 
    Q, pi_Q := G/G;
    eps := CharacterGroup(pi_Q, F, G, G)!1;
@@ -1208,19 +1204,7 @@ of scalars.
    return [phi(b) : b in Basis(L)];
 end intrinsic;
 
-intrinsic NumComponents(M::ModSym) -> SeqEnum
-{The number of connected components of the modular curve.}
-  if not assigned M`num_components then
-     if IsOfGammaType(M) then
-        M`num_components := 1;
-     else
-        N := Level(M);
-        G := LevelSubgroup(M);
-        M`num_components := EulerPhi(N) div #Domain(G`DetRep);
-     end if;
-  end if;
-  return M`num_components;
-end intrinsic;
+
 
 
 ////////////////////////////////////////////////////////////////
