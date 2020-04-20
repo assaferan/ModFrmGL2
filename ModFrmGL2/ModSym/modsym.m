@@ -654,6 +654,7 @@ intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt,
    end if; 
  
    M := New(ModSym);
+   M`G := G;
    M`is_ambient_space := true;
    M`sub_representation  := VectorSpace(F,dim);
    M`dual_representation  := VectorSpace(F,dim);
@@ -661,7 +662,6 @@ intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt,
    M`k    := k;
    M`N    := N;
    M`eps  := eps;
-   M`G := G;
    M`isgamma_type := true;
    M`sign := sign;
    M`F    := F;
@@ -755,17 +755,28 @@ intrinsic ModularSymbols(eps::GrpChrElt, G::GrpPSL2, k::RngIntElt,
    end if;
 
    M := New(ModSym);
+   M`G    := G;
    M`is_ambient_space := true;
    M`sub_representation  := VectorSpace(F,dim);
    M`dual_representation  := VectorSpace(F,dim);
    M`dimension := dim;
    M`k    := k;
-   M`G    := G;
+   M`isgamma_type := false;
    M`N    := Level(G);
    M`sign := sign;
    M`F    := F;
    M`eps := eps;
-   M`isgamma_type := false;
+   
+   M`sub_representation  := VectorSpace(F,dim);
+   M`dual_representation  := VectorSpace(F,dim);
+   M`dimension := dim;
+   M`k    := k;
+   
+   M`N    := Level(G);
+   M`sign := sign;
+   M`F    := F;
+   M`eps := eps;
+   
    
    M`mlist:= mlist;
    M`quot := rec<CQuotient |  
@@ -835,7 +846,8 @@ function ModularSymbolsSub(M, V)
    power to create nasty objects that don't satisfy the definition
    of a ModSym.
 */
-   assert Degree(V) eq Dimension(AmbientSpace(M));
+  assert Degree(V) eq Dimension(AmbientSpace(M)) or
+         Degree(V) eq Dimension(AmbientSpace(M)) * NumComponents(M);
    // assert V subset Representation(M);
    // This is obviously nontrivial in large dimensions
 
@@ -1050,7 +1062,7 @@ end intrinsic;
 intrinsic Dimension(M::ModSym) -> RngIntElt
 {The dimension of M.}
    if not assigned M`dimension then return -1; end if;
-   return M`dimension;
+    return M`dimension;
 end intrinsic;
 
 
@@ -1221,7 +1233,6 @@ intrinsic NumComponents(M::ModSym) -> SeqEnum
   end if;
   return M`num_components;
 end intrinsic;
-
 
 ////////////////////////////////////////////////////////////////
 //                                                            //

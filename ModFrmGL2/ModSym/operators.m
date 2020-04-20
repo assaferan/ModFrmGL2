@@ -732,6 +732,20 @@ function HeckeNSCartanRepresentatives(G,p,plus)
   return R;
 end function;
 
+// Should fix this when I get the chance.
+// The basic things to notice are:
+// 1. representatives for Gamma(N) are conjugates of the representatives for
+// Gamma0(N^2) by [1,0,0,N] - i.e. we should have
+// _, m, n := XGCD(p, N^2);
+// R := [[1,N*j,0,p] : j in [0..p-1]];
+// if (N mod p ne 0) then
+//    Append(~R, [p*m, -n*N, p*N, p]);
+// end if;
+// In other words, these are the representatives of
+// Gamma(N) meet GammaUpper0(N*p) \ Gamma(N)
+// 2. The only reason I'm not yet doing it is the T_{p^2}
+// This should be resolved by using the diamond operators, eventually.
+
 function HeckeFullCongruenceRepresentatives(N,p : Squared := false)
   GL2Q := GL(2, Rationals());
   if (N mod p ne 0) then
@@ -791,8 +805,9 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
        // This is conjugating by alpha
        // Given the choice of c, it is OK   
        p_conj := Conjugate(G,alpha);
-       new_N := Level(p_conj);
-       is_conj, y := IsConjugate(SL(2,Integers(new_N)), ImageInLevel(p_conj),
+       new_N := Max(N, Level(p_conj));
+       is_conj, y := IsConjugate(SL(2,Integers(new_N)),
+				 ImageInLevel(p_conj : N := new_N),
 				 ImageInLevel(G : N := new_N));
        if is_conj then     
  // y_lift := GL2Q!Eltseq(FindLiftToSL2(y));
@@ -1375,7 +1390,7 @@ function TnSparse(M, Heil, sparsevec)
    now commented out.  WAS, 09/15/01.
   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
 */
-
+/*
   if (not IsOfGammaType(M)) and
      (not (IsGammaNS(M`G) or IsGammaNSplus(M`G)) )  then
       if Type(Heil) eq RngIntElt then
@@ -1416,7 +1431,7 @@ function TnSparse(M, Heil, sparsevec)
         end if;
       end if;
    end if;    
-         
+*/   
 
    // Now consider the characteristic-zero case.
    if Level(M) eq 1 then
@@ -1862,7 +1877,10 @@ function FastTnData(M, V)
 
 
    n := #V;
-   B := Basis(sub<Representation(AmbientSpace(M))|V>);
+   MM := DirectSum([Representation(AmbientSpace(M)) :
+				    i in [1..NumComponents(M)]]);
+// B := Basis(sub<Representation(AmbientSpace(M))|V>);
+   B := Basis(sub<MM | V>);
    assert #B eq n;
    // Find pivot columns.
    e := Pivots(B);
@@ -1889,7 +1907,7 @@ function FastTn(M, V, n)
    F     := BaseField(M);
    V     := FastData`V;
    n     := #V;
-   m     := Dimension(AmbientSpace(M));
+   m     := Dimension(AmbientSpace(M)) * NumComponents(M);
    e     := FastData`e;
    VEinv := FastData`VEinv;
    // The next step is where all of the time is spent. 
@@ -2360,7 +2378,7 @@ function HeckeOperator_OnSubspace_UsingComplement(M,n)
 
 end function;
 
-function blockify_components(M, T, n)
+function get_block_permutation(M, n)
    N := Level(M);
    G := LevelSubgroup(M);
    det_hom := hom<ImageInLevelGL(G) -> GL(1,IntegerRing(N)) |
@@ -2373,8 +2391,13 @@ function blockify_components(M, T, n)
    else
      perm := S_G!1;
    end if;
+   return perm;
+end function;
+
+function blockify_components(M, T, n)
+   perm := get_block_permutation(M, n);
    perm_mat := PermutationMatrix(Rationals(), perm);
-   mats := [[perm_mat[i,j]*T : j in [1..#comp_group]] :
-						       i in [1..#comp_group]];
+   nc := NumComponents(M);
+   mats := [[perm_mat[i,j]*T : j in [1..nc]] : i in [1..nc]];
    return BlockMatrix(mats);
 end function;

@@ -1343,7 +1343,8 @@ function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
       for l in ls do 
          TAl := HeckeOperator(AmbientSpace(M), l);
          TAlp := ChangeRing(TAl, GFp);
-         Tlp := restrict(TAlp, BMp);
+         VMp := DirectSum([BMp : i in [1..NumComponents(M)]]);
+         Tlp := restrict(TAlp, VMp);
          heckes[l] := Tlp;
       end for;
    end procedure;
@@ -1410,7 +1411,8 @@ function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
       T_amb := &+ [cc[l] * HeckeOperator(AmbientSpace(M), l) : l in primes];
 vprintf ModularSymbols: "restricting: "; 
 vtime ModularSymbols:
-      T := restrict(T_amb, BM);
+      VM := DirectSum([BM : i in [1..NumComponents(M)]]);
+      T := restrict(T_amb, VM);
       T_int, T_denom := ClearDenominatorsAndMakeIntegral(T);
 
       // TO DO: avoid this 'restrict' too, instead pass BM and T_amb to
@@ -1439,7 +1441,8 @@ vtime ModularSymbols:
          end if;
 vprintf ModularSymbols: "restricting: ";
 vtime ModularSymbols:
-         Tdual := restrict(Transpose(T_amb), DBM);
+         DVM := DirectSum([DBM : i in [1..NumComponents(M)]]);
+         Tdual := restrict(Transpose(T_amb), DVM);
          Tdual_int, Tdual_denom := ClearDenominatorsAndMakeIntegral(Tdual);
          // Because the denominators might be different, L might not be
          // the charpoly of Tdual_int.  Thus we have to rescale L.
@@ -1467,11 +1470,15 @@ vtime ModularSymbols:
          end if;
          MV := VectorSpace(M);
          MVdual := DualVectorSpace(M);
+         MV, iota, proj := DirectSum([MV : i in [1..NumComponents(M)]]);
+         MVdual := DirectSum([MVdual : i in [1..NumComponents(M)]]);
          decomp := [ModularSymbolsSub(M,AssociatedSubspace(MV,V)) : V in K];
+	
          for i in [1..#decomp] do
-            decomp[i]`associated_new_space := true;
-            decomp[i]`dual_representation := AssociatedSubspace(MVdual,Kdual[i]);
+               decomp[i]`associated_new_space := true;
+               decomp[i]`dual_representation := AssociatedSubspace(MVdual,Kdual[i]);
          end for;
+
          return decomp;
       else
          vprint ModularSymbols : "Spin Kernels failed; trying again."; 
