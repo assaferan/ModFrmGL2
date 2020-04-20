@@ -183,19 +183,18 @@ intrinsic GammaS(N::RngIntElt) -> GrpPSL2
   return G;
 end intrinsic;
 
-/*
-intrinsic GammaNSGeneral(N::RngIntElt, f::RngUPolElt[RngInt]) -> GrpPSL2
-{creates the congruence subgroup Gamma_ns(N), choosing alpha as the root of the polynomial f, which should be irreducible modulo each prime dividing N}
-*/ 
-function GammaNSGeneral(N, f)
-// require N gt 0 : "N must be a positive integer";
+intrinsic GammaNS(N::RngIntElt, f::RngUPolElt[RngInt]) -> GrpPSL2
+{creates the congruence subgroup Gamma_ns(N), choosing alpha as the root of the polynomial f, which should be irreducible modulo each prime dividing N. Currently supports only the case where ZZ[alpha] is a maximal order, where alpha is a root of f.}
+   require N gt 0 : "N must be a positive integer";
    
    primes := [x[1] : x in Factorization(N)];
+    
    for p in primes do
      Fp_x := PolynomialRing(Integers(p));
-//   require IsIrreducible(Fp_x!f) :
-//             "f must be irreducible mod every prime dividing N";
+     require IsIrreducible(Fp_x!f) :
+             "f must be irreducible mod every prime dividing N";
    end for;
+
    F := ext<Rationals() | f>;
    alpha := F.1;
    assert Evaluate(f,alpha) eq 0;
@@ -203,7 +202,8 @@ function GammaNSGeneral(N, f)
    // This is needed for Magma to be able to compute the unit groups
    // !!! problem : this is not always maximal
    // We want to use the generators for fast generation of the group
-   assert IsMaximal(R);
+   require IsMaximal(R): "N for which ZZ[alpha] is not a maximal order 
+   	   		 are not supported at the moment";
    pi_1 := hom< R -> Integers() | [1,0]>;
    pi_2 := hom< R -> Integers() | [0,1]>;
    NR := ideal<R | N>;
@@ -220,17 +220,24 @@ function GammaNSGeneral(N, f)
    G := PSL2Subgroup(C_N);
    G`Label := Sprintf("Gamma_ns(%o)", N);
    G`IsReal := true;
-   G`NSCartanU := f;
+   G`NSCartanU := -Evaluate(f,0);
+   G`NSCartanV := Coefficient(f,1);
    G`IsNSCartan := true;
    return G;
-// end intrinsic;
-end function;
+end intrinsic;
+
 
 intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns(N), choosing u as the nonsquare
     such that N | a-d, N | b-uc}
   require N gt 0: "N must be a positive integer";
   require Modulus(Parent(u)) eq N: "u must be a mod N residue";
+  if not IsPrime(N) then
+      ZZ_X<X> := PolynomialRing(Integers());
+      u_lift := ChineseRemainderTheorem([3,Integers()!u], [4, N]);
+      f := X^2 - u_lift;
+      return GammaNS(N, f);
+  end if;				       
   primes := [x[1] : x in Factorization(N)];
   good_u := &and[not IsSquare(IntegerRing(p)!u) : p in primes | p ne 2];
   require good_u: "u must be a nonsquare mod every prime dividing N";
@@ -253,14 +260,31 @@ intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
   G`Label := Sprintf("Gamma_ns(%o)", N);
   G`IsReal := true;
   G`NSCartanU := u;
+  G`NSCartanV := 0;
   G`IsNSCartan := true;
   return G;
 end intrinsic;
 
 intrinsic GammaNS(N::RngIntElt) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns(N)}
-   u := PrimitiveElement(IntegerRing(N));
-   return GammaNS(N,u);
+   if IsPrime(N) then
+       return GammaNS(N, Integers(N)!Nonsquare(GF(N)));
+   end if;
+   primes := [x[1] : x in Factorization(N)];
+   ZZ_x<x> := PolynomialRing(Integers());
+   if 2 in primes then
+       primes := [p : p in primes | p ne 2];
+       crt_vals := [5] cat [Integers()!Nonsquare(GF(p)) :
+			    p in primes];
+       y := ChineseRemainderTheorem(crt_vals, [8] cat primes);
+       v := (1-y) div 4;   
+       return GammaNS(N, x^2 + x + v);
+   else
+       crt_vals := [3] cat [Integers()!Nonsquare(GF(p)) : p in primes];
+       u := ChineseRemainderTheorem(crt_vals, [4] cat primes);
+       return GammaNS(N, x^2 - u);
+   end if;
+//   u := PrimitiveElement(IntegerRing(N));
 end intrinsic;
 
 intrinsic GammaSplus(N::RngIntElt) -> GrpPSL2
@@ -313,7 +337,8 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
    H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat Label(G);
    if IsOfRealType(G) then H`IsReal := true; end if;
    if IsGammaNS(G) or IsGammaNSplus(G) then
-     H`NSCartanU := G`NSCartanU;
+       H`NSCartanU := G`NSCartanU;
+       H`NSCartanV := G`NSCartanV;
      H`IsNSCartan := false;
      H`IsNSCartanPlus := true;
    end if;
@@ -367,7 +392,8 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
                         PSL_2(%o) of ", G`BaseRing) cat Label(G);
     if IsOfRealType(G) then H`IsReal := true; end if;
     if IsGammaNS(G) or IsGammaNSplus(G) then
-      H`NSCartanU := G`NSCartanU;
+	H`NSCartanU := G`NSCartanU;
+	H`NSCartanV := G`NSCartanV;
       H`IsNSCartan := false;
       H`IsNSCartanPlus := true;
     end if;

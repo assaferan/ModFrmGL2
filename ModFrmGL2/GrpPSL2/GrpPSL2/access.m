@@ -161,6 +161,12 @@ intrinsic GetFindCoset(G::GrpPSL2) -> Map
   return G`FindCoset;
 end intrinsic;
 
+intrinsic NSCartanV(G::GrpPSL2) -> RngIntResElt
+{return the middle coefficient in the quadratic polynomial x^2+vx-u used to create the group, i.e. such that it is the regular representation of ZZ[alpha], where alpha is a root of the polynomial mod N.}
+  if assigned G`NSCartanV then return G`NSCartanV; end if;
+  require false : "Not Implemented!";
+end intrinsic;	  
+
 intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt
  {return the (non square) element u used to create the group.
      i.e. such that N | a-d, N | b-uc.}

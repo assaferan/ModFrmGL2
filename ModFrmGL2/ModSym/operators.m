@@ -685,6 +685,9 @@ function HeckeGeneralCaseRepresentativesDoubleCoset2(G, alpha)
 end function;
 
 function HeckeNSCartanRepresentatives(G,p,plus)
+  if (not IsPrime(Level(G))) or Level(G) eq p then
+      error "Not implemented for composite level!";
+  end if;
   // Assumes N = Level(G) is prime,  different from p
   // and p is not +-1 mod N
   u := NSCartanU(G);

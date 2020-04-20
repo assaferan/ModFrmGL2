@@ -1801,9 +1801,6 @@ function get_non_split_cartan_plus_coset(g,x)
 end function;
 
 function get_Cartan_phi(G)
-  if not IsPrime(Level(G)) then
-      error "Not Implemented for Nonsplit Cartan of composite level!";
-  end if;
   F := GF(Level(G));
   u := F!NSCartanU(G);
   R<x> := PolynomialRing(F);
@@ -1838,7 +1835,7 @@ function get_Cartan_phi(G)
 end function;
 
 function get_phi(G,p)
-  if (IsGammaNS(G) or IsGammaNSplus(G)) and IsPrime(Level(G)) then
+  if IsGammaNS(G) or IsGammaNSplus(G) then
     return get_Cartan_phi(G);
 // Once we figure out how to do it correctly, that's what will happen here.
 /*

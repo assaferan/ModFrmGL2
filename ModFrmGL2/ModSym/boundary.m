@@ -100,7 +100,7 @@ vector space whose basis consists of the weight-k cusps.}
          // This check takes too long -
          // Either make it efficient, or use something to mark the fact that
          // a group is of a non-split type
-         if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) then
+         if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) and IsPrime(Level(M)) then
 	    cusp_to_free_helper := CuspToFreeHelperNS;
          else
 	    cusp_to_free_helper := CuspToFreeHelper;
@@ -270,52 +270,55 @@ function CuspEquivGrp(coset_list, find_coset, G, orbit_table, a, b)
 end function; 
 
 function CuspEquivNS(G, a, b)
-  u := NSCartanU(G);
-  p := Level(G);
-  p1, q1 := Explode(ReduceCusp(a));
-  p2, q2 := Explode(ReduceCusp(b));
-  d1, s1, r1 := ExtendedGreatestCommonDivisor(p1, q1);
-  d2, s2, r2 := ExtendedGreatestCommonDivisor(p2, q2);
-  r1 := -r1;
-  r2 := -r2;
-  pqrs := [[p1,p2], [q1,q2],[r1,r2],[s1,s2]];
-  pqrs_mod_p := [[IntegerRing(p)!x : x in arr] : arr in pqrs];
-  p_p, q_p, r_p, s_p := Explode(pqrs_mod_p);
-  norm_1 := p_p[1]^2 - u*q_p[1]^2;
-  norm_2 := p_p[2]^2 - u*q_p[2]^2;
-  equiv := (norm_1 eq norm_2);
-  equiv_by_nor := IsGammaNSplus(G) and (norm_1 eq -norm_2);
-  if (equiv or equiv_by_nor) then
-     if not equiv then
-	// solving alp^2-uc^2=-1 for a nontrivial element of the normalizer
-        for c in IntegerRing(p) do
-	  is_sq, alp := IsSquare(u*c^2-1);
-          if is_sq then
-	     S_mod_p := SL(2,IntegerRing(p))![alp,-u*c,c,-alp];
-             S := FindLiftToSL2(S_mod_p)`Element;
-             break;
-	  end if;
-	end for;
+    u := NSCartanU(G);
+    v := NSCartanV(G);
+    N := Level(G);
+    p1, q1 := Explode(ReduceCusp(a));
+    p2, q2 := Explode(ReduceCusp(b));
+    d1, s1, r1 := ExtendedGreatestCommonDivisor(p1, q1);
+    d2, s2, r2 := ExtendedGreatestCommonDivisor(p2, q2);
+    r1 := -r1;
+    r2 := -r2;
+    pqrs := [[p1,p2], [q1,q2],[r1,r2],[s1,s2]];
+    pqrs_mod_N := [[IntegerRing(N)!x : x in arr] : arr in pqrs];
+    p_N, q_N, r_N, s_N := Explode(pqrs_mod_N);
+    norm_1 := p_N[1]^2 + v * p_N[1] * q_N[1]  - u*q_N[1]^2;
+    norm_2 := p_N[2]^2  + v * p_N[1] * q_N[1] - u*q_N[2]^2;
+    equiv := (norm_1 eq norm_2);
+    equiv_by_nor := IsGammaNSplus(G) and (norm_1 eq -norm_2);
+    if (equiv or equiv_by_nor) then
+	if not equiv then
+	    // solving a^2+vac-uc^2=-1 for a nontriv element of the normalizer
+            for c in IntegerRing(N) do
+		is_sq, d := IsSquare((4*u+v^2)*c^2-4);
+		if is_sq then
+		    alp := (-v*c + d) / 2;
+		    S_mod_N := SL(2,IntegerRing(N))![alp,-u*c,c,v-alp];
+		    S := FindLiftToSL2(S_mod_N)`Element;
+		    break;
+		end if;
+	    end for;
         pqrs2 := S * Matrix([[p2, r2], [q2, s2]]);
         p2 := pqrs2[1,1];
         q2 := pqrs2[2,1];
         r2 := pqrs2[1,2];
         s2 := pqrs2[2,2];
-        p_p[2] := IntegerRing(p)!p2;
-        q_p[2] := IntegerRing(p)!q2;
-        r_p[2] := IntegerRing(p)!r2;
-        s_p[2] := IntegerRing(p)!s2;
+        p_N[2] := IntegerRing(N)!p2;
+        q_N[2] := IntegerRing(N)!q2;
+        r_N[2] := IntegerRing(N)!r2;
+        s_N[2] := IntegerRing(N)!s2;
      end if;
-     num_1 := r_p[1]*q_p[2]-p_p[1]*s_p[2]+p_p[2]*s_p[1]-q_p[1]*r_p[2];
-     denom_1 := p_p[1]*q_p[2]+p_p[2]*q_p[1];
+     num_1 := r_N[1]*q_N[2]-p_N[1]*s_N[2]+p_N[2]*s_N[1]-q_N[1]*r_N[2];
+     denom_1 := p_N[1]*q_N[2]+p_N[2]*q_N[1] - v * q_N[1] * q_N[2];
      if denom_1 eq 0 then
-        num_2 := u*(q_p[2]*s_p[1]-q_p[1]*s_p[2])+p_p[2]*r_p[1]-p_p[1]*r_p[2];
-        denom_2 := p_p[1] * p_p[2] + u*q_p[1]*q_p[2];
-        x_p := num_2 * denom_2^(-1);
+         num_2 := u*(q_N[2]*s_N[1]-q_N[1]*s_N[2])+p_N[2]*r_N[1]-p_N[1]*r_N[2];
+	 num_2 +:= v* (s_N[1] * q_N[2] - q_N[1] * s_N[2]);
+         denom_2 := p_N[1] * p_N[2] + u*q_N[1]*q_N[2];
+         x_N := num_2 * denom_2^(-1);
      else
-        x_p := num_1 * denom_1^(-1);
+         x_N := num_1 * denom_1^(-1);
      end if;
-     x := Integers()!x_p;
+     x := Integers()!x_N;
      T_x := SL(2, Integers())![1,x,0,1];
      M2 := SL(2, Integers())![p2, r2, q2, s2];
      M1_inv := SL(2,Integers())![s1,-r1,-q1,p1];
