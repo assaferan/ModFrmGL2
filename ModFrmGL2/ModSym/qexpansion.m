@@ -135,6 +135,7 @@ import "linalg.m" :   EchelonPolySeq,
                       Restrict,
                       SaturatePolySeq,
                       Saturate;
+import "modsym.m":    get_degeneracy_reps;
 
 import "multichar.m": 
    AssociatedNewformSpace, 
@@ -838,10 +839,12 @@ function qExpansionBasisNewform(A, prec, do_saturate)
          print "Calling qEigenform ...";
          IndentPush(); time0 := Cputime();
       end if;
-      old_eigforms := [qEigenform(A,prec : debug:=debug)];
+      f := qEigenform(A,prec : debug:=debug);
+      old_eigforms := [f];
       Anew := AssociatedNewSpace(A);
       if (not IsOfGammaType(A)) and
-	  (LevelSubgroup(A) ne LevelSubgroup(Anew)) then
+	 (LevelSubgroup(A) ne LevelSubgroup(Anew)) then
+	  /*
         orig_eigvec := EigenvectorModSymSign(Anew,
 				      IsMinusQuotient(Anew) 
                                         select -1 else +1);
@@ -866,6 +869,21 @@ function qExpansionBasisNewform(A, prec, do_saturate)
         old_eigvecs := [orig_eigvec * Transpose(alpha) : alpha in alphas];
         old_eigforms := {eigenvecToEigenform(A, eig, prec) :
 		  eig in old_eigvecs};
+       */
+	N1 := CuspWidth(LevelSubgroup(Anew), Infinity());
+	N2 := CuspWidth(LevelSubgroup(A), Infinity());
+	divisors := Divisors(N1 mod N2 eq 0
+			     select N1 div N2 else N2 div N1);
+	divisors := get_degeneracy_reps(Anew, A, divisors);
+	old_eigforms := [];
+	R := Parent(f);
+	q_R := R.1;
+	for a in divisors do
+	    mat := DegeneracyMatrix(AmbientSpace(A),AmbientSpace(Anew),a);
+	    mat := ChangeRing(Transpose(mat), BaseRing(R));
+	    f_a := Evaluate(f, q_R^(N2 div (N1 * Integers()!a[1,1])));
+	    Append(~old_eigforms, f_a);
+	end for;
       end if;
       if debug then 
          IndentPop();
@@ -2011,6 +2029,7 @@ function find_echelon_forms_vecs(M)
     ChangeRing(Matrix(Basis(DualVectorSpace(S))), F);
   hol_forms := sub< ChangeRing(DualVectorSpace(M),F) | Rows(t_eigvecs_in_M) >;
   decomp := [hol_forms meet ChangeRing(DualVectorSpace(d),F) : d in D];
+  // This doesn't always work, because this is up to automorphism
   eigenvecs := Matrix(&cat[get_eigenvector_galois_orbit(
 						 my_eigenvector(d,M),
 						 F) : d in decomp]);

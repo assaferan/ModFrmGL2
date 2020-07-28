@@ -379,8 +379,10 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    Dmats := <>;
    DDmats := <>;
 
-   l := Level(M) div calcLevel(oldp_prime);
-   assert IsPrime(l) or (l eq 1); // Else something is wrong here
+   // l := Level(M) div calcLevel(oldp_prime);
+   l := CuspWidth(LevelSubgroup(M),Infinity()) div
+	CuspWidth(oldp_prime, Infinity());
+   assert IsPrime(l); // Else something is wrong here
    alphas := get_degeneracy_reps(AM, old, [1,l]);
    for alpha in alphas do
       Append(~Dmats, DegeneracyMatrix(AM, old, alpha));
@@ -573,14 +575,16 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
      alphas := AssociativeArray([1..#old]);
      for i in [1..#old] do
          if Dimension(old[i]) gt 0 then
-	    p := Level(M) div calcLevel(LevelSubgroup(old[i]));
-            assert IsPrime(p) or (p eq 1); // Else something is wrong here
-            alphas[i] := get_degeneracy_reps(AM, old[i], [1,p]);
-            for alpha in alphas[i] do
-	       Append(~Dmats, DegeneracyMatrix(AM, old[i], alpha));
-            end for;
+	    // p := Level(M) div calcLevel(LevelSubgroup(old[i]));
+	     p := CuspWidth(LevelSubgroup(M), Infinity()) div
+		  CuspWidth(LevelSubgroup(old[i]), Infinity());
+             assert IsPrime(p); // Else something is wrong here
+             alphas[i] := get_degeneracy_reps(AM, old[i], [1,p]);
+             for alpha in alphas[i] do
+		 Append(~Dmats, DegeneracyMatrix(AM, old[i], alpha));
+             end for;
          end if;
-      end for;
+     end for;
    end if;
    if #Dmats eq 0 then
       return M;
@@ -673,6 +677,8 @@ over all prime divisors of the level of M}
         primes := {[primes[i] : i in [1..#primes] |
 			    is_conj[i][j]] : j in [1..#primes]};
         primes := [y[1] : y in primes];
+	primes := [p : p in primes | CuspWidth(PSL2Subgroup(p), Infinity()) ne
+				     CuspWidth(G, Infinity())];
       end if;
 
       if IsMultiChar(M) then

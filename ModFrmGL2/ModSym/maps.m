@@ -473,8 +473,11 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
                Representation(M2))!MatrixAlgebra(F,Degree(M1))!1;
 
    elif G1 subset G2 then  // G1 subset G2 -- lower  
-      require (Level(G1) div Level(G2)) mod det eq 0 :
-              "Determinant of argument 3 must divide Level(G1) div Level(G2).";
+       // This should be changed to cusp width
+       require (CuspWidth(G1, Infinity()) div CuspWidth(G2, Infinity()))
+	       mod det eq 0 : 
+//       require (Level(G1) div Level(G2)) mod det eq 0 :
+              "Determinant of argument 3 must divide CuspWidth(G1) div CuspWidth(G2).";
       eps1 := DirichletCharacter(M1);
       eps2 := DirichletCharacter(M2);
       bool, eps21 := IsCoercible(Parent(eps1), eps2);
@@ -485,24 +488,26 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
          return already_known;
       end if;
 
-
+// This doesn't seem to work at the moment
       /* Proposition 2.6.15 of Merel's paper. */
-      Heil := Heilbronn(M1, det, true);           
-      A := GeneralizedHeilbronnOperator(M1, M2, Heil : t:=d);
+//      Heil := Heilbronn(M1, det, true);           
+  //    A := GeneralizedHeilbronnOperator(M1, M2, Heil : t:=d);
 
 // Previous version -- VASTLY SLOWER, but well tested and good
 // for testing the above fast version.
 
-/*    B  := ModularSymbolsBasis(M1);
-      D  := [d,0,0,1];
+      B  := ModularSymbolsBasis(M1);
+      d_tilde := ScalarMatrix(Rationals(),2,Determinant(d))*d^(-1);;
+      D := Eltseq(d_tilde); // D  := [1,0,0,d];
       DB := [ModularSymbolApply(D, B[i])  : i in [1..#B] ];
       otherA  := [Representation(ConvFromModularSymbol(M2,DB[i])) : i in [1..#DB]]; 
-      assert A eq Hom(Representation(M1), Representation(M2)) ! otherA; 
-*/
+//      assert A eq Hom(Representation(M1), Representation(M2)) ! otherA; 
+      A := otherA;
 
-
-   elif G2 subset G1 then// G2 subset G1 -- raise level
-      require (Level(G2) div Level(G1)) mod det eq 0 : 
+elif G2 subset G1 then// G2 subset G1 -- raise level
+    require (CuspWidth(G2, Infinity()) div CuspWidth(G1, Infinity()))
+	    mod det eq 0 : 
+      //require (Level(G2) div Level(G1)) mod det eq 0 : 
           "Determinant of Argument 3 must divide Level(G2) div Level(G1).";
       eps1 := DirichletCharacter(M1);
       eps2 := DirichletCharacter(M2);

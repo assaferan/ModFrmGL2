@@ -504,7 +504,9 @@ end function;
 function image_of_old_newform_factor_using_operators(M, A)
    assert Type(M) eq ModSym;
    assert Type(A) eq ModSym;
-   numdiv := NumberOfDivisors(Level(M) div Level(A));
+   // numdiv := NumberOfDivisors(Level(M) div Level(A));
+   numdiv := NumberOfDivisors(CuspWidth(LevelSubgroup(M), Infinity()) div
+			      CuspWidth(LevelSubgroup(A), Infinity()));
    d := Dimension(A) * numdiv;
    V := CuspidalSubspace(AmbientSpace(M));
    p := 2;
@@ -542,8 +544,13 @@ function image_of_old_newform_factor(M, A)
      if LevelSubgroup(M) eq LevelSubgroup(A) then
        return A;
      end if;
-// !!! Check later if we want to change also the operators !!! 
-     return image_of_old_newform_factor_using_degen_maps(M,A);
+     d := CuspWidth(LevelSubgroup(M), Infinity()) div
+	  CuspWidth(LevelSubgroup(A), Infinity());
+     if IsPrime(d) then
+         return image_of_old_newform_factor_using_degen_maps(M,A);
+     else
+         return image_of_old_newform_factor_using_operators(M,A);
+     end if;
    end if;
 end function;
 
@@ -584,6 +591,9 @@ function get_NN(M)
    end for;
    // One of each conjugacy class
    NN := &cat[[y[1] : y in NN_idxs[idx]] : idx in idxs];
+
+   NN := [N] cat [y : y in NN | CuspWidth(PSL2Subgroup(y),Infinity()) ne
+				CuspWidth(G, Infinity())];
    
    return NN;
 end function;
@@ -662,7 +672,9 @@ IsCuspidal(M) is true.}
         primes := {[primes[i] : i in [1..#primes] |
 			    is_conj[i][j]] : j in [1..#primes]};
         primes := [y[1] : y in primes];
-        pnew := [p : p in primes | IsNew(M,p)];
+	primes := [p : p in primes | CuspWidth(PSL2Subgroup(p), Infinity()) ne
+				     CuspWidth(G, Infinity())];
+	pnew := [p : p in primes | IsNew(M,p)];
       end if;
 
       for i in [1..#NN] do

@@ -1454,11 +1454,20 @@ return M3, otherwise terminate with an error.}
        end if;
    end if;
 
-   divisors := Divisors(Level(M1) mod Level(M2) eq 0 select
+   if IsOfGammaType(M1) then
+       N1 := Level(M1);
+       N2 := Level(M2);
+   else
+       N1 := CuspWidth(LevelSubgroup(M1), Infinity());
+       N2 := CuspWidth(LevelSubgroup(M2), Infinity());
+   end if;
+   
+/*   divisors := Divisors(Level(M1) mod Level(M2) eq 0 select
                            Level(M1) div Level(M2) 
                         else
                            Level(M2) div Level(M1));
-
+*/
+   divisors := Divisors(N1 mod N2 eq 0 select N1 div N2 else N2 div N1);
    if not IsOfGammaType(M1) then
       divisors := get_degeneracy_reps(M1, M2, divisors);
    end if;

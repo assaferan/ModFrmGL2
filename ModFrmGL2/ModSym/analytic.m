@@ -212,6 +212,9 @@ end function;
 // an explicit formula derived via integration by parts.   //
 // (C = complex numbers)                                   //
 /////////////////////////////////////////////////////////////
+
+// when using q_N, we will input here n/N instead of N
+
 function Int1(alp, m, n, C) 
    c := 2*Pi(C)*C.1*n;
    return 
@@ -220,23 +223,21 @@ function Int1(alp, m, n, C)
           : s in [0..m]];
 end function;
 
-
 /////////////////////////////////////////////////////////////
 // Compute Int_{alp}^{oo} P(z)*f(q) dz, using              //
 // an explicit formula derived via integration by parts.   //
 /////////////////////////////////////////////////////////////
-function Int2(f, alp, m)
+function Int2(f, alp, m, N)
    C := ComplexField();
-   return &+[Int1(alp,m,n,C)*(C!Coefficient(f,n)) : n in [1..Degree(f)]];
+   return &+[Int1(alp,m,n/N,C)*(C!Coefficient(f,n)) : n in [1..Degree(f)]];
 end function;
 
-
-function PeriodIntegral(f, P, alpha)
+function PeriodIntegral(f, P, alpha, N)
    // {Computes <f, P\{alpha,oo\}> = -2*pi*I*Int_{alp}^{oo} P(z) f(q) dz
    // for alpha any point 
    // in the upper half plane.}
    C := ComplexField(); i := C.1;
-   return -2*Pi(C)*i* &+[Int2(f,alpha,m)* (C!Coefficient(P,m))      
+   return -2*Pi(C)*i* &+[Int2(f,alpha,m,N)* (C!Coefficient(P,m))      
                : m in [0..Degree(P)] | Coefficient(P,m) ne 0];
 end function;
 
@@ -295,9 +296,10 @@ function FastPeriodIntegral(A, f, Pg)
       ev   := hom <R -> S | z, 1>;
       P    := ev(P);
       WP   := ev(WP);
-      ans  :=  PeriodIntegral(f,  P-e*WP, i/rootN) 
-              +PeriodIntegral(f,    e*WP, c/d+i/(d*rootN))
-              +PeriodIntegral(f, -P     , b/d+i/(d*rootN));
+      cusp_width := CuspWidth(LevelSubgroup(A), Infinity());
+      ans  :=  PeriodIntegral(f,  P-e*WP, i/rootN, cusp_width) 
+              +PeriodIntegral(f,    e*WP, c/d+i/(d*rootN), cusp_width)
+              +PeriodIntegral(f, -P     , b/d+i/(d*rootN), cusp_width);
       return ans;
    end if;
 end function;
@@ -350,7 +352,8 @@ function SlowPeriodIntegral(A, f, Pg)
      //  eps_g := C!eps(Domain(eps)!g);
      eps_g := C!1;
    end if;
-   return eps_g*PeriodIntegral(f,giP,alp) - PeriodIntegral(f,P,galp);
+   N := CuspWidth(LevelSubgroup(A), Infinity());
+   return eps_g*PeriodIntegral(f,giP,alp,N) - PeriodIntegral(f,P,galp,N);
 end function;
 
 
