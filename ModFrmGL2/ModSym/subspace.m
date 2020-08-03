@@ -106,7 +106,9 @@ freeze;
  ***************************************************************************/
 
 
-import "linalg.m" : KernelOn; 
+import "linalg.m" : KernelOn;
+
+import "misc.m" : MinimalOvergps;
 
 import "modsym.m" : ModularSymbolsDual,
                     ModularSymbolsSub,
@@ -666,7 +668,9 @@ over all prime divisors of the level of M}
         end if;
         G_N := ModLevelGL(G);
         H := ImageInLevelGL(G);
-        primes := MinimalOvergroups(G_N,H);
+	v1, v2, v3 := GetVersion();
+        primes := MinimalOvergps(G_N,H);
+        
 // Is this necessary? yes!!! For the hecke operators in the source to commute
 // with the star involution
         eta := G_N![-1,0,0,1];

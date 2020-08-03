@@ -1409,10 +1409,13 @@ function find_xi_slow(N, prec)
     return xi, eig_plus_big_basis cat eig_minus_big_basis, all_qexps;
 end function;
 
-function get_ns_qexp_slow(N, prec : plus := false)
+function get_qexp_slow(H, prec)
+    gamma := PSL2Subgroup(H);
+    N := Level(gamma);
     G := GL(2,Integers(N));
     M := ModularSymbols(PSL2Subgroup(sub<G|[-1,0,0,-1]>),2, Rationals(),0);
     S := CuspidalSubspace(M);
+    /*
     Z := Center(G);
     PG, quo_G := G / Z;
     G0 := SL(2, Integers(N));
@@ -1442,23 +1445,36 @@ function get_ns_qexp_slow(N, prec : plus := false)
 		   x in Basis(T_prime_inv)];
     B := BasisMatrix(cusp_forms_space);
     T_prime_proj := sub<cusp_forms_space | [b*B : b in proj_basis]>;
-    xi, eig_plus_big_basis, qexpansions := find_xi_slow(N, prec);
-    coeffs := Basis(xi)[1];
+   */
+    // Better way to get here - compute degeneracy map
+    M_H := ModularSymbols(gamma, 2, Rationals(), 0);
+    beta := DegeneracyMatrix(M, M_H, GL(2, Rationals())!1);
+    S_H := CuspidalSubspace(M_H);
+    //    assert T_prime_proj eq DualVectorSpace(S_H) * Transpose(beta);
+    oldsub := DualVectorSpace(S_H) * Transpose(beta);
+    xi, eig_big_basis, qexpansions := find_xi_slow(N, prec);
+    coeffs := &+[b : b in Basis(xi)];
+    // coeffs := Basis(xi)[1];
     // This is not a good idea - sometimes there is no intersection with the
     // plus subspace
     // star := DualStarInvolution(M);
     // 
     // T_prime_plus := Kernel(star-1) meet T_prime_proj;
-    qexps := [];
-    L := BaseRing(Universe(eig_plus_big_basis));
+    // L := BaseRing(Universe(eig_big_basis));
     K := BaseRing(coeffs);
-    for vec in Basis(T_prime_plus) do
-	vec_L := ChangeRing(vec, L);
-	vec_in_terms_of_eig_plus := 
-	    Solution(Matrix(eig_plus_big_basis), vec_L);
-	v := ChangeRing(vec_in_terms_of_eig_plus, K);
-	vec_qexp := &+[v[i]*coeffs[i]*(PowerSeriesRing(K)!qexpansions[i]) :
-		       i in [1..#qexpansions]];
+    eig_big_basis := [ChangeRing(e, K) : e in eig_big_basis];
+    g := Dimension(S) div 2;
+    fs_0 := [coeffs[i]^(-1) * eig_big_basis[i] : i in [1..2*g]];
+    fs := [fs_0[i] + fs_0[i + g] : i in [1..g]];
+    hol_subspace := sub<Universe(fs) | fs>;
+    // T_prime_hol := ChangeRing(T_prime_proj,K) meet hol_subspace;
+    old_hol := ChangeRing(oldsub,K) meet hol_subspace;
+    qexps := [];
+    for vec in Basis(old_hol) do
+	v := Solution(Matrix(eig_big_basis), vec);
+	vec_qexp := &+[v[i]*coeffs[i]
+		       *(PowerSeriesRing(K)!qexpansions[(i-1) mod g + 1]) :
+		       i in [1..2*g]];
 	Append(~qexps, vec_qexp);
     end for;
     return qexps;
@@ -1470,16 +1486,18 @@ end function;
 function find_curve(qexps, prec)
     _<q> := PowerSeriesRing(Rationals(),prec);
     fs := [f + O(q^prec) : f in qexps];
-    n := #fs;
     Ks := [* BaseRing(Parent(f)) : f in fs *];
     fs := &cat[[Parent(q) | [Trace(Ks[j].1^i*c) : c in AbsEltseq(fs[j])] :
 			    i in [0..Degree(Ks[j])-1]] : j in [1..#fs]];
+    n := #fs;
     T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
     fs := [&+[E[j][i]*fs[i] + O(q^prec) : i in [1..n]] : j in [1..n]];
     n := #[f : f in fs | not IsZero(f)];
     _<[x]> := PolynomialRing(Rationals(),n);
     deg2mons := [x[i]*x[j] : i,j in [1..n] | i le j];
     deg3mons := [x[i]*x[j]*x[k] : i,j,k in [1..n] | i le j and j le k];
+    deg4mons := [x[i]*x[j]*x[k]*x[l] : i,j,k,l in [1..n] |
+		 i le j and j le k and k le l];
     prods2 := [fs[i]*fs[j] + O(q^prec) : i,j in [1..n] | i le j];
     kerM2 := Kernel(Matrix([AbsEltseq(f) : f in prods2]));
     quadrics := [&+[Eltseq(kerM2.i)[j]*deg2mons[j] : j in [1..#deg2mons]] :
@@ -1489,7 +1507,12 @@ function find_curve(qexps, prec)
     kerM3 := Kernel(Matrix([AbsEltseq(f) : f in prods3]));
     cubics := [&+[Eltseq(kerM3.i)[j]*deg3mons[j] : j in [1..#deg3mons]] :
 	       i in [1..Dimension(kerM3)]];
-    I := ideal<Parent(x[1]) | quadrics cat cubics>;
+    prods4 := [fs[i]*fs[j]*fs[k]*fs[l] + O(q^prec) : i,j,k,l in [1..n] |
+	       i le j and j le k and k le l];
+    kerM4 := Kernel(Matrix([AbsEltseq(f) : f in prods4]));
+    quartics := [&+[Eltseq(kerM4.i)[j]*deg4mons[j] : j in [1..#deg4mons]] :
+		 i in [1..Dimension(kerM4)]];
+    I := ideal<Parent(x[1]) | quadrics cat cubics cat quartics>;
     X := Curve(ProjectiveSpace(Parent(x[1])),I);
     return X;
 end function;
@@ -1528,8 +1551,8 @@ function get_AL_eigenvalue(f, vec, KL, M)
 	return Q^(k div 2 - 1) * my_gauss_sum(eps, zeta) / Coefficient(f, Q);
     end if;
     alpha := Factorization(Conductor(eps))[1][2];
-    chis := [* *];
-    chi1s := [* *];
+    chis := [];
+    chi1s := [];
     for beta in [1..beta_max-1] do
 	Q_prime := Maximum([Q, q^alpha*Q div q^beta, Q^2 div q^(2*beta)]);
 	cond := [[q^beta], [Q div q^beta], [Q_prime * q^beta div Q]];
@@ -1538,44 +1561,50 @@ function get_AL_eigenvalue(f, vec, KL, M)
 		Append(~cond[i], 1);
 	    end if;
 	end for;
-	chis cat:= [* chi : chi in Elements(DirichletGroup(cond[1][1], KL)) |
-		 Conductor(chi) in cond[1] *];
+	Append(~chis, [* chi : chi in Elements(DirichletGroup(cond[1][1], KL)) |
+		 Conductor(chi) in cond[1] *]);
 	chi1s_0 := [chi : chi in Elements(DirichletGroup(cond[2][1], KL)) |
 		    Conductor(chi) in cond[2]];
-	chi1s cat:= [* [chi1 : chi1 in chi1s_0 |
-		   Conductor(chi * eps * chi1) in cond[3]] : chi in chis *];
+	Append(~chi1s, [* [chi1 : chi1 in chi1s_0 |
+		   Conductor(chi * eps * chi1) in cond[3]] : chi in chis *]);
     end for;
+    all_chis := &cat chis;
+    all_chi1s := &cat chi1s;
     chi0 := DirichletGroup(q, KL)!1;
-    other_chis := &cat[[* eps^(-1)*chi1^(-1) : chi1 in chi1s[i] *]
-		       : i in [1..#chis]];
+    other_chis := &cat[[* eps^(-1)*chi1^(-1) : chi1 in all_chi1s[i] *]
+		       : i in [1..#all_chi1s]];
     new_chis := [* *];
     for chi in other_chis do
-	in_chis := exists(j){j : j in [1..#chis] | chis[j] eq chi};
+	in_chis := exists(j){j : j in [1..#all_chis] | all_chis[j] eq chi};
 	in_new := exists(j){j : j in [1..#new_chis] | new_chis[j] eq chi};
 	if not in_chis and not in_new then
 	    Append(~new_chis, chi);
 	end if;
     end for;
-    vars := chis cat new_chis;
+    vars := all_chis cat new_chis;
     R<[x]> := PolynomialRing(KL, #vars);
     polys := [];
-    for i in [1..#chis] do
-	chi := chis[i];
-	poly := my_gauss_sum(chi^(-1), zeta) * x[i];
-	c := (chi(-1)*eps(-1)) / ((Q_prime / Q)*EulerPhi(Q div q^beta));
-	g_vals := [my_gauss_sum(chi1, zeta) * my_gauss_sum(chi*eps*chi1, zeta)*
-		   x[Index(vars, eps^(-1)*chi1^(-1))] : chi1 in chi1s[i]];
-	if #g_vals eq 0 then
-	    s := 0;
-	else
-	    s := &+g_vals;
-	end if;
-	poly -:= c*s*x[Index(vars, chi0)];
-	Append(~polys, poly);
+    for beta in [1..#chis] do
+	for i in [1..#chis[beta]] do
+	    chi := chis[beta][i];
+	    poly := my_gauss_sum(chi^(-1), zeta) * x[i];
+	    c := (chi(-1)*eps(-1)) / ((Q_prime / Q)*EulerPhi(Q div q^beta));
+	    g_vals := [my_gauss_sum(chi1, zeta) *
+		       my_gauss_sum(chi*eps*chi1, zeta)*
+		       x[Index(vars, eps^(-1)*chi1^(-1))] :
+		       chi1 in chi1s[beta][i]];
+	    if #g_vals eq 0 then
+		s := 0;
+	    else
+		s := &+g_vals;
+	    end if;
+	    poly -:= c*s*x[Index(vars, chi0)];
+	    Append(~polys, poly);
+	end for;
     end for;
     polys2 := [];
-    for i in [1..#chis] do
-	j := Index(vars, eps^(-1)*chis[i]^(-1));
+    for i in [1..#all_chis] do
+	j := Index(vars, eps^(-1)*all_chis[i]^(-1));
 	if j ne 0 then
 	    Append(~polys2, x[i] * x[j] - eps(-1));
 	end if;
@@ -1587,4 +1616,67 @@ function get_AL_eigenvalue(f, vec, KL, M)
     assert #pts eq 1;
     e := pts[1][Index(vars,chi0)];
     return e;
+end function;
+
+// Can we do it more efficiently?
+function produce_prods(f,g,max_a,max_b,prec)
+    R<q> := Parent(f);
+    prods := [[R!1]];
+    for a in [1..max_a] do
+	Append(~prods[1], f*prods[1][#prods[1]] + O(q^prec));
+    end for;
+    for b in [1..max_b] do
+	Append(~prods, [g*p + O(q^prec) : p in prods[#prods]]);
+    end for;
+    return &cat prods;
+end function;
+
+function find_relation(f, g, max_a, max_b)
+    prec := (max_a+1)*(max_b+1);
+    assert prec le Minimum(Degree(f), Degree(g));
+    prods := produce_prods(f,g,max_a,max_b,prec);
+    min_deg_f := Minimum(Valuation(f)*max_a,0);
+    min_deg_g := Minimum(Valuation(g)*max_b, 0);
+    min_deg := min_deg_f +  min_deg_g;
+    max_deg := prec - 1 + min_deg;
+    prod_coeffs := [[Coefficient(prod, n) : n in [min_deg..max_deg]]
+		    : prod in prods];
+    ker := Kernel(Matrix(prod_coeffs));
+    return ker;
+end function;
+
+function test_find_relations(N)
+    h := Index(Gamma0(N));
+    a := h + h div 6; // experimental
+    prec := (a+1)*(h+1);
+    p := NextPrime(prec);
+    f := qEigenform(CuspidalSubspace(ModularSymbols(N)), prec);
+    K := BaseRing(Parent(f));
+    p_K := Factorization(Integers(K)!!p)[1][1];
+    F, phi := ResidueClassField(p_K);
+    R<q> := LaurentSeriesRing(F);
+    f := &+[phi(Coefficient(f,n))*q^n : n in [1..Degree(f)-1]];
+    E4 := qExpansion(EisensteinSeries(ModularForms(1,4))[1],prec+3);
+    delta := qExpansion(Newforms(CuspidalSubspace(ModularForms(1,12)))[1][1],
+			prec+3);
+    j := (240*E4)^3 / delta;
+//    f := R!f;
+    j := R!j;
+    dj := q * Derivative(j);
+    rel := find_relation(j, f / dj, a, h);
+    return rel;
+end function;
+
+function get_differential_qexpansion(u0, v0, f, prec)
+    A<q> := LaurentSeriesRing(Parent(u0));
+    B<r> := PolynomialRing(A);
+    r_poly := (Evaluate(f, q+u0) - r^2 - v0^2) / (2*v0);
+    z := r_poly;
+    for i in [1..prec] do
+	z := Evaluate(z, r_poly);
+    end for;
+    z := Evaluate(z, 0);
+    f_nonnor := q/(z+v0);
+    fns7 := f_nonnor / Coefficient(f_nonnor, 1);
+    return fns7;
 end function;

@@ -141,6 +141,9 @@ import "arith.m"  : DotProd,
 import "linalg.m" : KernelOn,
                     MyCharpoly;
 
+import "misc.m" : IntermediateSubgps,
+                  MinimalOvergps;
+
 import "modsym.m" : ModularSymbolsDual,
                     ModularSymbolsSub;
 
@@ -561,7 +564,9 @@ function get_NN(M)
    N := ImageInLevelGL(G);
    NN := [N];
    // !!! TODO : This might be slow - change it later
-   NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
+   // Apparently this is a new addition to magme (only exists in versions
+   // 2.24 and above. We therefore check versions here.
+   NN := NN cat IntermediateSubgps(ModLevelGL(G), ImageInLevelGL(G));
    Append(~NN, ModLevelGL(G));
 // Is this necessary? Currently we need it for the complete decomposition
    eta := ModLevelGL(G)![-1,0,0,1];
@@ -662,7 +667,7 @@ IsCuspidal(M) is true.}
         G_N := ImageInLevelGL(LevelSubgroup(M));
         N := ImageInLevelGL(G);
         NN := get_NN(M);
-        primes := MinimalOvergroups(ModLevelGL(G), N);
+        primes := MinimalOvergps(ModLevelGL(G), N);
 // SL_N := ModLevel(G);
         eta := ModLevelGL(G)![-1,0,0,1];
 // primes := [p : p in primes | (p meet SL_N)^eta eq (p meet SL_N)];
