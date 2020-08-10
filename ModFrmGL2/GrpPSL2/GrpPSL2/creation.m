@@ -305,10 +305,15 @@ end intrinsic;
 // Creation of Quotient
 
 intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
-{Currently assumes the same level.}
+	     {Currently assumes the same level.}
+/*
    require ModLevelGL(G) eq ModLevelGL(H) :
           "the groups must be of the same level";
    return ImageInLevelGL(G)/ImageInLevelGL(H);
+*/
+   require ModLevel(G) eq ModLevel(H) :
+          "the groups must be of the same level";
+   return ImageInLevel(G)/ImageInLevel(H);
 end intrinsic;
 
 //////////////////////////////////////////////////////////
@@ -360,9 +365,11 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
     // In fact, if Q is not nilpotent,
     // currently don't know how to find maximal abelian subgroups
     if IsAbelian(Q) then
-       return N_G;
+	return N_G;
+/* In this case it might not work, but it is worth a try
     elif not IsNilpotent(Q) then
        return H;
+*/
     else
       // find a maximal abelian subgroup containing H
       A := sub<Q | Center(Q), H_im>;
@@ -397,6 +404,7 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
       H`IsNSCartan := false;
       H`IsNSCartanPlus := true;
     end if;
+    H`DetRep := G`DetRep;
     return H;
 end intrinsic;
 

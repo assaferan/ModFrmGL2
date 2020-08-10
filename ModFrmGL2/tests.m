@@ -1115,11 +1115,11 @@ function get_ns_qexp(N, prec : plus := false)
     
     D := NewformDecomposition(S);
 
-    qexpansions := [];
+    qexpansions := [PowerSeriesRing(Rationals())|];
     eig_plus_big_basis := [];
     eig_minus_big_basis := [];
-    r_max := 2;
-    Ts := [[* *] : r in [1..r_max]];
+    // r_max := 2;
+    // Ts := [[* *] : r in [1..r_max]];
     companion_matrices := [* *];
     K<zeta> := CyclotomicField(N);
     _<q> := PowerSeriesRing(K);
@@ -1152,6 +1152,7 @@ function get_ns_qexp(N, prec : plus := false)
 	    eig_minus_big_basis cat:= [Vector([Trace(alpha^i * x) :
 				x in Eltseq(ev_minus)]) * Transpose(mat)  :
 				       i in [0..Degree(F)-1]];
+	    /*
 	    for r in [1..r_max] do
 		T := Matrix([[Trace(alpha^(i+j) * Coefficient(f_a, r)) :
 			      j in [0..deg-1]] : i in [0..deg-1]]);
@@ -1159,32 +1160,48 @@ function get_ns_qexp(N, prec : plus := false)
 	    end for;
 	    Append(~companion_matrices,
 		   CompanionMatrix(MinimalPolynomial(alpha)));
+	   */
 	end for;
     end for;
 
     // This matrix is for untangling the linear relations created
     // when taking rational bases via traces
-    T := [Matrix(BlockDiagMat(<x : x in Ts[r]>)) : r in [1..r_max]];
+    //T := [Matrix(BlockDiagMat(<x : x in Ts[r]>)) : r in [1..r_max]];
     // Duplicating - for plus and minus !!! verify
-    T := [DirectSum(t,t) : t in T];
+    //T := [DirectSum(t,t) : t in T];
 
+    Ts := [DiagonalMatrix(Rationals(), [Trace(Coefficient(f,n)) :
+				      f in qexpansions]) : n in [1..prec-1]];
+    Ts := [DirectSum(T,T) : T in Ts];
     cusp_basis := BasisMatrix(cusp_forms_space);
     eig_plus_in_cusp := Solution(cusp_basis, Matrix(eig_plus_big_basis));
     eig_minus_in_cusp := Solution(cusp_basis, Matrix(eig_minus_big_basis));
     eig_in_cusp := VerticalJoin([eig_plus_in_cusp, eig_minus_in_cusp]);
-    u := quo_G0(G0![1,1,0,1]);
-    u_act := eig_in_cusp * Representation(Omega)(u);
+    u := Transpose(ActionOnModularSymbolsBasis([1,1,0,1], M));
+    u_act := eig_in_cusp * Restrict(u, cusp_forms_space);
     u_action_a := Solution(eig_in_cusp, u_act);
     u_action_K := ChangeRing(Matrix(u_action_a),K);
-    mats := [(u_action_K - zeta^r) * T[r] : r in [1..r_max]];
+    n_invs := [];
+    for n in [1..prec-1] do
+	d, n_inv, _ := XGCD(n,N);
+	// if d eq 1 then Append(~idxs, n); end if;
+	if d eq 1 then
+	    Append(~n_invs, n_inv);
+	else
+	    Append(~n_invs, n);
+	end if;
+    end for;
+    mats := [(u_action_K - zeta^n_invs[n]) * Ts[n] : n in [1..prec-1]];
     coeff_space := &meet [Kernel(mat) : mat in mats];
 
     // Here we assume this space is one-dimensional
     // If not should add here equations for the other coefficients.
     // (increase r_max)
     // Problem : This is not one dimensional!
-    assert Dimension(coeff_space) eq 1;
-    coeffs := Basis(coeff_space)[1];
+    // assert Dimension(coeff_space) eq 1;
+    // coeffs := Basis(coeff_space)[1];
+
+    coeffs := &+[b : b in Basis(coeff_space)];
     
     star := DualStarInvolution(M);
     T_prime_plus := Kernel(star-1) meet T_prime_proj;
@@ -1258,9 +1275,6 @@ end function;
 // The reason it is slow is that we don't work over QQ to simplify the
 // linear algebra
 
-// Still have a problem - for N = 8, we get zeros in our xi vector
-// How could that be ???
-
 function find_xi_slow(N, prec)
     G := GL(2,Integers(N));
     M := ModularSymbols(PSL2Subgroup(sub<G|[-1,0,0,-1]>),2, Rationals(),0);
@@ -1273,8 +1287,6 @@ function find_xi_slow(N, prec)
     eig_plus_basis := [* *];
     eig_minus_basis := [* *];
     fields := [* *];
-  //  sigma_plus := [* *];
-  //  sigma_minus := [* *];
     sigmas := [* *];
     all_qexps := [* *];
     
@@ -1301,7 +1313,7 @@ function find_xi_slow(N, prec)
 	sig_minus := aut;
 	
 	while (#sig_plus gt 1) or (#sig_minus gt 1) do
-	    T_p := ChangeRing(DualHeckeOperator(M,p), F);
+	    T_p := ChangeRing(DualHeckeOperator(AmbientSpace(d_old),p), F);
 	    a_p := Coefficient(f,p);
 	    sig_plus := [sigma : sigma in sig_plus |
 			 //		 sigma(a_p)*ev_plus eq ev_plus * T_p];
@@ -1315,8 +1327,6 @@ function find_xi_slow(N, prec)
 	end while;
 	ev_plus := apply_aut(sig_plus[1], ev_plus);
 	ev_minus := apply_aut(sig_minus[1], ev_minus);
-//	Append(~sigma_plus, sig_plus[1]);
-//	Append(~sigma_minus, sig_minus[1]);
 	N1 := CuspWidth(LevelSubgroup(d_old), Infinity());
 	N2 := CuspWidth(LevelSubgroup(d), Infinity());
 	divisors := Divisors(N1 mod N2 eq 0
@@ -1345,11 +1355,9 @@ function find_xi_slow(N, prec)
 	Append(~eig_plus_basis, eig_plus);
 	Append(~eig_minus_basis, eig_minus);
     end for;
-    //    Ts_plus := [[* &cat[[sigma(sigma_plus[b](Coefficient(f,n)))
     Ts_plus := [[* &cat[[sigma(Coefficient(f,n))
 			: f in qexpansions[b]] : sigma in sigmas[b]]
 		 : b in [1..#D] *] : n in [1..prec-1]];
-    //    Ts_minus := [[* &cat[[sigma(sigma_minus[b](Coefficient(f,n)))
     Ts_minus := [[* &cat[[sigma(Coefficient(f,n))
 			: f in qexpansions[b]] : sigma in sigmas[b]]
 		: b in [1..#D] *] : n in [1..prec-1]];
@@ -1357,8 +1365,6 @@ function find_xi_slow(N, prec)
     for F in fields[2..#D] do
 	L := Compositum(L, F);
     end for;
-//    all_qexps := &cat[[PowerSeriesRing(L)!f : f in qexps] :
-    //    		      qexps in qexpansions];
     all_qexps := [PowerSeriesRing(L)!f : f in all_qexps];
     eig_plus_big_basis := &cat[[ChangeRing(eig, L) : eig in eigs] :
 			eigs in eig_plus_basis ];
@@ -1401,120 +1407,7 @@ function find_xi_slow(N, prec)
 		  ScalarMatrix(KL,Dimension(S),zeta^(n_invs[n])))) :
 		 n in [1..prec-1]];
     xi :=  &meet X;
-    // Problem!!! This is usually more than 1-dimensional
-    // In fact, the u action is not enough to infer the linear relation/
-    // Can we do without?
-    // assert Dimension(xi) eq 1;
-    // return Basis(xi)[1];
     return xi, eig_plus_big_basis cat eig_minus_big_basis, all_qexps;
-end function;
-
-function get_qexp_slow(H, prec)
-    gamma := PSL2Subgroup(H);
-    N := Level(gamma);
-    G := GL(2,Integers(N));
-    M := ModularSymbols(PSL2Subgroup(sub<G|[-1,0,0,-1]>),2, Rationals(),0);
-    S := CuspidalSubspace(M);
-    /*
-    Z := Center(G);
-    PG, quo_G := G / Z;
-    G0 := SL(2, Integers(N));
-    PG0 := G0 @ quo_G;
-    gens := GeneratorsSequence(PG0);
-    quo_G0 := hom< G0 -> PG0 | [quo_G(x) : x in GeneratorsSequence(G0)]>;
-    gens_seq := [Eltseq(FindLiftToSL2(g @@ quo_G0)) : g in gens];
-    gen_mats := [ActionOnModularSymbolsBasis(g, M) : g in gens_seq];
-    gen_mats_tr := [Transpose(g) : g in gen_mats];
-    cusp_forms_space := DualVectorSpace(S);
-    gens_rest := [Restrict(x, cusp_forms_space) : x in gen_mats_tr];
-    Omega := GModule(PG0, gens_rest);
-    Omega_PG := Induction(Omega, PG);
-    if plus then
-	T_prime := ImageInLevelGL(GammaNSplus(N));
-    else
-	T_prime := ImageInLevelGL(GammaNS(N));
-    end if;
-    vprintf ModularSymbols, 1:
-	"Restricting the representation to the subgroup...\n";
-    Omega_T_prime := Restriction(Omega_PG,quo_G(T_prime));
-    vprintf ModularSymbols, 1: "Done.\n";
-    t_primes := [Representation(Omega_T_prime)(g) :
-		 g in Generators(quo_G(T_prime))];
-    T_prime_inv := &meet[Kernel(n-1) : n in t_primes];
-    proj_basis := [Vector(Eltseq(x)[1..Dimension(S)]) :
-		   x in Basis(T_prime_inv)];
-    B := BasisMatrix(cusp_forms_space);
-    T_prime_proj := sub<cusp_forms_space | [b*B : b in proj_basis]>;
-   */
-    // Better way to get here - compute degeneracy map
-    M_H := ModularSymbols(gamma, 2, Rationals(), 0);
-    beta := DegeneracyMatrix(M, M_H, GL(2, Rationals())!1);
-    S_H := CuspidalSubspace(M_H);
-    //    assert T_prime_proj eq DualVectorSpace(S_H) * Transpose(beta);
-    oldsub := DualVectorSpace(S_H) * Transpose(beta);
-    xi, eig_big_basis, qexpansions := find_xi_slow(N, prec);
-    coeffs := &+[b : b in Basis(xi)];
-    // coeffs := Basis(xi)[1];
-    // This is not a good idea - sometimes there is no intersection with the
-    // plus subspace
-    // star := DualStarInvolution(M);
-    // 
-    // T_prime_plus := Kernel(star-1) meet T_prime_proj;
-    // L := BaseRing(Universe(eig_big_basis));
-    K := BaseRing(coeffs);
-    eig_big_basis := [ChangeRing(e, K) : e in eig_big_basis];
-    g := Dimension(S) div 2;
-    fs_0 := [coeffs[i]^(-1) * eig_big_basis[i] : i in [1..2*g]];
-    fs := [fs_0[i] + fs_0[i + g] : i in [1..g]];
-    hol_subspace := sub<Universe(fs) | fs>;
-    // T_prime_hol := ChangeRing(T_prime_proj,K) meet hol_subspace;
-    old_hol := ChangeRing(oldsub,K) meet hol_subspace;
-    qexps := [];
-    for vec in Basis(old_hol) do
-	v := Solution(Matrix(eig_big_basis), vec);
-	vec_qexp := &+[v[i]*coeffs[i]
-		       *(PowerSeriesRing(K)!qexpansions[(i-1) mod g + 1]) :
-		       i in [1..2*g]];
-	Append(~qexps, vec_qexp);
-    end for;
-    return qexps;
-end function;
-
-// This function is supposed to get equations
-// Right now only looks for quadrics and cubics
-
-function find_curve(qexps, prec)
-    _<q> := PowerSeriesRing(Rationals(),prec);
-    fs := [f + O(q^prec) : f in qexps];
-    Ks := [* BaseRing(Parent(f)) : f in fs *];
-    fs := &cat[[Parent(q) | [Trace(Ks[j].1^i*c) : c in AbsEltseq(fs[j])] :
-			    i in [0..Degree(Ks[j])-1]] : j in [1..#fs]];
-    n := #fs;
-    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
-    fs := [&+[E[j][i]*fs[i] + O(q^prec) : i in [1..n]] : j in [1..n]];
-    n := #[f : f in fs | not IsZero(f)];
-    _<[x]> := PolynomialRing(Rationals(),n);
-    deg2mons := [x[i]*x[j] : i,j in [1..n] | i le j];
-    deg3mons := [x[i]*x[j]*x[k] : i,j,k in [1..n] | i le j and j le k];
-    deg4mons := [x[i]*x[j]*x[k]*x[l] : i,j,k,l in [1..n] |
-		 i le j and j le k and k le l];
-    prods2 := [fs[i]*fs[j] + O(q^prec) : i,j in [1..n] | i le j];
-    kerM2 := Kernel(Matrix([AbsEltseq(f) : f in prods2]));
-    quadrics := [&+[Eltseq(kerM2.i)[j]*deg2mons[j] : j in [1..#deg2mons]] :
-		 i in [1..Dimension(kerM2)]];
-    prods3 := [fs[i]*fs[j]*fs[k] + O(q^prec) :
-	       i,j,k in [1..n] | i le j and j le k];
-    kerM3 := Kernel(Matrix([AbsEltseq(f) : f in prods3]));
-    cubics := [&+[Eltseq(kerM3.i)[j]*deg3mons[j] : j in [1..#deg3mons]] :
-	       i in [1..Dimension(kerM3)]];
-    prods4 := [fs[i]*fs[j]*fs[k]*fs[l] + O(q^prec) : i,j,k,l in [1..n] |
-	       i le j and j le k and k le l];
-    kerM4 := Kernel(Matrix([AbsEltseq(f) : f in prods4]));
-    quartics := [&+[Eltseq(kerM4.i)[j]*deg4mons[j] : j in [1..#deg4mons]] :
-		 i in [1..Dimension(kerM4)]];
-    I := ideal<Parent(x[1]) | quadrics cat cubics cat quartics>;
-    X := Curve(ProjectiveSpace(Parent(x[1])),I);
-    return X;
 end function;
 
 function my_gauss_sum(eps, zeta)
@@ -1680,3 +1573,246 @@ function get_differential_qexpansion(u0, v0, f, prec)
     fns7 := f_nonnor / Coefficient(f_nonnor, 1);
     return fns7;
 end function;
+
+function find_xi(N, prec)
+    QQ := Rationals();
+    G := GL(2,Integers(N));
+    M := ModularSymbols(PSL2Subgroup(sub<G|[-1,0,0,-1]>),2, Rationals(),0);
+    S := CuspidalSubspace(M);
+    D := NewformDecomposition(S);
+    
+    cusp_forms_space := DualVectorSpace(S);
+
+    R<q> := PowerSeriesRing(QQ);
+    all_qexps := [R|];
+    eig_plus_basis := [cusp_forms_space | ];
+    eig_minus_basis := [cusp_forms_space | ];
+    companion_matrices := [];
+    trace_matrices := [* *];
+    comp_mats := [* *];
+    degrees := [];
+    for d in D do
+	f := qEigenform(d, prec);
+	R := Parent(f);
+	q_R := R.1;
+	F := BaseRing(R);
+	aut := Automorphisms(F);
+	deg := Degree(F);
+	alpha := PrimitiveElement(F);
+	comp_mat := CompanionMatrix(MinimalPolynomial(alpha));
+	traces := Matrix([[Trace(alpha^(i+j)) : i in [0..deg-1]]
+			  : j in [0..deg-1]]);
+	d_old := AssociatedNewSpace(d);
+	ev_plus := EigenvectorModSymSign(d_old,1);
+	ev_minus := EigenvectorModSymSign(d_old,-1);
+	// Forcing magma to admit they are over the same field
+	assert IsIsomorphic(BaseRing(ev_minus), F);
+	ev_minus := ChangeRing(ev_minus, F);
+	// Here we find sigma_plus and sigma_minus by observing the eigenvalues
+	p := 2;
+	sig_plus := aut;
+	sig_minus := aut;
+	
+	while (#sig_plus gt 1) or (#sig_minus gt 1) do
+	    T_p := ChangeRing(DualHeckeOperator(AmbientSpace(d_old),p), F);
+	    a_p := Coefficient(f,p);
+	    sig_plus := [sigma : sigma in sig_plus |
+			 //		 sigma(a_p)*ev_plus eq ev_plus * T_p];
+			 a_p * apply_aut(sigma, ev_plus) eq
+			 apply_aut(sigma, ev_plus) * T_p];
+	    sig_minus := [sigma : sigma in sig_minus |
+			  //			  sigma(a_p)*ev_minus eq ev_minus * T_p];
+			  a_p * apply_aut(sigma, ev_minus) eq
+			  apply_aut(sigma, ev_minus) * T_p];
+	    p := NextPrime(p);
+	end while;
+	ev_plus := apply_aut(sig_plus[1], ev_plus);
+	ev_minus := apply_aut(sig_minus[1], ev_minus);
+	N1 := CuspWidth(LevelSubgroup(d_old), Infinity());
+	N2 := CuspWidth(LevelSubgroup(d), Infinity());
+	divisors := Divisors(N1 mod N2 eq 0
+			     select N1 div N2 else N2 div N1);
+	divisors := get_degeneracy_reps(d_old, d, divisors);
+	for a in divisors do
+	    mat := DegeneracyMatrix(AmbientSpace(d),AmbientSpace(d_old),a);
+	    f_a := Evaluate(f, q_R^(N2 div (N1 * Integers()!a[1,1])));
+	    all_qexps cat:= [&+[Trace(alpha^i * Coefficient(f_a,j)) * q^j :
+				  j in [1..prec-1]] : i in [0..Degree(F)-1]];
+	    eig_plus_basis cat:= [Vector([Trace(alpha^i * x) :
+				x in Eltseq(ev_plus)]) * Transpose(mat)  :
+				      i in [0..Degree(F)-1]];
+	    eig_minus_basis cat:= [Vector([Trace(alpha^i * x) :
+				x in Eltseq(ev_minus)]) * Transpose(mat)  :
+				   i in [0..Degree(F)-1]];
+	    f_a_coeffs := [Eltseq(Coefficient(f_a, n)) : n in [1..prec-1]];
+	    companion := [* &+[f_a_coeff[i] * comp_mat^(i-1)
+			       : i in [1..#f_a_coeff]]
+			  : f_a_coeff in f_a_coeffs*];
+	    Append(~companion_matrices, companion);
+	    Append(~comp_mats, comp_mat);
+	    Append(~trace_matrices, traces);
+	    Append(~degrees, deg);
+	end for;
+    end for;
+    Ts := [];
+    for n in [1..prec-1] do
+	T := KMatrixSpace(Rationals(),0,0)!0;
+	for c in companion_matrices do
+	    T := DirectSum(T, c[n]);
+	end for;
+	T := DirectSum(T,T);
+	Append(~Ts, Transpose(T));
+    end for;
+
+    big_trace_mat := KMatrixSpace(Rationals(),0,0)!0;
+    for trace_mat in trace_matrices do
+	big_trace_mat := DirectSum(big_trace_mat, trace_mat);
+    end for;
+    big_trace_mat := DirectSum(big_trace_mat, big_trace_mat);
+
+    cusp_basis := BasisMatrix(cusp_forms_space);
+    eig_plus_in_cusp := Solution(cusp_basis, Matrix(eig_plus_basis));
+    eig_minus_in_cusp := Solution(cusp_basis, Matrix(eig_minus_basis));
+    eig_in_cusp := VerticalJoin([eig_plus_in_cusp, eig_minus_in_cusp]);
+    u := Transpose(ActionOnModularSymbolsBasis([1,1,0,1], M));
+    u_act := eig_in_cusp * Restrict(u, cusp_forms_space);
+    u_action_a := Solution(eig_in_cusp, u_act);
+    K<zeta> := CyclotomicField(N);
+    U := ChangeRing(u_action_a, K);
+    
+    n_invs := [];
+    for n in [1..prec-1] do
+	d, n_inv, _ := XGCD(n,N);
+	// if d eq 1 then Append(~idxs, n); end if;
+	if d eq 1 then
+	    Append(~n_invs, n_inv);
+	else
+	    Append(~n_invs, n);
+	end if;
+    end for;
+    X := [Kernel(ChangeRing(Ts[n],K) *
+		 (Transpose(U) -
+		  ScalarMatrix(K,Dimension(S),zeta^(n_invs[n])))) :
+		 n in [1..prec-1]];
+    xi :=  &meet X;
+    alpha := xi * ChangeRing(big_trace_mat^(-1), K);
+    degrees cat:= degrees;
+    cumsum := [&+degrees[1..d] : d in [0..#degrees]];
+    beta := Eltseq(&+[b : b in Basis(alpha)]);
+    beta_parts := [beta[cumsum[j]+1..cumsum[j+1]] : j in [1..#degrees]];
+    comp_mats cat:= comp_mats;
+    companion := [* ChangeRing(&+[ beta_parts[j][i] * comp_mats[j]^(i-1)
+			       : i in [1..degrees[j]]], K)
+		  : j in [1..#degrees] *];
+    mat := KMatrixSpace(K,0,0)!0;
+    for comp_mat in companion do
+	mat := DirectSum(mat, comp_mat);
+    end for;
+    return mat, eig_plus_basis cat eig_minus_basis, all_qexps;
+end function;
+
+function get_qexp(H, prec)
+    N := Level(H);
+    G := GL(2,Integers(N));
+    M := ModularSymbols(PSL2Subgroup(sub<G|[-1,0,0,-1]>),2, Rationals(),0);
+    S := CuspidalSubspace(M);
+    // Computing degeneracy map
+    M_H := ModularSymbols(H, 2, Rationals(), 0);
+    beta := DegeneracyMatrix(M, M_H, GL(2, Rationals())!1);
+    S_H := CuspidalSubspace(M_H);
+    //    assert T_prime_proj eq DualVectorSpace(S_H) * Transpose(beta);
+    oldsub := DualVectorSpace(S_H) * Transpose(beta);
+    // xi, eig_big_basis, qexpansions := find_xi_slow(N, prec);
+    mat, eig_basis, qexpansions := find_xi(N, prec);
+    // coeffs := &+[b : b in Basis(xi)];
+    // any element with non-zero entries should do -
+    // this is a choice of automorphism of the representation.
+    // K := BaseRing(coeffs);
+    K := BaseRing(mat);
+    eig_basis := [ChangeRing(e, K) : e in eig_basis];
+    g := Dimension(S) div 2;
+    // fs_0 := [coeffs[i]^(-1) * eig_big_basis[i] : i in [1..2*g]];
+    fs_0 := mat^(-1) * Matrix(eig_basis);
+    fs := [fs_0[i] + fs_0[i + g] : i in [1..g]];
+    hol_subspace := sub<Universe(fs) | fs>;
+    old_hol := ChangeRing(oldsub,K) meet hol_subspace;
+    qexps := [];
+    for vec in Basis(old_hol) do
+	v := Solution(Matrix(eig_basis), vec) * mat;
+	vec_qexp := &+[v[i]*(PowerSeriesRing(K)!qexpansions[(i-1) mod g + 1]) :
+		       i in [1..2*g]];
+	Append(~qexps, vec_qexp);
+    end for;
+    return qexps;
+end function;
+
+// This function is supposed to get equations
+// Right now only looks for quadrics and cubics and quartics
+
+// Should handle the hyperelliptic case, etc.
+
+function find_curve(qexps, prec, n_rel)
+    _<q> := PowerSeriesRing(Rationals(),prec);
+    fs := [f + O(q^prec) : f in qexps];
+    Ks := [* BaseRing(Parent(f)) : f in fs *];
+    fs := &cat[[Parent(q) | [Trace(Ks[j].1^i*c) : c in AbsEltseq(fs[j])] :
+			    i in [0..Degree(Ks[j])-1]] : j in [1..#fs]];
+    n := #fs;
+    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+    fs := [&+[E[j][i]*fs[i] + O(q^prec) : i in [1..n]] : j in [1..n]];
+    n := #[f : f in fs | not IsZero(f)];
+    fs := fs[1..n];
+    R<[x]> := PolynomialRing(Rationals(),n);
+    degmons := [MonomialsOfDegree(R, d) : d in [1..n_rel]];
+    prods := [[Evaluate(m, fs) + O(q^prec) : m in degmons[d]] :
+	      d in [1..n_rel]];
+    kers := [Kernel(Matrix([AbsEltseq(f) : f in prod])) : prod in prods];
+    rels := [[&+[Eltseq(kers[d].i)[j]*degmons[d][j] : j in [1..#degmons[d]]] :
+	      i in [1..Dimension(kers[d])]] : d in [1..n_rel]];
+    I := ideal<R | &cat rels>;
+    X := Curve(ProjectiveSpace(R),I);
+    return X;
+end function;
+
+function find_curve_simple(qexps, prec, n_rel)
+    R<q> := Universe(qexps);
+    K<zeta> := BaseRing(R);
+    fs := [f + O(q^prec) : f in qexps];
+    n := #fs;
+    R<[x]> := PolynomialRing(K,n);
+    degmons := [MonomialsOfDegree(R, d) : d in [1..n_rel]];
+    prods := [[Evaluate(m, fs) + O(q^prec) : m in degmons[d]] :
+	      d in [1..n_rel]];
+    /*
+prod_traces := [[&cat[[Trace(zeta^j*x) : x in AbsEltseq(f)] :  
+j in [0..Degree(K)-1]] : f in prod] : prod in prods];
+kers := [Kernel(Matrix(pr_tr)) : pr_tr in prod_traces];
+*/
+    kers := [Kernel(Matrix([AbsEltseq(f) : f in prod])) : prod in prods];
+    rels := [[&+[Eltseq(kers[d].i)[j]*degmons[d][j] : j in [1..#degmons[d]]] :
+	      i in [1..Dimension(kers[d])]] : d in [1..n_rel]];
+    I := ideal<R | &cat rels>;
+    X := Curve(ProjectiveSpace(R),I);
+    return X;
+end function;
+
+procedure curve_test(H, prec, nrel)
+    M := ModularSymbols(H, 2, Rationals(), 0);
+    S := CuspidalSubspace(M);
+    g := Dimension(S) div 2;
+    qexps := get_qexp(H, prec);
+    X := find_curve(qexps, prec, nrel);
+    assert Genus(X) eq g;
+end procedure;
+
+procedure test_newform_decomp(N) 
+    M := ModularSymbols(my_Gamma(N, "full"));
+    S := CuspidalSubspace(M);
+    D := NewformDecomposition(S);
+    dims := [Dimension(d) : d in D];
+    M0 := ModularSymbols(CongruenceSubgroup(N));
+    S0 := CuspidalSubspace(M0);
+    D0 := NewformDecomposition(S0);
+    dims0 := [Dimension(d) : d in D0];
+    assert dims eq dims0;
+end procedure;

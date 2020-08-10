@@ -838,8 +838,7 @@ end function;
 intrinsic ModularSymbolApply(g::SeqEnum, s::SeqEnum) -> SeqEnum
 {Apply an element g=[a,b, c,d] of GL(2,Q) to the modular symbol s,
  given as a sequence of tuples <coeff,[cusp1,cusp2]> (as returned by
- ModularSymbolRepresentation).  The result is returned in the same format.
- The argument M plays no role and is ignored.}
+ ModularSymbolRepresentation).  The result is returned in the same format.}
 
    // TO DO: checks ...
 
@@ -1751,7 +1750,8 @@ function get_general_phi(G)
      mat_sl2 := ModLevel(G)!(det_rep * mat * ScalarMatrix(2,det)^(-1));
      ind, s := CosetReduce(mat_sl2, G`FindCoset);
 // s := det_rep * ModLevel(G)!Eltseq(s);
-     s := det_rep^(-1) * ScalarMatrix(2,det) * ModLevel(G)!Eltseq(s);
+     // s := det_rep^(-1) * ScalarMatrix(2,det) * ModLevel(G)!Eltseq(s);
+     s := ModLevel(G)!Eltseq(s);
      return ind, s;
   end function;
   return phi, G;

@@ -1166,7 +1166,10 @@ intrinsic IsNew (M::ModSym, p::GrpMat[RngIntRes]) -> BoolElt
 {True if and only if M is contained in the p-new cuspidal 
 subspace of the ambient space.}
 
-   if not (ImageInLevelGL(LevelSubgroup(M)) subset p) then
+//   if not (ImageInLevelGL(LevelSubgroup(M)) subset p) then
+   eps := DirichletCharacter(M);
+   G := ImageInLevelGL(Parent(eps)`Gamma);
+   if not (G subset p) then
       return true;
    end if;
 
@@ -1447,7 +1450,10 @@ return M3, otherwise terminate with an error.}
          return M2;
        end if;
    else
-       if LevelSubgroup(M1) eq LevelSubgroup(M2) then
+       // if LevelSubgroup(M1) eq LevelSubgroup(M2) then
+       G1 := Parent(DirichletCharacter(M1))`Gamma;
+       G2 := Parent(DirichletCharacter(M2))`Gamma;
+       if G1 eq G2 then
          require M2 subset M1 :  
            "Argument 2 must be contained in argument 1.";
          return M2;
@@ -1631,11 +1637,7 @@ intrinsic 'eq'(M1::ModSym, M2::ModSym) -> BoolElt
    if IsOfGammaType(M1) ne IsOfGammaType(M2) then
       return false;
    end if;
-   if IsOfGammaType(M1) then
-      complete_eq := DirichletCharacter(M1) eq DirichletCharacter(M2);
-   else
-      complete_eq := LevelSubgroup(M1) eq LevelSubgroup(M2);
-   end if;
+   complete_eq := DirichletCharacter(M1) eq DirichletCharacter(M2);
    return IsMultiChar(M1) eq IsMultiChar(M2) and
           Weight(M1) eq Weight(M2) and
           Level(M1) eq Level(M2) and

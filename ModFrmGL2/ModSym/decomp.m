@@ -508,8 +508,10 @@ function image_of_old_newform_factor_using_operators(M, A)
    assert Type(M) eq ModSym;
    assert Type(A) eq ModSym;
    // numdiv := NumberOfDivisors(Level(M) div Level(A));
-   numdiv := NumberOfDivisors(CuspWidth(LevelSubgroup(M), Infinity()) div
-			      CuspWidth(LevelSubgroup(A), Infinity()));
+   G_M := Parent(DirichletCharacter(M))`Gamma;
+   G_A := Parent(DirichletCharacter(A))`Gamma;
+   numdiv := NumberOfDivisors(CuspWidth(G_M, Infinity()) div
+			      CuspWidth(G_A, Infinity()));
    d := Dimension(A) * numdiv;
    V := CuspidalSubspace(AmbientSpace(M));
    p := 2;
@@ -544,12 +546,15 @@ function image_of_old_newform_factor(M, A)
          return image_of_old_newform_factor_using_operators(M,A);
       end if;
    else
-     if LevelSubgroup(M) eq LevelSubgroup(A) then
+       //if LevelSubgroup(M) eq LevelSubgroup(A) then
+     G_M := Parent(DirichletCharacter(M))`Gamma;
+     G_A := Parent(DirichletCharacter(A))`Gamma;
+     if G_M eq G_A then
        return A;
      end if;
-     d := CuspWidth(LevelSubgroup(M), Infinity()) div
-	  CuspWidth(LevelSubgroup(A), Infinity());
-     if IsPrime(d) then
+     d := CuspWidth(G_M, Infinity()) div
+	  CuspWidth(G_A, Infinity());
+     if IsPrime(d) or (d eq 1) then
          return image_of_old_newform_factor_using_degen_maps(M,A);
      else
          return image_of_old_newform_factor_using_operators(M,A);
@@ -558,8 +563,8 @@ function image_of_old_newform_factor(M, A)
 end function;
 
 function get_NN(M)
-   eps := DirichletCharacter(M);
-   G_N := ImageInLevelGL(LevelSubgroup(M));
+    eps := DirichletCharacter(M);
+    G_N := ImageInLevelGL(LevelSubgroup(M));
    G := Parent(eps)`Gamma;
    N := ImageInLevelGL(G);
    NN := [N];
@@ -596,10 +601,13 @@ function get_NN(M)
    end for;
    // One of each conjugacy class
    NN := &cat[[y[1] : y in NN_idxs[idx]] : idx in idxs];
-
+/*
    NN := [N] cat [y : y in NN | CuspWidth(PSL2Subgroup(y),Infinity()) ne
 				CuspWidth(G, Infinity())];
-   
+*/
+   normalizers := [Normalizer(ModLevelGL(G), n) : n in NN];
+   good := [i : i in [1..#NN] | G_N subset normalizers[i]];
+   NN := [NN[i] : i in good];
    return NN;
 end function;
 
@@ -664,7 +672,8 @@ IsCuspidal(M) is true.}
       else
         eps := DirichletCharacter(M);
         G := Parent(eps)`Gamma;
-        G_N := ImageInLevelGL(LevelSubgroup(M));
+	//        G_N := ImageInLevelGL(LevelSubgroup(M));
+	G_N := ImageInLevel(LevelSubgroup(M));
         N := ImageInLevelGL(G);
         NN := get_NN(M);
         primes := MinimalOvergps(ModLevelGL(G), N);
@@ -677,8 +686,15 @@ IsCuspidal(M) is true.}
         primes := {[primes[i] : i in [1..#primes] |
 			    is_conj[i][j]] : j in [1..#primes]};
         primes := [y[1] : y in primes];
+	/*
 	primes := [p : p in primes | CuspWidth(PSL2Subgroup(p), Infinity()) ne
 				     CuspWidth(G, Infinity())];
+       */
+	primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
+	N_p := [Normalizer(ModLevelGL(G), p) : p in primes];
+
+	good := [i : i in [1..#primes] | G_N subset N_p[i]];
+	primes := [primes[i] : i in good];
 	pnew := [p : p in primes | IsNew(M,p)];
       end if;
 
@@ -810,7 +826,12 @@ of traces is sorted in increasing dictionary order.}
          return false;
       end if;
       n := 1;
-      while Trace(Trace(HeckeOperator(A,n))) eq Trace(Trace(HeckeOperator(B,n))) do
+      // !!! The n lt 20 is a temporary fix for the case where the Hecke
+      // operators have the same traces on these spaces.
+      // This can occur if both are essentially the same space,
+      // but with images having different characters.
+      
+      while (Trace(Trace(HeckeOperator(A,n))) eq Trace(Trace(HeckeOperator(B,n)))) and (n lt 20)  do
          n := n+1;
       end while;
       return Trace(Trace(HeckeOperator(A,n))) lt Trace(Trace(HeckeOperator(B,n)));
@@ -1348,11 +1369,11 @@ function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
 
    // until we can correctly write down
    // Hecke operators at primes dividing the level
-
+/*
    if not IsOfGammaType(M) then
       primes := [SmallestPrimeNondivisor(N,2)];
    end if;
-
+*/
    procedure get_heckes_modp(~heckes, primes, GFp, BMp)
       ls := [l : l in primes | l notin Keys(heckes)];
       for l in ls do 

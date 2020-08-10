@@ -873,12 +873,16 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
 							       x in final_list];
   end if;
   GL2Q := GL(2, Rationals());
+  /*
   R_full := [GL2Q!r : r in HeckeFullCongruenceRepresentatives(N,p
 						 : Squared := Squared)];
   D := Transversal(ImageInLevel(G), ImageInLevel(CongruenceSubgroup(N)));
   D_lift := [Eltseq(FindLiftToSL2(d)) : d in D];
   coset_reps := [GL2Q!([Integers()!x : x in Eltseq(g)]) : g in D_lift];
   return &cat[[Eltseq(r*g) : g in coset_reps] : r in R_full];
+ */
+  alpha := FindLiftToM2Z(Matrix(G`DetRep(p)) : det := p);
+  return HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!alpha);
 end function;
 
 // Trying to use John's idea
@@ -966,8 +970,10 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
       if N mod p ne 0 then
          Append(~R,[p,0,0,1]);
       end if;
+      /*
    elif IsGamma(LevelSubgroup(M)) then  
      R := HeckeFullCongruenceRepresentatives(N,p : Squared := Squared);
+     */
    else
      // Why does it fail ???
      /*
@@ -978,10 +984,13 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
      i2 := DegeneracyMatrix(M_full, M, GL(2,Rationals())!1);
      factor := Index(CongruenceSubgroup(N)) / Index(LevelSubgroup(M));
      return i1 * HeckeOperatorModSym(M_full, p) * i2 / factor;
-     */
-     R := HeckeGeneralCaseRepresentatives(LevelSubgroup(M),p :
-    					Squared := Squared);
+    */
+       eps := DirichletCharacter(M);
+       G := Parent(eps)`Gamma;
+       R := HeckeGeneralCaseRepresentatives(G,p :
+    					    Squared := Squared);
    end if;
+   /*
    r := Squared select 2 else 1;
    factor := #R;
    if Level(M) mod p eq 0 then
@@ -990,6 +999,8 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
    else
       factor := factor div &+[p^j : j in [0..r]];
    end if;
+    */
+   factor := 1;
    if IsEmpty(R) then
      return MatrixAlgebra(BaseField(M),Dimension(M))!0;
    end if;
@@ -1380,8 +1391,11 @@ function TnSparse(M, Heil, sparsevec)
         else  // n is prime or a   -- this code isn't used, as it is slower.
 	  p := fac[1][1];
           squared := fac[1][2] eq 2;
-          matrices := HeckeGeneralCaseRepresentatives(LevelSubgroup(M), p :
-					    Squared := squared);
+	  eps := DirichletCharacter(M);
+	  G := Parent(eps)`Gamma;
+          matrices := HeckeGeneralCaseRepresentatives(G, p :
+						      Squared := squared);
+	  /*
           r := squared select 2 else 1;
           factor := #matrices;
           if Level(M) mod p eq 0 then
@@ -1390,6 +1404,8 @@ function TnSparse(M, Heil, sparsevec)
           else
              factor := factor div &+[p^j : j in [0..r]];
           end if;
+	 */
+	  factor := 1;
           if IsEmpty(matrices) then
 	     return VectorSpace(M)!0;
           end if;
@@ -1466,8 +1482,9 @@ function TnSparse(M, Heil, sparsevec)
       // find_coset := M`mlist`find_coset;
       num_cosets := #M`mlist`coset_list;
 //phi := get_phi(G);
-//    defining_tuple := <phi, num_cosets, Tquot, Squot, Scoef> ;
-      defining_tuple := <G, num_cosets, Tquot, Squot, Scoef> ;
+      //    defining_tuple := <phi, num_cosets, Tquot, Squot, Scoef> ;
+      param :=  Weight(M) eq 2 select det else num_cosets;
+      defining_tuple := <G, param, Tquot, Squot, Scoef> ;
    end if;
 
    Append(~defining_tuple, eps);

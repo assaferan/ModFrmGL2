@@ -422,9 +422,13 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
          return MC_DegeneracyMatrix(M1, M2, d);
    end if;
  
-   G1 := LevelSubgroup(M1);
-   G2 := LevelSubgroup(M2);
-
+   // G1 := LevelSubgroup(M1);
+   // G2 := LevelSubgroup(M2);
+  eps1 := DirichletCharacter(M1);
+  eps2 := DirichletCharacter(M2);
+  G1 := Parent(eps1)`Gamma;
+  G2 := Parent(eps2)`Gamma;
+  
    if not assigned M1`degeneracy_matrices_out then
       M1`degeneracy_matrices_out := [* *];
    end if;
@@ -473,15 +477,12 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
                Representation(M2))!MatrixAlgebra(F,Degree(M1))!1;
 
    elif G1 subset G2 then  // G1 subset G2 -- lower  
-       // This should be changed to cusp width
        require (CuspWidth(G1, Infinity()) div CuspWidth(G2, Infinity()))
 	       mod det eq 0 : 
 //       require (Level(G1) div Level(G2)) mod det eq 0 :
               "Determinant of argument 3 must divide CuspWidth(G1) div CuspWidth(G2).";
-      eps1 := DirichletCharacter(M1);
-      eps2 := DirichletCharacter(M2);
-      bool, eps21 := IsCoercible(Parent(eps1), eps2);
-      require bool and eps21 eq eps1 :
+      bool, eps21 := IsCoercible(Parent(eps2), eps1);
+      require bool and eps21 eq eps2 :
          "Arguments 1 and 2 must have compatible dirichlet characters.";
 
       if assigned already_known then
@@ -497,7 +498,7 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 // for testing the above fast version.
 
       B  := ModularSymbolsBasis(M1);
-      d_tilde := ScalarMatrix(Rationals(),2,Determinant(d))*d^(-1);;
+      d_tilde := ScalarMatrix(Rationals(),2,Determinant(d))*d^(-1);
       D := Eltseq(d_tilde); // D  := [1,0,0,d];
       DB := [ModularSymbolApply(D, B[i])  : i in [1..#B] ];
       otherA  := [Representation(ConvFromModularSymbol(M2,DB[i])) : i in [1..#DB]]; 
@@ -507,12 +508,9 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 elif G2 subset G1 then// G2 subset G1 -- raise level
     require (CuspWidth(G2, Infinity()) div CuspWidth(G1, Infinity()))
 	    mod det eq 0 : 
-      //require (Level(G2) div Level(G1)) mod det eq 0 : 
-          "Determinant of Argument 3 must divide Level(G2) div Level(G1).";
-      eps1 := DirichletCharacter(M1);
-      eps2 := DirichletCharacter(M2);
-      // bool, eps12 := IsCoercible(Parent(eps2), eps1);
-      // require bool and eps12 eq eps2 :
+      "Determinant of Argument 3 must divide CuspWidth(G2) div CuspWidth(G1).";
+
+ 
      bool, eps12 := IsCoercible(Parent(eps1), eps2);
          require bool and eps12 eq eps1 :
          "Arguments 1 and 2 must have compatible dirichlet characters.";
@@ -659,7 +657,8 @@ then the 0 space is returned.
    else
      eps := DirichletCharacter(M);
      GG := Parent(eps)`Gamma;
-     GG_N := ImageInLevelGL(LevelSubgroup(M));
+     // GG_N := ImageInLevelGL(LevelSubgroup(M));
+     GG_N := ImageInLevel(LevelSubgroup(M));
    end if;
 
    GG_im := ImageInLevelGL(GG);
@@ -703,9 +702,9 @@ then the 0 space is returned.
 				       Weight(M),epsG,Sign(M),Gamma0(1))>);
          else
             if GG_im subset G then
-	       epsG := ChangeRing(Restrict(eps,G),BaseRing(M));
-            else
 	       epsG := ChangeRing(Extend(eps,G),BaseRing(M));
+            else
+	       epsG := ChangeRing(Restrict(eps,G),BaseRing(M));
             end if;
             if IsAmbientSpace(M) then
                MS  := ModularSymbols(epsG,Weight(M),Sign(M));

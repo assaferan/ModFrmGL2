@@ -340,14 +340,16 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
 
    G     := LevelSubgroup(M);
    k     := Weight(M);
-   G_N := ImageInLevelGL(G);
+   //   G_N := ImageInLevelGL(G);
+   G_N := ImageInLevel(G);
  
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
    gens := Generators(H);
    H_N := ImageInLevelGL(H);
 
-   if (not (H_N subset p)) or (p subset G_N) then  
+   // if (not (H_N subset p)) or (p subset G_N) then
+   if not (H_N subset p) then
       return M;
    end if;
 
@@ -361,10 +363,10 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    end if;
 
    p_prime := sub<ModLevelGL(H) | G_N, p>;
-//   oldp_prime := PSL2Subgroup(p_prime, true);
-//   oldp := PSL2Subgroup(p, true);
-   oldp_prime := PSL2Subgroup(p_prime, false);
-   oldp := PSL2Subgroup(p, false);
+   oldp_prime := PSL2Subgroup(p_prime, true);
+   oldp := PSL2Subgroup(p, true);
+//   oldp_prime := PSL2Subgroup(p_prime, false);
+//   oldp := PSL2Subgroup(p, false);
    // Q, pi_Q := p_prime / p;
    Q, pi_Q := oldp_prime / oldp;
 //eps_res := FullCharacterGroup(pi_Q, oldp_prime, oldp)!eps;
@@ -382,10 +384,11 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    DDmats := <>;
 
    // l := Level(M) div calcLevel(oldp_prime);
-   l := CuspWidth(LevelSubgroup(M),Infinity()) div
-	CuspWidth(oldp_prime, Infinity());
-   assert IsPrime(l); // Else something is wrong here
-   alphas := get_degeneracy_reps(AM, old, [1,l]);
+   G_M := Parent(DirichletCharacter(M))`Gamma;
+   l := CuspWidth(G_M,Infinity()) div
+	CuspWidth(oldp, Infinity());
+   assert IsPrime(l) or (l eq 1); // Else something is wrong here
+   alphas := get_degeneracy_reps(AM, old, Divisors(l));
    for alpha in alphas do
       Append(~Dmats, DegeneracyMatrix(AM, old, alpha));
       Append(~DDmats, Transpose(DegeneracyMatrix(old, AM, alpha)));
@@ -507,7 +510,8 @@ end intrinsic;
 
 function prepare_old_spaces(M, primes)
    G := LevelSubgroup(M);
-   G_N := ImageInLevelGL(G);
+   // G_N := ImageInLevelGL(G);
+   G_N := ImageInLevel(G);
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
    H_N := ImageInLevelGL(H);
@@ -521,10 +525,10 @@ function prepare_old_spaces(M, primes)
    primes := [primes[i] : i in good];
 
    N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
-//   oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
-//   oldp := [PSL2Subgroup(p, true) : p in primes];
-   oldp_prime := [PSL2Subgroup(p_prime, false) : p_prime in N_p];
-   oldp := [PSL2Subgroup(p, false) : p in primes];
+   oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
+   oldp := [PSL2Subgroup(p, true) : p in primes];
+ //  oldp_prime := [PSL2Subgroup(p_prime, false) : p_prime in N_p];
+ //  oldp := [PSL2Subgroup(p, false) : p in primes];
    old := [];
    for i in [1..#primes] do
       //Q, pi_Q := N_p[i] / primes[i];
@@ -557,10 +561,6 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       primes := Sort([p : p in primes | N mod (p*Neps) eq 0]);
       // Sort so that below, the blocks of D with largest rank at the left
    else
-      G_N := ImageInLevelGL(G);
-      eps   := DirichletCharacter(M);
-      H := Parent(eps)`Gamma;
-      gens := Generators(H);
       old := prepare_old_spaces(M, primes);
    end if;
 
@@ -577,11 +577,13 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
      alphas := AssociativeArray([1..#old]);
      for i in [1..#old] do
          if Dimension(old[i]) gt 0 then
-	    // p := Level(M) div calcLevel(LevelSubgroup(old[i]));
-	     p := CuspWidth(LevelSubgroup(M), Infinity()) div
-		  CuspWidth(LevelSubgroup(old[i]), Infinity());
-             assert IsPrime(p); // Else something is wrong here
-             alphas[i] := get_degeneracy_reps(AM, old[i], [1,p]);
+	     // p := Level(M) div calcLevel(LevelSubgroup(old[i]));
+	     G_M := Parent(DirichletCharacter(M))`Gamma;
+	     G_old := Parent(DirichletCharacter(old[i]))`Gamma;
+	     p := CuspWidth(G_M, Infinity()) div
+		  CuspWidth(G_old, Infinity());
+             assert IsPrime(p) or (p eq 1); // Else something is wrong here
+             alphas[i] := get_degeneracy_reps(AM, old[i], Divisors(p));
              for alpha in alphas[i] do
 		 Append(~Dmats, DegeneracyMatrix(AM, old[i], alpha));
              end for;
@@ -668,7 +670,6 @@ over all prime divisors of the level of M}
         end if;
         G_N := ModLevelGL(G);
         H := ImageInLevelGL(G);
-	v1, v2, v3 := GetVersion();
         primes := MinimalOvergps(G_N,H);
         
 // Is this necessary? yes!!! For the hecke operators in the source to commute
@@ -681,8 +682,10 @@ over all prime divisors of the level of M}
         primes := {[primes[i] : i in [1..#primes] |
 			    is_conj[i][j]] : j in [1..#primes]};
         primes := [y[1] : y in primes];
+	/*
 	primes := [p : p in primes | CuspWidth(PSL2Subgroup(p), Infinity()) ne
 				     CuspWidth(G, Infinity())];
+*/
       end if;
 
       if IsMultiChar(M) then
