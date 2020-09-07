@@ -8,6 +8,12 @@ freeze;
                          
    FILE: eisenstein.m
 
+   2020-09 (Eran):
+      Added MakeEisensteinSeriesNotGamma to construct Eisenstein Series for 
+      groups other than Gamma0(N), Gamma1(N).
+      At the moment, only for trivial characters.
+      Modified ComputeAllEisensteinSeries accordingly.
+
    2007-09 (Steve):
       Change EisensteinSeries yet again!!  
       See the entry below (2006-10, item 2) for the story so far.
@@ -204,6 +210,16 @@ function MakeEisensteinSeries(M,chi,psi,t)
    return f;
 end function;
 
+function MakeEisensteinSeriesNotGamma(M, vecs, vecs0)
+    assert Type(M) eq ModFrm;
+    
+    f := New(ModFrmElt);
+    // Check here if we need in general to extend
+    f`parent := EisensteinSubspace(M);
+    f`eisenstein := <vecs, vecs0>;
+    return f;
+end function;
+
 function IsInSequence(x, seq)
    for i in [1..#seq] do
       if x eq seq[i] then
@@ -216,14 +232,44 @@ end function;
 function ComputeAllEisensteinSeries(M : all:=false)
    assert Type(M) eq ModFrm;
    assert SpaceType(M) in {"full", "eis"};
-   if not IsOfGammaType(M) then
-     error "This function is not implemented for levels other than 
-            Gamma0 or Gamma1";
-   end if;
-
    ans := [* *]; 
    N   := Level(M);
    k   := Weight(M);
+   if not IsOfGammaType(M) then
+       /*
+     error "This function is not implemented for levels other than 
+            Gamma0 or Gamma1";
+      */
+       if not &and[IsTrivial(eps) : eps in DirichletCharacters(M)] then
+	   error "Not implemented for nontrivial characters";
+       end if;
+       G := LevelSubgroup(M);
+       H := ImageInLevel(G);
+       // This is actually an overkill
+       // Can do with the reduction
+       reprs := [PSL2(Integers()) | FindLiftToSL2(h) : h in H];
+       cusps := Cusps(G);
+       if k eq 2 then
+	   cusp0 := cusps[1];
+	   cusps := cusps[2..#cusps];
+	   v0 := Eltseq(cusp0);
+	   vecs0 := [Vector([-v0[2], v0[1]]) * Matrix(r) : r in reprs];
+       else
+	   vecs0 := [];
+       end if;
+       for cusp in cusps do
+	   v := Eltseq(cusp);
+	   vecs := [Vector([-v[2], v[1]]) * Matrix(r) : r in reprs];
+	   Append(~ans, MakeEisensteinSeriesNotGamma(M, vecs, vecs0));
+       end for;
+       dim := #Cusps(G);
+       
+       if all then 
+	   return ans, _;
+       else
+	   return ans, dim;
+       end if;
+   end if;
 
    eps := ExtendBaseMaximal(DirichletCharacters(M));
    K   := BaseRing(eps[1]);

@@ -10,6 +10,13 @@ freeze;
   $Header: /home/was/magma/packages/ModSym/code/RCS/decomp.m,v 1.20 2002/10/01 06:02:33 was Exp $
 
   $Log: decomp.m,v $
+  Revision 1.21  2020/09/07 11:23:27  was
+  Modified image_of_old_newform_factor, 
+  image_of_old_newform_factor_using_operators to use divisors 
+  of the quotient of levels.
+  Modified get_NN to identify all subgroups that are conjugate in SL(2,Z/NZ), and use the 
+  method GetModSymPrimes defined in subspace.m, to prevent code duplication.
+
   Revision 1.20  2002/10/01 06:02:33  was
   nothing.
 
@@ -155,10 +162,10 @@ import "multichar.m": MC_Decomposition,
 
 import "operators.m":FastTn;
 
-import "subspace.m":  MinusSubspaceDual,
-                      PlusSubspaceDual;
-
-import "subspace.m":  MinusSubspace,
+import "subspace.m":  GetModSymPrimes,
+		      MinusSubspaceDual,
+                      PlusSubspaceDual,
+		      MinusSubspace,
                       PlusSubspace;
 
 forward             NewformDecompositionOfNewNonzeroSignSpaceOverQ,
@@ -507,11 +514,17 @@ end function;
 function image_of_old_newform_factor_using_operators(M, A)
    assert Type(M) eq ModSym;
    assert Type(A) eq ModSym;
-   // numdiv := NumberOfDivisors(Level(M) div Level(A));
-   G_M := Parent(DirichletCharacter(M))`Gamma;
-   G_A := Parent(DirichletCharacter(A))`Gamma;
-   numdiv := NumberOfDivisors(CuspWidth(G_M, Infinity()) div
-			      CuspWidth(G_A, Infinity()));
+   if IsOfGammaType(M) then
+       numdiv := NumberOfDivisors(Level(M) div Level(A));
+   else
+       G_M := Parent(DirichletCharacter(M))`Gamma;
+       G_A := Parent(DirichletCharacter(A))`Gamma;
+       /*
+       numdiv := NumberOfDivisors(CuspWidth(G_M, Infinity()) div
+				  CuspWidth(G_A, Infinity()));
+      */
+       numdiv := Level(G_M) div Level(G_A);
+   end if;
    d := Dimension(A) * numdiv;
    V := CuspidalSubspace(AmbientSpace(M));
    p := 2;
@@ -552,8 +565,11 @@ function image_of_old_newform_factor(M, A)
      if G_M eq G_A then
        return A;
      end if;
+     /*
      d := CuspWidth(G_M, Infinity()) div
 	  CuspWidth(G_A, Infinity());
+    */
+     d := Level(G_M) div Level(G_A);
      if IsPrime(d) or (d eq 1) then
          return image_of_old_newform_factor_using_degen_maps(M,A);
      else
@@ -595,7 +611,9 @@ function get_NN(M)
    idxs := Sort(SetToSequence(Keys(NN_idxs)));
    for idx in idxs do
       Nidx := NN_idxs[idx];
-      is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];
+//      is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];
+      is_conj := [[IsConjugate(ModLevel(G), x meet ModLevel(G),
+			       y meet ModLevel(G)) : x in Nidx] : y in Nidx];
       NN_idxs[idx] := {[Nidx[i] : i in [1..#Nidx] |
 			    is_conj[i][j]] : j in [1..#Nidx]};
    end for;
@@ -670,6 +688,13 @@ IsCuspidal(M) is true.}
         NN := Reverse([a : a in Divisors(N)]);
         pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
       else
+	  eps := DirichletCharacter(M);
+          G := Parent(eps)`Gamma;
+	  N := ImageInLevelGL(G);
+	  NN := get_NN(M);
+	  primes := GetModSymPrimes(M);
+	  G_N := ImageInLevelGL(LevelSubgroup(M));
+	  /*
         eps := DirichletCharacter(M);
         G := Parent(eps)`Gamma;
 	//        G_N := ImageInLevelGL(LevelSubgroup(M));
@@ -681,20 +706,25 @@ IsCuspidal(M) is true.}
         eta := ModLevelGL(G)![-1,0,0,1];
 // primes := [p : p in primes | (p meet SL_N)^eta eq (p meet SL_N)];
         primes := [p : p in primes | p^eta eq p];
-        is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in primes] :
-							    y in primes];
+        // is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in primes] :
+	//						    y in primes];
+	is_conj := [[IsConjugate(ModLevel(G), x meet ModLevel(G),
+				 y meet ModLevel(G)) : x in primes] :
+		    y in primes];
         primes := {[primes[i] : i in [1..#primes] |
 			    is_conj[i][j]] : j in [1..#primes]};
         primes := [y[1] : y in primes];
-	/*
+	
 	primes := [p : p in primes | CuspWidth(PSL2Subgroup(p), Infinity()) ne
 				     CuspWidth(G, Infinity())];
-       */
+      
 	primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
 	N_p := [Normalizer(ModLevelGL(G), p) : p in primes];
 
 	good := [i : i in [1..#primes] | G_N subset N_p[i]];
 	primes := [primes[i] : i in good];
+	*/
+	
 	pnew := [p : p in primes | IsNew(M,p)];
       end if;
 
@@ -791,6 +821,10 @@ intrinsic HasAssociatedNewSpace(M::ModSym) -> BoolElt
    return assigned M`associated_new_space;
 end intrinsic;
 
+// Interesting observation which I should ask Stein about -
+// When working with multicharacter spaces, he replaces each space in
+// the decomposition by the associated newspace (TraceSortDecomposition)
+// However, when working with single character spaces, he doesn't. Why?
 
 intrinsic SortDecomposition(D::[ModSym]) -> SeqEnum
 {Sort the sequence of spaces of modular symbols with respect to
@@ -1345,6 +1379,9 @@ function AssociatedSubspace(W, V)
    
    return RowSpace( BasisMatrix(V) * BasisMatrix(W) );
 end function;
+
+// This sometimed fails for arbitrary congruence subgroups.
+// Figure out why !!!!
 
 function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
    assert Type(M) eq ModSym;

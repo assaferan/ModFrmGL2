@@ -10,6 +10,9 @@ freeze;
    $Header: /home/was/magma/packages/ModSym/code/RCS/maps.m,v 1.8 2002/10/01 06:03:10 was Exp was $
 
    $Log: maps.m,v $
+   Revision 1.9  2020/09/07 11:28:29  was
+   Modified DegeneracyMatrix to use the quotient of levels instead of cusp widths.
+
    Revision 1.8  2002/10/01 06:03:10  was
    *** empty log message ***
 
@@ -477,10 +480,13 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
                Representation(M2))!MatrixAlgebra(F,Degree(M1))!1;
 
    elif G1 subset G2 then  // G1 subset G2 -- lower  
+/*
        require (CuspWidth(G1, Infinity()) div CuspWidth(G2, Infinity()))
 	       mod det eq 0 : 
-//       require (Level(G1) div Level(G2)) mod det eq 0 :
-              "Determinant of argument 3 must divide CuspWidth(G1) div CuspWidth(G2).";
+	       "Determinant of argument 3 must divide CuspWidth(G1) div CuspWidth(G2).";
+*/
+      require (Level(G1) div Level(G2)) mod det eq 0 :
+      "Determinant of argument 3 must divide Level(G1) div Level(G2).";
       bool, eps21 := IsCoercible(Parent(eps2), eps1);
       require bool and eps21 eq eps2 :
          "Arguments 1 and 2 must have compatible dirichlet characters.";
@@ -506,9 +512,11 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
       A := otherA;
 
 elif G2 subset G1 then// G2 subset G1 -- raise level
-    require (CuspWidth(G2, Infinity()) div CuspWidth(G1, Infinity()))
-	    mod det eq 0 : 
-      "Determinant of Argument 3 must divide CuspWidth(G2) div CuspWidth(G1).";
+    //   require (CuspWidth(G2, Infinity()) div CuspWidth(G1, Infinity()))
+    require Level(G2) div Level(G1)
+	    mod det eq 0 :
+      "Determinant of Argument 3 must divide Level(G2) div Level(G1).";
+ //     "Determinant of Argument 3 must divide CuspWidth(G2) div CuspWidth(G1).";
 
  
      bool, eps12 := IsCoercible(Parent(eps1), eps2);

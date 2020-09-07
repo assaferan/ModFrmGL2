@@ -18,6 +18,9 @@ freeze;
    $Header: /home/was/magma/packages/ModSym/code/RCS/modsym.m,v 1.18 2002/08/25 19:39:33 was Exp was $
 
    $Log: modsym.m,v $
+   Revision 1.19  2002/09/07 11:30:11  was
+   Modified '!!' to use the levels instead of cusp widths.
+
    Revision 1.18  2002/08/25 19:39:33  was
    Add support for multichar spaces in coercion.
 
@@ -1460,6 +1463,7 @@ return M3, otherwise terminate with an error.}
        end if;
    end if;
 
+   /*
    if IsOfGammaType(M1) then
        N1 := Level(M1);
        N2 := Level(M2);
@@ -1467,6 +1471,9 @@ return M3, otherwise terminate with an error.}
        N1 := CuspWidth(LevelSubgroup(M1), Infinity());
        N2 := CuspWidth(LevelSubgroup(M2), Infinity());
    end if;
+  */
+   N1 := Level(M1);
+   N2 := Level(M2);
    
 /*   divisors := Divisors(Level(M1) mod Level(M2) eq 0 select
                            Level(M1) div Level(M2) 

@@ -11,6 +11,10 @@ freeze;
    $Header: /home/was/magma/packages/ModFrm/code/RCS/predicates.m,v 1.7 2002/08/26 20:12:58 was Exp was $
 
    $Log: predicates.m,v $
+
+   Revision 1.8  2020/09/07 11:03:37  was
+   Modified Precision to depend on the cusp width.
+
    Revision 1.7  2002/08/26 20:12:58  was
    Deleted a comment.
 
@@ -678,7 +682,14 @@ intrinsic Precision(M::ModFrm) -> RngIntElt
       return Precision(AmbientSpace(M));
    end if;
    if not assigned M`default_precision or M`default_precision eq -1 then
-      M`default_precision := 12;
+      if IsOfGammaType(M) then
+	  M`default_precision := 12;
+      else
+	  G := LevelSubgroup(M);
+	  h := CuspWidth(G, Infinity());
+	  N := Level(M);
+	  M`default_precision := 12 * N div h;
+      end if;
    end if;
    return M`default_precision;
 end intrinsic;

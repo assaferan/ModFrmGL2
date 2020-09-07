@@ -306,14 +306,15 @@ end intrinsic;
 
 intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
 	     {Currently assumes the same level.}
-/*
+
    require ModLevelGL(G) eq ModLevelGL(H) :
           "the groups must be of the same level";
    return ImageInLevelGL(G)/ImageInLevelGL(H);
-*/
+/*
    require ModLevel(G) eq ModLevel(H) :
           "the groups must be of the same level";
    return ImageInLevel(G)/ImageInLevel(H);
+*/
 end intrinsic;
 
 //////////////////////////////////////////////////////////

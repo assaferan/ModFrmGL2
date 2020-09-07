@@ -7,6 +7,12 @@ freeze;
                                                                             
    FILE: subspace.m (Cuspidal, Eisenstein, etc. subspaces)
 
+   09/07/20: (Eran) Modified NewSubspace, prepare_old_spaces, 
+             NewSewSubspaceSub to use quotient of levels instead of cusp widths.
+             Modified prepare_old_spaces ot use the groups in GL(2,Z/NZ).
+             Added the function GetModSymPrimes to be used both here and in decomp.m.
+             Modified NewSubspace accordingly.
+
    08/16/03: (WAS) Fixed a bug in NewSubspace(M::ModSym) where a circular
              reference to a space is caused when the level is 1.
              Kevin Buzzard found this bug. 
@@ -385,8 +391,11 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
 
    // l := Level(M) div calcLevel(oldp_prime);
    G_M := Parent(DirichletCharacter(M))`Gamma;
+   /*
    l := CuspWidth(G_M,Infinity()) div
 	CuspWidth(oldp, Infinity());
+  */
+   l := Level(G_M) div Level(oldp);
    assert IsPrime(l) or (l eq 1); // Else something is wrong here
    alphas := get_degeneracy_reps(AM, old, Divisors(l));
    for alpha in alphas do
@@ -510,29 +519,29 @@ end intrinsic;
 
 function prepare_old_spaces(M, primes)
    G := LevelSubgroup(M);
-   // G_N := ImageInLevelGL(G);
-   G_N := ImageInLevel(G);
+   G_N := ImageInLevelGL(G);
+   // G_N := ImageInLevel(G);
    eps   := DirichletCharacter(M);
    H := Parent(eps)`Gamma;
    H_N := ImageInLevelGL(H);
    pi_Q := Parent(eps)`QuotientMap;
 
-   primes := [p : p in primes | not p subset G_N];
-   primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
-   N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
+//   primes := [p : p in primes | not p subset G_N];
+//   primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
+//   N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
 
-   good := [i : i in [1..#primes] | G_N subset N_p[i]];
-   primes := [primes[i] : i in good];
+//   good := [i : i in [1..#primes] | G_N subset N_p[i]];
+//   primes := [primes[i] : i in good];
 
    N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
-   oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
-   oldp := [PSL2Subgroup(p, true) : p in primes];
- //  oldp_prime := [PSL2Subgroup(p_prime, false) : p_prime in N_p];
- //  oldp := [PSL2Subgroup(p, false) : p in primes];
+   // oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
+   // oldp := [PSL2Subgroup(p, true) : p in primes];
+   oldp_prime := [PSL2Subgroup(p_prime, false) : p_prime in N_p];
+   oldp := [PSL2Subgroup(p, false) : p in primes];
    old := [];
    for i in [1..#primes] do
-      //Q, pi_Q := N_p[i] / primes[i];
-      Q, pi_Q := oldp_prime[i] / oldp[i];
+      Q, pi_Q := N_p[i] / primes[i];
+      // Q, pi_Q := oldp_prime[i] / oldp[i];
       eps_res := CharacterGroup(pi_Q, BaseRing(M),
 				oldp_prime[i], oldp[i])!eps;
       Append(~old,ModularSymbols(eps_res, Weight(M), Sign(M)));
@@ -580,8 +589,11 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 	     // p := Level(M) div calcLevel(LevelSubgroup(old[i]));
 	     G_M := Parent(DirichletCharacter(M))`Gamma;
 	     G_old := Parent(DirichletCharacter(old[i]))`Gamma;
+	     /*
 	     p := CuspWidth(G_M, Infinity()) div
 		  CuspWidth(G_old, Infinity());
+	    */
+	     p := Level(G_M) div Level(G_old);
              assert IsPrime(p) or (p eq 1); // Else something is wrong here
              alphas[i] := get_degeneracy_reps(AM, old[i], Divisors(p));
              for alpha in alphas[i] do
@@ -643,6 +655,52 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
    return Mnew;
 end function;
 
+function GetModSymPrimes(M)
+    if IsOfGammaType(M) then 
+        primes := [tup[1] : tup in Factorization(Level(M))];
+    else
+	if IsMultiChar(M) then
+            G := LevelSubgroup(M);
+        else
+            eps := DirichletCharacter(M);
+            G := Parent(eps)`Gamma;
+        end if;
+        GL_N := ModLevelGL(G);
+        H := ImageInLevelGL(G);
+        primes := MinimalOvergps(GL_N,H);
+	// G_N := ImageInLevel(LevelSubgroup(M));
+	G_N := ImageInLevelGL(LevelSubgroup(M));
+        
+	// Is this necessary?
+	// yes!!! For the hecke operators in the source to commute
+	// with the star involution
+        eta := GL_N![-1,0,0,1];
+        primes := [p : p in primes | p^eta eq p];
+        // is_conj := [[IsConjugate(GL_N, x, y) : x in primes] : y in primes];
+	
+	is_conj := [[IsConjugate(ModLevel(G), x meet ModLevel(G),
+				 y meet ModLevel(G)) : x in primes] :
+		    y in primes];
+       
+        primes := {[primes[i] : i in [1..#primes] |
+			    is_conj[i][j]] : j in [1..#primes]};
+        primes := [y[1] : y in primes];
+/*	
+	primes := [p : p in primes | CuspWidth(PSL2Subgroup(p), Infinity()) ne
+				     CuspWidth(G, Infinity())];
+*/
+	if not IsMultiChar(M) then
+	    primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
+	end if;
+	N_p := [Normalizer(GL_N, p) : p in primes];
+
+	good := [i : i in [1..#primes] | G_N subset N_p[i]];
+	primes := [primes[i] : i in good];
+	// That's weird, maybe intended initially to get rid of G itself?
+	// primes := [p : p in primes | not p subset G_N];
+    end if;
+    return primes;
+end function;
 
 intrinsic NewSubspace(M::ModSym : ComputeDual:=true) -> ModSym
 {The new subspace of the cuspidal modular symbols space M.   
@@ -659,34 +717,7 @@ over all prime divisors of the level of M}
    if not assigned M`new_part then
       vprintf ModularSymbols: "Computing new part of %o\n", M;
 
-      if IsOfGammaType(M) then 
-         primes := [tup[1] : tup in Factorization(Level(M))];
-      else
-	if IsMultiChar(M) then
-          G := LevelSubgroup(M);
-        else
-          eps := DirichletCharacter(M);
-          G := Parent(eps)`Gamma;
-        end if;
-        G_N := ModLevelGL(G);
-        H := ImageInLevelGL(G);
-        primes := MinimalOvergps(G_N,H);
-        
-// Is this necessary? yes!!! For the hecke operators in the source to commute
-// with the star involution
-        eta := G_N![-1,0,0,1];
-// SL_N := ModLevel(G);
-//        primes := [p : p in primes | (p meet SL_N)^eta eq p meet SL_N];
-        primes := [p : p in primes | p^eta eq p];
-        is_conj := [[IsConjugate(G_N, x, y) : x in primes] : y in primes];
-        primes := {[primes[i] : i in [1..#primes] |
-			    is_conj[i][j]] : j in [1..#primes]};
-        primes := [y[1] : y in primes];
-	/*
-	primes := [p : p in primes | CuspWidth(PSL2Subgroup(p), Infinity()) ne
-				     CuspWidth(G, Infinity())];
-*/
-      end if;
+      primes := GetModSymPrimes(M);
 
       if IsMultiChar(M) then
          // This is the old version of NewSubspace (TO DO)

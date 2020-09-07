@@ -10,6 +10,18 @@ freeze;
    $Header: /home/was/magma/packages/ModSym/code/RCS/analytic.m,v 1.7 2002/10/01 06:01:53 was Exp $
 
    $Log: analytic.m,v $
+   Revision 1,8  2020/09/07 11:18:04  was
+   Modified Int2 to be able to use any embedding of the coefficients into the complex 
+   numbers (in order to be able to compute periods for forms over an extension), and 
+   anhy cusp width.
+   Modified PeriodIntegral to use arbitrary embedding and cusp width.
+   Modified SlowPeriodIntegral accoridngly.
+   Added NextElementNotGamma to generate period generators when the group is not Gamma0(N)
+   Modified PeriodGenerators to be able to handle the case of Gamma(N)
+   Added PeriodMapping(A,Q) - computing a period mapping with respect to specific 
+   basis of q-expansions. That way we may compute for forms different than the 
+   qIntegralBasis.
+
    Revision 1.7  2002/10/01 06:01:53  was
    ..
 
@@ -227,17 +239,20 @@ end function;
 // Compute Int_{alp}^{oo} P(z)*f(q) dz, using              //
 // an explicit formula derived via integration by parts.   //
 /////////////////////////////////////////////////////////////
-function Int2(f, alp, m, N)
-   C := ComplexField();
-   return &+[Int1(alp,m,n/N,C)*(C!Coefficient(f,n)) : n in [1..Degree(f)]];
+function Int2(f, alp, m, N, sigma)
+    C := ComplexField();
+    return &+[Int1(alp,m,n/N,C)*sigma(Coefficient(f,n)) : n in [1..Degree(f)]];
 end function;
 
-function PeriodIntegral(f, P, alpha, N)
+function PeriodIntegral(f, P, alpha, N : sigma := 1)
    // {Computes <f, P\{alpha,oo\}> = -2*pi*I*Int_{alp}^{oo} P(z) f(q) dz
    // for alpha any point 
    // in the upper half plane.}
-   C := ComplexField(); i := C.1;
-   return -2*Pi(C)*i* &+[Int2(f,alpha,m,N)* (C!Coefficient(P,m))      
+    C := ComplexField(); i := C.1;
+    if (Type(sigma) eq RngIntElt) and (sigma eq 1) then
+	sigma := hom<Rationals() -> C|>;
+    end if;
+   return -2*Pi(C)*i/N* &+[Int2(f,alpha,m,N,sigma)*sigma(Coefficient(P,m))      
                : m in [0..Degree(P)] | Coefficient(P,m) ne 0];
 end function;
 
@@ -306,7 +321,7 @@ end function;
 
 
 
-function SlowPeriodIntegral(A, f, Pg)
+function SlowPeriodIntegral(A, f, Pg : sigma := 1)
 /* A::ModSym,  f::RngSerPowElt, Pg::Tup) -> FldComElt
  Given a homogeneous polynomial P(X,Y) of degree k-2, 
  a 2x2 matrix g=[a,b,c,d], and a q-expansion f of a weight k
@@ -353,7 +368,57 @@ function SlowPeriodIntegral(A, f, Pg)
      eps_g := C!1;
    end if;
    N := CuspWidth(LevelSubgroup(A), Infinity());
-   return eps_g*PeriodIntegral(f,giP,alp,N) - PeriodIntegral(f,P,galp,N);
+   return eps_g*PeriodIntegral(f,giP,alp,N : sigma := sigma)
+	  - PeriodIntegral(f,P,galp,N : sigma := sigma);
+end function;
+
+// !!! TODO : Unite these two functions
+// This function is working for Gamma(N),
+// But not yet for other groups.
+// Figure out what should make it work in general.
+// We would like to obtain here an element that actually lies in Gamma (!!)
+
+function NextElementNotGamma(N,k,P,g, fast)
+    R<X,Y> := Parent(P);
+    if fast then
+	if Random(1,2) eq 1 then
+            repeat
+		g[2] +:= 1;
+            until Gcd(g[2],N) eq 1;
+	else
+            repeat
+		g[4] +:= 1;
+            until Gcd(g[4],N) eq 1;
+	end if;
+	while Gcd(g[4],g[2]) ne 1 do
+            g[2] +:= 1;
+	end while;
+	d, g[1], g[3] := Xgcd(g[4],-g[2]);
+	P :=  k gt 2 select 
+              ( (1-g[1]*g[4])*X^2 - g[2]*(g[4]-g[1])*X*Y + g[2]^2*Y^2)^((k-2) div 2)  
+              else 
+              R!1;
+    else
+	if P ne Y^(k-2) then
+            P := R!(P/X) * Y;
+	else  
+            P := X^(k-2);
+            // only change g after trying all P's. 
+            if g[1] lt g[3] * N then
+		// g[1] +:= 1;
+		g[1] +:= N;
+            else
+		g[3] +:= N;
+            end if;
+            while Gcd(g[1],g[3]) ne 1 do
+		// g[1] +:= Sign(g[1]);
+		g[1] +:= Sign(g[1]) * N;
+            end while;
+            d, g[4], g[2] := Xgcd(g[1],-g[3]*N);
+	    g[2] *:= N;
+	end if;
+    end if;
+    return P, g;
 end function;
 
 
@@ -440,6 +505,7 @@ function PeriodGenerators(A, fast)
       M  := AmbientSpace(A);
       sign := Sign(M);
       N  := Level(A);
+      h := CuspWidth(LevelSubgroup(A), Infinity());
       k  := Weight(A);
       pi := RationalPeriodMapping(A);    // M_k --> Mk/Ker(Phi)
       V  := Image(pi);
@@ -448,12 +514,16 @@ function PeriodGenerators(A, fast)
       X  := [];
       RR<a,b>  := PolynomialRing(BaseField(A),2);
       P  := a^(k-2);      
-      g  := [1,N,0,1];
+      g  := [1,N * h^2,0,1];
       star := StarInvolution(M);
       cnt := 0;
       while Dimension(S) lt Dimension(V) do
-         repeat
-            P,g := NextElement(N,k,P,g,fast); 
+          repeat
+	    if IsOfGammaType(A) then  
+		P,g := NextElement(N,k,P,g,fast);
+	    else
+		P,g := NextElementNotGamma(h,k,P,g,fast);
+	    end if;
          until g[3] ne 0;
          x := Representation(M!<P, [[1,0],[g[1],g[3]]]>);
          // image of x+*(x) and x-*(x)
@@ -494,6 +564,51 @@ function PeriodGenerators(A, fast)
    return A`PeriodGens, A`PGfast;
 end function;
 
+intrinsic PeriodMapping(A::ModSym, Q::SeqEnum[RngSerPowElt] : 
+			sigma := 1, prec := 30) -> Map
+{The complex period mapping, computed using n terms of q-expansion.  
+ The period map is a homomorphism M --> C^d, where d = #Q.}
+
+   vprint ModularSymbols : "Computing period mapping.";
+   
+   vprint ModularSymbols : "Computing period generators.";     
+   G, _  := PeriodGenerators(A, false);
+
+   C := ComplexField(prec); i := C.1;
+   Cd := VectorSpace(C, #Q);
+
+   vprint ModularSymbols : "Computing period integrals.";     
+   P  := [Cd![SlowPeriodIntegral(A,Q[i],x : sigma := sigma)
+	      : i in [1..#Q]] : x in G];
+
+   vprint ModularSymbols : "Constructing period mapping from integrals.";
+   M := AmbientSpace(A);
+   star := StarInvolution(M);
+   gens := &cat[[v + v*star, v - v*star] where v is 
+                ConvFromModularSymbol(M,
+				      [ <x[1],[[1,0],[x[2][1],x[2][3]]]>] ) 
+                : x in G];
+   // Here this should be different when not working over Q
+   // images of the gens
+   periods := &cat[[2*Cd![Real(z):z in Eltseq(x)],
+                    2*i*Cd![Imaginary(z):z in Eltseq(x)]] : x in P];
+      
+   pi := RationalPeriodMapping(A);
+   PG := [ pi(Representation(g)) : g in gens];
+   V  := VectorSpaceWithBasis(PG);      
+      
+   IMAGES := 
+       [ &+[periods[i]*coord[i] : i in [1..#coord]] where
+         coord is Coordinates(V, pi(b)) 
+         :        b in Basis(DualRepresentation(M))  ];
+   W := VectorSpace(C,Degree(IMAGES[1]));
+   
+   periodMap := hom<M->W | x :-> &+[y[i]*IMAGES[i] : i in [1..#y]] where
+                                 y := Eltseq(x)>;
+
+   return periodMap;
+end intrinsic;
+ 
 
 
 intrinsic PeriodMapping(A::ModSym, prec::RngIntElt) -> Map

@@ -10,6 +10,9 @@ freeze;
    $Header: /home/was/magma/packages/modsym/code/RCS/elliptic.m,v 1.6 2001/12/09 04:19:48 was Exp $
 
    $Log: elliptic.m,v $
+   Revision 1.7  2020/09/07 11:27:54  was
+   Modified EllipticCurve to take the group's cusp width into account.
+
    Revision 1.6  2001/12/09 04:19:48  was
    Made the is_cuspidal check in EllipticCurve weaker.
 
@@ -260,8 +263,9 @@ intrinsic EllipticCurve(M::ModSym :
       end if;
       Include(~seen, [c4,c6]);
       if IsEllipticCurve([-27*c4,-54*c6]) then
-         E := EllipticCurve([-27*c4,-54*c6]);
-         if Conductor(E) eq Level(M) then
+          E := EllipticCurve([-27*c4,-54*c6]);
+	  h := CuspWidth(LevelSubgroup(M), Infinity());
+         if Conductor(E) eq Level(M)*h then
             found := true;
             if IsVerbose("ModularSymbols") then
                printf "Candidate curve [%o,%o]:\n",c4,c6;
