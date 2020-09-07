@@ -485,8 +485,9 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 	       mod det eq 0 : 
 	       "Determinant of argument 3 must divide CuspWidth(G1) div CuspWidth(G2).";
 */
-      require (Level(G1) div Level(G2)) mod det eq 0 :
-      "Determinant of argument 3 must divide Level(G1) div Level(G2).";
+       // require (Level(G1) div Level(G2)) mod det eq 0 :
+       require Level(G1) mod det eq 0 : 
+      "Determinant of argument 3 must divide Level(G1)."; // div Level(G2).";
       bool, eps21 := IsCoercible(Parent(eps2), eps1);
       require bool and eps21 eq eps2 :
          "Arguments 1 and 2 must have compatible dirichlet characters.";
@@ -513,9 +514,9 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 
 elif G2 subset G1 then// G2 subset G1 -- raise level
     //   require (CuspWidth(G2, Infinity()) div CuspWidth(G1, Infinity()))
-    require Level(G2) div Level(G1)
+    require Level(G2) // div Level(G1)
 	    mod det eq 0 :
-      "Determinant of Argument 3 must divide Level(G2) div Level(G1).";
+      "Determinant of Argument 3 must divide Level(G2)."; // div Level(G1).";
  //     "Determinant of Argument 3 must divide CuspWidth(G2) div CuspWidth(G1).";
 
  

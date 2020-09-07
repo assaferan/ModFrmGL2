@@ -1,10 +1,10 @@
 import "ModSym/operators.m" : ActionOnModularSymbolsBasis;
-import "ModSym/operators.m" : ActionOnModularSymbolsBasis;
 import "ModSym/qexpansion.m" : EigenvectorModSymSign,
        get_eigenvector_galois_orbit,
        get_eigenform_galois_orbit;
 import "ModSym/linalg.m" : Restrict;
 import "ModSym/modsym.m" : get_degeneracy_reps;
+
 // Here we try to use the GL2 action on X(p) to get q-expansions of eigenforms
 // of weight 2 (differentials) so we can get an equation
 function get_ns_qexp(N, prec : plus := false)
@@ -256,8 +256,10 @@ function find_xi_slow(N, prec)
 	end while;
 	ev_plus := apply_aut(sig_plus[1], ev_plus);
 	ev_minus := apply_aut(sig_minus[1], ev_minus);
-	N1 := CuspWidth(LevelSubgroup(d_old), Infinity());
-	N2 := CuspWidth(LevelSubgroup(d), Infinity());
+	// N1 := CuspWidth(LevelSubgroup(d_old), Infinity());
+	// N2 := CuspWidth(LevelSubgroup(d), Infinity());
+	N1 := Level(d_old);
+	N2 := Level(d);
 	divisors := Divisors(N1 mod N2 eq 0
 			     select N1 div N2 else N2 div N1);
 	divisors := get_degeneracy_reps(d_old, d, divisors);
@@ -395,8 +397,10 @@ function find_xi(N, prec)
 	end while;
 	ev_plus := apply_aut(sig_plus[1], ev_plus);
 	ev_minus := apply_aut(sig_minus[1], ev_minus);
-	N1 := CuspWidth(LevelSubgroup(d_old), Infinity());
-	N2 := CuspWidth(LevelSubgroup(d), Infinity());
+	// N1 := CuspWidth(LevelSubgroup(d_old), Infinity());
+	// N2 := CuspWidth(LevelSubgroup(d), Infinity());
+	N1 := Level(d_old);
+	N2 := Level(d);
 	divisors := Divisors(N1 mod N2 eq 0
 			     select N1 div N2 else N2 div N1);
 	divisors := get_degeneracy_reps(d_old, d, divisors);
@@ -525,7 +529,6 @@ function action_on_mod_sym(N)
   D := NewformDecomposition(S);
   G := SL(2, Integers(N));
   gens := [Eltseq(FindLiftToSL2(x)): x in Generators(G)];
-  import "./Geometry/ModSym/operators.m" : ActionOnModularSymbolsBasis;
   actions := [ActionOnModularSymbolsBasis(g, M) : g in gens];
   F := CyclotomicField(7);
   S_action := [ChangeRing(Restrict(a, VectorSpace(S)),F) : a in actions];

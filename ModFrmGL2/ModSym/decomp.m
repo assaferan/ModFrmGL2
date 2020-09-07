@@ -151,7 +151,8 @@ import "linalg.m" : KernelOn,
 import "misc.m" : IntermediateSubgps,
                   MinimalOvergps;
 
-import "modsym.m" : ModularSymbolsDual,
+import "modsym.m" : get_degeneracy_reps,
+		    ModularSymbolsDual,
                     ModularSymbolsSub;
 
 import "multichar.m": MC_Decomposition,
@@ -523,7 +524,8 @@ function image_of_old_newform_factor_using_operators(M, A)
        numdiv := NumberOfDivisors(CuspWidth(G_M, Infinity()) div
 				  CuspWidth(G_A, Infinity()));
       */
-       numdiv := Level(G_M) div Level(G_A);
+       //       numdiv := Level(G_M) div Level(G_A);
+       numdiv := #get_degeneracy_reps(M, A, Divisors(Level(G_M)));
    end if;
    d := Dimension(A) * numdiv;
    V := CuspidalSubspace(AmbientSpace(M));

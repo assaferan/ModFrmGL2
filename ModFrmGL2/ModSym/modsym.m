@@ -1363,35 +1363,33 @@ intrinsic IsCoercible(M::ModSym,x::.) -> BoolElt, ModSymElt
 end intrinsic;
 
 function get_degeneracy_reps(M1, M2, divisors)
-  candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]] :
-		     a in Divisors(n)] : n in divisors];
-// at the moment we only support trivial (type I) degeneracy reps
-//  candidates := [[1,0,0,1]];
-//   candidates := [[1,0,0,n] : n in divisors];
-  candidates := [GL(2,Rationals())!x : x in candidates];
-  G1 := LevelSubgroup(M1);
-  G2 := LevelSubgroup(M2);
-  if (G1 subset G2) then
-     G := G1;
-     H := G2;
-  else
-     G := G2;
-     H := G1;
-  end if;
-      
-  gens := Generators(G);
-  conj_gens := [[GL(2,Rationals())!Matrix(g)^alpha : g in gens]
-			  : alpha in candidates];
-  M2Z := MatrixAlgebra(Integers(),2);
-  is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
-				cg in conj_gens];
-  candidates := [candidates[j] : j in [1..#candidates] |
-				  is_coercible[j]];
-  conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
-				  is_coercible[j]];
-  is_good := [&and[g in H : g in cg] : cg in conj_gens];
-  single_divisors := [candidates[j] : j in [1..#candidates] |
-			 is_good[j]];
+    candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]
+			     | GCD(b, GCD(a, n div a)) eq 1] :
+			    a in Divisors(n)] : n in divisors];
+    candidates := [GL(2,Rationals())!x : x in candidates];
+    G1 := LevelSubgroup(M1);
+    G2 := LevelSubgroup(M2);
+    if (G1 subset G2) then
+	G := G1;
+	H := G2;
+    else
+	G := G2;
+	H := G1;
+    end if;
+    
+    gens := Generators(G);
+    conj_gens := [[GL(2,Rationals())!Matrix(g)^alpha : g in gens]
+		  : alpha in candidates];
+    M2Z := MatrixAlgebra(Integers(),2);
+    is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
+		     cg in conj_gens];
+    candidates := [candidates[j] : j in [1..#candidates] |
+		   is_coercible[j]];
+    conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
+		  is_coercible[j]];
+    is_good := [&and[g in H : g in cg] : cg in conj_gens];
+    single_divisors := [candidates[j] : j in [1..#candidates] |
+			is_good[j]];
 
   // I thought this should help, but these maps don't necessarily commute
   // with the Hecke Operators
@@ -1482,7 +1480,8 @@ return M3, otherwise terminate with an error.}
 */
    divisors := Divisors(N1 mod N2 eq 0 select N1 div N2 else N2 div N1);
    if not IsOfGammaType(M1) then
-      divisors := get_degeneracy_reps(M1, M2, divisors);
+       // divisors := get_degeneracy_reps(M1, M2, divisors);
+       divisors := get_degeneracy_reps(M1, M2, Divisors(LCM(N1, N2)));
    end if;
 
    B := Basis(VectorSpace(M2));

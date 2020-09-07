@@ -1586,3 +1586,14 @@ intrinsic Sqrt(eps::GrpDrchElt) -> GrpDrchElt
    require t : msg;
    return sqrt_eps;   
 end intrinsic;
+
+intrinsic GaussSum(eps : GrpDrchElt) -> FldCycElt
+{Compute the Gauss sum of eps, where eps is a Dirichlet Character.}
+    N := Conductor(eps);
+    if N eq 1 then
+	return 1;
+    end if;
+    Z_N_star := [i : i in [0..N-1] | GCD(i,N) eq 1];
+    K<zeta> := CyclotomicField(N);
+    return &+[eps(n)*zeta^n : n in Z_N_star];
+end intrinsic;
