@@ -1487,7 +1487,24 @@ return M3, otherwise terminate with an error.}
    B := Basis(VectorSpace(M2));
    imB := [];
    for d in divisors do
-      f := DegeneracyMatrix(AmbientSpace(M2),AmbientSpace(M1),d);
+       f := DegeneracyMatrix(AmbientSpace(M2),AmbientSpace(M1),d);
+       /*
+       is_invariant := true;
+       if not IsOfGammaType(M1) then
+	   // Check that f commutes with the Hecke operators
+	   // at primes dividing the level
+	   primes := [x[1] : x in Factorization(N1)];
+	   for p in primes do
+	       Tp1 := HeckeOperator(AmbientSpace(M1), p);
+	       Tp2 := HeckeOperator(AmbientSpace(M2), p);
+	       if f * Tp1 ne Tp2 * f then
+		   is_invariant := false;
+		   break;
+	       end if;
+	   end for;
+       end if;
+       if not is_invariant then continue; end if;
+*/
       for b in B do
          v := b*f;
          require v in VectorSpace(M1) :
@@ -1498,7 +1515,7 @@ return M3, otherwise terminate with an error.}
    return ModularSymbolsSub(M1, sub<VectorSpace(M1) | imB>);
    // Why did I add the following check??  ( ---Steve)
    ans := ModularSymbolsSub(M1, sub<VectorSpace(M1) | imB>);
-   error if Dimension(ans) eq 0, "Coerced structure has dimension 0, we're told";
+   // error if Dimension(ans) eq 0, "Coerced structure has dimension 0, we're told";
    return ans;
 end intrinsic;
 

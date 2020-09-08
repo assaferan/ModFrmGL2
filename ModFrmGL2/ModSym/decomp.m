@@ -525,7 +525,26 @@ function image_of_old_newform_factor_using_operators(M, A)
 				  CuspWidth(G_A, Infinity()));
       */
        //       numdiv := Level(G_M) div Level(G_A);
-       numdiv := #get_degeneracy_reps(M, A, Divisors(Level(G_M)));
+       divs := get_degeneracy_reps(M, A, Divisors(Level(G_M)));
+       numdiv := #divs;
+       /*
+       is_invariant := true;
+       for d in divs do
+	   f := DegeneracyMatrix(AmbientSpace(M),AmbientSpace(A),d);
+	   // Check that f commutes with the Hecke operators
+	   // at primes dividing the level
+	   primes := [x[1] : x in Factorization(Level(M))];
+	   for p in primes do
+	       TpA := HeckeOperator(AmbientSpace(A), p);
+	       TpM := HeckeOperator(AmbientSpace(M), p);
+	       if f * TpA ne TpM * f then
+		   is_invariant := false;
+		   break;
+	       end if;
+	   end for;
+       end for;
+if not is_invariant then return ModularSymbolsSub(V, sub<VectorSpace(V)|>); end if;
+*/
    end if;
    d := Dimension(A) * numdiv;
    V := CuspidalSubspace(AmbientSpace(M));
@@ -538,6 +557,7 @@ function image_of_old_newform_factor_using_operators(M, A)
       end if;
       V := Kernel([<p,f>], V);
       p := NextPrime(p);
+      error if p gt HeckeBound(M), "Image of old newform factor is smaller than an irreducible piece.";
    end while;         
    error if Dimension(V) ne d, "Bug in image_of_old_newform_factor_using_operators";
    return V;
@@ -552,31 +572,41 @@ function image_of_old_newform_factor(M, A)
    assert Level(M) mod Level(A) eq 0;
    if IsOfGammaType(M) then
       if Level(M) eq Level(A) then
-         return A;
+         return A, true;
       end if;
       d := Level(M) div Level(A);
       if IsPrime(d) then
-         return image_of_old_newform_factor_using_degen_maps(M,A);
+         return image_of_old_newform_factor_using_degen_maps(M,A), true;
       else
-         return image_of_old_newform_factor_using_operators(M,A);
+         return image_of_old_newform_factor_using_operators(M,A), true;
       end if;
    else
        //if LevelSubgroup(M) eq LevelSubgroup(A) then
      G_M := Parent(DirichletCharacter(M))`Gamma;
      G_A := Parent(DirichletCharacter(A))`Gamma;
      if G_M eq G_A then
-       return A;
+       return A, true;
      end if;
      /*
      d := CuspWidth(G_M, Infinity()) div
 	  CuspWidth(G_A, Infinity());
     */
+     /*
      d := Level(G_M) div Level(G_A);
      if IsPrime(d) or (d eq 1) then
          return image_of_old_newform_factor_using_degen_maps(M,A);
      else
          return image_of_old_newform_factor_using_operators(M,A);
      end if;
+    */
+     B := image_of_old_newform_factor_using_degen_maps(M,A);
+     try
+	 B2 := image_of_old_newform_factor_using_operators(M,A);
+     catch e
+	 return B, false;
+     end try;
+
+     return B, B eq B2;
    end if;
 end function;
 
@@ -772,8 +802,8 @@ IsCuspidal(M) is true.}
         
          // Take all images of DD in M.
          for A in DD do
-            B := image_of_old_newform_factor(M,A);       
-            if B subset M then
+            B, is_factor := image_of_old_newform_factor(M,A);
+            if is_factor and (B subset M) then
                Append(~D,B);
                D[#D]`associated_new_space := A;
                D[#D]`associated_new_space`associated_new_space := true;

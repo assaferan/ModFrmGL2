@@ -395,8 +395,9 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    l := CuspWidth(G_M,Infinity()) div
 	CuspWidth(oldp, Infinity());
   */
-   l := Level(G_M) div Level(oldp);
-   assert IsPrime(l) or (l eq 1); // Else something is wrong here
+   // l := Level(G_M) div Level(oldp);
+   // assert IsPrime(l) or (l eq 1); // Else something is wrong here
+   l := Level(G_M);
    alphas := get_degeneracy_reps(AM, old, Divisors(l));
    for alpha in alphas do
       Append(~Dmats, DegeneracyMatrix(AM, old, alpha));
@@ -593,8 +594,9 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 	     p := CuspWidth(G_M, Infinity()) div
 		  CuspWidth(G_old, Infinity());
 	    */
-	     p := Level(G_M) div Level(G_old);
-             assert IsPrime(p) or (p eq 1); // Else something is wrong here
+	     // p := Level(G_M) div Level(G_old);
+             // assert IsPrime(p) or (p eq 1); // Else something is wrong here
+	     p := Level(G_M);
              alphas[i] := get_degeneracy_reps(AM, old[i], Divisors(p));
              for alpha in alphas[i] do
 		 Append(~Dmats, DegeneracyMatrix(AM, old[i], alpha));

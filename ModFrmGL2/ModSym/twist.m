@@ -21,6 +21,19 @@ intrinsic Twist(f::RngSerPowElt, chi::GrpDrchElt) -> RngSerPowElt
     return &+[twisted_coeffs[n+1] * q^n : n in [0..#twisted_coeffs-1]] + O(q^prec);
 end intrinsic;
 
+intrinsic ApplyAut(sigma::Map, vec::ModTupFldElt) -> ModTupFldElt
+{Apply the automorphism sigma to the vector vec.}
+    return Vector([sigma(x) : x in Eltseq(vec)]);    
+end intrinsic;
+
+intrinsic ApplyAut(sigma::Map, f::RngSerPowElt) -> RngSerPowElt
+{Apply the automorphism sigma to the power series f.}
+    prec := AbsolutePrecision(f);
+    coeffs := AbsEltseq(f);
+    _<q> := Parent(f);
+    return &+[sigma(coeffs[n+1])*q^n : n in [0..#coeffs-1]] + O(q^prec);    
+end intrinsic;
+
 // Given f in a FldNum, express f as a poly in the gens
 
 function relation(f, gens)
