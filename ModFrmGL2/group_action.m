@@ -9,7 +9,7 @@ import "ModSym/modsym.m" : get_degeneracy_reps;
 // of weight 2 (differentials) so we can get an equation
 function get_ns_qexp(N, prec : plus := false)
     G := GL(2,Integers(N));
-    M := ModularSymbols(PSL2Subgroup(sub<G|[-1,0,0,-1]>),2, Rationals(),0);
+    M := ModularSymbols(CongruenceSubgroup(N),2, Rationals(),0);
     S := CuspidalSubspace(M);
     Z := Center(G);
     PG, quo_G := G / Z;
@@ -260,8 +260,11 @@ function find_xi_slow(N, prec)
 	// N2 := CuspWidth(LevelSubgroup(d), Infinity());
 	N1 := Level(d_old);
 	N2 := Level(d);
+	/*
 	divisors := Divisors(N1 mod N2 eq 0
 			     select N1 div N2 else N2 div N1);
+       */
+	divisors := Divisors(Level(d));
 	divisors := get_degeneracy_reps(d_old, d, divisors);
 	qexps := [];
 	eig_plus := [];
@@ -269,7 +272,7 @@ function find_xi_slow(N, prec)
 	for a in divisors do
 	    mat := DegeneracyMatrix(AmbientSpace(d),AmbientSpace(d_old),a);
 	    mat := ChangeRing(Transpose(mat), F);
-	    f_a := Evaluate(f, q_R^(N2 div (N1 * Integers()!a[1,1])));
+	    f_a := Evaluate(f, q_R^(Level(d) div (Integers()!a[1,1])));
 	    Append(~qexps, f_a);
 	    for sigma in aut do
 		sig_f_a :=
@@ -311,7 +314,7 @@ function find_xi_slow(N, prec)
     eig_minus_in_cusp := Solution(cusp_basis, Matrix(eig_minus_big_basis));
     eig_in_cusp := VerticalJoin([eig_plus_in_cusp, eig_minus_in_cusp]);
     u := Transpose(ActionOnModularSymbolsBasis([1,1,0,1], M));
-    u_act := eig_in_cusp * Restrict(u, cusp_forms_space);
+    u_act := eig_in_cusp * Restrict(ChangeRing(u, L), cusp_forms_space);
     u_action_a := Solution(eig_in_cusp, u_act);
     K<zeta> := CyclotomicField(N);
     KL := Compositum(K,L);

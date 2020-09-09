@@ -378,20 +378,20 @@ end function;
 // Figure out what should make it work in general.
 // We would like to obtain here an element that actually lies in Gamma (!!)
 
-function NextElementNotGamma(N,k,P,g, fast)
+function NextElementNotGamma(N,k,P,g,h,fast)
     R<X,Y> := Parent(P);
     if fast then
 	if Random(1,2) eq 1 then
             repeat
-		g[2] +:= 1;
-            until Gcd(g[2],N) eq 1;
+		g[2] +:= h;
+            until Gcd(g[2] div h,N*h) eq 1;
 	else
             repeat
 		g[4] +:= 1;
-            until Gcd(g[4],N) eq 1;
+            until Gcd(g[4],N*h) eq 1;
 	end if;
 	while Gcd(g[4],g[2]) ne 1 do
-            g[2] +:= 1;
+            g[2] +:= h;
 	end while;
 	d, g[1], g[3] := Xgcd(g[4],-g[2]);
 	P :=  k gt 2 select 
@@ -404,18 +404,18 @@ function NextElementNotGamma(N,k,P,g, fast)
 	else  
             P := X^(k-2);
             // only change g after trying all P's. 
-            if g[1] lt g[3] * N then
-		// g[1] +:= 1;
-		g[1] +:= N;
+            if g[1] lt g[3] * h then
+		g[1] +:= 1;
+		// g[1] +:= h;
             else
 		g[3] +:= N;
             end if;
-            while Gcd(g[1],g[3]) ne 1 do
-		// g[1] +:= Sign(g[1]);
-		g[1] +:= Sign(g[1]) * N;
+            while Gcd(g[1],g[3]*h) ne 1 do
+		g[1] +:= Sign(g[1]);
+		//g[1] +:= Sign(g[1]) * h;
             end while;
-            d, g[4], g[2] := Xgcd(g[1],-g[3]*N);
-	    g[2] *:= N;
+            d, g[4], g[2] := Xgcd(g[1],-g[3]*h);
+	    g[2] *:= h;
 	end if;
     end if;
     return P, g;
@@ -522,7 +522,7 @@ function PeriodGenerators(A, fast)
 	    if IsOfGammaType(A) then  
 		P,g := NextElement(N,k,P,g,fast);
 	    else
-		P,g := NextElementNotGamma(h,k,P,g,fast);
+		P,g := NextElementNotGamma(N,k,P,g,h,fast);
 	    end if;
          until g[3] ne 0;
          x := Representation(M!<P, [[1,0],[g[1],g[3]]]>);
