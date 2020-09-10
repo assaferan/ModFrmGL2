@@ -505,6 +505,8 @@ function PeriodGenerators(A, fast)
       M  := AmbientSpace(A);
       sign := Sign(M);
       N  := Level(A);
+      // !!! TODO : This might be the wrong thing.
+      // It seems that what we need is the minimal nonzero value of g[2] for g in Gamma
       h := CuspWidth(LevelSubgroup(A), Infinity());
       k  := Weight(A);
       pi := RationalPeriodMapping(A);    // M_k --> Mk/Ker(Phi)

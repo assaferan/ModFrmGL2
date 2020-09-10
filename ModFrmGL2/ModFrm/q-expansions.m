@@ -649,6 +649,8 @@ function HurwitzZetaFunction(N, d, s : Precision := 100)
 	   + (-1)^s*HurwitzPlusZetaFunction(N, -d, s : Precision := Precision);
 end function;
 
+// This is now an intrinsic in dirichlet.m
+/*
 function GaussSum(chi)
     N := Conductor(chi);
     if N eq 1 then
@@ -658,6 +660,7 @@ function GaussSum(chi)
     K<zeta> := CyclotomicField(N);
     return &+[chi(n)*zeta^n : n in Z_N_star];
 end function;
+*/
 
 // Exact version giving the values divided by C_k = (-2pi i)^k / N^k (k-1)!
 function QLvalue(chi, k)
@@ -800,6 +803,7 @@ function FullGammaEisensteinG(N, c, d, k, prec)
 end function;
 
 // This numerical approximation was needed when working with the complex L-values
+// Not needed at the moment, but might be needed again in the future.
 // It seems to work when taking D := 10^d, and prec := 1000 so far
 function NumApprox(a,K : D := 10^6)
     d := Degree(K);

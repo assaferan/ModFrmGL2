@@ -352,14 +352,10 @@ intrinsic 'eq' (x::GrpChrElt,y::GrpChrElt) -> BoolElt
    // test the more frequent cases first
    if IsIdentical(Gx, Gy) then
        return ValuesOnGenerators(x) cmpeq ValuesOnGenerators(y);
-       /*
    elif Gx`Domain ne Gy`Domain then 
       return false;   // not sure why we want to do this
    else
       return ValuesOnGenerators(x) cmpeq ValuesOnGenerators(y);
-      */
-   else
-       return false;
    end if;
 end intrinsic;
 
