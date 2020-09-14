@@ -229,6 +229,17 @@ function IsInSequence(x, seq)
    return false, _;
 end function;
 
+function ActionOnEisensteinSeries(gamma, f)
+    if Type(gamma) eq GrpPSL2Elt then
+	gamma := Matrix(gamma);
+    end if;
+    vecs, vecs0 := Explode(EisensteinData(f));
+    new_vecs := [v * gamma : v in vecs];
+    new_vecs0 := [v * gamma : v in vecs0];
+    M := AmbientSpace(Parent(f));
+    return MakeEisensteinSeriesNotGamma(M, new_vecs, new_vecs0);
+end function;
+
 function ComputeAllEisensteinSeries(M : all:=false)
    assert Type(M) eq ModFrm;
    assert SpaceType(M) in {"full", "eis"};

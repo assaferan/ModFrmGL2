@@ -508,7 +508,28 @@ end function;
 
 function MC_StarInvolution(M)
    return MC_Operator(M,StarInvolution);
-end function; 
+end function;
+
+function MC_DualStarInvolution(M)
+    assert Type(M) eq ModSym;
+    assert IsAmbientSpace(M);
+    return Transpose(StarInvolution(M));
+end function;
+
+function MC_AtkinLehnerOperator(M, q)
+    assert Type(q) eq RngIntElt;
+    function f(x)
+	return AtkinLehnerOperator(x, q);
+    end function;
+    return MC_Operator(M,f);
+end function;
+
+function MC_DualAtkinLehnerOperator(M, q)
+    assert Type(M) eq ModSym;
+    assert Type(q) eq RngIntElt;
+    assert IsAmbientSpace(M);
+    return Transpose(AtkinLehnerOperator(M,q));
+end function;
 
 function MC_ModSymToBasis(M, sym)
    // Given a modular symbols (more precisely, something that can be 

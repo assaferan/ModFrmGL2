@@ -179,11 +179,11 @@ function TwistBasis0(N, prec)
 	    assert &and[Coefficient(f_twist,n) eq 0 : n in [0..prec-1]
 			    | n mod beta[2] ne 0];
 	    f_twist_orig := &+[Coefficient(f_twist,beta[2]*n)*q^n
-			       : n in [0..(prec - 1) div beta[2]]];
+			       : n in [0..(prec - 1)]] + O(q^prec);
 	    
 	    for beta in betas do
 		v_p := v_plus_orig * ChangeRing(beta[1], KL);
-		f_twist_new := Evaluate(f_twist_orig, q^beta[2]);
+		f_twist_new := beta[2]*Evaluate(f_twist_orig, q^beta[2]);
 		// f_twist_new := Evaluate(f_twist, q^beta[2]);
 		assert exists(j){j : j in [1..#D] |
 			     v_p in ChangeRing(D[j][1] * D[j][2][1] ,KL)};
@@ -343,7 +343,7 @@ import "ModFrm/q-expansions.m" : PowerSeriesNormalizeMagma;
 // For 11 the basis finding is already getting long
 // It seems that we fail to find the right constants for a two-dimensional space
 
-function get_qexps_by_twist(H, B0, F0)
+function get_qexps_from_bases(H, B0, F0)
     N := Level(H);
     // B0, F0 := TwistBasis0(N, prec);
     spaces := [* sub<Universe(basis) | basis> : basis in B0 *];
@@ -387,16 +387,17 @@ function LoadGroupsByLevel(L)
   return gens_by_level;
 end function;
 
-function Test_qExpansions(level, L)
+function Test_qExpansions(level, L, func)
     test_grps := [l : l in L | l`level eq level and l`genus gt 2];
     // 100 should suffice at the moment. Later check how to determine required precision.
     prec := 100;
-    B0, F0 := TwistBasis0(level, prec);
+    // B, F := TwistBasis0(level, prec);
+    B, F := func(level, prec);
     failed := [];
     for grp in test_grps do
 	H := PSL2Subgroup(sub<GL(2, Integers(level)) | grp`matgens>);
 	try
-	    fs := get_qexps_by_twist(H, B0, F0);
+	    fs := get_qexps_from_bases(H, B, F);
 	    max_deg := Maximum(7-grp`genus, 2);
 	    X := FindCurveSimple(fs, prec, max_deg);
 	    // The second case for hyperelliptic curves -

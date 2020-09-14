@@ -203,7 +203,8 @@ import "linalg.m":
    Restrict,
    RestrictionOfScalars;
 
-import "multichar.m": 
+import "multichar.m":
+   MC_AtkinLehnerOperator,	    
    MC_HeckeOperator,
    MC_DualHeckeOperator,
    MC_StarInvolution; 
@@ -2002,10 +2003,6 @@ end function;
 
 intrinsic AtkinLehner(M::ModSym, q::RngIntElt) -> AlgMatElt
 {The same as AtkinLehnerOperator(M,q).}
-   require IsEven(Weight(M))              : "Argument 1 must have even weight.";
-   require IsTrivial(DirichletCharacter(M)^2)  : "Argument 1 must have trivial or quadratic character.";
-   require Level(M) mod q eq 0            : "Argument 2 must divide the level of argument 1.";
-   require q ne 0 and Level(M) mod q eq 0 : "Argument 2 must be nonzero and divide the level.";
    return AtkinLehnerOperator(M,q);   
 end intrinsic;
 
@@ -2020,7 +2017,6 @@ normalization may not be possible when the weight k of M is >2 and the
 characteristic of the base field of M divides q.}
 
    require IsEven(Weight(M))              : "Argument 1 must have even weight.";
-   require IsTrivial(DirichletCharacter(M)^2)  : "Argument 1 must have trivial or quadratic character.";
    require Level(M) mod q eq 0            : "Argument 2 must divide the level of argument 1.";
    require q ne 0 and Level(M) mod q eq 0 : "Argument 2 must be nonzero and divide the level.";
 
@@ -2038,20 +2034,24 @@ characteristic of the base field of M divides q.}
       M`atkin_lehner := [];
    end if;
    if not exists(t) { t[2] : t in M`atkin_lehner | t[1] eq q } then
-      if not IsAmbientSpace(M) then
-         t := Restrict(AtkinLehner(AmbientSpace(M),q), Representation(M));
-      else
-         // 1. Compute matrix to act by.
-         d, x, y:= XGCD(q,-Integers()!(N/q));
-         g := [q*x, y, N, q];
-         A := ActionOnModularSymbolsBasis(g, M);
-         p := Characteristic(M`F); 
-         if p eq 0 or q mod p ne 0 then
-            A /:= q^(Integers()!(k/2)-1);
-         end if;
-         t := A;
-      end if;
-      Append(~M`atkin_lehner, <q,t>);
+       if not IsAmbientSpace(M) then
+           t := Restrict(AtkinLehner(AmbientSpace(M),q), Representation(M));
+       elif IsMultiChar(M) then
+           t := MC_AtkinLehnerOperator(M,q);
+       else
+	   require IsTrivial(DirichletCharacter(M)^2)  :
+	    "Argument 1 must have trivial or quadratic character.";
+           // 1. Compute matrix to act by.
+           d, x, y:= XGCD(q,-Integers()!(N/q));
+           g := [q*x, y, N, q];
+           A := ActionOnModularSymbolsBasis(g, M);
+           p := Characteristic(M`F); 
+           if p eq 0 or q mod p ne 0 then
+	       A /:= q^(Integers()!(k/2)-1);
+           end if;
+           t := A;
+       end if;
+       Append(~M`atkin_lehner, <q,t>);
    end if;
    return t;
 end intrinsic;
@@ -2130,9 +2130,6 @@ end intrinsic;
 
 intrinsic DualAtkinLehner(M::ModSym, q::RngIntElt) -> AlgMatElt
 {The same as DualAtkinLehnerOperator(M,q).}
-   require IsEven(Weight(M)) : "Argument 1 must have even weight.";
-   require IsTrivial(DirichletCharacter(M)) : "Argument 1 must have trivial character.";
-   require Level(M) mod q eq 0 : "Argument 2 must divide the level of argument 1.";
    return DualAtkinLehnerOperator(M,q);
 end intrinsic;
 
@@ -2142,13 +2139,16 @@ intrinsic DualAtkinLehnerOperator(M::ModSym, q::RngIntElt) -> AlgMatElt
 representation of M, when it is defined (see the documentation
 for AtkinLehner.)}
    require IsEven(Weight(M)) : "Argument 1 must have even weight.";
-   require IsTrivial(DirichletCharacter(M)) : "Argument 1 must have trivial character.";
+   if not IsMultiChar(M) then
+       require IsTrivial(DirichletCharacter(M)) :
+      "Argument 1 must have trivial character.";
+   end if;
    require Level(M) mod q eq 0 : "Argument 2 must divide the level of argument 1.";
    if not assigned M`dual_atkin_lehner then
       M`dual_atkin_lehner := [];
    end if;
    if not exists(t) { t[2] : t in M`dual_atkin_lehner | t[1] eq q } then
-      if IsAmbientSpace(M) then
+       if IsAmbientSpace(M) then
          Append(~M`dual_atkin_lehner, <q,Transpose(AtkinLehner(M,q))>);
       else
          Append(~M`dual_atkin_lehner, <q,Restrict(DualAtkinLehner(AmbientSpace(M),q),DualRepresentation(M))>);

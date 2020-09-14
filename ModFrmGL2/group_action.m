@@ -194,15 +194,424 @@ procedure verify_linear_U_relation(U, u, D, eig_plus_basis, eig_minus_basis)
     end for;
 end procedure;
 
-function apply_aut(sigma, vec)
-    return Vector([sigma(x) : x in Eltseq(vec)]);    
-end function;
-
-
 // Finds the coefficients giving the eigenvectors in terms of the eigenforms
 // This is slow, but at least works for N = 7...
 // The reason it is slow is that we don't work over QQ to simplify the
 // linear algebra
+
+function IsCompatibleChar(M1, M2)
+    eps1 := DirichletCharacter(M1);
+    eps2 := DirichletCharacter(M2);
+    return
+	IsCoercible(Parent(eps1), eps2) and (Parent(eps1)!eps2 eq eps1); 
+end function;
+
+// TODO : support arbitrary weight (Q^(k/2)-1). Right now k = 2
+function getALpseudoEigenvaluePrimary(f, eps, Q)
+    N := Modulus(eps);
+    assert GCD(Q, N div Q) eq 1;
+    eps_dec := Decomposition(eps);
+    assert exists(eps_Q){eps_Q : eps_Q in eps_dec | Modulus(eps_Q) eq Q};
+    if Q eq N then
+	eps_NQ := DirichletGroup(1)!1;
+    else
+	eps_NQ := &*[eps_d : eps_d in eps_dec | eps_d ne eps_Q];
+    end if;
+   
+    g := IsTrivial(eps_Q) select -1 else GaussSum(eps_Q);
+    fac := Factorization(Q);
+    assert #fac eq 1;
+    q := fac[1][1];
+    e := fac[1][2];
+    if Coefficient(f, q) ne 0 then
+	return g / Coefficient(f,q);
+    end if;
+    // Here we have to check if f is q-primitive,
+    // otherwise get information from the twists
+    if Conductor(eps_Q)^2 gt Q then
+	is_primitive := false;
+    elif IsOdd(e) then
+	is_primitive := true;
+    elif q eq 2 then
+	if Conductor(eps_Q)^2 eq Q then
+	    is_primitive := true;
+	elif e ge 4 then
+	    is_primitive := false;
+	elif e eq 2 and IsTrivial(eps_Q) then
+	    is_primitive := true;
+	    return -eps_NQ(q)^(-1);
+	end if;
+    end if;
+    // At the moment assert q-primitivity here. Later tackle that
+    // assert is_primitive;
+    fac := Factorization(Conductor(eps_Q));
+    if IsEmpty(fac) then
+	alpha := 0;
+    else
+	alpha := fac[1][2];
+    end if;
+    X := DirichletGroupFull(q^(e-1));
+    K := CyclotomicField(Q * EulerPhi(Q));
+    R<[lambda]> := PolynomialRing(K,#X);
+    chars := Elements(X);
+    conds := AssociativeArray(chars);
+    rev_inds := AssociativeArray(chars);
+    for j in [1..#X] do
+	chi := chars[j];
+	conds[chi] := IsTrivial(chi) select q else Conductor(chi);
+	rev_inds[chi] := j; 
+    end for;
+    rels := [];
+    for j in [1..#X] do
+	chi := chars[j];
+	beta := Factorization(conds[chi])[1][2];
+	Q_double_prime := q^Maximum([e, alpha-beta+e, 2*(e-beta)]);
+	// see Proposition 4.5 in [Atkin-Li]
+	lhs := GaussSum(chi^(-1)) * lambda[j];
+	rhs_num := chi(-1) * eps_NQ(Q div q^beta) * eps_Q(-1);
+	rhs_denom := (Q_double_prime div Q) * EulerPhi(Q div q^beta);
+	chi1s := [chi1 : chi1 in chars |
+		  conds[chi1] eq Q div q^beta and
+		  conds[chi * eps_Q * chi1] eq Q_double_prime * q^beta div Q];
+	rhs_sum := &+[GaussSum(chi1)*GaussSum(chi*eps_Q*chi1)
+		      *lambda[rev_inds[eps_Q^(-1) * chi1^(-1)]] : chi1 in chi1s];
+	rhs := rhs_num / rhs_denom * lambda[1] * rhs_sum;
+	Append(~rels, lhs - rhs);
+	if conds[chi]^2 le Q then
+	    lhs := lambda[j]*lambda[rev_inds[eps_Q^(-1) * chi^(-1)]];
+	    rhs := eps_NQ(Q)^(-1) * eps_Q(-1);
+	    Append(~rels, lhs-rhs);
+	end if;
+    end for;
+    I := ideal<R | rels>;
+    X := Variety(I); 
+    return X[1][rev_inds[1]];					
+end function;
+
+function getALpseudoEigenvalue(f, eps, q)
+    fac := Factorization(q);
+    if IsEmpty(fac) then
+	return 1;
+    end if;
+    // using Prop. 1.4 from [Atkin-Li]
+    Q := fac[1][1]^fac[1][2];
+    Q_prime := q div Q;
+    eps_dec := Decomposition(eps);
+    assert exists(eps_Q){eps_Q : eps_Q in eps_dec | Modulus(eps_Q) eq Q};
+    Q_prime_comps := [eps_d : eps_d in eps_dec | Q_prime mod Modulus(eps_d) eq 0];
+    if IsEmpty(Q_prime_comps) then
+	eps_Q_prime := DirichletGroup(Q_prime)!1;
+    else
+	eps_Q_prime := &*Q_prime_comps;
+    end if;
+    
+    eps_G := eps_Q^(-1) * eps_Q_prime;
+    R<q> := Parent(f);
+    G := R!0;
+    k := 2;
+    prec := AbsolutePrecision(f);
+    for n in [1..prec-1] do
+	if n eq 1 then
+	    bn := 1;
+	elif IsPrime(n) then
+	    if Q mod n eq 0 then
+		bn := eps_Q_prime(n)*ComplexConjugate(Coefficient(f,n));
+	    else
+		bn := eps_Q(n)^(-1)*Coefficient(f,n);
+	    end if;
+	else
+	    fac := Factorization(n); 
+            if #fac eq 1 then
+		// a_{p^r} := a_p * a_{p^{r-1}} - eps(p)p^{k-1} a_{p^{r-2}}.
+		p  := fac[1][1];
+		r  := fac[1][2];
+		eps_p := Evaluate(eps_G,p);
+		bn := Coefficient(G,p) * Coefficient(G,p^(r-1))
+                      - eps_p*p^(k-1)*Coefficient(G,p^(r-2));
+            else  // a_m*a_r := a_{mr} and we know all a_i for i<n.
+		m  := fac[1][1]^fac[1][2];
+		bn := Coefficient(G,m)*Coefficient(G,n div m);
+            end if; 
+	end if;
+	G +:= bn * q^n;
+    end for;
+   
+    lamda_Q := getALpseudoEigenvaluePrimary(f, eps, Q);
+    lamda_Q_prime := getALpseudoEigenvalue(G, eps_G, Q_prime);
+    return lamda_Q * lamda_Q_prime * eps_Q_prime(Q);
+end function;
+
+function getEigenformAndVectors(d, prec)
+    f := qEigenform(d, prec);
+    R := Parent(f);
+    // q_R := R.1;
+    F := BaseRing(R);
+    // Append(~fields, F);
+    // aut := Automorphisms(F);
+    gal, _, psi := AutomorphismGroup(F, Rationals());
+    aut := [psi(g) : g in gal];
+    // This is saved to make sure we follow the same order
+    // Append(~sigmas, aut);
+    ev_plus := EigenvectorModSymSign(d,1);
+    ev_minus := EigenvectorModSymSign(d,-1);
+    // Forcing magma to admit they are over the same field
+    assert IsIsomorphic(BaseRing(ev_plus), F);
+    assert IsIsomorphic(BaseRing(ev_minus), F);
+    ev_plus := ChangeRing(ev_plus, F);
+    ev_minus := ChangeRing(ev_minus, F);
+    // Here we find sigma_plus and sigma_minus by observing the eigenvalues
+    p := 2;
+    sig_plus := aut;
+    sig_minus := aut;
+    
+    while (#sig_plus gt 1) or (#sig_minus gt 1) do
+	T_p := ChangeRing(DualHeckeOperator(AmbientSpace(d),p), F);
+	a_p := Coefficient(f,p);
+	sig_plus := [sigma : sigma in sig_plus |
+		     a_p * ApplyAut(sigma, ev_plus) eq
+		     ApplyAut(sigma, ev_plus) * T_p];
+	sig_minus := [sigma : sigma in sig_minus |
+		      a_p * ApplyAut(sigma, ev_minus) eq
+		      ApplyAut(sigma, ev_minus) * T_p];
+	p := NextPrime(p);
+    end while;
+    ev_plus := ApplyAut(sig_plus[1], ev_plus);
+    ev_minus := ApplyAut(sig_minus[1], ev_minus);
+    return f, ev_plus, ev_minus, F, aut;
+end function;
+
+function getDualDegeneracyMaps(d, M, ms)
+    M_old := AmbientSpace(d);
+    betas := [];
+    if not IsIdentical(M_old, M) then
+	assert exists(i){i : i in [1..#ms] | IsCompatibleChar(ms[i],M_old)};
+	M_new := ms[i];
+	quo_mat := Matrix([Representation(MultiQuotientMaps(M)[i](x))
+			   : x in Basis(M)]);
+	quo_lev := Level(M_new) div Level(M_old);
+	divs := Divisors(quo_lev);
+	for m in divs do
+	    dmap := DegeneracyMatrix(M_new, M_old, m);
+	    beta := Transpose(dmap) * Transpose(quo_mat);
+	    Append(~betas, <beta, m>);
+	end for;
+    else
+	Append(~betas, <IdentityMatrix(BaseRing(d), Dimension(M)), 1>);
+    end if;
+    return betas;
+end function;
+
+function allEigenformsAndVectors(f, ev_plus, ev_minus, betas, F, aut, all_qexps)
+    q := Parent(f).1;
+    prec := AbsolutePrecision(f);
+    qexps := [];
+    eig_plus := [];
+    eig_minus := [];
+    
+    for beta in betas do
+	mat := ChangeRing(beta[1], F);
+	f_a := Evaluate(f, q^beta[2]);
+	Append(~qexps, f_a);
+	for sigma in aut do
+	    /*
+	    sig_f_a :=
+		&+[sigma(Coefficient(f_a,i))*q^i :
+		   i in [1..prec-1]] + O(q^prec);
+	    sig_ev_plus := Vector([sigma(x) : x in Eltseq(ev_plus)]);
+	    sig_ev_minus:= Vector([sigma(x) : x in Eltseq(ev_minus)]);
+	   */
+	    Append(~all_qexps, ApplyAut(sigma, f_a));
+	    Append(~eig_plus, ApplyAut(sigma,ev_plus)*mat);
+	    Append(~eig_minus, ApplyAut(sigma,ev_minus)*mat);
+	end for;
+    end for;
+    return qexps, all_qexps, eig_plus, eig_minus;
+end function;
+
+// Here cusp_forms_space in an irreducible constituent of Dual(S)
+// (as a subspace of Dual(M))
+// and D is the decomposition to irreducible Hecke modules
+function find_xi_on_irred_slow(M, cusp_space, eig_basis, qexps, prec)
+    L := BaseField(Universe(eig_basis));
+    assert BaseRing(cusp_space) eq L;
+    Ts := [[Coefficient(f,n): f in qexps] : n in [1..prec-1]];
+    Ts_all := [DiagonalMatrix(t) : t in Ts];
+ 
+    cusp_basis := BasisMatrix(cusp_space);
+    eig_in_cusp := Solution(cusp_basis, Matrix(eig_basis));
+
+    _, N := IsSquare(Level(M));
+    u := Transpose(ActionOnModularSymbolsBasis([N,1,0,N], M));
+    u_act := eig_in_cusp * Restrict(ChangeRing(u, L), cusp_space);
+    u_action_a := Solution(eig_in_cusp, u_act);
+    K<zeta> := CyclotomicField(N);
+    KL := Compositum(K,L);
+    U := ChangeRing(u_action_a, KL);
+    // verifying the equations hold
+    // verify_linear_U_relation(U, u, D, eig_plus_basis, eig_minus_basis);
+    X := [Kernel(ChangeRing(Ts[n],KL) *
+		 (Transpose(U) -
+		  ScalarMatrix(KL,Dimension(cusp_space),zeta^n))) :
+	  n in [1..prec-1]];
+    xi :=  &meet X;
+    // get Atkin-Lehner equations
+    w := Transpose(ActionOnModularSymbolsBasis([0,-1,N^2,0], M));
+    w := ChangeRing(w, BaseRing(Universe(eig_basis)));
+    w_eqs := [];
+    /*
+    for j in [1..#eig_basis] do
+	v := eig_basis[j];
+	f := qexps[j];
+	N_old := Level(D[j]);
+	eps := DirichletCharacter(D[j]);
+	g := IsTrivial(eps) select -1 else GaussSum(eps);
+	// Check here what happens for oldforms - do we need to change anything?
+	// The Atkin-Lehner pseudo-eigenvalue in the original space
+	
+	if Coefficient(f, N_old) ne 0 then
+	    al_pseudo := g / Coefficient(f, N_old);
+	    w_v := Solution(Matrix(eig_basis), v * w);
+	    lam := &+Eltseq(w_v);
+	    e_j := Solution(Matrix(eig_basis), v);
+	    // equat := lam * e_j - ((N^2 div N_old) * al_pseudo / lam) * w_v;
+	    equat := Coefficient(f, N_old) * lam * e_j - ((N^2 div N_old) * g / lam) * w_v;
+	    Append(~w_eqs, equat);
+	end if;
+    end for;
+    */
+    if not IsEmpty(w_eqs) then
+	Y := Kernel(Matrix(w_eqs));
+	xi meet:= Y;
+    end if;
+    return &+Basis(xi);
+end function;
+
+// This should be something one does with M!!A, actually
+function getDualNewspaceImage(M,A)
+    ms := MultiSpaces(M);
+    M_old := AmbientSpace(A);
+    if IsIdentical(M_old, M) then
+	return DualVectorSpace(A);
+    end if;
+    assert exists(i){i : i in [1..#ms] | IsCompatibleChar(ms[i],M_old)};
+    M_new := ms[i];
+    quo_mat := Matrix([Representation(MultiQuotientMaps(M)[i](x))
+		       : x in Basis(M)]);
+    quo_lev := Level(M_new) div Level(M_old);
+    divs := Divisors(quo_lev);
+    im_A := sub<DualVectorSpace(M) | >;
+    for m in divs do
+	dmap := DegeneracyMatrix(M_new, M_old, m);
+	beta := Transpose(dmap) * Transpose(quo_mat);
+	im_A +:= DualVectorSpace(A) * beta;
+    end for;
+
+    return im_A;
+end function;
+
+/*
+function getIrreducibleFactor(V)
+    A := V;
+    basis := BasisMatrix(VectorSpace(A));
+    while not IsIrreducible(A) do
+	A,_,T := Meataxe(A);
+	basis := Matrix(T[1..Dimension(A)]) * basis;
+    end while;
+    return sub<VectorSpace(V)|Rows(basis)>;
+end function;
+*/
+
+function decompose(V, im_D)
+    irred_spaces := [];
+    irred_D := [];
+    for idx in [1..#im_D] do
+	d := im_D[idx];
+	F := BaseRing(Universe(im_D[idx]));
+	V_F := ChangeRing(V,F);
+	W := sub<V_F|im_D[idx]>;
+	d_vec := sub<VectorSpace(V_F) | d>;
+	// W := sub<V | d>;
+	// d_vec := sub<VectorSpace(V) | d>;
+	covered := exists(j){j : j in [1..#irred_spaces] |
+			     BaseRing(d_vec) eq BaseRing(irred_spaces[j]) and
+			     d_vec subset irred_spaces[j]};
+	if covered then
+	    Append(~irred_D[j], idx);
+	else
+	    irrs := DirectSumDecomposition(W);
+	    irreps := [sub<VectorSpace(V_F) | Rows(Morphism(irr,W)*Morphism(W,V_F))>
+		       : irr in irrs];
+	    incidence := [d_vec subset irr select [idx] else [] : irr in irreps];
+	    irred_spaces cat:= irreps;
+	    irred_D cat:= incidence;
+	end if;
+    end for;
+    irred_spaces := [irred_spaces[idx] : idx in [1..#irred_spaces] |
+		     not IsEmpty(irred_D[idx])];
+    irred_D := [irr : irr in irred_D | not IsEmpty(irr)];
+    return irred_spaces, irred_D;
+end function;
+
+function get_fs_vecs_slow(N, prec)
+    M := ModularSymbols(CongruenceSubgroup(N));
+    S := CuspidalSubspace(M);
+    g := Dimension(S) div 2;
+    D := NewformDecomposition(S);
+    cusp_forms_space := DualVectorSpace(S);
+    // generators for the group action
+    u := [1,1,0,1];
+    w := [0,-1,1,0];
+    G := sub<SL(2, Integers(N)) | [u,w]>;
+    u_M := Transpose(ActionOnModularSymbolsBasis([N,1,0,N], M));
+    w_M := Transpose(ActionOnModularSymbolsBasis([0,-1,N^2,0], M));
+    u_S := Restrict(u_M, cusp_forms_space);
+    w_S := Restrict(w_M, cusp_forms_space);
+    Omega := GModule(G, [u_S, w_S]);
+    // at the moment ignore multiplicities. Later can decompose ad hoc using the
+    // generators
+    all_qexps := [* *];
+    eig_plus_basis := [* *];
+    eig_minus_basis := [* *];
+    
+    for d in D do
+	f, ev_plus, ev_minus, F, aut := getEigenformAndVectors(d, prec);
+	
+	betas := getDualDegeneracyMaps(d, M, MultiSpaces(M));
+
+	_, all_qexps, eig_plus, eig_minus := allEigenformsAndVectors(f, ev_plus,
+								     ev_minus,
+								     betas, F, aut,
+								     all_qexps);
+	for i in [1..#eig_plus] do
+	    Append(~eig_plus_basis, eig_plus[i]);
+	end for;
+	for i in [1..#eig_minus] do
+	    Append(~eig_minus_basis, eig_minus[i]);
+	end for;
+    end for;
+    eig_basis := eig_plus_basis cat eig_minus_basis;
+    im_D := [*Rows(Solution(ChangeRing(BasisMatrix(cusp_forms_space),
+				       BaseRing(v)), v)) : v in eig_basis*];
+    irred_subs, irred_D := decompose(Omega, im_D);
+    irred_qexps := [* [all_qexps[(idx - 1) mod g + 1] : idx in irr] : irr in irred_D *];
+    irred_D := [*[eig_basis[idx]: idx in irr] : irr in irred_D *];
+    irred_subs := [irr*ChangeRing(BasisMatrix(cusp_forms_space), BaseRing(irr))
+		   : irr in irred_subs];
+    xis := [* *];
+    eigs := [* *];
+    F := [* *];
+    for idx in [1..#irred_D] do
+	xi, eig, qexp := find_xi_on_irred_slow(M, irred_subs[idx], irred_D[idx],
+					       irred_qexps[idx], prec);
+	Append(~xis, xi);
+	Append(~eigs, eig);
+	Append(~F, qexp);
+    end for;
+    fs_pm := [[xis[j][i]^(-1) * ChangeRing(eigs[j][i],BaseRing(xis[j]))
+	       : i in [1..Degree(xis[j])]] : j in [1..#xis] ];
+    B := [[vs[i] + vs[i + #vs div 2] : i in [1..#vs div 2]] : vs in fs_pm];
+    return B, F;
+end function;  
 
 function find_xi_slow(N, prec)
     G := GL(2,Integers(N));
@@ -246,25 +655,23 @@ function find_xi_slow(N, prec)
 	    a_p := Coefficient(f,p);
 	    sig_plus := [sigma : sigma in sig_plus |
 			 //		 sigma(a_p)*ev_plus eq ev_plus * T_p];
-			 a_p * apply_aut(sigma, ev_plus) eq
-			 apply_aut(sigma, ev_plus) * T_p];
+			 a_p * ApplyAut(sigma, ev_plus) eq
+			 ApplyAut(sigma, ev_plus) * T_p];
 	    sig_minus := [sigma : sigma in sig_minus |
 			  //			  sigma(a_p)*ev_minus eq ev_minus * T_p];
-			  a_p * apply_aut(sigma, ev_minus) eq
-			  apply_aut(sigma, ev_minus) * T_p];
+			  a_p * ApplyAut(sigma, ev_minus) eq
+			  ApplyAut(sigma, ev_minus) * T_p];
 	    p := NextPrime(p);
 	end while;
-	ev_plus := apply_aut(sig_plus[1], ev_plus);
-	ev_minus := apply_aut(sig_minus[1], ev_minus);
+	ev_plus := ApplyAut(sig_plus[1], ev_plus);
+	ev_minus := ApplyAut(sig_minus[1], ev_minus);
 	// N1 := CuspWidth(LevelSubgroup(d_old), Infinity());
 	// N2 := CuspWidth(LevelSubgroup(d), Infinity());
 	N1 := Level(d_old);
 	N2 := Level(d);
-	/*
 	divisors := Divisors(N1 mod N2 eq 0
 			     select N1 div N2 else N2 div N1);
-       */
-	divisors := Divisors(Level(d));
+//	divisors := Divisors(Level(d));
 	divisors := get_degeneracy_reps(d_old, d, divisors);
 	qexps := [];
 	eig_plus := [];
@@ -272,7 +679,7 @@ function find_xi_slow(N, prec)
 	for a in divisors do
 	    mat := DegeneracyMatrix(AmbientSpace(d),AmbientSpace(d_old),a);
 	    mat := ChangeRing(Transpose(mat), F);
-	    f_a := Evaluate(f, q_R^(Level(d) div (Integers()!a[1,1])));
+	    f_a := Evaluate(f, q_R^(Level(d) div (Level(d_old)*Integers()!a[1,1])));
 	    Append(~qexps, f_a);
 	    for sigma in aut do
 		sig_f_a :=
@@ -313,7 +720,7 @@ function find_xi_slow(N, prec)
     eig_plus_in_cusp := Solution(cusp_basis, Matrix(eig_plus_big_basis));
     eig_minus_in_cusp := Solution(cusp_basis, Matrix(eig_minus_big_basis));
     eig_in_cusp := VerticalJoin([eig_plus_in_cusp, eig_minus_in_cusp]);
-    u := Transpose(ActionOnModularSymbolsBasis([1,1,0,1], M));
+    u := Transpose(ActionOnModularSymbolsBasis([1,1/N,0,1], M));
     u_act := eig_in_cusp * Restrict(ChangeRing(u, L), cusp_forms_space);
     u_action_a := Solution(eig_in_cusp, u_act);
     K<zeta> := CyclotomicField(N);
@@ -390,16 +797,16 @@ function find_xi(N, prec)
 	    a_p := Coefficient(f,p);
 	    sig_plus := [sigma : sigma in sig_plus |
 			 //		 sigma(a_p)*ev_plus eq ev_plus * T_p];
-			 a_p * apply_aut(sigma, ev_plus) eq
-			 apply_aut(sigma, ev_plus) * T_p];
+			 a_p * ApplyAut(sigma, ev_plus) eq
+			 ApplyAut(sigma, ev_plus) * T_p];
 	    sig_minus := [sigma : sigma in sig_minus |
 			  //			  sigma(a_p)*ev_minus eq ev_minus * T_p];
-			  a_p * apply_aut(sigma, ev_minus) eq
-			  apply_aut(sigma, ev_minus) * T_p];
+			  a_p * ApplyAut(sigma, ev_minus) eq
+			  ApplyAut(sigma, ev_minus) * T_p];
 	    p := NextPrime(p);
 	end while;
-	ev_plus := apply_aut(sig_plus[1], ev_plus);
-	ev_minus := apply_aut(sig_minus[1], ev_minus);
+	ev_plus := ApplyAut(sig_plus[1], ev_plus);
+	ev_minus := ApplyAut(sig_minus[1], ev_minus);
 	// N1 := CuspWidth(LevelSubgroup(d_old), Infinity());
 	// N2 := CuspWidth(LevelSubgroup(d), Infinity());
 	N1 := Level(d_old);
@@ -548,7 +955,7 @@ function action_on_mod_sym(N)
   vecs := [v*ChangeRing(g,F) : g in mults];
   return 0;
 end function;
-
+/*
 p := 17;
 G := GL(2,Integers(p));
 Z := Center(G);
@@ -576,4 +983,4 @@ proj_basis := [Vector(Eltseq(x)[1..Dimension(S_p)]) : x in Basis(N_prime_inv)];
 B := BasisMatrix(cusp_forms_space);
 N_prime_proj := sub<cusp_forms_space | [b*B : b in proj_basis]>;
 
-
+*/

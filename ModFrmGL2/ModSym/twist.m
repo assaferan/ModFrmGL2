@@ -34,6 +34,15 @@ intrinsic ApplyAut(sigma::Map, f::RngSerPowElt) -> RngSerPowElt
     return &+[sigma(coeffs[n+1])*q^n : n in [0..#coeffs-1]] + O(q^prec);    
 end intrinsic;
 
+// This one is to use with ComplexConjugate
+intrinsic ApplyAut(sigma::Intrinsic, f::RngSerPowElt) -> RngSerPowElt
+{Apply the automorphism sigma to the power series f.}
+    prec := AbsolutePrecision(f);
+    coeffs := AbsEltseq(f);
+    _<q> := Parent(f);
+    return &+[sigma(coeffs[n+1])*q^n : n in [0..#coeffs-1]] + O(q^prec);    
+end intrinsic;
+
 // Given f in a FldNum, express f as a poly in the gens
 
 function relation(f, gens)
