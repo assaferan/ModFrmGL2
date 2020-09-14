@@ -92,7 +92,22 @@ function NewformDecompositionSubspaceMaps2(M, prec)
 	F := Compositum(F, K);
 	assert IsIsomorphic(K, BaseRing(Parent(f)));
 	f := PowerSeriesRing(K)!f;
-	for sig in Automorphisms(K) do
+	gal, _, psi := AutomorphismGroup(K, Rationals());
+	aut := [psi(g) : g in gal];
+	p := 2;
+	sig := aut;
+ 
+	while (#sig gt 1) do
+	    T_p := ChangeRing(DualHeckeOperator(AmbientSpace(d),p), K);
+	    a_p := Coefficient(f,p);
+	    sig := [sigma : sigma in sig |
+		    a_p * ApplyAut(sigma, v) eq
+		    ApplyAut(sigma, v) * T_p];
+	
+	    p := NextPrime(p);
+	end while;
+	v := ApplyAut(sig[1], v);
+	for sig in aut do
 	    Append(~evs_d, <ApplyAut(sig, v), ApplyAut(sig, f)>);
 	end for;
 	evs[d] := <evs_d, K>;
@@ -119,7 +134,9 @@ function NewformDecompositionSubspaceMaps2(M, prec)
 		for ev in evs[d][1] do
 		    v, f := Explode(ev);
 		    V := sub<Parent(v)|[v]>;
-		    Append(~DD, <V, betas[j], betas, f>);
+		    _<q> := Parent(f);
+		    Append(~DD, <V, betas[j], betas,
+				 betas[j][2]*Evaluate(f, q^betas[j][2])>);
 		end for;
 	    end for;
 	else
@@ -144,26 +161,38 @@ function TwistBasis0(N, prec)
 
     KL := Compositum(K, L);
     R<q> := PowerSeriesRing(KL);
+    
     indices_covered := {};
     next_idx := 1;
     twist_bases := [* *];
     twist_f_bases := [* *];
-
+    
+    chars := [* *];
+    for eps in X_even do
+	c := Conductor(eps);
+	chi := DirichletGroupFull(c)!eps;
+	u := [c, 1, 0, c];
+	u_mat := Transpose(ActionOnModularSymbolsBasis(u, M));
+	R_chi := ChangeRing(&+[Evaluate(chi^(-1), t) * u_mat^t : t in [0..c-1]], KL);
+	g := GaussSum(chi^(-1));
+	Append(~chars, <BaseExtend(chi, KL), R_chi, KL!g>);
+    end for;
+    
     while next_idx le #D do
 	printf "Covered %o out of %o hecke irreds...\n", #indices_covered, #D;
 	f := D[next_idx][4];
 	beta := D[next_idx][2];
-	f := Evaluate(f, q^beta[2]);
+	// f := Evaluate(f, q^beta[2]);
 	v1_plus := Basis(D[next_idx][1])[1];
 	v1_plus := ChangeRing(v1_plus * beta[1], KL);
 	twist_basis_plus := [];
 	twist_f_basis := [R | ];
-	for eps in X_even do
-	    c := Conductor(eps);
-	    chi := DirichletGroupFull(c)!eps;
-	    u := [c, 1, 0, c];
-	    u_mat := Transpose(ActionOnModularSymbolsBasis(u, M));
-	    R_chi := ChangeRing(&+[Evaluate(chi^(-1), t) * u_mat^t : t in [0..c-1]], KL);
+	
+	for char in chars do
+	    chi := char[1];
+	    R_chi := char[2];
+	    g := char[3];
+	    
 	    v_plus := v1_plus * R_chi;
 	    assert exists(j){j : j in [1..#D] |
 			     v_plus in ChangeRing(D[j][1] * D[j][2][1] ,KL)};
@@ -171,20 +200,16 @@ function TwistBasis0(N, prec)
 	    
 	    v_plus_orig := Solution(ChangeRing(D[j][2][1], KL), v_plus);
 	    
-	    g := GaussSum(chi^(-1));
-	    assert IsSubfield(FieldOfFractions(Parent(g)), KL);
-	    g := KL!g;
-	    f_twist := g * R!Twist(f, BaseExtend(chi, KL));
-	    
+	    f_twist := g * Twist(R!f, chi);
 	    assert &and[Coefficient(f_twist,n) eq 0 : n in [0..prec-1]
 			    | n mod beta[2] ne 0];
-	    f_twist_orig := &+[Coefficient(f_twist,beta[2]*n)*q^n
+	    f_twist_orig := &+[beta[2]^(-1)*Coefficient(f_twist,beta[2]*n)*q^n
 			       : n in [0..(prec - 1)]] + O(q^prec);
 	    
 	    for beta in betas do
 		v_p := v_plus_orig * ChangeRing(beta[1], KL);
 		f_twist_new := beta[2]*Evaluate(f_twist_orig, q^beta[2]);
-		// f_twist_new := Evaluate(f_twist, q^beta[2]);
+		
 		assert exists(j){j : j in [1..#D] |
 			     v_p in ChangeRing(D[j][1] * D[j][2][1] ,KL)};
 		Include(~indices_covered, j);
@@ -198,16 +223,8 @@ function TwistBasis0(N, prec)
 	    next_idx +:= 1;
 	end while;
     end while;
-    big_basis := [];
-    for basis in twist_bases do
-	for v in basis do
-	    assert IsSubfield(BaseRing(v), KL);
-	    Append(~big_basis, ChangeRing(v, KL));
-	end for;
-    end for;
-    V := sub<Universe(big_basis) | big_basis>;
-    assert Dimension(V) eq Dimension(S) div 2;
-    return twist_bases, twist_f_bases;
+    // debug_info := <D, K, chars>;
+    return twist_bases, twist_f_bases; //, debug_info;
 end function;
 
 function TwistBasis(N, prec)
@@ -410,4 +427,19 @@ function Test_qExpansions(level, L, func)
 	end try;
     end for;
     return failed;
+end function;
+
+function sameB(B1, B2)
+    KL := BaseRing(B2[1][1]);
+    assert IsIsomorphic(BaseRing(B1[1][1]), KL);
+    B3 := [[ChangeRing(v, KL) : v in b] : b in B1];
+    return &and [B2[i] eq B3[i] : i in [1..#B2]];
+end function;
+
+function sameF(F1, F2)
+    KL := BaseRing(Parent(F2[1][1]));
+    assert IsIsomorphic(BaseRing(Parent(F1[1][1])), KL);
+    R<q> := PowerSeriesRing(KL);
+    F3 := [[R!v : v in f] : f in F1];
+    return &and [F2[i] eq F3[i] : i in [1..#F2]];
 end function;
