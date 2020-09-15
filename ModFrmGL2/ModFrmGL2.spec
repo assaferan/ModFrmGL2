@@ -11,6 +11,8 @@
     {
 	+ModSym.spec
     }
-    
-    +twists.m
+    Tests
+    {
+	+Tests.spec
+    } 
 }

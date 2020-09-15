@@ -114,7 +114,7 @@ freeze;
 
 import "linalg.m" : KernelOn;
 
-import "misc.m" : MinimalOvergps;
+import "misc.m" : MinimalOvergroups;
 
 import "modsym.m" : ModularSymbolsDual,
                     ModularSymbolsSub,
@@ -669,7 +669,7 @@ function GetModSymPrimes(M)
         end if;
         GL_N := ModLevelGL(G);
         H := ImageInLevelGL(G);
-        primes := MinimalOvergps(GL_N,H);
+        primes := MinimalOvergroups(GL_N,H);
 	// G_N := ImageInLevel(LevelSubgroup(M));
 	G_N := ImageInLevelGL(LevelSubgroup(M));
         

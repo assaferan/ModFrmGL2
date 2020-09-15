@@ -84,6 +84,7 @@ function NewformDecompositionSubspaceMaps2(M, prec)
 
     F := Rationals();
     evs := AssociativeArray(D);
+    printf "Computing eigenvectors...\n";
     for d in D do
 	evs_d := [];
 	v := EigenvectorModSymSign(d,1);
@@ -112,7 +113,8 @@ function NewformDecompositionSubspaceMaps2(M, prec)
 	end for;
 	evs[d] := <evs_d, K>;
     end for;
-    
+
+    printf "Preparing images in M_k(Gamma(N))...\n";
     for d in D do
 	K := evs[d][2];
 	M_old := AmbientSpace(d);
@@ -166,13 +168,23 @@ function TwistBasis0(N, prec)
     next_idx := 1;
     twist_bases := [* *];
     twist_f_bases := [* *];
+
+    printf "Calculating %o twisting operators....\n", #X_even;
+
+    conds := {Conductor(eps) : eps in X_even};
+    u_mats := AssociativeArray(conds);
+    for c in conds do
+	u := [c, 1, 0, c];
+	// This seems like the bottleneck at the moment. How can we do it more quickly?
+	u_mats[c] := Transpose(ActionOnModularSymbolsBasis(u, M));
+    end for;
     
     chars := [* *];
     for eps in X_even do
 	c := Conductor(eps);
 	chi := DirichletGroupFull(c)!eps;
-	u := [c, 1, 0, c];
-	u_mat := Transpose(ActionOnModularSymbolsBasis(u, M));
+	u_mat := u_mats[c];
+	// The ChangeRing is killing us. Let's try to calculate in smaller fields
 	R_chi := ChangeRing(&+[Evaluate(chi^(-1), t) * u_mat^t : t in [0..c-1]], KL);
 	g := GaussSum(chi^(-1));
 	Append(~chars, <BaseExtend(chi, KL), R_chi, KL!g>);

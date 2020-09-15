@@ -148,8 +148,7 @@ import "arith.m"  : DotProd,
 import "linalg.m" : KernelOn,
                     MyCharpoly;
 
-import "misc.m" : IntermediateSubgps,
-                  MinimalOvergps;
+import "misc.m" : IntermediateSubgroups;
 
 import "modsym.m" : get_degeneracy_reps,
 		    ModularSymbolsDual,
@@ -617,9 +616,9 @@ function get_NN(M)
    N := ImageInLevelGL(G);
    NN := [N];
    // !!! TODO : This might be slow - change it later
-   // Apparently this is a new addition to magme (only exists in versions
+   // Apparently this is a new addition to magma (only exists in versions
    // 2.24 and above. We therefore check versions here.
-   NN := NN cat IntermediateSubgps(ModLevelGL(G), ImageInLevelGL(G));
+   NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
    Append(~NN, ModLevelGL(G));
 // Is this necessary? Currently we need it for the complete decomposition
    eta := ModLevelGL(G)![-1,0,0,1];

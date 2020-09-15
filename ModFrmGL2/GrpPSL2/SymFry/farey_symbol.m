@@ -708,8 +708,8 @@ intrinsic Widths(FS::SymFry) -> SeqEnum
       return FS`widths;
    else
       if not assigned FS`otherEdges then
-	 FS`otherEdges := MakeOtherEdges(FS`cusps,FS`labels);
-	 FS`group`FS_otherEdges := FS`otherEdges;
+       FS`otherEdges := MakeOtherEdges(FS`cusps,FS`labels);
+       FS`group`FS_otherEdges := FS`otherEdges;
       end if;
       FS`widths := FindWidths(FS`cusps,FS`labels,FS`otherEdges);
       return FS`widths;

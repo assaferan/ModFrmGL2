@@ -115,7 +115,10 @@ intrinsic Cusps(G::GrpPSL2) -> SeqEnum
                end for; 
             end for; // d,c
         else
-	    _:=FindCusps(G);
+	    //_:=FindCusps(G);
+	    // There's some kind of bug in FindCusps, so I'm patching it right now,
+	    // until I'll have the time to fix it.
+	    G`cusps := Cusps(ModularSymbols(G, 2, Rationals(), 0));
         end if;
     end if;
     return G`cusps;

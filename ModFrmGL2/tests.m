@@ -1,8 +1,9 @@
 // freeze;
 ROOT_DIR := "./";
-AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2.spec");
-AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
-AttachSpec(ROOT_DIR cat "ModFrm/ModFrm.spec");
+// AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2.spec");
+// AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
+// AttachSpec(ROOT_DIR cat "ModFrm/ModFrm.spec");
+AttachSpec(ROOT_DIR cat "ModFrmGL2.spec");
 SetHelpUseExternalBrowser(false);
 SetDebugOnError(true);
 // SetVerbose("ModularSymbols", 0);
@@ -58,7 +59,8 @@ if assigned MC_NewformDecompositionOfCuspidalSubspace then
    delete MC_NewformDecompositionOfCuspidalSubspace;
 end if;
 import "./ModSym/multichar.m" : MC_NewformDecompositionOfCuspidalSubspace;
-import "./nsCartan.m" : Test_NSCartan_11, Test_NSCartan_17, Test_NSCartan;
+import "./Tests/nsCartan.m" : Test_NSCartan_11, Test_NSCartan_17, Test_NSCartan;
+// import "./ModSym/misc.m" : GenerateS4, PowerSeriesSeq;
 
 function my_idxG0(n)
    return 
@@ -550,6 +552,8 @@ procedure Test_Stein()
 // Test_Stein_9_8();
 end procedure;
 
+// Not used at the moment - in the end would like to use that for testing
+/*
 function MakeGroupCopy(M)
   k := Weight(M);
   sign := Sign(M);
@@ -575,6 +579,7 @@ function MakeGroupCopy(M)
   print "Error! Could not find an appropriate character!\n";
   return false;
 end function;
+*/
 
 function benchmark(G)
   M := ModularForms(G);
@@ -640,6 +645,9 @@ function GetEigenforms(grp : prec := -1)
   return get_eigenforms(grp`level, grp`matgens : prec := prec);
 end function;
 
+// This method is for comparison of eigenforms.
+// At the moment not being used
+/*
 function IsSameEigenform(f,g)
   K_f := BaseRing(Parent(f));
   K_g := BaseRing(Parent(g));
@@ -666,10 +674,10 @@ function IsSameEigenform(f,g)
   end for;
   return false;	      
 end function;
-
+*/
 // The load can't be in a function. do that before.
 // Have to change original data files to be able to import them.
-
+/*
 dir := GetCurrentDirectory();
 ChangeDirectory("/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/");
 if assigned L then
@@ -677,7 +685,7 @@ if assigned L then
 end if;
 load "/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/csg6-lev120.dat";
 ChangeDirectory(dir);
-
+*/
 // This fails at N = 8 when char = true,
 // because the multicharacter decomposition decomposes one of the seemingly irreducible spaces !???
 
@@ -707,12 +715,65 @@ function Test_Eisenstein(N,k : prec := 100)
     E := EisensteinSeries(ModularForms(my_Gamma(N,0),k));
     f := [PowerSeries(e, 100*N) : e in E];
     f_vecs := [Vector(AbsEltseq(x)) : x in f];
+    // f_vecs := [Vector(PowerSeriesSeq(x)) : x in f];
     f_orig := [PowerSeries(e, 100) : e in E_orig];
     _<q> := Parent(f_orig[1]);
     f_orig_vecs := [Vector(AbsEltseq(Evaluate(f,q^N))) : f in f_orig];
+    // f_orig_vecs := [Vector(PowerSeriesSeq(Evaluate(f,q^N))) : f in f_orig];
     K := BaseRing(Universe(f_vecs));
     return Solution(ChangeRing(Matrix(f_orig_vecs), K), f_vecs);
 end function;
+
+procedure Test_S13()
+    tt := Cputime();
+    p := 13;
+//    B<i,j,k> := Quaternions();
+    B<i,j,k> := QuaternionAlgebra(Rationals(), -1,-1);
+    O_B := QuaternionOrder([1,i,j,k]);
+    //    O_B, i, j, k := QuaternionStandardOrder();
+    _, mp := pMatrixRing(O_B,p);
+    S4tp := sub<GL(2,p) | [mp(1+s) : s in [i,j,k]]
+    			cat [mp(1-s) : s in [i,j,k]] cat [-1]>;
+    // S4tp := GenerateS4(p);
+    H_S4 := sub<GL(2,Integers(p)) | Generators(S4tp)>;
+    G_S4 := PSL2Subgroup(H_S4);
+    M := ModularSymbols(G_S4, 2, Rationals(), 0);
+    S := CuspidalSubspace(M);
+    D := Decomposition(S, HeckeBound(S));
+    assert #D eq 1;
+    f := qEigenform(D[1]);
+    R<q> := Parent(f);
+    K<a> := BaseRing(R);
+    assert qEigenform(D[1],20) eq
+	   q + a*q^2 + (-a^2 - 2*a)*q^3 + (a^2 - 2)*q^4 +
+	   (a^2 + 2*a - 2)*q^5 + (-a - 1)*q^6 + (a^2 - 3)*q^7 +
+	   (-2*a^2 - 3*a + 1)*q^8 + (a^2 + 3*a - 1)*q^9 +
+	   (-a + 1)*q^10 + (-a^2 - 2*a - 2)*q^11 + (a^2 + 3*a)*q^12 +
+	   (-2*a^2 - 2*a + 1)*q^14 + (a^2 + a - 2)*q^15 +
+	   (-a^2 - a + 2)*q^16 + (-a^2 + a + 2)*q^17 +
+	   (a^2 + 1)*q^18 + (-2*a^2 - a + 2)*q^19 + O(q^20);
+    f := DefiningPolynomial(K);
+    _<x> := Parent(f);
+    assert f eq x^3 + 2*x^2 - x - 1;
+    Cputime(tt);
+end procedure;
+
+procedure Test_2adic()
+     tt := Cputime();
+     gens := [[1,3,12,3],[1,1,12,7],[1,3,0,3],[1,0,2,3]];
+     N := 16;
+     H_N := sub<GL(2,Integers(N)) | gens>;
+     H := PSL2Subgroup(H_N);
+     M := ModularSymbols(H, 2, Rationals(), 0);
+     S := CuspidalSubspace(M);
+     D := Decomposition(S, HeckeBound(S));
+     f := qEigenform(D[1],100);
+     _<q> := Parent(f);
+     assert f eq q - 4*q^5 - 3*q^9 - 4*q^13 - 2*q^17 + 11*q^25 - 4*q^29 +
+		 12*q^37 - 10*q^41 + 12*q^45 - 7*q^49 - 4*q^53 + 12*q^61 +
+		 16*q^65 - 6*q^73 + 9*q^81 + 8*q^85 + 10*q^89 - 18*q^97 + O(q^100);
+     Cputime(tt);
+end procedure;
 
 procedure DoTests(numchecks)
    Test_Eigenforms(numchecks);
@@ -724,11 +785,18 @@ procedure DoTests(numchecks)
    Test_DimensionConsistency(numchecks);
  //  Test_EllipticCurve();
    Test_qExpansionBasis(numchecks);
-   Test_Rouse();
+   // This is no longer really needed
+   // Test_Rouse();
+   // These test that everything works for
+   // Gamma0, Gamma1 as in the examples from Stein's book
    Test_Stein();
-   Test_NSCartan(30);
+   // not needed - tests the construction of spaces for ns cartan
+   // Test_NSCartan(30);
+   // Tests from the paper
+   Test_2adic();
    Test_NSCartan_11();
    Test_NSCartan_17();
+   Test_S13();
 // Test_Zywina();
 end procedure;
 

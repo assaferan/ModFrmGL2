@@ -345,7 +345,7 @@ function getEigenformAndVectors(d, prec)
     f := qEigenform(d, prec);
     R := Parent(f);
     // q_R := R.1;
-    F := BaseRing(R);
+    F := AbsoluteField(BaseRing(R));
     // Append(~fields, F);
     // aut := Automorphisms(F);
     gal, _, psi := AutomorphismGroup(F, Rationals());
@@ -410,16 +410,9 @@ function allEigenformsAndVectors(f, ev_plus, ev_minus, betas, F, aut, all_qexps)
     
     for beta in betas do
 	mat := ChangeRing(beta[1], F);
-	f_a := Evaluate(f, q^beta[2]);
+	f_a := beta[2]*Evaluate(f, q^beta[2]);
 	Append(~qexps, f_a);
 	for sigma in aut do
-	    /*
-	    sig_f_a :=
-		&+[sigma(Coefficient(f_a,i))*q^i :
-		   i in [1..prec-1]] + O(q^prec);
-	    sig_ev_plus := Vector([sigma(x) : x in Eltseq(ev_plus)]);
-	    sig_ev_minus:= Vector([sigma(x) : x in Eltseq(ev_minus)]);
-	   */
 	    Append(~all_qexps, ApplyAut(sigma, f_a));
 	    Append(~eig_plus, ApplyAut(sigma,ev_plus)*mat);
 	    Append(~eig_minus, ApplyAut(sigma,ev_minus)*mat);
@@ -431,17 +424,22 @@ end function;
 // Here cusp_forms_space in an irreducible constituent of Dual(S)
 // (as a subspace of Dual(M))
 // and D is the decomposition to irreducible Hecke modules
-function find_xi_on_irred_slow(M, cusp_space, eig_basis, qexps, prec)
+
+function find_xi_on_irred_slow(M, eig_basis, qexps, prec)
     L := BaseField(Universe(eig_basis));
-    assert BaseRing(cusp_space) eq L;
+
+    // cusp_space := ChangeRing(cusp_space_orig, L);
+    
     Ts := [[Coefficient(f,n): f in qexps] : n in [1..prec-1]];
-    Ts_all := [DiagonalMatrix(t) : t in Ts];
- 
+    Ts := [DiagonalMatrix(t) : t in Ts];
+
+    cusp_space := sub<Universe(eig_basis) | eig_basis>;
     cusp_basis := BasisMatrix(cusp_space);
     eig_in_cusp := Solution(cusp_basis, Matrix(eig_basis));
-
+    
     _, N := IsSquare(Level(M));
     u := Transpose(ActionOnModularSymbolsBasis([N,1,0,N], M));
+    
     u_act := eig_in_cusp * Restrict(ChangeRing(u, L), cusp_space);
     u_action_a := Solution(eig_in_cusp, u_act);
     K<zeta> := CyclotomicField(N);
@@ -530,11 +528,12 @@ function decompose(V, im_D)
 	V_F := ChangeRing(V,F);
 	W := sub<V_F|im_D[idx]>;
 	d_vec := sub<VectorSpace(V_F) | d>;
-	// W := sub<V | d>;
-	// d_vec := sub<VectorSpace(V) | d>;
+
+	fields := [* Compositum(BaseRing(d_vec), BaseRing(irr)) : irr in irred_spaces *];
 	covered := exists(j){j : j in [1..#irred_spaces] |
-			     BaseRing(d_vec) eq BaseRing(irred_spaces[j]) and
-			     d_vec subset irred_spaces[j]};
+			     //BaseRing(d_vec) eq BaseRing(irred_spaces[j]) and
+			     ChangeRing(d_vec, fields[j]) subset
+				       ChangeRing(irred_spaces[j], fields[j])};
 	if covered then
 	    Append(~irred_D[j], idx);
 	else
@@ -599,17 +598,19 @@ function get_fs_vecs_slow(N, prec)
 		   : irr in irred_subs];
     xis := [* *];
     eigs := [* *];
-    F := [* *];
+    qexps := [* *];
     for idx in [1..#irred_D] do
-	xi, eig, qexp := find_xi_on_irred_slow(M, irred_subs[idx], irred_D[idx],
-					       irred_qexps[idx], prec);
+	xi := find_xi_on_irred_slow(M, irred_D[idx], irred_qexps[idx], prec);
 	Append(~xis, xi);
-	Append(~eigs, eig);
-	Append(~F, qexp);
+	Append(~eigs, irred_D[idx]);
+	Append(~qexps, irred_qexps[idx]);
     end for;
-    fs_pm := [[xis[j][i]^(-1) * ChangeRing(eigs[j][i],BaseRing(xis[j]))
-	       : i in [1..Degree(xis[j])]] : j in [1..#xis] ];
-    B := [[vs[i] + vs[i + #vs div 2] : i in [1..#vs div 2]] : vs in fs_pm];
+    fs_pm := [*[xis[j][i]^(-1) * ChangeRing(eigs[j][i],BaseRing(xis[j]))
+		: i in [1..Degree(xis[j])]] : j in [1..#xis] *];
+    // We assume here that the indices were sorted and we had an equal
+    // number of pluses and minuses in every irreducible piece
+    B := [*[vs[i] + vs[i + #vs div 2] : i in [1..#vs div 2]] : vs in fs_pm*];
+    F := [* fs[1..#fs div 2] : fs in qexps*];
     return B, F;
 end function;  
 

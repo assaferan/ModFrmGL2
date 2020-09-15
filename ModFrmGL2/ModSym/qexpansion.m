@@ -135,6 +135,7 @@ import "linalg.m" :   EchelonPolySeq,
                       Restrict,
                       SaturatePolySeq,
                       Saturate;
+import "misc.m"  :    PivotColumn;
 import "modsym.m":    get_degeneracy_reps;
 
 import "multichar.m": 

@@ -58,6 +58,7 @@ freeze;
                                                                             
  ***************************************************************************/
 
+import "misc.m" : PivotColumn;
 
 forward IntegerKernel,
         RestrictionOfScalars;
