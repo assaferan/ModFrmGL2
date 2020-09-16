@@ -498,35 +498,37 @@ with respect to Basis(M).}
          r  := fac[1][2];
          eps := DirichletCharacter(M);
          if IsOfGammaType(M) then
-            eps_val := Evaluate(eps,p);
-            T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
-            - eps_val*p^(Weight(M)-1)*HeckeOperator(M,p^(r-2));
+            eps_val := Evaluate(eps,p)*p^(Weight(M)-1); 
+	 elif Level(M) mod p ne 0 then
+	     G := LevelSubgroup(M);
+	     sigma_p := p * Matrix(G`DetRep(p)^(-2));
+	     // It might be that we don't have here p^(k-1) - check
+	     eps_val := Evaluate(eps, sigma_p)*p^(Weight(M)-1);
+	 elif IsAmbientSpace(M) then
+	     T := HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := true);
+	     eps_mat := HeckeOperator(M,p)^2 - T;
+	     assert IsScalar(eps_mat);
+	     if NumberOfRows(eps_mat) eq 0 then
+		 eps_val := 1;
+	     else
+		 eps_val := eps_mat[1,1];
+	     end if;
 	 else
-	   if IsAmbientSpace(M) then
-	     // eps_val := Evaluate(eps, Parent(eps)`OriginalDomain![p,0,0,p]);
-	     if Level(M) div p eq 0 then
-	        T := HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := true);
-             else      
-                use_cremona := BaseField(M) cmpeq RationalField() and Weight(M)
-	                     eq 2 and IsTrivial(DirichletCharacter(M));
-	        T := HeckeOperatorHeilbronn(M, Heilbronn(M, p^2,
-							not use_cremona));
-            end if;
-	 else
-	   if Characteristic(BaseField(M)) eq 0 and 
-              Dimension(M) lt 0.5*Dimension(AmbientSpace(M)) then
-              // Uses complements which don't work well in char p, since Hecke
-              // isn't semisimple in char p.   I have no idea how often
-              // 0.5*dim(amb) is the right cut off. 
-              T := HeckeOperator_OnSubspace_UsingComplement(M,n);
-           else
-              T := Restrict(HeckeOperator(AmbientSpace(M),n), VectorSpace(M));
-           end if;
+	     if Characteristic(BaseField(M)) eq 0 and 
+		Dimension(M) lt 0.5*Dimension(AmbientSpace(M)) then
+		 // Uses complements which don't work well in char p, since Hecke
+		 // isn't semisimple in char p.   I have no idea how often
+		 // 0.5*dim(amb) is the right cut off. 
+		 T := HeckeOperator_OnSubspace_UsingComplement(M,n);
+	     else
+		 T := Restrict(HeckeOperator(AmbientSpace(M),n), VectorSpace(M));
+	     end if;
 	 end if;
-        end if;
+	 T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
+               - eps_val*HeckeOperator(M,p^(r-2));
       else  // T_m*T_r := T_{mr} and we know all T_i for i<n.
-         m  := fac[1][1]^fac[1][2];
-         T  := HeckeOperator(M,m)*HeckeOperator(M,n div m);
+          m  := fac[1][1]^fac[1][2];
+          T  := HeckeOperator(M,m)*HeckeOperator(M,n div m);
       end if;            
    end if;
 
@@ -886,7 +888,11 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
   coset_reps := [GL2Q!([Integers()!x : x in Eltseq(g)]) : g in D_lift];
   return &cat[[Eltseq(r*g) : g in coset_reps] : r in R_full];
  */
-  alpha := FindLiftToM2Z(Matrix(G`DetRep(p)) : det := p);
+  if N eq 1 then
+      alpha := [1,0,0,p]; // any element of determinant p woud work here
+  else
+      alpha := FindLiftToM2Z(Matrix(G`DetRep(p)) : det := p);
+  end if;
   return HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!Eltseq(alpha));
 end function;
 

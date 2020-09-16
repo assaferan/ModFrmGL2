@@ -233,9 +233,9 @@ procedure Test_DegeneracyMaps(numcheck)
       M,N,k,eps := RandomSpace();
       Test_DegeneracyMaps_Single(M, N, k, eps);
       if Evaluate(eps, -1) eq 1 then
-	  M := MakeGroupCopy(M);
-	  eps := DirichletCharacter(M);
-	  Test_DegeneracyMaps_Single(M, N, k, eps);
+	  M_copy := MakeGroupCopy(M);
+	  eps_copy := DirichletCharacter(M_copy);
+	  Test_DegeneracyMaps_Single(M_copy, N, k, eps_copy);
       end if;
    end for;
 end procedure;
@@ -245,6 +245,14 @@ end procedure;
    subspaces agree with the dimensions computed using the standard 
    dimension formulas. */
 
+procedure Test_DimensionNewSubspace_Single(M, N, k)
+    t := Cputime();
+    d := DimensionNewCuspFormsGamma0(N,k);
+    assert 2*d eq Dimension(NewSubspace(CuspidalSubspace(M)));
+    printf " \tdim  = %o,    \t%os\n",
+           Dimension(NewSubspace(CuspidalSubspace(M))),Cputime(t);
+end procedure;
+
 procedure Test_DimensionNewSubspace(numcheck)
    if Characteristic(base) ne 0 then
       return;
@@ -252,11 +260,8 @@ procedure Test_DimensionNewSubspace(numcheck)
    print "** Dimension of new subspace check **";
    for i in [1..numcheck] do
       M,N,k := RandomSpaceWithTrivialCharacter();
-      t := Cputime();
-      d := DimensionNewCuspFormsGamma0(N,k);
-      assert 2*d eq Dimension(NewSubspace(CuspidalSubspace(M)));
-      printf " \tdim  = %o,    \t%os\n",
-              Dimension(NewSubspace(CuspidalSubspace(M))),Cputime(t);
+      Test_DimensionNewSubspace_Single(M, N, k);
+      // This cannot work on the copy due to the differnet definition of new
    end for;
 end procedure;
 
