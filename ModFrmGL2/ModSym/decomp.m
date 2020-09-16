@@ -704,38 +704,7 @@ IsCuspidal(M) is true.}
 	  NN := GetNN(M);
 	  primes := GetModSymPrimes(M);
 	  G_N := ImageInLevelGL(LevelSubgroup(M));
-	  /*
-        eps := DirichletCharacter(M);
-        G := Parent(eps)`Gamma;
-	//        G_N := ImageInLevelGL(LevelSubgroup(M));
-	G_N := ImageInLevel(LevelSubgroup(M));
-        N := ImageInLevelGL(G);
-        NN := get_NN(M);
-        primes := MinimalOvergps(ModLevelGL(G), N);
-// SL_N := ModLevel(G);
-        eta := ModLevelGL(G)![-1,0,0,1];
-// primes := [p : p in primes | (p meet SL_N)^eta eq (p meet SL_N)];
-        primes := [p : p in primes | p^eta eq p];
-        // is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in primes] :
-	//						    y in primes];
-	is_conj := [[IsConjugate(ModLevel(G), x meet ModLevel(G),
-				 y meet ModLevel(G)) : x in primes] :
-		    y in primes];
-        primes := {[primes[i] : i in [1..#primes] |
-			    is_conj[i][j]] : j in [1..#primes]};
-        primes := [y[1] : y in primes];
-	
-	primes := [p : p in primes | CuspWidth(PSL2Subgroup(p), Infinity()) ne
-				     CuspWidth(G, Infinity())];
-      
-	primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
-	N_p := [Normalizer(ModLevelGL(G), p) : p in primes];
-
-	good := [i : i in [1..#primes] | G_N subset N_p[i]];
-	primes := [primes[i] : i in good];
-	*/
-	
-	pnew := [p : p in primes | IsNew(M,p)];
+	  pnew := [p : p in primes | IsNew(M,p)];
       end if;
 
       for i in [1..#NN] do

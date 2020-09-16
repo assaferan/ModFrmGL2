@@ -792,8 +792,9 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
        // This is conjugating by alpha
        // Given the choice of c, it is OK   
        p_conj := Conjugate(G,alpha);
-       new_N := Level(p_conj);
-       is_conj, y := IsConjugate(SL(2,Integers(new_N)), ImageInLevel(p_conj),
+       new_N := Maximum(Level(p_conj), N);
+       is_conj, y := IsConjugate(SL(2,Integers(new_N)),
+				 ImageInLevel(p_conj : N := new_N),
 				 ImageInLevel(G : N := new_N));
        if is_conj then     
  // y_lift := GL2Q!Eltseq(FindLiftToSL2(y));
@@ -886,7 +887,7 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
   return &cat[[Eltseq(r*g) : g in coset_reps] : r in R_full];
  */
   alpha := FindLiftToM2Z(Matrix(G`DetRep(p)) : det := p);
-  return HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!alpha);
+  return HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!Eltseq(alpha));
 end function;
 
 // Trying to use John's idea

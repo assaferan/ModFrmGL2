@@ -147,7 +147,14 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
          xG := G! x`Map;
          return true, xG;
       else
-	 if G`OriginalDomain subset Parent(x)`OriginalDomain then
+	  level_G := Modulus(BaseRing(G`OriginalDomain));
+	  level_x := Modulus(BaseRing(Parent(x)`OriginalDomain));
+	  level := LCM(level_G, level_x);
+	  G_in_level := ImageInLevelGL(G`GammaPrime : N := level);
+	  x_in_level := ImageInLevelGL(Parent(x)`GammaPrime : N := level);
+	  
+	  //	  if G`OriginalDomain subset Parent(x)`OriginalDomain then
+	  if G_in_level subset x_in_level then
 	     gens := GeneratorsSequence(G`Domain);
 	     if Dimension(Codomain(x`Map)) eq 0 then
 		 val_gens := [Codomain(x`Map)!1 : g in gens];
@@ -165,7 +172,8 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
 		 rep := Representation(GModule(G`Domain, val_gens));
 	     end if;
 	     return true, initGrpChrElt(G, rep);
-	 elif Parent(x)`OriginalDomain subset G`OriginalDomain then
+	     //	 elif Parent(x)`OriginalDomain subset G`OriginalDomain then
+	  elif x_in_level subset G_in_level then
              G_ab, pi_ab := AbelianQuotient(G`Domain);
 	     H_ab := pi_ab(G`QuotientMap(Parent(x)`OriginalDomain));
 	     Q, pi_Q := G_ab / H_ab;

@@ -520,44 +520,48 @@ elif G2 subset G1 then// G2 subset G1 -- raise level
  //     "Determinant of Argument 3 must divide CuspWidth(G2) div CuspWidth(G1).";
 
  
-     bool, eps12 := IsCoercible(Parent(eps1), eps2);
-         require bool and eps12 eq eps1 :
-         "Arguments 1 and 2 must have compatible dirichlet characters.";
+  // bool, eps12 := IsCoercible(Parent(eps1), eps2);
+  bool, eps12 := IsCoercible(Parent(eps2), eps1);
+  //         require bool and eps12 eq eps1 :
+  require bool and eps12 eq eps2 :
+      "Arguments 1 and 2 must have compatible dirichlet characters.";
 
-      if assigned already_known then
-         return already_known;
-      end if;
+  if assigned already_known then
+      return already_known;
+  end if;
 
-      B   := ModularSymbolsBasis(M1);
-      alpha := d;
-      alpha_conj := Conjugate(G2,alpha : IsExactLevel := true);
-      conj := ImageInLevel(alpha_conj);
-      im_G1 := ImageInLevel(G1 : N := Level(alpha_conj));
-      require conj subset im_G1 :
-            "alpha must conjugate G1 to G2";
-      D := Transversal(im_G1, conj);
-      D_lift := [PSL2(Integers()) | FindLiftToSL2(dd) : dd in D];
-      R := [Eltseq(alpha*Parent(alpha)!Matrix(dd)) : dd in D_lift];
-      eps := DirichletCharacter(M1);
-      eps_vals := [(dd@eps)^(-1) : dd in D];
-      // R   := DegeneracyCosetReps(N1, N2, d);
-      if IsTrivial(eps) then
-         RB := [ &cat[ModularSymbolApply(M1, r, B[i]) : r in R] 
-                                                  : i in [1..#B]];
-         // This step takes a lot of time.
-         A := [Representation(ConvFromModularSymbol(M2,RB[i])) 
-                                                  : i in [1..#RB]];
-      else
-         A   := [ &+[eps_vals[j]*
-                      Representation(ConvFromModularSymbol(M2,
-                              ModularSymbolApply(M1, R[j], B[i]))) :
-			       j in [1..#R]] : i in [1..#B]];
-      end if;
-   else
-      assert false;
-   end if;
+  G1 := LevelSubgroup(M1);
+  G2 := LevelSubgroup(M2);
+  B   := ModularSymbolsBasis(M1);
+  alpha := d;
+  alpha_conj := Conjugate(G2,alpha : IsExactLevel := true);
+  conj := ImageInLevel(alpha_conj);
+  im_G1 := ImageInLevel(G1 : N := Level(alpha_conj));
+  require conj subset im_G1 :
+      "alpha must conjugate G1 to G2";
+  D := Transversal(im_G1, conj);
+  D_lift := [PSL2(Integers()) | FindLiftToSL2(dd) : dd in D];
+  R := [Eltseq(alpha*Parent(alpha)!Matrix(dd)) : dd in D_lift];
 
-   vprintf ModularSymbols, 2: "\t\t(%o s)\n",Cputime(t);
+  eps_vals := [(dd@eps1)^(-1) : dd in D];
+  // R   := DegeneracyCosetReps(N1, N2, d);
+  if IsTrivial(eps1) then
+      RB := [ &cat[ModularSymbolApply(M1, r, B[i]) : r in R] 
+              : i in [1..#B]];
+      // This step takes a lot of time.
+      A := [Representation(ConvFromModularSymbol(M2,RB[i])) 
+            : i in [1..#RB]];
+  else
+      A   := [ &+[eps_vals[j]*
+                  Representation(ConvFromModularSymbol(M2,
+						       ModularSymbolApply(M1, R[j], B[i]))) :
+		  j in [1..#R]] : i in [1..#B]];
+  end if;
+  else
+assert false;
+  end if;
+  
+  vprintf ModularSymbols, 2: "\t\t(%o s)\n",Cputime(t);
 
    h := Hom(Representation(M1), Representation(M2)) ! A; 
    if not assigned ii_out then

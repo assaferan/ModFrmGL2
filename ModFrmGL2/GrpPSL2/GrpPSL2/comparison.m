@@ -245,7 +245,7 @@ end intrinsic;
 
 intrinsic Index(G::GrpPSL2,H::GrpPSL2) -> RngIntElt
     { returns index of H in G, if this is finite}
-    require H subset G: "First argument must be a subgroup of the second argument";
+    require H subset G: "second argument must be a subgroup of the first argument";
     //require IsFiniteIndex(G,H): "First argument must have finite index in the second argument";
     Z := Integers();
     require G`BaseRing eq Z: "First argument must be a subgroup of SL_2(Z)";
