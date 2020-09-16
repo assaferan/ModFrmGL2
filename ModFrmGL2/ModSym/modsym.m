@@ -526,8 +526,8 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    return ModularSymbols(G,k,Rationals(),sign);
 end intrinsic;
 
-forward get_real_conjugate;
-forward get_gl_model;
+forward GetRealConjugate;
+forward GetGLModel;
 
 intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, 
 			 F::Fld, sign::RngIntElt) -> ModSym
@@ -545,12 +545,12 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    H := ImageInLevelGL(G);
 
    if not IsOfRealType(G) then
-     H := get_real_conjugate(H);
+     H := GetRealConjugate(H);
      G := PSL2Subgroup(H);
    end if;
 
    if assigned G`DetRep and #Domain(G`DetRep) lt EulerPhi(Level(G)) then
-     H := get_gl_model(H);
+     H := GetGLModel(H);
      G := PSL2Subgroup(H);
    end if;
 
@@ -1364,7 +1364,7 @@ intrinsic IsCoercible(M::ModSym,x::.) -> BoolElt, ModSymElt
    end case;
 end intrinsic;
 
-function get_degeneracy_reps(M1, M2, divisors)
+function GetDegeneracyReps(M1, M2, divisors)
     candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]
 			     | GCD(b, GCD(a, n div a)) eq 1] :
 			    a in Divisors(n)] : n in divisors];
@@ -1483,7 +1483,7 @@ return M3, otherwise terminate with an error.}
    divisors := Divisors(N1 mod N2 eq 0 select N1 div N2 else N2 div N1);
    if not IsOfGammaType(M1) then
        // divisors := get_degeneracy_reps(M1, M2, divisors);
-       divisors := get_degeneracy_reps(M1, M2, Divisors(LCM(N1, N2)));
+       divisors := GetDegeneracyReps(M1, M2, Divisors(LCM(N1, N2)));
    end if;
 
    B := Basis(VectorSpace(M2));
@@ -2189,7 +2189,7 @@ intrinsic '-'(x::ModSymElt,y::ModSymElt) -> ModSymElt
 end intrinsic;
 
 // Helper functions for creation
-function get_real_conjugate(H)
+function GetRealConjugate(H)
   GL_N := GL(2, BaseRing(H));
   N_H := NormalizerGrpMat(GL_N, H);
   N_H_conjs := Conjugates(GL_N, N_H);
@@ -2202,7 +2202,7 @@ function get_real_conjugate(H)
   return real_H; 
 end function;
 
-function get_gl_model(H)
+function GetGLModel(H)
   N := Modulus(BaseRing(H));
   SL_N := SL(2, Integers(N));
   GL_N := GL(2, BaseRing(H));

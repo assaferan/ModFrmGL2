@@ -150,7 +150,7 @@ import "linalg.m" : KernelOn,
 
 import "../GrpPSL2/GrpPSL2/misc.m" : IntermediateSubgroups;
 
-import "modsym.m" : get_degeneracy_reps,
+import "modsym.m" : GetDegeneracyReps,
 		    ModularSymbolsDual,
                     ModularSymbolsSub;
 
@@ -524,7 +524,7 @@ function image_of_old_newform_factor_using_operators(M, A)
 				  CuspWidth(G_A, Infinity()));
       */
        //       numdiv := Level(G_M) div Level(G_A);
-       divs := get_degeneracy_reps(M, A, Divisors(Level(G_M)));
+       divs := GetDegeneracyReps(M, A, Divisors(Level(G_M)));
        numdiv := #divs;
        /*
        is_invariant := true;
@@ -609,7 +609,7 @@ function image_of_old_newform_factor(M, A)
    end if;
 end function;
 
-function get_NN(M)
+function GetNN(M)
     eps := DirichletCharacter(M);
     G_N := ImageInLevelGL(LevelSubgroup(M));
    G := Parent(eps)`Gamma;
@@ -722,7 +722,7 @@ IsCuspidal(M) is true.}
 	  eps := DirichletCharacter(M);
           G := Parent(eps)`Gamma;
 	  N := ImageInLevelGL(G);
-	  NN := get_NN(M);
+	  NN := GetNN(M);
 	  primes := GetModSymPrimes(M);
 	  G_N := ImageInLevelGL(LevelSubgroup(M));
 	  /*

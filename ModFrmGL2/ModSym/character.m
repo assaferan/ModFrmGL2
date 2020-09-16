@@ -156,7 +156,11 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
 		 val_gens := [Codomain(x`Map)![[v]] : v in val_gens];
 	     end if;
 	     if IsEmpty(val_gens) then
-		 rep := Representation(TrivialModule(G`Domain, G`BaseRing));
+		 mat_alg := MatrixAlgebra(G`BaseRing, 1);
+		 rep := map<G`Domain -> mat_alg|<G`Domain!1,mat_alg!1> >;
+		 // This is what we would like to do, but stopped working
+		 // in magma v.2.25
+//		 rep := Representation(TrivialModule(G`Domain, G`BaseRing));
 	     else
 		 rep := Representation(GModule(G`Domain, val_gens));
 	     end if;

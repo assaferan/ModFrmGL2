@@ -222,27 +222,30 @@ end function;
 // transferring one coset to the other
  
 function BuildTOrbitTable(coset_list, find_coset, G)
-  T := ModLevel(G) ! [1,1,0,1];
-  T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
-		      find_coset) : x in coset_list];
-  orbit_table := [[] : idx in [1..#coset_list]];
-  cur_idx := 1;
-  cur_orbit := 1;
-  cur_ord_in_orbit := 1;
-  while (cur_idx le #orbit_table) do                    
-     orbit_table[cur_idx] := [cur_orbit, cur_ord_in_orbit];
-     cur_idx := T_map[cur_idx];                            
-     if (#orbit_table[cur_idx] gt 0) then
-         cur_orbit := cur_orbit + 1;
-         cur_ord_in_orbit := 1;
-         while (cur_idx le #orbit_table) and (#orbit_table[cur_idx] gt 0) do
-	      cur_idx := cur_idx + 1;
-         end while;
-     else
-         cur_ord_in_orbit := cur_ord_in_orbit + 1;
-     end if;
-  end while;
-  return orbit_table;
+    if Level(G) eq 1 then
+	return [[1,1]];
+    end if;
+    T := ModLevel(G) ! [1,1,0,1];
+    T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
+			  find_coset) : x in coset_list];
+    orbit_table := [[] : idx in [1..#coset_list]];
+    cur_idx := 1;
+    cur_orbit := 1;
+    cur_ord_in_orbit := 1;
+    while (cur_idx le #orbit_table) do                    
+	orbit_table[cur_idx] := [cur_orbit, cur_ord_in_orbit];
+	cur_idx := T_map[cur_idx];                            
+	if (#orbit_table[cur_idx] gt 0) then
+            cur_orbit := cur_orbit + 1;
+            cur_ord_in_orbit := 1;
+            while (cur_idx le #orbit_table) and (#orbit_table[cur_idx] gt 0) do
+		cur_idx := cur_idx + 1;
+            end while;
+	else
+            cur_ord_in_orbit := cur_ord_in_orbit + 1;
+	end if;
+    end while;
+    return orbit_table;
 end function;
 
 // This function finds an element in PSL2 mapping the cusp at infinity to

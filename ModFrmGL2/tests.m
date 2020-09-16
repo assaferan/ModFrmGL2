@@ -1,8 +1,5 @@
 // freeze;
 ROOT_DIR := "./";
-// AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2.spec");
-// AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
-// AttachSpec(ROOT_DIR cat "ModFrm/ModFrm.spec");
 v1, v2, v3 := GetVersion();
 version := Vector([v1, v2, v3]);
 if version lt Vector([2,19,6]) then
@@ -267,20 +264,32 @@ procedure Test_Decomposition(numchecks)
 
 end procedure;
 
+forward MakeGroupCopy;
+
 procedure Test_Eigenforms(numchecks)
    print "** Compute a bunch of eigenforms ** ";
    print "The only check is that the program doesn't bomb.";
    for i in [1..numchecks] do
-      M := RandomSpace();
-      t := Cputime();
-      D := Decomposition(NewSubspace(CuspidalSubspace(M)),23);
-      D;
-      for i in [1..#D] do
-         if IsIrreducible(D[i]) and IsCuspidal(D[i]) then
-            qEigenform(D[i],7);
-         end if;
-      end for;
-      printf " \ttime  = %os\n\n",Cputime(t);
+       M := RandomSpace();
+       t := Cputime();
+       D := Decomposition(NewSubspace(CuspidalSubspace(M)),23);
+       D;
+       for i in [1..#D] do
+           if IsIrreducible(D[i]) and IsCuspidal(D[i]) then
+               qEigenform(D[i],7);
+           end if;
+       end for;
+       if Evaluate(DirichletCharacter(M), -1) eq 1 then
+	   M_copy := MakeGroupCopy(M);
+	   D_copy := Decomposition(NewSubspace(CuspidalSubspace(M_copy)),23);
+	   D_copy;
+	   for i in [1..#D_copy] do
+               if IsIrreducible(D_copy[i]) and IsCuspidal(D_copy[i]) then
+		   qEigenform(D_copy[i],7);
+               end if;
+	   end for;
+       end if;
+       printf " \ttime  = %os\n\n",Cputime(t);
    end for;
 end procedure;
 
@@ -558,11 +567,12 @@ procedure Test_Stein()
 end procedure;
 
 // Not used at the moment - in the end would like to use that for testing
-/*
+
 function MakeGroupCopy(M)
   k := Weight(M);
   sign := Sign(M);
   eps := DirichletCharacter(M);
+  R := BaseRing(eps);
   if (Evaluate(eps,-1) eq -1) then
      print "Currently can only work with even characters...";
      return false;
@@ -570,21 +580,22 @@ function MakeGroupCopy(M)
   N := Level(M);
   G0 := my_Gamma(N,0);
   G1 := my_Gamma(N,1);
-  Q, pi_Q := G0`ImageInLevel / G1`ImageInLevel;
-  gens := SetToSequence(Generators(G0`ImageInLevel));
-  D := AbsolutelyIrreducibleModules(Q,Rationals());
-  reps := [pi_Q * Representation(r) : r in D];
-  vals_all := [[r(g)[1,1] : g in gens] : r in reps];
+  Q, pi_Q := G0 / G1;
+  gens := GeneratorsSequence(ImageInLevel(G0));
+  // Should add coercion of Dirichlet character to group character
+  // (Maybe should just extend the functionality of Dirichlet character
+  // instead?)
+  X := Elements(CharacterGroup(pi_Q, R, G0, G1));
+  vals_all := [[Evaluate(x, g) : g in gens] : x in X];
   vals_eps := [Evaluate(eps, g[2,2]) : g in gens];
-  for i in [1..#reps] do
-     if vals_eps eq vals_all[i] then
-	return ModularSymbols(D[i], k, sign, G0, pi_Q); 
-     end if;
-  end for;
+  i := Index(vals_all, vals_eps);
+  if i ne 0 then
+      return ModularSymbols(X[i], k, sign);
+  end if;
   print "Error! Could not find an appropriate character!\n";
   return false;
 end function;
-*/
+
 
 function benchmark(G)
   M := ModularForms(G);

@@ -191,6 +191,9 @@ intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
       end if;
     end if;
     if not G`IsOfGammaType then
+        if IsGamma(H) and (Level(G) eq Level(H)) then
+          return true;
+        end if;
 	// !!! this could be quite slow but will do for now
         gens_H := Generators(H);
         for h in gens_H do

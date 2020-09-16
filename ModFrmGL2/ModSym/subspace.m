@@ -120,7 +120,7 @@ import "../GrpPSL2/GrpPSL2/misc.m" : IsConjugate,
 
 import "modsym.m" : ModularSymbolsDual,
                     ModularSymbolsSub,
-                    get_degeneracy_reps;
+                    GetDegeneracyReps;
 
 import "multichar.m" : MC_CutSubspace;
 
@@ -400,7 +400,7 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
    // l := Level(G_M) div Level(oldp);
    // assert IsPrime(l) or (l eq 1); // Else something is wrong here
    l := Level(G_M);
-   alphas := get_degeneracy_reps(AM, old, Divisors(l));
+   alphas := GetDegeneracyReps(AM, old, Divisors(l));
    for alpha in alphas do
       Append(~Dmats, DegeneracyMatrix(AM, old, alpha));
       Append(~DDmats, Transpose(DegeneracyMatrix(old, AM, alpha)));
@@ -520,7 +520,7 @@ required to be cuspidal.}
    return pnew;
 end intrinsic;
 
-function prepare_old_spaces(M, primes)
+function PrepareOldSpaces(M, primes)
    G := LevelSubgroup(M);
    G_N := ImageInLevelGL(G);
    // G_N := ImageInLevel(G);
@@ -544,6 +544,7 @@ function prepare_old_spaces(M, primes)
    old := [];
    for i in [1..#primes] do
       Q, pi_Q := N_p[i] / primes[i];
+       // This is needed when the level is changing
       // Q, pi_Q := oldp_prime[i] / oldp[i];
       eps_res := CharacterGroup(pi_Q, BaseRing(M),
 				oldp_prime[i], oldp[i])!eps;
@@ -573,7 +574,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
       primes := Sort([p : p in primes | N mod (p*Neps) eq 0]);
       // Sort so that below, the blocks of D with largest rank at the left
    else
-      old := prepare_old_spaces(M, primes);
+      old := PrepareOldSpaces(M, primes);
    end if;
 
    Dmats := <>;
@@ -599,7 +600,7 @@ function NewNewSubspaceSub(M, primes : ComputeDual:=true)
 	     // p := Level(G_M) div Level(G_old);
              // assert IsPrime(p) or (p eq 1); // Else something is wrong here
 	     p := Level(G_M);
-             alphas[i] := get_degeneracy_reps(AM, old[i], Divisors(p));
+             alphas[i] := GetDegeneracyReps(AM, old[i], Divisors(p));
              for alpha in alphas[i] do
 		 Append(~Dmats, DegeneracyMatrix(AM, old[i], alpha));
              end for;
