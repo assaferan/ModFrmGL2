@@ -226,6 +226,7 @@ procedure Test_DimensionNewSubspace(numcheck)
    end for;
 end procedure;
 
+forward MakeGroupCopy;
 
 procedure Test_NewformDecomposition(numchecks)
    if Characteristic(base) ne 0 then
@@ -241,6 +242,12 @@ procedure Test_NewformDecomposition(numchecks)
       t := Cputime();
       D := NewformDecomposition(CuspidalSubspace(M));
       D;
+      
+      if Evaluate(DirichletCharacter(M),-1) eq 1 then
+	  M_copy := MakeGroupCopy(M);
+	  D_copy := NewformDecomposition(CuspidalSubspace(M_copy));
+	  D_copy;
+      end if;
       printf " \ttime  = %os\n\n",Cputime(t);
    end for;
 end procedure;
@@ -263,8 +270,6 @@ procedure Test_Decomposition(numchecks)
    end for;
 
 end procedure;
-
-forward MakeGroupCopy;
 
 procedure Test_Eigenforms(numchecks)
    print "** Compute a bunch of eigenforms ** ";

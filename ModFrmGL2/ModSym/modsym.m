@@ -1393,6 +1393,28 @@ function GetDegeneracyReps(M1, M2, divisors)
     single_divisors := [candidates[j] : j in [1..#candidates] |
 			is_good[j]];
 
+    ans := [];
+    // Checking for compatibility with Hecke operators
+    for divisor in single_divisors do
+	det := Integers()!Determinant(divisor);
+	if Level(G) mod (Level(H) * det) ne 0 then
+	    M2D := MatrixAlgebra(Integers(det),2);
+	    alpha := M2D!Eltseq(divisor);
+	    a, b, c, d := Explode(Eltseq(alpha));
+	    alpha_tilde := M2D![d,-b,-c,a];
+	    hecke := [M2D!H`DetRep(n) : n in Domain(H`DetRep)];
+	    compat := &and[IsZero(alpha_tilde * h * alpha) : h in hecke];
+	else
+	    // This is Proposition 5.3.2
+	    compat := true;
+	end if;
+	if compat then
+	    Append(~ans, divisor);
+	end if;
+    end for;
+
+    return ans;
+    
   // I thought this should help, but these maps don't necessarily commute
   // with the Hecke Operators
 /*
@@ -1416,7 +1438,7 @@ function GetDegeneracyReps(M1, M2, divisors)
 			beta in betas];
    return &cat[[beta * d : d in single_divisors] : beta in beta_lifts];
 */
-   return single_divisors;
+   //return single_divisors;
 end function;
 
 

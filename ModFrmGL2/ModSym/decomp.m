@@ -516,49 +516,31 @@ function image_of_old_newform_factor_using_operators(M, A)
    assert Type(A) eq ModSym;
    if IsOfGammaType(M) then
        numdiv := NumberOfDivisors(Level(M) div Level(A));
+       d := Dimension(A) * numdiv;
+       V := CuspidalSubspace(AmbientSpace(M));
+       p := 2;
+       while Dimension(V) gt d do
+	   p := SmallestPrimeNondivisor(Level(M),p);
+	   f := HeckePolynomial(A,p);
+	   if Characteristic(BaseField(M)) ne 0 then
+               f := f^numdiv;
+	   end if;
+	   V := Kernel([<p,f>], V);
+	   p := NextPrime(p);
+	   error if p gt HeckeBound(M), "Image of old newform factor is smaller than an irreducible piece.";
+       end while;         
+       error if Dimension(V) ne d, "Bug in image_of_old_newform_factor_using_operators";
    else
-       G_M := Parent(DirichletCharacter(M))`Gamma;
-       G_A := Parent(DirichletCharacter(A))`Gamma;
-       /*
-       numdiv := NumberOfDivisors(CuspWidth(G_M, Infinity()) div
-				  CuspWidth(G_A, Infinity()));
-      */
-       //       numdiv := Level(G_M) div Level(G_A);
-       divs := GetDegeneracyReps(M, A, Divisors(Level(G_M)));
-       numdiv := #divs;
-       /*
-       is_invariant := true;
-       for d in divs do
-	   f := DegeneracyMatrix(AmbientSpace(M),AmbientSpace(A),d);
-	   // Check that f commutes with the Hecke operators
-	   // at primes dividing the level
-	   primes := [x[1] : x in Factorization(Level(M))];
-	   for p in primes do
-	       TpA := HeckeOperator(AmbientSpace(A), p);
-	       TpM := HeckeOperator(AmbientSpace(M), p);
-	       if f * TpA ne TpM * f then
-		   is_invariant := false;
-		   break;
-	       end if;
-	   end for;
-       end for;
-if not is_invariant then return ModularSymbolsSub(V, sub<VectorSpace(V)|>); end if;
-*/
+       // We cannot tell a priori what should be the dimension
+       p := 2;
+       V := CuspidalSubspace(AmbientSpace(M));
+       while (p le HeckeBound(M)) do
+	   p := SmallestPrimeNondivisor(Level(M),p);
+	   f := HeckePolynomial(A,p);
+	   V := Kernel([<p,f>], V);
+	   p := NextPrime(p);
+       end while;
    end if;
-   d := Dimension(A) * numdiv;
-   V := CuspidalSubspace(AmbientSpace(M));
-   p := 2;
-   while Dimension(V) gt d do
-      p := SmallestPrimeNondivisor(Level(M),p);
-      f := HeckePolynomial(A,p);
-      if Characteristic(BaseField(M)) ne 0 then
-         f := f^numdiv;
-      end if;
-      V := Kernel([<p,f>], V);
-      p := NextPrime(p);
-      error if p gt HeckeBound(M), "Image of old newform factor is smaller than an irreducible piece.";
-   end while;         
-   error if Dimension(V) ne d, "Bug in image_of_old_newform_factor_using_operators";
    return V;
 end function;
 
@@ -598,12 +580,9 @@ function image_of_old_newform_factor(M, A)
          return image_of_old_newform_factor_using_operators(M,A);
      end if;
     */
+     // Check ourselves
      B := image_of_old_newform_factor_using_degen_maps(M,A);
-     try
-	 B2 := image_of_old_newform_factor_using_operators(M,A);
-     catch e
-	 return B, false;
-     end try;
+     B2 := image_of_old_newform_factor_using_operators(M,A);
 
      return B, B eq B2;
    end if;

@@ -543,9 +543,9 @@ function PrepareOldSpaces(M, primes)
    oldp := [PSL2Subgroup(p, false) : p in primes];
    old := [];
    for i in [1..#primes] do
-      Q, pi_Q := N_p[i] / primes[i];
+      // Q, pi_Q := N_p[i] / primes[i];
        // This is needed when the level is changing
-      // Q, pi_Q := oldp_prime[i] / oldp[i];
+      Q, pi_Q := oldp_prime[i] / oldp[i];
       eps_res := CharacterGroup(pi_Q, BaseRing(M),
 				oldp_prime[i], oldp[i])!eps;
       Append(~old,ModularSymbols(eps_res, Weight(M), Sign(M)));
