@@ -3,6 +3,12 @@ ROOT_DIR := "./";
 // AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2.spec");
 // AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
 // AttachSpec(ROOT_DIR cat "ModFrm/ModFrm.spec");
+v1, v2, v3 := GetVersion();
+version := Vector([v1, v2, v3]);
+if version lt Vector([2,19,6]) then
+    error Sprintf("This package only supports Magma version >= 2.19-6!
+    	  	    This is version %o.%o-%o!", v1, v2, v3);
+end if;
 AttachSpec(ROOT_DIR cat "ModFrmGL2.spec");
 SetHelpUseExternalBrowser(false);
 SetDebugOnError(true);
