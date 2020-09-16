@@ -6,6 +6,8 @@ freeze;
 //                                                                //
 ////////////////////////////////////////////////////////////////////
 
+import "misc.m" : NormalizerGrpMat;
+
 // update, 3rd Sept 2002: changed order in which
 // generators of SL2(Z) are given, to be compatible
 // with functions for computing words for matrices
@@ -299,7 +301,7 @@ end intrinsic;
 
 intrinsic GammaNSplus(N::RngIntElt) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns^plus(N)}
-  return Normalizer(GammaNS(N));
+   return Normalizer(GammaNS(N));
 end intrinsic;
 
 // Creation of Quotient
@@ -344,7 +346,7 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
      H`LevelFactorization := F;
      H`AtkinLehnerInvolutions := VectorSpace(FiniteField(2),r);
    else     
-     N_G := Normalizer(ModLevelGL(G), ImageInLevelGL(G));
+     N_G := NormalizerGrpMat(ModLevelGL(G), ImageInLevelGL(G));
      H := PSL2Subgroup(N_G, true);
    end if;
    H`IsNormalizer := true;
@@ -363,7 +365,7 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
 						G::GrpMat,
 						H::GrpMat) -> GrpMat
 {}
-    N_G := Normalizer(G_prime, G);
+    N_G := NormalizerGrpMat(G_prime, G);
     require H subset N_G : "H must normalize G";
     Q, pi_Q := N_G / G;
     H_im := H@pi_Q;

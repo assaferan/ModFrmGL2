@@ -60,7 +60,6 @@ if assigned MC_NewformDecompositionOfCuspidalSubspace then
 end if;
 import "./ModSym/multichar.m" : MC_NewformDecompositionOfCuspidalSubspace;
 import "./Tests/nsCartan.m" : Test_NSCartan_11, Test_NSCartan_17, Test_NSCartan;
-// import "./ModSym/misc.m" : GenerateS4, PowerSeriesSeq;
 
 function my_idxG0(n)
    return 
@@ -690,6 +689,7 @@ ChangeDirectory(dir);
 // because the multicharacter decomposition decomposes one of the seemingly irreducible spaces !???
 
 procedure Test_NewformDecomp(N, char)
+    print "Testing NewformDecomposition of S_2(Gamma(N))";
     if (char) then
 	M := ModularSymbols(my_Gamma(N, "full"));
     else
@@ -711,6 +711,7 @@ end procedure;
 
 // TODO : Change to a test procedure
 function Test_Eisenstein(N,k : prec := 100)
+    print "Testing creation of Eisenstein series";
     E_orig := EisensteinSeries(ModularForms(Gamma0(N),k));
     E := EisensteinSeries(ModularForms(my_Gamma(N,0),k));
     f := [PowerSeries(e, 100*N) : e in E];
@@ -725,6 +726,7 @@ function Test_Eisenstein(N,k : prec := 100)
 end function;
 
 procedure Test_S13()
+    print "Testing exceptional Gamma_S(13)";
     tt := Cputime();
     p := 13;
 //    B<i,j,k> := Quaternions();
@@ -759,19 +761,20 @@ procedure Test_S13()
 end procedure;
 
 procedure Test_2adic()
-     tt := Cputime();
-     gens := [[1,3,12,3],[1,1,12,7],[1,3,0,3],[1,0,2,3]];
-     N := 16;
-     H_N := sub<GL(2,Integers(N)) | gens>;
-     H := PSL2Subgroup(H_N);
-     M := ModularSymbols(H, 2, Rationals(), 0);
-     S := CuspidalSubspace(M);
-     D := Decomposition(S, HeckeBound(S));
-     f := qEigenform(D[1],100);
-     _<q> := Parent(f);
-     assert f eq q - 4*q^5 - 3*q^9 - 4*q^13 - 2*q^17 + 11*q^25 - 4*q^29 +
-		 12*q^37 - 10*q^41 + 12*q^45 - 7*q^49 - 4*q^53 + 12*q^61 +
-		 16*q^65 - 6*q^73 + 9*q^81 + 8*q^85 + 10*q^89 - 18*q^97 + O(q^100);
+    print "Testing example of a 2-adic group";
+    tt := Cputime();
+    gens := [[1,3,12,3],[1,1,12,7],[1,3,0,3],[1,0,2,3]];
+    N := 16;
+    H_N := sub<GL(2,Integers(N)) | gens>;
+    H := PSL2Subgroup(H_N);
+    M := ModularSymbols(H, 2, Rationals(), 0);
+    S := CuspidalSubspace(M);
+    D := Decomposition(S, HeckeBound(S));
+    f := qEigenform(D[1],100);
+    _<q> := Parent(f);
+    assert f eq q - 4*q^5 - 3*q^9 - 4*q^13 - 2*q^17 + 11*q^25 - 4*q^29 +
+		12*q^37 - 10*q^41 + 12*q^45 - 7*q^49 - 4*q^53 + 12*q^61 +
+		16*q^65 - 6*q^73 + 9*q^81 + 8*q^85 + 10*q^89 - 18*q^97 + O(q^100);
      Cputime(tt);
 end procedure;
 

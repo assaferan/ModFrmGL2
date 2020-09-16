@@ -317,6 +317,14 @@ intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
 */
 end intrinsic;
 
+intrinsic Transversal(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
+{Return coset representatives for H\G}
+  require H subset G : "argument 2 must a subgroup of argument 1.";
+  im_G := ImageInLevel(G : N := Level(H));
+  im_H := ImageInLevel(H);
+  return [PSL2(Integers()) | FindLiftToSL2(x) : x in Transversal(im_G, im_H)];
+end intrinsic;
+
 //////////////////////////////////////////////////////////
 //                                                      //
 //  creation of normalizer of G                         //

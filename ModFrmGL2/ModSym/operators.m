@@ -174,6 +174,9 @@ Representation(M), for p large.
 
 */   
 
+import "../GrpPSL2/GrpPSL2/misc.m" :
+   Conjugates,
+   IsConjugate;
 
 import "arith.m": 
    NthPrime,

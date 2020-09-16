@@ -7,65 +7,53 @@ freeze;
                                                                          
  FILE: misc.m (Miscellanous)                                        
                                                                        
- Last updated : 07/29/2020, Eran Assaf
+ Last updated : 09/15/2020, Eran Assaf
+      	      	07/29/2020, Eran Assaf
 
 ***************************************************************************/
 
 // This file is intended for supporting older versions of magma
 // In particular these functions only appear in Magma v. 2.24 and afterwards.
 v1, v2, v3 := GetVersion();
-if (v1 lt 2) or ( (v1 eq 2) and (v2 lt 24) ) then
-    MinimalOvergroups := function(G,H)
-	local subs, ca, ba, P, MP, I, S;
-	subs := [PowerStructure(Type(G))|];
-	if H eq G then return subs; end if;
-	ca, P := CosetAction(G,H);
-	if IsPrimitive(P) then
-	    Append(~subs,G);
-	    return subs;
-	end if;
-	MP := MinimalPartitions(P);
-	for b in MP do
-	    ba, I := BlocksAction(P,b);
-	    S := Stabiliser(I,1) @@ ba @@ ca;
-	    Append(~subs, S);
-	end for;
-	return subs;
-    end function;
- 
-    IntermediateSubgroups := function(G,H)
-	local subs, MO, MOR, S, AS;
-	subs := [PowerStructure(Type(G))|];
-	if H eq G then return subs; end if;
-	if #H eq 1 or Index(G,H) gt 50 * #H^2 then
-	    AllSubs := true;
-	else AllSubs := false;
-	end if;
-     
-	if AllSubs then
-	    if Type(G) eq GrpPC then
-		S := [s`subgroup: s in Subgroups(G) | s`order mod #H eq 0];
-	    else
-		S := [s`subgroup: s in Subgroups(G : OrderMultipleOf := #H )];
+version := Vector([v1, v2, v3]);
+
+if version ge Vector([2,24,4]) then
+    
+    _, PivotColumn := IsIntrinsic("PivotColumn");
+    
+else
+
+    PivotColumn := function(X, i)
+	for j in [1..NumberOfColumns(X)] do
+	    if X[i,j] ne 0 then
+		return j;
 	    end if;
-	    AS :=  &cat[[s^t : t in Transversal(G,Normaliser(G,s))] : s in S];
-	    if #H gt 1 then
-		AS := [ s : s in AS | H subset s ];
-	    end if;
-	    Exclude(~AS,H); Exclude(~AS,G);
-	    return AS;
-	end if;
-	MO := MinimalOvergroups(G,H);
-	if MO eq [G] then return subs; end if;
-	subs := MO;
-	for S in subs do
-	    MOR := $$(G,S);
-	    for m in MOR do if not m eq G and not m in subs then
-				Append(~subs,m);
-			    end if; end for;
 	end for;
-	return subs;
+	return 0;
     end function;
+    
+end if;
+
+//    error "This package is not supported on Magma version %o", version;
+
+// old code
+/*
+
+*/
+   /*
+    GenerateS4 := function(p)
+	B<i,j,k> := QuaternionAlgebra(Rationals(), -1,-1);
+	O_B := QuaternionOrder([1,i,j,k]);
+	_, mp := pMatrixRing(O_B,p);
+	S4tp := sub<GL(2,p) | [mp(1+s) : s in [i,j,k]]
+			      cat [mp(1-s) : s in [i,j,k]] cat [-1]>;
+	return S4tp;
+    end function;
+   */
+//  _, PowerSeriesSeq := IsIntrinsic("AbsolutePrecision");
+// _, IsTotallyComplex := IsIntrinsic("IsTotallyComplex");
+// _, IdentifyKroneckerCharacter := IsIntrinsic("IdentifyKroneckerCharacter");
+
 /*
     GenerateS4 := function(p)
 	OH := QuaternionOrder(-4,-4,0);
@@ -132,32 +120,4 @@ if (v1 lt 2) or ( (v1 eq 2) and (v2 lt 24) ) then
 	return chi eq KroneckerCharacter(C) select C else -C;
     end function;
 */
-    _, PowerSeriesSeq := IsIntrinsic("AbsolutePrecision");
-
-    PivotColumn := function(X, i)
-	for j in [1..NumberOfColumns(X)] do
-	    if X[i,j] ne 0 then
-		return j;
-	    end if;
-	end for;
-	return 0;
-    end function;
-else
-    
-    GenerateS4 := function(p)
-	B<i,j,k> := QuaternionAlgebra(Rationals(), -1,-1);
-	O_B := QuaternionOrder([1,i,j,k]);
-	_, mp := pMatrixRing(O_B,p);
-	S4tp := sub<GL(2,p) | [mp(1+s) : s in [i,j,k]]
-			      cat [mp(1-s) : s in [i,j,k]] cat [-1]>;
-	return S4tp;
-    end function;
-
-    _, PowerSeriesSeq := IsIntrinsic("AbsolutePrecision");
-    _, MinimalOvergroups := IsIntrinsic("MinimalOvergroups");
-    _, IntermediateSubgroups := IsIntrinsic("IntermediateSubgroups");
-    _, PivotColumn := IsIntrinsic("PivotColumn");
-    // _, IsTotallyComplex := IsIntrinsic("IsTotallyComplex");
-    // _, IdentifyKroneckerCharacter := IsIntrinsic("IdentifyKroneckerCharacter");
-end if;
-
+//    _, PowerSeriesSeq := IsIntrinsic("AbsolutePrecision");

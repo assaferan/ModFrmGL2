@@ -114,7 +114,9 @@ freeze;
 
 import "linalg.m" : KernelOn;
 
-import "misc.m" : MinimalOvergroups;
+import "../GrpPSL2/GrpPSL2/misc.m" : IsConjugate,
+       MinimalOvergroups,
+       NormalizerGrpMat;
 
 import "modsym.m" : ModularSymbolsDual,
                     ModularSymbolsSub,
@@ -363,7 +365,7 @@ intrinsic NewSubspace(M::ModSym, p::GrpMat) -> ModSym
      return M;
    end if;
 
-   N_p := Normalizer(ModLevelGL(H),p);
+   N_p := NormalizerGrpMat(ModLevelGL(H),p);
    if not (G_N subset N_p) then
      return M;
    end if;
@@ -694,7 +696,7 @@ function GetModSymPrimes(M)
 	if not IsMultiChar(M) then
 	    primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
 	end if;
-	N_p := [Normalizer(GL_N, p) : p in primes];
+	N_p := [NormalizerGrpMat(GL_N, p) : p in primes];
 
 	good := [i : i in [1..#primes] | G_N subset N_p[i]];
 	primes := [primes[i] : i in good];

@@ -176,6 +176,8 @@ freeze;
  
  ***************************************************************************/
 
+import "../GrpPSL2/GrpPSL2/misc.m" : Conjugates, IsConjugate, NormalizerGrpMat;
+
 import "arith.m" : ReductionMap,
                    SmallestPrimeNondivisor;
 
@@ -2189,7 +2191,7 @@ end intrinsic;
 // Helper functions for creation
 function get_real_conjugate(H)
   GL_N := GL(2, BaseRing(H));
-  N_H := Normalizer(GL_N, H);
+  N_H := NormalizerGrpMat(GL_N, H);
   N_H_conjs := Conjugates(GL_N, N_H);
   eta := GL_N![-1,0,0,1];
   real := exists(real_N_H){ real_N_H : real_N_H in N_H_conjs | eta in real_N_H};
@@ -2204,7 +2206,7 @@ function get_gl_model(H)
   N := Modulus(BaseRing(H));
   SL_N := SL(2, Integers(N));
   GL_N := GL(2, BaseRing(H));
-  N_H := Normalizer(GL_N, H);
+  N_H := NormalizerGrpMat(GL_N, H);
   Q, pi_Q := N_H / H;
   subs := SubgroupClasses(N_H/H : OrderEqual := EulerPhi(N));
   cands := [s`subgroup@@pi_Q : s in subs];
