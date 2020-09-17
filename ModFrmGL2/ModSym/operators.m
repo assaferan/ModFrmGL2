@@ -498,14 +498,18 @@ with respect to Basis(M).}
          r  := fac[1][2];
          eps := DirichletCharacter(M);
          if IsOfGammaType(M) then
-            eps_val := Evaluate(eps,p)*p^(Weight(M)-1); 
+             eps_val := Evaluate(eps,p)*p^(Weight(M)-1);
+	 elif Level(M) eq 1 then
+	     eps_val := p^(Weight(M)-1);
 	 elif Level(M) mod p ne 0 then
 	     G := LevelSubgroup(M);
-	     sigma_p := p * Matrix(G`DetRep(p)^(-2));
+	     sigma_p := p * Matrix(G`DetRep(p mod Level(M))^(-2));
+	     sigma_p := ImageInLevelGL(G)!sigma_p;
 	     // It might be that we don't have here p^(k-1) - check
 	     eps_val := Evaluate(eps, sigma_p)*p^(Weight(M)-1);
 	 elif IsAmbientSpace(M) then
-	     T := HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := true);
+	     T := HeckeOperatorDirectlyOnModularSymbols(M,p^2 :
+							Squared := true);
 	     eps_mat := HeckeOperator(M,p)^2 - T;
 	     assert IsScalar(eps_mat);
 	     if NumberOfRows(eps_mat) eq 0 then

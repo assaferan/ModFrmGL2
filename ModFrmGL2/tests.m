@@ -127,10 +127,19 @@ function RandomSpaceWithTrivialCharacter()
       return ModularSymbols(N, k), N, k;
 end function;
 
+forward MakeGroupCopy;
 
 /* Compute several random spaces of modular symbols, and verify
    that their dimensions agree with the dimensions computed using
    the standard dimension formulas. */
+
+procedure Test_DimensionConsistency_Single(M, N, k, eps)
+    t := Cputime();
+    d := DimensionCuspForms(eps,k);
+    assert 2*d eq Dimension(CuspidalSubspace(M));
+    printf " \tdim  = %o,    \t%os\n",Dimension(CuspidalSubspace(M)),Cputime(t);
+end procedure;
+
 procedure Test_DimensionConsistency(numchecks)
    print "** Dimension of cuspidal subspace test **";
    if Characteristic(base) ne 0 then
@@ -139,14 +148,13 @@ procedure Test_DimensionConsistency(numchecks)
 
    for i in [1..numchecks] do
       M,N,k,eps := RandomSpace();
-      t := Cputime();
-      d := DimensionCuspForms(eps,k);
-      assert 2*d eq Dimension(CuspidalSubspace(M));
-      printf " \tdim  = %o,    \t%os\n",Dimension(CuspidalSubspace(M)),Cputime(t);
+      Test_DimensionConsistency_Single(M, N, k, eps);
+      if Evaluate(eps, -1) eq 1 then
+	  M_copy := MakeGroupCopy(M);
+	  Test_DimensionConsistency_Single(M_copy, N, k, eps);
+      end if;
    end for;
 end procedure;
-
-forward MakeGroupCopy;
 
 /* Compute two random Hecke operators on a random space, and
    verify that they commute. */

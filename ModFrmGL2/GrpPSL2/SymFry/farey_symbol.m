@@ -317,7 +317,12 @@ intrinsic FareySymbol(group::GrpPSL2,restrictions::SeqEnum) -> SymFry
        elif N eq 1 and M eq P and (not assigned group`subgroup_list) then
           return FareySequenceForGammaUpper1N(group);
        end if;
-    end if;   
+    end if;
+
+    if group eq PSL then
+	return FareySequenceForGamma0N(group);
+    end if;
+    
     // assume for now the index is at least 2,
     // need to change this, as currently won't work in that case
     // (this case does not yet come up though)
@@ -343,7 +348,7 @@ intrinsic FareySymbol(group::GrpPSL2,restrictions::SeqEnum) -> SymFry
 	Append(~gen_edges,[1,3]);
     end if;
 
-    // following assumes index is not 2:
+    // following assumes index is greater than 2:
     cosets := CosetImages(PSL!1);
         
     finished := false;

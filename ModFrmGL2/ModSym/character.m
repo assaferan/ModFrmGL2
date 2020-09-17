@@ -174,8 +174,16 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
 	     return true, initGrpChrElt(G, rep);
 	     //	 elif Parent(x)`OriginalDomain subset G`OriginalDomain then
 	  elif x_in_level subset G_in_level then
-             G_ab, pi_ab := AbelianQuotient(G`Domain);
-	     H_ab := pi_ab(G`QuotientMap(Parent(x)`OriginalDomain));
+              G_ab, pi_ab := AbelianQuotient(G`Domain);
+	      // Here we go through some pains to define
+	      // the natural map GL(2,level) -> GL(2, level_G)
+	      mod_lev_G := hom<Integers(level) -> Integers(level_G)|>;
+	      mod_mat := hom<MatrixAlgebra(Integers(level),2) ->
+					  MatrixAlgebra(Integers(level_G),2)
+					  | mod_lev_G>;
+	      mod_gl := hom<G_in_level -> G`OriginalDomain | g :-> mod_mat(g)>;
+	      // H_ab := pi_ab(G`QuotientMap(Parent(x)`OriginalDomain));
+	      H_ab := pi_ab(G`QuotientMap(mod_gl(x_in_level)));
 	     Q, pi_Q := G_ab / H_ab;
 	     //	 Q, pi_Q := G`OriginalDomain / Parent(x)`OriginalDomain;
 	     gens_Q := [g@@pi_Q@@pi_ab : g in Generators(Q)];
