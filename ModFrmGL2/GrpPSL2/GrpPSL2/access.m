@@ -50,7 +50,8 @@ intrinsic ImageInLevel(G::GrpPSL2 : N := Level(G)) -> GrpMat
      elif IsGamma(G) then
        G`ImageInLevel := sub<modLevel|-modLevel!1>;
      else
-       gens := [[1,1,0,1],[-1,0,0,-1]];
+	 // gens := [[1,1,0,1],[-1,0,0,-1]];
+	gens := [[1,1,0,1]];
        if IsGamma0(G) then
           level := Level(G);
           for t in [1..level-1] do
@@ -80,7 +81,8 @@ intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
      if (#modLevel eq 1) then
         G`ImageInLevelGL := modLevel;
      else
-       gens := [[-1,0,0,-1]];
+	 // gens := [[-1,0,0,-1]];
+	 gens := [];
        level := Level(G);
        Z_N := Integers(level);
        U, psi := UnitGroup(Z_N);

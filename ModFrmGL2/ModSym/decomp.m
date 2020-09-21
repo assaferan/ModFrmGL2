@@ -565,7 +565,9 @@ function image_of_old_newform_factor(M, A)
        //if LevelSubgroup(M) eq LevelSubgroup(A) then
      G_M := Parent(DirichletCharacter(M))`Gamma;
      G_A := Parent(DirichletCharacter(A))`Gamma;
-     if G_M eq G_A then
+     // It might be that the groups are the same as PSL2subgroups
+     // but not as SL2 subgrups (relevnat in odd weight)
+     if ImageInLevel(G_M) eq ImageInLevel(G_A) then
        return A, true;
      end if;
      /*
@@ -584,7 +586,7 @@ function image_of_old_newform_factor(M, A)
      B := image_of_old_newform_factor_using_degen_maps(M,A);
      B2 := image_of_old_newform_factor_using_operators(M,A);
 
-     return B, B eq B2;
+     return B2, B eq B2;
    end if;
 end function;
 
@@ -751,6 +753,7 @@ IsCuspidal(M) is true.}
          for A in DD do
             B, is_factor := image_of_old_newform_factor(M,A);
             if is_factor and (B subset M) then
+	    // if B subset M then
                Append(~D,B);
                D[#D]`associated_new_space := A;
                D[#D]`associated_new_space`associated_new_space := true;

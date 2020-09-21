@@ -34,7 +34,9 @@ function MemberTest(G,g)
       if #ModLevel(G) eq 1 then
          return true;
       end if;
-      return ModLevel(G)!Matrix(g) in ImageInLevel(G);
+      g_N := ModLevel(G)!Matrix(g);
+      // in case -I is not in the group.
+      return (g_N in ImageInLevel(G)) or (-g_N in ImageInLevel(G));
    end if;
    error if not(Type(g[1,1]) eq RngIntElt),
       "Argument in coercion of sequences to matrices"

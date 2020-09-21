@@ -354,6 +354,8 @@ intrinsic FareySymbol(group::GrpPSL2,restrictions::SeqEnum) -> SymFry
     finished := false;
     i := 2;			
 
+    // There is still some bug here.
+    // This does not always terminate for some reason.
     while not finished do
 	e := L[i];
 	mat := Mat(e : PSL:=PSL);

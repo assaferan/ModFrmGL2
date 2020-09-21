@@ -95,9 +95,9 @@ intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
             Append(~gens, [1,0,0,psi(t)]);
           end for;
        elif not (IsGamma1(G) or IsGamma(G)) then
-	  gens := gens cat Generators(G);
+	 gens := gens cat [Eltseq(x) : x in Generators(G)];
        end if;
-       G`ImageInLevelGL := sub< modLevel | [modLevel!Eltseq(g) : g in gens]>;
+       G`ImageInLevelGL := sub< modLevel | [modLevel!g : g in gens]>;
      end if;
   end if;
   if N ne Level(G) then
@@ -160,6 +160,12 @@ intrinsic GetFindCoset(G::GrpPSL2) -> Map
   end if;
   return G`FindCoset;
 end intrinsic;
+
+intrinsic NSCartanV(G::GrpPSL2) -> RngIntResElt
+{return the middle coefficient in the quadratic polynomial x^2+vx-u used to create the group, i.e. such that it is the regular representation of ZZ[alpha], where alpha is a root of the polynomial mod N.}
+  if assigned G`NSCartanV then return G`NSCartanV; end if;
+  require false : "Not Implemented!";
+end intrinsic;	  
 
 intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt
  {return the (non square) element u used to create the group.

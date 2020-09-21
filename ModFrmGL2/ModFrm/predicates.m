@@ -148,23 +148,24 @@ end function;
 
 
 function ObviouslyHasDimensionZero(M)
-   k := Weight(M);
-   if not IsGamma1(M) and k in Integers() then
-      t := true;
-      for eps in DirichletCharacters(M) do
-         if not ((IsEven(k) and IsOdd(eps)) or (IsOdd(k) and IsEven(eps))) then
-            t := false;
-            break;
-         end if;
-      end for;
-      if t then
-         return true;
-      end if;
-   end if;
-   if k le 0 then
-      return true;
-   end if;
-   return false;
+    k := Weight(M);
+    if (not IsOfGammaType(M)) or (not IsGamma1(M) and k in Integers()) then
+	t := true;
+	for eps in DirichletCharacters(M) do
+            if not ((IsEven(k) and IsOdd(eps)) or
+		    (IsOdd(k) and IsEven(eps))) then
+		t := false;
+		break;
+            end if;
+	end for;
+	if t then
+            return true;
+	end if;
+    end if;
+    if k le 0 then
+	return true;
+    end if;
+    return false;
 end function;
 
 intrinsic Dimension(M::ModFrm) -> RngIntElt

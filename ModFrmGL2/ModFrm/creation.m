@@ -126,9 +126,14 @@ end intrinsic;
 
 intrinsic ModularFormsGroup(G::GrpPSL2, k::RngIntElt) -> ModFrm
 {"} // "
-   requirege k,1;
-   Q, pi_Q := G / G;
-  return ModularForms([CharacterGroup(pi_Q, G, G)!1], k);
+     requirege k,1;
+ //   Q, pi_Q := G / G;
+     G_prime := MaximalNormalizingWithAbelianQuotient(G);
+     Q, pi_Q := ImageInLevel(G_prime) / ImageInLevel(G);
+     D := FullCharacterGroup(pi_Q, G_prime, G);
+     chars := GaloisConjugacyRepresentatives(D);
+     return ModularForms(chars, k);
+//     return ModularForms([CharacterGroup(pi_Q, G, G)!1], k);
 end intrinsic;
 
 function ModularFormsGamma1(N, k)

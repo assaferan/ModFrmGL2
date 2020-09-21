@@ -1102,6 +1102,7 @@ that arise from dihedral Galois representations (or twists of these)}
   
   data := [* <chi,[**]> : chi in charsM *];
 
+  // Have to change that for M not of gamma type.
   for t in Divisors(N) do
     inds_t := [i : i in [1..#charsM] | t mod Conductor(charsM[i]) eq 0];
     if #inds_t eq 0 then continue; end if;

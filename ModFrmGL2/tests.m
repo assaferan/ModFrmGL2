@@ -64,6 +64,7 @@ end if;
 import "./ModSym/multichar.m" : MC_NewformDecompositionOfCuspidalSubspace;
 import "./Tests/nsCartan.m" : Test_NSCartan_11, Test_NSCartan_17, Test_NSCartan;
 import "./ModSym/decomp.m" : GetNN;
+import "./ModSym/modsym.m" : GetRealConjugate;
 
 function my_idxG0(n)
    return 
@@ -149,10 +150,10 @@ procedure Test_DimensionConsistency(numchecks)
    for i in [1..numchecks] do
       M,N,k,eps := RandomSpace();
       Test_DimensionConsistency_Single(M, N, k, eps);
-      if Evaluate(eps, -1) eq 1 then
+      //if Evaluate(eps, -1) eq 1 then
 	  M_copy := MakeGroupCopy(M);
 	  Test_DimensionConsistency_Single(M_copy, N, k, eps);
-      end if;
+      //end if;
    end for;
 end procedure;
 
@@ -175,9 +176,9 @@ procedure Test_HeckeOperatorsCommute(numcheck)
    for i in [1..numcheck] do
       M := RandomSpace();
       Test_HeckeOperatorsCommute_Single(M);
-      if Evaluate(DirichletCharacter(M),-1) eq 1 then
+      //if Evaluate(DirichletCharacter(M),-1) eq 1 then
 	  Test_HeckeOperatorsCommute_Single(MakeGroupCopy(M));
-      end if;
+      //end if;
    end for;
 end procedure;
 
@@ -240,11 +241,11 @@ procedure Test_DegeneracyMaps(numcheck)
    for i in [1..numcheck] do
       M,N,k,eps := RandomSpace();
       Test_DegeneracyMaps_Single(M, N, k, eps);
-      if Evaluate(eps, -1) eq 1 then
+      //if Evaluate(eps, -1) eq 1 then
 	  M_copy := MakeGroupCopy(M);
 	  eps_copy := DirichletCharacter(M_copy);
 	  Test_DegeneracyMaps_Single(M_copy, N, k, eps_copy);
-      end if;
+      //end if;
    end for;
 end procedure;
 
@@ -292,9 +293,9 @@ procedure Test_NewformDecomposition(numchecks)
    for i in [1..numchecks] do
       M := RandomSpace();
       Test_NewformDecomposition_Single(M);
-      if Evaluate(DirichletCharacter(M),-1) eq 1 then
+      //if Evaluate(DirichletCharacter(M),-1) eq 1 then
 	  Test_NewformDecomposition_Single(MakeGroupCopy(M));
-      end if;
+      //end if;
    end for;
 end procedure;
 
@@ -316,9 +317,9 @@ procedure Test_Decomposition(numchecks)
    for i in [1..numchecks] do
       M := RandomSpace();
       Test_Decomposition_Single(M);
-      if Evaluate(DirichletCharacter(M),-1) eq 1 then
+      //if Evaluate(DirichletCharacter(M),-1) eq 1 then
 	  Test_Decomposition_Single(MakeGroupCopy(M));
-      end if;
+      //end if;
       
    end for;
 
@@ -342,9 +343,9 @@ procedure Test_Eigenforms(numchecks)
    for i in [1..numchecks] do
        M := RandomSpace();
        Test_Eigenforms_Single(M);
-       if Evaluate(DirichletCharacter(M), -1) eq 1 then
+       //if Evaluate(DirichletCharacter(M), -1) eq 1 then
 	   Test_Eigenforms_Single(MakeGroupCopy(M));
-       end if;
+       //end if;
    end for;
 end procedure;
 
@@ -470,7 +471,8 @@ function my_Gamma(N, type)
   end if;
   Z_N := IntegerRing(N);
   G_N := GL(2, Z_N);
-  gens := [-G_N!1];
+  // gens := [-G_N!1];
+  gens := [];
   U, psi := UnitGroup(Z_N);
   for t in Generators(U) do
      Append(~gens, G_N![psi(t),0,0,1]);
@@ -628,10 +630,12 @@ function MakeGroupCopy(M)
   sign := Sign(M);
   eps := DirichletCharacter(M);
   R := BaseRing(eps);
+  /*
   if (Evaluate(eps,-1) eq -1) then
      print "Currently can only work with even characters...";
      return false;
   end if;
+  */
   N := Level(M);
   G0 := my_Gamma(N,0);
   G1 := my_Gamma(N,1);
@@ -781,21 +785,31 @@ procedure Test_NewformDecomp(N, char)
     assert dims eq dims0;
 end procedure;
 
-// TODO : Change to a test procedure
-function Test_Eisenstein(N,k : prec := 100)
+procedure Test_Eisenstein_Single(N,k : prec := 100)
     print "Testing creation of Eisenstein series";
+    tt := Cputime();
     E_orig := EisensteinSeries(ModularForms(Gamma0(N),k));
     E := EisensteinSeries(ModularForms(my_Gamma(N,0),k));
-    f := [PowerSeries(e, 100*N) : e in E];
-    f_vecs := [Vector(AbsEltseq(x)) : x in f];
-    // f_vecs := [Vector(PowerSeriesSeq(x)) : x in f];
-    f_orig := [PowerSeries(e, 100) : e in E_orig];
-    _<q> := Parent(f_orig[1]);
-    f_orig_vecs := [Vector(AbsEltseq(Evaluate(f,q^N))) : f in f_orig];
-    // f_orig_vecs := [Vector(PowerSeriesSeq(Evaluate(f,q^N))) : f in f_orig];
-    K := BaseRing(Universe(f_vecs));
-    return Solution(ChangeRing(Matrix(f_orig_vecs), K), f_vecs);
-end function;
+    assert #E eq #E_orig;
+    if #E ne 0 then
+	f := [PowerSeries(e, prec*N) : e in E];
+	f_vecs := [Vector(AbsEltseq(x)) : x in f];
+	f_orig := [PowerSeries(e, prec) : e in E_orig];
+	_<q> := Parent(f_orig[1]);
+	f_orig_vecs := [Vector(AbsEltseq(Evaluate(f,q^N))) : f in f_orig];
+	K := BaseRing(Universe(f_vecs));
+	_ :=  Solution(ChangeRing(Matrix(f_orig_vecs), K), f_vecs);
+    end if;
+    Cputime(tt);
+end procedure;
+
+procedure Test_Eisenstein(numcheck)
+    for i in [1..numcheck] do
+	N      := Random([1..maxN]);
+	k      := Random([2..maxk]);
+	Test_Eisenstein_Single(N,k);
+    end for;
+end procedure;
 
 procedure Test_S13()
     print "Testing exceptional Gamma_S(13)";
@@ -810,6 +824,7 @@ procedure Test_S13()
     			cat [mp(1-s) : s in [i,j,k]] cat [-1]>;
     // S4tp := GenerateS4(p);
     H_S4 := sub<GL(2,Integers(p)) | Generators(S4tp)>;
+    H_S4 := GetRealConjugate(H_S4);
     G_S4 := PSL2Subgroup(H_S4);
     M := ModularSymbols(G_S4, 2, Rationals(), 0);
     S := CuspidalSubspace(M);
@@ -838,7 +853,9 @@ procedure Test_2adic()
     gens := [[1,3,12,3],[1,1,12,7],[1,3,0,3],[1,0,2,3]];
     N := 16;
     H_N := sub<GL(2,Integers(N)) | gens>;
+    H_N := GetRealConjugate(H_N);
     H := PSL2Subgroup(H_N);
+    
     M := ModularSymbols(H, 2, Rationals(), 0);
     S := CuspidalSubspace(M);
     D := Decomposition(S, HeckeBound(S));
@@ -850,7 +867,52 @@ procedure Test_2adic()
      Cputime(tt);
 end procedure;
 
+procedure Test_NotRealType()
+    print "Testing example of a group not of real type";
+    tt := Cputime();
+    gens := [[ 7, 0, 0, 7 ],[ 2, 3, 3, 5 ],[ 0, 7, 7, 7 ],
+	     [ 3, 0, 0, 3 ],[ 4, 7, 7, 3 ]];
+    N := 8;
+    H_N := sub<GL(2,Integers(N)) | gens>;
+    H := PSL2Subgroup(H_N);
+    
+    M := ModularSymbols(H, 2, Rationals(), 0);
+    S := CuspidalSubspace(M);
+    assert &and[IsScalar(HeckeOperator(S,p)) : p in PrimesUpTo(100)];
+    assert HeckeOperator(S,97)[1,1] eq 18;
+    Cputime(tt);
+end procedure;
+
+function Test_Shimura(N)
+    Z_N := Integers(N);
+    U, phi := UnitGroup(Z_N);
+    U_h := Random(Subgroups(U));
+    h_gens := [phi(g) : g in Generators(U_h`subgroup)];
+    all_gens := [phi(g) : g in Generators(U)];           
+    t := Random(Divisors(N));
+    mat_gens := [[-1,0,0,-1],[1,t,0,1]] cat [[a,0,0,1] : a in h_gens]
+		cat [[1,0,0,d] : d in all_gens];
+    gamma := PSL2Subgroup(sub<GL(2, Integers(N)) | mat_gens>);
+    M := ModularSymbols(gamma, 2, Rationals(), 0);
+    S := CuspidalSubspace(M);
+    D := NewformDecomposition(S);
+    // D := Decomposition(S, HeckeBound(S));
+    return D, S;
+end function;
+
 procedure DoTests(numchecks)
+   // Tests from the paper
+   Test_2adic();
+   Test_NotRealType();
+   Test_NSCartan_11();
+   Test_NSCartan_17();
+   Test_S13();
+   // These test that everything works for
+   // Gamma0, Gamma1 as in the examples from Stein's book
+   Test_Stein();
+   // Test_Zywina();
+   // testing random spaces of type gamma0 and gamma1
+   Test_Eisenstein(numchecks);
    Test_Eigenforms(numchecks);
    Test_NewformDecomposition(numchecks);
    Test_Decomposition(numchecks);
@@ -862,17 +924,8 @@ procedure DoTests(numchecks)
    Test_qExpansionBasis(numchecks);
    // This is no longer really needed
    // Test_Rouse();
-   // These test that everything works for
-   // Gamma0, Gamma1 as in the examples from Stein's book
-   Test_Stein();
    // not needed - tests the construction of spaces for ns cartan
    // Test_NSCartan(30);
-   // Tests from the paper
-   Test_2adic();
-   Test_NSCartan_11();
-   Test_NSCartan_17();
-   Test_S13();
-// Test_Zywina();
 end procedure;
 
 

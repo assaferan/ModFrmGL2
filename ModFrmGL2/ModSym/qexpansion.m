@@ -136,7 +136,7 @@ import "linalg.m" :   EchelonPolySeq,
                       SaturatePolySeq,
                       Saturate;
 import "misc.m"  :    PivotColumn;
-import "modsym.m":    get_degeneracy_reps;
+import "modsym.m":    GetDegeneracyReps;
 
 import "multichar.m": 
    AssociatedNewformSpace, 
@@ -871,18 +871,21 @@ function qExpansionBasisNewform(A, prec, do_saturate)
         old_eigforms := {eigenvecToEigenform(A, eig, prec) :
 		  eig in old_eigvecs};
        */
-	N1 := CuspWidth(LevelSubgroup(Anew), Infinity());
-	N2 := CuspWidth(LevelSubgroup(A), Infinity());
-	divisors := Divisors(N1 mod N2 eq 0
-			     select N1 div N2 else N2 div N1);
-	divisors := get_degeneracy_reps(Anew, A, divisors);
+//	N1 := CuspWidth(LevelSubgroup(Anew), Infinity());
+//	N2 := CuspWidth(LevelSubgroup(A), Infinity());
+//	divisors := Divisors(N1 mod N2 eq 0
+//			     select N1 div N2 else N2 div N1);
+	N := LCM(Level(Anew), Level(A));
+	divisors := GetDegeneracyReps(Anew, A, Divisors(N));
 	old_eigforms := [];
 	R := Parent(f);
 	q_R := R.1;
 	for a in divisors do
 	    mat := DegeneracyMatrix(AmbientSpace(A),AmbientSpace(Anew),a);
 	    mat := ChangeRing(Transpose(mat), BaseRing(R));
-	    f_a := Evaluate(f, q_R^(N2 div (N1 * Integers()!a[1,1])));
+	    // Check if this is the correct exponent
+	    // f_a := Evaluate(f, q_R^(N div Integers()!a[1,1]));
+	    f_a := Evaluate(f, q_R^(Integers()!a[2,2]));
 	    Append(~old_eigforms, f_a);
 	end for;
       end if;

@@ -529,13 +529,6 @@ function PrepareOldSpaces(M, primes)
    H_N := ImageInLevelGL(H);
    pi_Q := Parent(eps)`QuotientMap;
 
-//   primes := [p : p in primes | not p subset G_N];
-//   primes := [p : p in primes | (G_N meet p) subset Kernel(eps)];
-//   N_p := [Normalizer(ModLevelGL(H), p) : p in primes];
-
-//   good := [i : i in [1..#primes] | G_N subset N_p[i]];
-//   primes := [primes[i] : i in good];
-
    N_p := [sub<ModLevelGL(G) | G_N, p> : p in primes];
    // oldp_prime := [PSL2Subgroup(p_prime, true) : p_prime in N_p];
    // oldp := [PSL2Subgroup(p, true) : p in primes];
@@ -544,7 +537,7 @@ function PrepareOldSpaces(M, primes)
    old := [];
    for i in [1..#primes] do
       // Q, pi_Q := N_p[i] / primes[i];
-       // This is needed when the level is changing
+      // This is needed when the level is changing
       Q, pi_Q := oldp_prime[i] / oldp[i];
       eps_res := CharacterGroup(pi_Q, BaseRing(M),
 				oldp_prime[i], oldp[i])!eps;

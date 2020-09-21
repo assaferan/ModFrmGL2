@@ -88,10 +88,12 @@ vector space whose basis consists of the weight-k cusps.}
          M`boundary_map := RMatrixSpace(BaseField(M),Dimension(M),Ncols(B))!
                   &cat [ Eltseq(v*B) : v in Basis(Representation(M))];
       else
+	 //Why do we need it? That will happen anyway, right? 
          if Dimension(M) eq 0 then
             M`boundary_map := RMatrixSpace(BaseField(M),0,0)!0;
             return M`boundary_map;
          end if;
+	 
          Tgens := M`quot`Tgens;
          Sgens := M`quot`Sgens;
          F     := BaseField(M);
@@ -249,27 +251,41 @@ function BuildTOrbitTable(coset_list, find_coset, G)
 end function;
 
 // This function finds an element in PSL2 mapping the cusp at infinity to
-// a. 
-
+// a.
+// These are now intrinsics in GrpPSL2/cusps.m
+/*
 function CuspInftyElt(a)
   cusp := ReduceCusp(a);
   g := PSL2(Integers())!Reverse(LiftToCosetRep(Reverse(cusp),1));
   return Transpose(Matrix(g));
 end function;
 
+function IsRegularCusp(G, a)
+    GL2Q := GL(2, Rationals());
+    alpha := GL2Q!CuspInftyElt(Eltseq(a));
+    h := CuspWidth(G^alpha, Infinity());
+    if IsOdd(h) then return true; end if;
+    g := PSL2(Integers())! [-1,-h div 2,0,-1];
+    return not g in G;
+end function;
+*/
 // This function checks whether the cusps a and b are equivalent.
 // It uses the orbit_table as input
 
 function CuspEquivGrp(coset_list, find_coset, G, orbit_table, a, b)
-  gs := [CuspInftyElt(cusp) : cusp in [a,b]];
-  idxs := [CosetReduce(ModLevel(G)!g, find_coset) : g in gs];
+    gs := [PSL2(Integers()) | CuspInftyElt(cusp) : cusp in [a,b]];
+    if Level(G) eq 1 then
+	idxs := [CosetReduce(ModLevel(G)!1, find_coset) : g in gs];
+    else
+	idxs := [CosetReduce(ModLevel(G)!Eltseq(g), find_coset) : g in gs];
+    end if;
   orbit := [orbit_table[idx] : idx in idxs];
   if orbit[1][1] ne orbit[2][1] then // They are not in the same orbit
      return false, PSL2(Integers())!1;
   end if;
   t := PSL2(Integers())![1, orbit[2][2] - orbit[1][2], 0, 1];
-  gamma  := gs[1] * Matrix(t) * gs[2]^(-1);
-  return true, PSL2(Integers())!gamma;
+  gamma  := gs[1] * t * gs[2]^(-1);
+  return true, gamma;
 end function; 
 
 function CuspEquivNS(G, a, b)

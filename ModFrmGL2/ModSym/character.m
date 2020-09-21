@@ -372,7 +372,7 @@ intrinsic 'eq' (x::GrpChrElt,y::GrpChrElt) -> BoolElt
    // test the more frequent cases first
    if IsIdentical(Gx, Gy) then
        return ValuesOnGenerators(x) cmpeq ValuesOnGenerators(y);
-   elif Gx`Domain ne Gy`Domain then 
+   elif Gx ne Gy then 
       return false;   // not sure why we want to do this
    else
       return ValuesOnGenerators(x) cmpeq ValuesOnGenerators(y);
@@ -477,7 +477,9 @@ end intrinsic;
 
 intrinsic Evaluate(x::GrpChrElt,g::SeqEnum[RngIntElt]) -> RngElt
 {Evaluation x(g).}
-   return Evaluate(x, PSL2(Integers())!g);
+   D := Parent(x)`OriginalDomain;
+   if Degree(D) eq 1 then return 1; end if;
+   return Evaluate(x, D!g);
 end intrinsic;
 
 intrinsic '@'(g::GrpPermElt, x::GrpChrElt) -> RngElt
@@ -534,13 +536,15 @@ end intrinsic;
 intrinsic IsEven(chi::GrpChrElt) -> BoolElt
 {True iff the Dirichlet character chi satisfies chi(-1) = 1}
    G := Parent(chi)`Gamma;
-   return Evaluate(chi,G!(-1)) eq 1;
+   if Level(G) eq 1 then return true; end if;
+   return Evaluate(chi,ModLevel(G)!([-1,0,0,-1])) eq 1;
 end intrinsic;
 
 intrinsic IsOdd(chi::GrpChrElt) -> BoolElt
 {True iff the Dirichlet character chi satisfies chi(-1) = -1}
    G := Parent(chi)`Gamma;
-   return Evaluate(chi,G!(-1)) eq -1;
+   if Level(G) eq 1 then return false; end if;
+   return Evaluate(chi,ModLevel(G)!([-1,0,0,-1])) eq -1;
 end intrinsic;
 
 intrinsic CharacterGroupCopy(G::GrpChr) -> GrpChr

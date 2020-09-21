@@ -544,6 +544,7 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
 
    H := ImageInLevelGL(G);
 
+   /*
    if not IsOfRealType(G) then
      H := GetRealConjugate(H);
      G := PSL2Subgroup(H);
@@ -553,10 +554,12 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
      H := GetGLModel(H);
      G := PSL2Subgroup(H);
    end if;
-
-   Q, pi_Q := G/G;
-   eps := CharacterGroup(pi_Q, F, G, G)!1;
-   return ModularSymbols(eps,G,k,F,sign);
+  */
+   Z := Center(ModLevel(G));
+   ZG := PSL2Subgroup(sub<ModLevelGL(G) | Z, ImageInLevelGL(G)>);
+   Q, pi_Q := ZG/ZG;
+   eps := CharacterGroup(pi_Q, F, ZG, ZG)!1;
+   return ModularSymbols(eps,ZG,k,F,sign);
 end intrinsic;
 
 intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt) -> ModSym
@@ -1402,7 +1405,18 @@ function GetDegeneracyReps(M1, M2, divisors)
 	    alpha := M2D!Eltseq(divisor);
 	    a, b, c, d := Explode(Eltseq(alpha));
 	    alpha_tilde := M2D![d,-b,-c,a];
-	    hecke := [M2D!H`DetRep(n) : n in Domain(H`DetRep)];
+	    // Problem := as we only know H`DetRep(n) mod Level(H)
+	    // There are several possibilities modulo D
+	    hecke := [];
+	    d_prime := det div GCD(det, Level(H));
+	    offsets := CartesianPower([0..d_prime-1], 4);
+	    for n in Domain(H`DetRep) do
+		elt := [Integers()!a : a in Eltseq(H`DetRep(n))];
+		for offset in offsets do
+	    	   Append(~hecke, M2D![elt[i] + offset[i] : i in [1..4]]);
+		end for;
+	    end for;
+	    // hecke := [M2D!H`DetRep(n) : n in Domain(H`DetRep)];
 	    compat := &and[IsZero(alpha_tilde * h * alpha) : h in hecke];
 	else
 	    // This is Proposition 5.3.2
@@ -2224,7 +2238,7 @@ function GetRealConjugate(H)
   return real_H; 
 end function;
 
-function GetGLModel(H)
+function GetGLModel(H : RealType := true)
   N := Modulus(BaseRing(H));
   SL_N := SL(2, Integers(N));
   GL_N := GL(2, BaseRing(H));
@@ -2237,13 +2251,14 @@ function GetGLModel(H)
 //  cands := [s : s in subs | Index(s, H) eq EulerPhi(N)];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
   error if IsEmpty(cands), Error("No model with surjective determinant");
-// Is this necessary?
-// Yes, if we would like the Hecke operators to commute with the Star
-// involution !!!!
-  eta := GL_N![-1,0,0,1];
-  cands := [c : c in cands | c^eta eq c];
-  error if IsEmpty(cands), Error("No model with surjective determinant, 
-                                  which commutes with eta");
+
+  if RealType then
+      eta := GL_N![-1,0,0,1];
+      cands := [c : c in cands | c^eta eq c];
+      error if IsEmpty(cands), Error("No model with surjective determinant, 
+                 	                        which commutes with eta");
+  end if;
+  // We would perfer a model for which the Hecke operators are standard
   if exists(c){c : c in cands |
       ImageInLevelGL(CongruenceSubgroup(N)) subset c} then
       return c;

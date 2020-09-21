@@ -130,6 +130,8 @@ freeze;
 
 forward EisensteinBasisHelper;
 
+import "../ModSym/boundary.m" : CuspEquivGrp;
+
 import "misc.m":  EchelonPowerSeriesSequence;
 
 import "modular_symbols.m" : MF_ModularSymbols;
@@ -210,13 +212,13 @@ function MakeEisensteinSeries(M,chi,psi,t)
    return f;
 end function;
 
-function MakeEisensteinSeriesNotGamma(M, vecs, vecs0)
+function MakeEisensteinSeriesNotGamma(M, vecs, vecs0, eps_vals)
     assert Type(M) eq ModFrm;
     
     f := New(ModFrmElt);
     // Check here if we need in general to extend
     f`parent := EisensteinSubspace(M);
-    f`eisenstein := <vecs, vecs0>;
+    f`eisenstein := <vecs, vecs0, eps_vals>;
     return f;
 end function;
 
@@ -233,11 +235,11 @@ function ActionOnEisensteinSeries(gamma, f)
     if Type(gamma) eq GrpPSL2Elt then
 	gamma := Matrix(gamma);
     end if;
-    vecs, vecs0 := Explode(EisensteinData(f));
+    vecs, vecs0, eps_vals := Explode(EisensteinData(f));
     new_vecs := [v * gamma : v in vecs];
     new_vecs0 := [v * gamma : v in vecs0];
     M := AmbientSpace(Parent(f));
-    return MakeEisensteinSeriesNotGamma(M, new_vecs, new_vecs0);
+    return MakeEisensteinSeriesNotGamma(M, new_vecs, new_vecs0, eps_vals);
 end function;
 
 function ComputeAllEisensteinSeries(M : all:=false)
@@ -250,30 +252,81 @@ function ComputeAllEisensteinSeries(M : all:=false)
        /*
      error "This function is not implemented for levels other than 
             Gamma0 or Gamma1";
-      */
+      
        if not &and[IsTrivial(eps) : eps in DirichletCharacters(M)] then
 	   error "Not implemented for nontrivial characters";
        end if;
-       G := LevelSubgroup(M);
+*/
+       // G := LevelSubgroup(M);
+       G := Parent(DirichletCharacters(M)[1])`GammaPrime;
        H := ImageInLevel(G);
        // This is actually an overkill
        // Can do with the reduction
        reprs := [PSL2(Integers()) | FindLiftToSL2(h) : h in H];
-       cusps := Cusps(G);
-       if k eq 2 then
-	   cusp0 := cusps[1];
-	   cusps := cusps[2..#cusps];
-	   v0 := Eltseq(cusp0);
-	   vecs0 := [Vector([-v0[2], v0[1]]) * Matrix(r) : r in reprs];
-       else
-	   vecs0 := [];
-       end if;
-       for cusp in cusps do
-	   v := Eltseq(cusp);
-	   vecs := [Vector([-v[2], v[1]]) * Matrix(r) : r in reprs];
-	   Append(~ans, MakeEisensteinSeriesNotGamma(M, vecs, vecs0));
+       
+       // cusps := Cusps(G);
+
+       for eps in DirichletCharacters(M) do
+	   eps_vals := [eps(r)^(-1) : r in reprs];
+	   k_cusp := k gt 1 select k else 3;
+	   ms := ModularSymbols(eps, k_cusp, 0);
+	   _ := BoundaryMap(ms);
+	   if assigned ms`cusplist then
+	       cusps := [x[1] : x in  ms`cusplist | x[2] ne 0];
+	   else // check that is true!
+	       cusps := [];
+	   end if;
+	   if (k eq 2) and IsTrivial(eps) and not IsEmpty(cusps) then
+	       cusp0 := cusps[1];
+	       cusps := cusps[2..#cusps];
+	       v0 := Eltseq(cusp0);
+	       vecs0 := [Vector([-v0[2], v0[1]]) * Matrix(r) : r in reprs];
+	   else
+	       vecs0 := [];
+	   end if;
+	   if k eq 1 then
+	       find_coset := ms`mlist`find_coset;
+	       orbit_table := ms`orbit_table;
+	       coset_list :=  ms`mlist`coset_list;
+	       ineq_cusps := [];
+	       for cusp in cusps do
+		   d, minus_c := Explode(cusp);
+		   if minus_c ne 0 then
+		       scalar := -1;
+		       eq_cusp := [d, -minus_c];
+		   else
+		       scalar := 1;
+		       eq_cusp := [-d,0];
+		   end if;
+		   // not very efficient - can do better by using the table
+		   found := false;
+		   for other in ineq_cusps do
+		       found := CuspEquivGrp(coset_list, find_coset,
+					     G, orbit_table, other[1],
+					     eq_cusp);
+		       if found then
+			   break;
+		       end if;
+		   end for;
+		   if not found then
+		       bool, g := CuspEquivGrp(coset_list, find_coset,
+					     G, orbit_table, cusp[1],
+					     eq_cusp);
+		       if not bool or eps(g)*scalar eq -1 then
+			   Append(~ineq_cusps, cusp);
+		       end if;
+		   end if;
+	       end for;
+	       cusps := ineq_cusps;
+	   end if;
+	   for cusp in cusps do
+	       v := Eltseq(cusp);
+	       vecs := [Vector([-v[2], v[1]]) * Matrix(r) : r in reprs];
+	       Append(~ans, MakeEisensteinSeriesNotGamma(M, vecs,
+							 vecs0, eps_vals));
+	   end for;
        end for;
-       dim := #Cusps(G);
+       dim := #ans;
        
        if all then 
 	   return ans, _;
@@ -419,15 +472,39 @@ end intrinsic;
 function DimensionOfEisensteinSpace(M)
    assert Type(M) eq ModFrm;
    assert IsAmbientSpace(M);
-
+   
    if not IsOfGammaType(M) then
-      A := MF_ModularSymbols(AmbientSpace(M),0);
-      dim_A := &+[Dimension(a) : a in A];
-      S := [CuspidalSubspace(a) : a in A];
-      dim_S := &+[Dimension(s) : s in S];
-      return dim_A - dim_S;
+       chars := DirichletCharacters(M);
+       k := Weight(M);
+       if #chars eq 1 and IsTrivial(chars[1]) then
+	   G := LevelSubgroup(M);
+	   minus_one := IsCoercible(ImageInLevel(G), [-1,0,0,-1]);
+	   if Level(G) eq 1 then
+	       minus_one := true;
+	   end if;
+	   if IsEven(k) and k ge 4 then
+	       return #Cusps(G);
+	   elif IsOdd(k) and k ge 3 and not minus_one then
+	       return #RegularCusps(G); // regular cusps?
+	   elif k eq 2 then
+	       return #Cusps(G)-1;
+	   elif k eq 1 and not minus_one then
+	       return #RegularCusps(G) div 2;
+	   elif k eq 0 then
+	       return 1;
+	   else // k lt 0 or k gt 0 and minus_one
+	       return 0;
+	   end if;
+       end if;
+       if k ge 2 then
+	   A := MF_ModularSymbols(AmbientSpace(M),0);
+	   dim_A := &+[Dimension(a) : a in A];
+	   S := [CuspidalSubspace(a) : a in A];
+	   dim_S := &+[Dimension(s) : s in S];
+	   return dim_A - dim_S;
+       end if;
    end if;
-
+  
    N := Level(M);
    if IsGamma0(M) then
       if IsOdd(Weight(M)) then

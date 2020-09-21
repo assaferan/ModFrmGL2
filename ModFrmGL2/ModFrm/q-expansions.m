@@ -859,6 +859,9 @@ function PowerSeriesNormalizeMagma(f : eps := 10^(-20))
 	    pivot +:= 1;
 	end while;
     end if;
+    if pivot eq AbsolutePrecision(f) then
+	return f;
+    end if;
     return f / Coefficient(f, pivot);
 end function;
 
@@ -890,19 +893,39 @@ function qExpansion_EisensteinSeriesNotGamma(f, prec)
     assert Type(f) eq ModFrmElt;
     assert Type(prec) eq RngIntElt;
     assert assigned f`eisenstein;
-    vecs, vecs0 := Explode(EisensteinData(f));
+    vecs, vecs0, eps_vals := Explode(EisensteinData(f));
     N := Level(f);
     k := Weight(f);
     // We sum over the vectors in the orbit to obtain a Gamma-invariant function
     // for each cusp.
     // E := &+[FullGammaEisenstein(N, v[1], v[2], k, prec) : v in vecs];
-    E := &+[FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs];
+    assert #vecs eq #eps_vals;
+    eis_gamma_N := [FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs];
+    K := BaseRing(Universe(eis_gamma_N));
+    L := Universe(eps_vals);
+    KL := Compositum(K,L);
+    R := PowerSeriesRing(KL);
+    // eps_vals := [KL!val : val in eps_vals];
+    E := &+[KL!eps_vals[j] * R!eis_gamma_N[j] : j in [1..#vecs]];
+    /*
+    E := &+[eps_vals[j] *
+	    FullGammaEisensteinG(N, vecs[j][1], vecs[j][2], k, prec)
+	    : j in [1..#vecs]];
+   */
     // This clause takes care of the weight 2 case, where we have to
     // take differences
     if IsEmpty(vecs0) then
 	E0 := 0;
     else
-	E0 := &+[FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs0];
+	//E0 := &+[FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs0];
+	eis0_gamma_N := [FullGammaEisensteinG(N, v[1], v[2], k, prec)
+			: v in vecs0];
+	E0 := &+[KL!eps_vals[j] * R!eis0_gamma_N[j] : j in [1..#vecs0]];
+	/*
+	E0 := &+[eps_vals[j] *
+	    FullGammaEisensteinG(N, vecs0[j][1], vecs0[j][2], k, prec)
+		 : j in [1..#vecs0]];
+       */
     end if;
     // What's the correct field ??
     // K := Rationals();
