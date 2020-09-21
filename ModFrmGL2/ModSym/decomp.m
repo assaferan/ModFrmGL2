@@ -752,8 +752,8 @@ IsCuspidal(M) is true.}
          // Take all images of DD in M.
          for A in DD do
             B, is_factor := image_of_old_newform_factor(M,A);
-            if is_factor and (B subset M) then
-	    // if B subset M then
+            // if is_factor and (B subset M) then
+	    if B subset M then
                Append(~D,B);
                D[#D]`associated_new_space := A;
                D[#D]`associated_new_space`associated_new_space := true;

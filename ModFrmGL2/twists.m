@@ -3,7 +3,8 @@
 
 import "./ModSym/operators.m" : ActionOnModularSymbolsBasis;
 import "./ModSym/qexpansion.m" : EigenvectorModSymSign;
-import "ModSym/modsym.m" : get_degeneracy_reps;
+import "ModSym/modsym.m" : GetDegeneracyReps,
+                           GetGLModel;
 import "ModSym/core.m" : ConvFromModularSymbol;
 
 function TwistBasis_old(N, prec)
@@ -281,7 +282,7 @@ function TwistBasis(N, prec)
 	    d := D[j];
 	    d_old := AssociatedNewSpace(d);
 	    quo_lev := Level(d) div Level(d_old);
-	    divisors := get_degeneracy_reps(d_old, d, Divisors(quo_lev));
+	    divisors := GetDegeneracyReps(d_old, d, Divisors(quo_lev));
 	    betas := [Transpose(DegeneracyMatrix(AmbientSpace(d),AmbientSpace(d_old),m))
 		      : m in divisors];
 	    assert exists(beta){beta : beta in betas |
@@ -379,6 +380,7 @@ function get_qexps_from_bases(H, B0, F0)
     M_H := ModularSymbols(H, 2, Rationals(), 0);
     S_H := CuspidalSubspace(M_H);
     M_full := ModularSymbols(CongruenceSubgroup(N), 2, Rationals(), 0);
+// M_full := ModularSymbols(CongruenceSubgroup(N));
     beta := Transpose(DegeneracyMatrix(M_full, M_H, GL(2, Rationals())!1));
     M := ModularSymbols(CongruenceSubgroup(N));  
     phi := FullGammaIsom(M, M_full);
@@ -424,19 +426,30 @@ function Test_qExpansions(level, L, func)
     B, F := func(level, prec);
     failed := [];
     for grp in test_grps do
-	H := PSL2Subgroup(sub<GL(2, Integers(level)) | grp`matgens>);
-	try
-	    fs := get_qexps_from_bases(H, B, F);
-	    max_deg := Maximum(7-grp`genus, 2);
-	    X := FindCurveSimple(fs, prec, max_deg);
-	    // The second case for hyperelliptic curves -
-	    // should check that more thoroughly
-	    if Genus(X) notin [grp`genus,0] then
-		Append(~failed, grp`name);
-	    end if;
-	catch e
-	    Append(~failed, <grp`name, e`Object >);
-	end try;
+       try
+	 H := sub<GL(2, Integers(level)) | grp`matgens>;
+
+         if not IsOfRealType(G) then
+            H := GetRealConjugate(H);
+            G := PSL2Subgroup(H);
+         end if;
+
+         if assigned G`DetRep and #Domain(G`DetRep) lt EulerPhi(Level(G)) then
+            H := GetGLModel(H);
+            G := PSL2Subgroup(H);
+         end if;
+
+         fs := get_qexps_from_bases(G, B, F);
+	 max_deg := Maximum(7-grp`genus, 2);
+	 X := FindCurveSimple(fs, prec, max_deg);
+	 // The second case for hyperelliptic curves -
+	 // should check that more thoroughly
+	 if Genus(X) notin [grp`genus,0] then
+	   Append(~failed, grp`name);
+	 end if;
+       catch e
+	 Append(~failed, <grp`name, e`Object >);
+       end try;
     end for;
     return failed;
 end function;

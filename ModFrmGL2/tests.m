@@ -128,7 +128,25 @@ function RandomSpaceWithTrivialCharacter()
       return ModularSymbols(N, k), N, k;
 end function;
 
-forward MakeGroupCopy;
+forward MakeGroupCopy, my_Gamma;
+
+procedure Test_DimensionConsistency_GammaN_Single(N, k)
+  t := Cputime();
+  M := ModularSymbols(CongruenceSubgroup(N), k);
+  M1 := ModularSymbols(my_Gamma(N, "full"), k);
+  // This wouldn't work when k is odd, since we need Gamma prime to
+  // contain -1.
+  // Test without characters
+  //  M2 := ModularSymbols(my_Gamma(N, "full"), k, Rationals(), 0);
+  assert Dimension(M) eq Dimension(M1);
+  //  assert Dimension(M) eq Dimension(M2);
+  S := CuspidalSubspace(M);
+  S1 := CuspidalSubspace(M1);
+  //  S2 := CuspidalSubspace(M2);
+  assert Dimension(S) eq Dimension(S1);
+  //  assert Dimension(S) eq Dimension(S2);
+  printf " \tdim  = %o,    \t%os\n",Dimension(CuspidalSubspace(M)),Cputime(t);
+end procedure;
 
 /* Compute several random spaces of modular symbols, and verify
    that their dimensions agree with the dimensions computed using
@@ -150,10 +168,10 @@ procedure Test_DimensionConsistency(numchecks)
    for i in [1..numchecks] do
       M,N,k,eps := RandomSpace();
       Test_DimensionConsistency_Single(M, N, k, eps);
-      //if Evaluate(eps, -1) eq 1 then
-	  M_copy := MakeGroupCopy(M);
-	  Test_DimensionConsistency_Single(M_copy, N, k, eps);
-      //end if;
+      M_copy := MakeGroupCopy(M);
+      Test_DimensionConsistency_Single(M_copy, N, k, eps);
+      // Testing Gamma(N)
+      Test_DimensionConsistency_GammaN_Single(N,k);
    end for;
 end procedure;
 

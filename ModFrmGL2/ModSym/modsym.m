@@ -555,7 +555,8 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
      G := PSL2Subgroup(H);
    end if;
   */
-   Z := Center(ModLevel(G));
+   // Z := Center(ModLevel(G));
+   Z := [-1,0,0,-1];
    ZG := PSL2Subgroup(sub<ModLevelGL(G) | Z, ImageInLevelGL(G)>);
    Q, pi_Q := ZG/ZG;
    eps := CharacterGroup(pi_Q, F, ZG, ZG)!1;
@@ -1492,7 +1493,7 @@ return M3, otherwise terminate with an error.}
        // if LevelSubgroup(M1) eq LevelSubgroup(M2) then
        G1 := Parent(DirichletCharacter(M1))`Gamma;
        G2 := Parent(DirichletCharacter(M2))`Gamma;
-       if G1 eq G2 then
+       if ImageInLevel(G1) eq ImageInLevel(G2) then
          require M2 subset M1 :  
            "Argument 2 must be contained in argument 1.";
          return M2;

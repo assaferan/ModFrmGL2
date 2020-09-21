@@ -466,7 +466,8 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 
   det := Determinant(MatrixAlgebra(Integers(),2)!d);
 
-  if G1 eq G2 then
+  N := LCM(Level(G1), Level(G2));
+  if ImageInLevel(G1 : N := N) eq ImageInLevel(G2 : N := N) then
       require d eq Parent(d)!1 : "Argument 3 must equal 1.";
       require M1 eq M2: "Arguments 1 and 2 must be equal.";
                        // we easily *could* write down the map between
