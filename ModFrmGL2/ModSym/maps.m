@@ -489,8 +489,9 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
        // require (Level(G1) div Level(G2)) mod det eq 0 :
        require Level(G1) mod det eq 0 : 
       "Determinant of argument 3 must divide Level(G1)."; // div Level(G2).";
-      bool, eps21 := IsCoercible(Parent(eps2), eps1);
-      require bool and eps21 eq eps2 :
+// bool, eps21 := IsCoercible(Parent(eps2), eps1);
+      bool, eps21 := IsCoercible(Parent(eps1), eps2);
+      require bool and eps21 eq eps1 :
          "Arguments 1 and 2 must have compatible dirichlet characters.";
 
       if assigned already_known then

@@ -1,4 +1,7 @@
-import "ModSym/operators.m" : ActionOnModularSymbolsBasis;
+import "ModSym/boundary.m" : BuildTOrbitTable, CuspEquivGrp;
+import "ModSym/core.m" : CosetReduce;
+import "ModSym/operators.m" : ActionOnModularSymbolsBasis,
+  HeckeGeneralCaseRepresentatives;
 import "ModSym/qexpansion.m" : EigenvectorModSymSign,
        get_eigenvector_galois_orbit,
        get_eigenform_galois_orbit;
@@ -984,4 +987,249 @@ proj_basis := [Vector(Eltseq(x)[1..Dimension(S_p)]) : x in Basis(N_prime_inv)];
 B := BasisMatrix(cusp_forms_space);
 N_prime_proj := sub<cusp_forms_space | [b*B : b in proj_basis]>;
 
+*/
+
+function GetCuspMap(alpha, cusps, G, orbit_table, find_coset, coset_list)
+  GL2Q := GL(2, Rationals());
+  betas := [GL2Q!Eltseq(CuspInftyElt(c)) : c in cusps];
+  cusp_idxs := [CosetReduce(ModLevel(G)!Eltseq(beta), find_coset) :
+			   beta in betas];
+  cusp_orbit_idxs := [orbit_table[idx][1] : idx in cusp_idxs];
+  cusp_orbit_exps := [orbit_table[idx][2] : idx in cusp_idxs];
+  alpha_map := [];
+  ts := [];
+  for j in [1..#cusps] do
+	x := cusps[j];
+	vec := ChangeRing(Vector(Eltseq(x)),Rationals()) * Transpose(alpha);
+        a := Eltseq(Cusp(vec));
+        g := CuspInftyElt(a);
+        orb, exp := Explode(orbit_table[CosetReduce(ModLevel(G)!Eltseq(g), 
+						    find_coset)]);
+        alpha_j := Index(cusp_orbit_idxs, orb);
+        // r := exp - cusp_orbit_exps[alpha_j];
+        bool, gamma := CuspEquivGrp(coset_list, find_coset, G,
+				    orbit_table, a, Eltseq(cusps[alpha_j]));
+        t := betas[alpha_j]^(-1) * GL2Q!Eltseq(gamma)^(-1) * alpha * betas[j];
+        assert IsZero(t[2,1]);
+        // r := t[1,2];
+        Append(~alpha_map, alpha_j);
+        Append(~ts, t);
+  end for;
+  return alpha_map, ts;
+end function;
+
+function act_on_qexp(t, f, N)
+  assert IsZero(t[2,1]);
+  R<q> := Parent(f);
+  det := Determinant(t);
+  b := Integers()!t[1,2];
+  d := t[2,2];
+  if d lt 0 then
+     d := -d;
+     b := -b;
+  end if;
+  scalar := det * d^(-2); // also a / d
+  D := Denominator(scalar);
+  s := Numerator(scalar);
+  _<q_ND> := PowerSeriesRing(BaseRing(R));
+  K<zeta> := CyclotomicField(N*Integers()!d);
+  prec := AbsolutePrecision(f);
+  tf := &+[Coefficient(f,n) * zeta^(b*n) * q_ND^(n * s)
+	      : n in [0..prec-1] | Coefficient(f,n) ne 0];
+  return scalar * tf + O(q^prec * scalar), D;
+end function;
+
+// This function returns the action on the q-expansions of modular forms
+// given by tha alphas.
+// More precisely if T(f) = \sum f|[alpha], then it returns the
+// q-expansions of T(f)|[beta] where beta(infty) = s, and s ranges over
+// the cusps of G.
+// This is given in terms of the original q-expansions
+// f|[beta_j] = \sum a_{n,j} q_N^n
+// Since this action might yield q-expansions with larger denominator,
+// (q_N' with different N'), we also return the denominators (N's)
+// of the different q-expansions.
+
+function GetActionOnExpansion(G, alphas, bound)
+  GL2Q := GL(2, Rationals());
+  cusps := Cusps(G);
+  N := Level(G);
+  // We don't want a multicharacter one
+  M := ModularSymbols(G, 2, Rationals(), 0);
+  coset_list :=  M`mlist`coset_list;
+  find_coset := M`mlist`find_coset;
+  orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
+  alpha_maps := [];
+  ts := [];
+  for alpha in alphas do
+      alpha_map, t := GetCuspMap(GL2Q!alpha, cusps, G,
+				 orbit_table, find_coset, coset_list);
+      Append(~alpha_maps, alpha_map);
+      Append(~ts, t);
+  end for;
+  if IsEmpty(alphas) then
+    D := 1;
+  else
+    D := Abs(LCM([Integers()!Determinant(GL2Q!alpha) : alpha in alphas]));
+  end if;
+  K<zeta> := CyclotomicField(N*D);
+  R := PolynomialRing(K, bound*#cusps);
+  var_names := [[Sprintf("a_{%o,%o}", i, j) : j in [1..#cusps]]
+		 : i in [1..bound]];
+  AssignNames(~R, &cat var_names);
+  a := [[R.(#cusps*(i-1) + j) : j in [1..#cusps]] : i in [1..bound]];
+  A<q_N> := PowerSeriesRing(R);
+  orig_exps := [&+[a[n][j] * q_N^(n) : n in [1..bound]] + O(q_N^(bound+1)) :
+							    j in [1..#cusps]];
+  res := [];
+  Ns := [];
+  for j in [1..#cusps] do
+    f := A!0;
+// D := 1;
+    N_f := N;
+    for l in [1..#alphas] do
+      f_l, d := act_on_qexp(ts[l][j],orig_exps[alpha_maps[l][j]],N);
+      N_l := N * d;
+      next_N := LCM(N_l, N_f);
+      _<q_ND> := Parent(f_l);
+      f := Evaluate(f, q_ND^(next_N div N_f) )
+	    + Evaluate(f_l, q_ND^(next_N div N_l));
+      // f +:= f_l;
+      N_f := next_N;
+    end for;
+    Append(~res, f);
+    Append(~Ns, N_f);
+  end for;
+  return res, Ns, orig_exps;
+end function;
+
+function HeckeActionOnExpansion(G,p,bound)
+  alphas := HeckeGeneralCaseRepresentatives(G,p);
+  return GetActionOnExpansion(G, alphas, bound);
+end function;
+
+// This could be made much more efficient,
+// but we would like something that works first, and for that
+// visualization is important
+
+function qExpansionsDependence(G,bound)
+  GL2Q := GL(2, Rationals());
+  // We take traces of the q-expansions at the different cusps.
+  // i.e. compute Tr(f)|beta for each cusp beta
+  // Since Tr(f) is Gamma(1)-invariant, they should all be equal
+  coset_reps := [GL2Q!Eltseq(x) : x in CosetRepresentatives(G)];
+  trace_map, Ns := GetActionOnExpansion(G, coset_reps, bound);
+  N := LCM(Ns);
+  R := BaseRing(Universe(trace_map));
+  K := BaseRing(R);
+  cusps := Cusps(G);
+  a := [[R.(#cusps*(i-1) + j) : j in [1..#cusps]] : i in [1..bound]];
+  mats := [Matrix([[Coefficient(Coefficient(tr,i), a[i][j], 1)
+		       : j in [1..#cusps]] : tr in trace_map])
+	      : i in [1..bound]];
+  mats_K := [ChangeRing(mat, K) : mat in mats];
+  mats_K_diff := [Matrix([mat_K[j] - mat_K[1]
+			     : j in [2..#cusps]])
+		     : mat_K in mats_K];
+  kers := [Kernel(Transpose(mat_K_diff)) : mat_K_diff in mats_K_diff];
+  // We actually hope that this is the case :)
+  assert &and[Dimension(kers[n]) eq 1 : n in [1..#kers] | GCD(n,N) eq 1];
+  a1s := Basis(kers[1])[1];
+  // Verification
+  subs := Eltseq(a1s) cat [R.(i+#cusps) : i in [1..(bound-1)*#cusps]];
+  sub_coeffs := [Evaluate(Coefficient(trace_map[j],1)
+			  -Coefficient(trace_map[1],1),
+			subs) : j in [2..#cusps]];
+  assert &and[IsZero(c) : c in sub_coeffs];
+  return a1s;
+end function;
+
+function qExpansionHeckeEigenform(G, lambdas)
+  // Have to define everything
+  N := Level(G);
+  K := CyclotomicField(N);
+  known_as := Eltseq(qExpansionsDependence(G,1));
+  n_cusps := #known_as;
+  // In fact, we can do more, until the first prime larger than #lambdas
+  // and we only need the eigenvalues at primes
+  for n in [2..#lambdas] do
+    // Smallest prime dividing n (yes, there are faster ways to get it...)
+    p := Factorization(n)[1][1];
+    // In fact, it seems we only need the first term - make it
+    // more efficient afterwards
+    hecke_act, Ns, orig_exps := HeckeActionOnExpansion(G,p,n);
+    // assert &and [Nn eq N*p : Nn in Ns];
+    assert &and[Nn eq Ns[1] : Nn in Ns];
+    exp := Ns[1] div N;
+    A<q_ND> := Universe(hecke_act);
+    diffs := [hecke_act[j] - lambdas[p]*Evaluate(orig_exps[j], q_ND^exp)
+	   : j in [1..n_cusps]];
+    R := BaseRing(A);
+    subs := known_as cat [R.(i+(n-1)*n_cusps) : i in [1..n_cusps]];
+    eqs := [Evaluate(Coefficient(t,n), subs) : t in diffs];
+    a := [[R.(n_cusps*(i-1) + j) : j in [1..n_cusps]] : i in [1..n]];
+    mat := Matrix([[Coefficient(e,a[n][j], 1) : j in [1..n_cusps]] : e in eqs]);
+    vec := Vector([-ConstantTerm(e) : e in eqs]);
+    // Is that always posssible? probably not...
+    ans := ChangeRing(Solution(Transpose(mat), vec), K);
+    known_as cat:= Eltseq(ans);
+    // Checking ourselves
+    assert &and[IsZero(Evaluate(Coefficient(t,n), known_as)) : t in diffs];
+    print "Done with ", n;
+  end for;
+  coeffs := [known_as[1 + i*n_cusps] : i in [0..#lambdas-1]];
+  _<q> := PowerSeriesRing(Universe(coeffs));
+  f := &+[coeffs[n]*q^n : n in [1..#coeffs]] + O(q^(#coeffs+1));
+  return f;
+end function;
+
+// old code
+/*
+function HeckeActionOnExpansion(G,p,bound)
+    GL2Q := GL(2, Rationals());
+    alphas := HeckeGeneralCaseRepresentatives(G,p);
+    cusps := Cusps(G);
+    N := Level(G);
+    M := ModularSymbols(G);
+    coset_list :=  M`mlist`coset_list;
+    find_coset := M`mlist`find_coset;
+    orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
+    alpha_maps := [];
+    ts := [];
+    for alpha in alphas do
+      alpha_map, t := GetCuspMap(GL2Q!alpha, cusps, G,
+				 orbit_table, find_coset, coset_list);
+      Append(~alpha_maps, alpha_map);
+      Append(~ts, t);
+    end for;
+    K<zeta> := CyclotomicField(N*p);
+    R := PolynomialRing(K, bound*#cusps);
+    var_names := [[Sprintf("a_{%o,%o}", i, j) : j in [1..#cusps]]
+		 : i in [1..bound]];
+    AssignNames(~R, &cat var_names);
+    a := [[R.(#cusps*(i-1) + j) : j in [1..#cusps]] : i in [1..bound]];
+    A<q_N> := PowerSeriesRing(R);
+    orig_exps := [&+[a[n][j] * q_N^(n) : n in [1..bound]] + O(q_N^(bound+1)) :
+							    j in [1..#cusps]];
+    Tp := [];
+    Ns := [];
+    for j in [1..#cusps] do
+       f := A!0;
+       D := 1;
+       N_f := N;
+       for l in [1..#alphas] do
+	  f_l, d := act_on_qexp(ts[l][j],orig_exps[alpha_maps[l][j]],N);
+          N_l := N * d;
+          next_N := LCM(N_l, N_f);
+          _<q_ND> := Parent(f_l);
+          f := Evaluate(f, q_ND^(next_N div N_f) )
+	    + Evaluate(f_l, q_ND^(next_N div N_l));
+          // f +:= f_l;
+          N_f := next_N;
+       end for;
+       Append(~Tp, f);
+       Append(~Ns, N_f);
+    end for;
+    return Tp, Ns;
+end function;
 */

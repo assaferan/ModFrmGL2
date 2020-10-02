@@ -1,10 +1,13 @@
 // Following correspondence with Joshua Box, this is implementation of twists
 // in order to get q-expansions.
 
-import "./ModSym/operators.m" : ActionOnModularSymbolsBasis;
-import "./ModSym/qexpansion.m" : EigenvectorModSymSign;
+import "ModFrm/q-expansions.m" : PowerSeriesNormalizeMagma;
+import "ModSym/linalg.m" : Restrict;
+import "ModSym/operators.m" : ActionOnModularSymbolsBasis;
+import "ModSym/qexpansion.m" : EigenvectorModSymSign;
 import "ModSym/modsym.m" : GetDegeneracyReps,
-                           GetGLModel;
+                           GetGLModel,
+                           GetRealConjugate;
 import "ModSym/core.m" : ConvFromModularSymbol;
 
 function TwistBasis_old(N, prec)
@@ -364,7 +367,73 @@ kers := [Kernel(Matrix(pr_tr)) : pr_tr in prod_traces];
     return X;
 end function;
 
-import "ModFrm/q-expansions.m" : PowerSeriesNormalizeMagma;
+// This only works when conjugating one eigenform
+// gives you another eigenform
+function FindRationalCurve(qexps, prec, n_rel)
+    _<q> := PowerSeriesRing(Rationals());
+    fs := [];
+    for qexp in qexps do
+      K := BaseRing(Parent(qexp));
+      zeta := K.1;
+      for j in [0..Degree(K)-1] do
+        f := &+[Trace(zeta^j*Coefficient(qexp, n))*q^n : n in [1..prec-1]];
+        f +:= O(q^prec);
+        Append(~fs, f);
+      end for;
+    end for;
+    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+    fs := [&+[E[j][i]*fs[i] : i in [1..#fs]] : j in [1..#fs]];
+    n := #fs;
+    R<[x]> := PolynomialRing(Rationals(),n);
+    degmons := [MonomialsOfDegree(R, d) : d in [1..n_rel]];
+    prods := [[Evaluate(m, fs) + O(q^prec) : m in degmons[d]] :
+	      d in [1..n_rel]];
+    kers := [Kernel(Matrix([AbsEltseq(f) : f in prod])) : prod in prods];
+    rels := [[&+[Eltseq(kers[d].i)[j]*degmons[d][j] : j in [1..#degmons[d]]] :
+	      i in [1..Dimension(kers[d])]] : d in [1..n_rel]];
+    I := ideal<R | &cat rels>;
+    X := Curve(ProjectiveSpace(R),I);
+    return X;
+end function;
+
+function GetInvariantSubspace(H, M)
+  N := Modulus(BaseRing(H));
+  G := GL(2,Integers(N));
+  S := CuspidalSubspace(M);
+  Z := Center(G);
+  PG, quo_G := G / Z;
+  G0 := SL(2, Integers(N));
+  PG0 := G0 @ quo_G;
+  gens := GeneratorsSequence(PG0);
+  quo_G0 := hom< G0 -> PG0 | [quo_G(x) : x in GeneratorsSequence(G0)]>;
+  gens_seq := [Eltseq(FindLiftToSL2(g @@ quo_G0)) : g in gens];
+  GL2Q := GL(2, Rationals());
+  alpha_N := GL2Q![1,0,0,N]^(-1);
+  conj_gens := [Eltseq(GL2Q!g^alpha_N) : g in gens_seq];
+  gen_mats := [ActionOnModularSymbolsBasis(g, M) : g in conj_gens];
+  gen_mats_tr := [Transpose(g) : g in gen_mats];
+  cusp_forms_space := DualVectorSpace(S);
+  gens_rest := [Restrict(x, cusp_forms_space) : x in gen_mats_tr];
+  Omega := GModule(PG0, gens_rest);
+  Omega_PG := Induction(Omega, PG);
+// T_prime := ImageInLevelGL(H);
+  vprintf ModularSymbols, 1:
+    "Restricting the representation to the subgroup...\n";
+  Omega_H := Restriction(Omega_PG,quo_G(H));
+  vprintf ModularSymbols, 1: "Done.\n";
+  hs := [Representation(Omega_H)(g) :
+			       g in Generators(quo_G(H))];
+  if IsEmpty(hs) then
+    H_inv := VectorSpace(Omega_H);
+  else
+    H_inv := &meet[Kernel(n-1) : n in hs];
+  end if;
+  proj_basis := [Vector(Eltseq(x)[1..Dimension(S)]) :
+			 x in Basis(H_inv)];
+  B := BasisMatrix(cusp_forms_space);
+  H_proj := sub<cusp_forms_space | [b*B : b in proj_basis]>;
+  return H_proj;
+end function;
 
 // At the moment, this seems to work only for N <= 8...
 // It also works for half of the groups of level 9 - fails for 9A3, 9C4
@@ -374,17 +443,19 @@ import "ModFrm/q-expansions.m" : PowerSeriesNormalizeMagma;
 // It seems that we fail to find the right constants for a two-dimensional space
 
 function get_qexps_from_bases(H, B0, F0)
-    N := Level(H);
+// N := Level(H);
     // B0, F0 := TwistBasis0(N, prec);
     spaces := [* sub<Universe(basis) | basis> : basis in B0 *];
-    M_H := ModularSymbols(H, 2, Rationals(), 0);
-    S_H := CuspidalSubspace(M_H);
-    M_full := ModularSymbols(CongruenceSubgroup(N), 2, Rationals(), 0);
+//    M_H := ModularSymbols(H, 2, Rationals(), 0);
+//    S_H := CuspidalSubspace(M_H);
+//    M_full := ModularSymbols(CongruenceSubgroup(N), 2, Rationals(), 0);
 // M_full := ModularSymbols(CongruenceSubgroup(N));
-    beta := Transpose(DegeneracyMatrix(M_full, M_H, GL(2, Rationals())!1));
+//    beta := Transpose(DegeneracyMatrix(M_full, M_H, GL(2, Rationals())!1));
+    N := Modulus(BaseRing(H));
     M := ModularSymbols(CongruenceSubgroup(N));  
-    phi := FullGammaIsom(M, M_full);
-    im_S_H := DualVectorSpace(S_H) * beta * Transpose(phi^(-1));
+//    phi := FullGammaIsom(M, M_full);
+//    im_S_H := DualVectorSpace(S_H) * beta * Transpose(phi^(-1));
+    im_S_H := GetInvariantSubspace(H, M);
     K := BaseRing(spaces[1]);
     for j in [1..#F0] do 
 	K := Compositum(K,BaseRing(Universe(F0[j])));
@@ -429,6 +500,8 @@ function Test_qExpansions(level, L, func)
        try
 	 H := sub<GL(2, Integers(level)) | grp`matgens>;
 
+         G := PSL2Subgroup(H);
+
          if not IsOfRealType(G) then
             H := GetRealConjugate(H);
             G := PSL2Subgroup(H);
@@ -439,7 +512,7 @@ function Test_qExpansions(level, L, func)
             G := PSL2Subgroup(H);
          end if;
 
-         fs := get_qexps_from_bases(G, B, F);
+         fs := get_qexps_from_bases(ImageInLevelGL(G), B, F);
 	 max_deg := Maximum(7-grp`genus, 2);
 	 X := FindCurveSimple(fs, prec, max_deg);
 	 // The second case for hyperelliptic curves -

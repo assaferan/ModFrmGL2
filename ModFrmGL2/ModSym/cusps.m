@@ -121,6 +121,21 @@ intrinsic Cusp(x::Infty) -> SetCspElt
    return Cusp(1,0);
 end intrinsic;
 
+intrinsic Cusp(u::FldRatElt, v::FldRatElt) -> SetCspElt
+{Create the cusp at the given element of P^1(Q)}
+ if IsZero(v) then
+   return Cusp(Infinity());
+ else
+   return Cusp(u/v);
+ end if;
+end intrinsic;
+
+intrinsic Cusp(v::ModTupRngElt[FldRat]) -> SetCspElt
+{Create the cusp at the given element of P^1(Q)}
+ require Degree(v) eq 2 : "Vector must be of length 2.";
+ return Cusp(v[1], v[2]);
+end intrinsic;
+ 
 ////////////////////////////////////////////////////////////////
 //                                                            //
 //                     Coercions                              //
@@ -229,3 +244,10 @@ end intrinsic;
 ////////////////////////////////////////////////////////////////
 
 
+intrinsic '*'(alpha::GrpMatElt[FldRat], x::SetCspElt) -> SetCspElt
+{Computes the action of alpha on x.}
+ Q := Rationals();
+ vec := ChangeRing(Vector(Eltseq(x)), Q);
+ alpha_vec := vec * Transpose(alpha);
+ return Cusp(alpha_vec);
+end intrinsic;

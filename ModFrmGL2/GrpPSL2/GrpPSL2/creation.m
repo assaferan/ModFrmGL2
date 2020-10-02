@@ -536,7 +536,7 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
       new_g := PSL2(Integers())!Eltseq(elt);
       Append(~H_gens, new_g);
   end for;
-  gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
+  gens_level := [Eltseq(h) : h in H_gens];// cat [[-1,0,0,-1]];
   mod_level := ModLevel(G);
   mod_level := SL(2, Integers(Level(G) * det));
   im_in_level := sub<mod_level | gens_level >;
@@ -770,7 +770,9 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
      if N eq 1 then
        H`FS_cosets := [G!1];
      else
-       H`FS_cosets := [G | FindLiftToSL2(c) : c in cosets];
+       psl_image := sub<H`ModLevel | H`ImageInLevel, [-1,0,0,-1]>;
+       pcosets, _ := Transversal(H`ModLevel, psl_image);
+       H`FS_cosets := [G | FindLiftToSL2(find_coset(c)) : c in pcosets];
      end if;
      codom := [<i, cosets[i]^(-1)> : i in [1..#cosets]];
      coset_idx := map<cosets -> codom |

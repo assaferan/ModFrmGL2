@@ -558,8 +558,8 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    // Z := Center(ModLevel(G));
    Z := [-1,0,0,-1];
    ZG := PSL2Subgroup(sub<ModLevelGL(G) | Z, ImageInLevelGL(G)>);
-   Q, pi_Q := ZG/ZG;
-   eps := CharacterGroup(pi_Q, F, ZG, ZG)!1;
+   Q, pi_Q := ZG/G;
+   eps := CharacterGroup(pi_Q, F, ZG, G)!1;
    return ModularSymbols(eps,ZG,k,F,sign);
 end intrinsic;
 

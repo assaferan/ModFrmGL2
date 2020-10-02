@@ -997,6 +997,9 @@ function HeckeOperatorDirectlyOnModularSymbols(M,p : Squared := false)
    else
        eps := DirichletCharacter(M);
        G := Parent(eps)`Gamma;
+       // This is because we don't compute epsilon values on the representatives
+       // at the moment
+       // G := LevelSubgroup(M);
        R := HeckeGeneralCaseRepresentatives(G,p : Squared := Squared);
    end if;
    if IsEmpty(R) then
