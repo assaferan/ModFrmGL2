@@ -433,8 +433,9 @@ end intrinsic;
 
 intrinsic Order(x::GrpChrElt) -> RngIntElt
 {The order of x.}
-  A, phi := MultiplicativeGroup(BaseRing(x));
-  orders_gens := [Order(Evaluate(x,q) @@ phi) : q in Generators(Domain(x))];
+  R := Integers(BaseRing(x));
+  A, phi := MultiplicativeGroup(R);
+  orders_gens := [Order((R!Evaluate(x,q)) @@ phi) : q in Generators(Domain(x))];
   if #orders_gens eq 0 then return 1; end if;
   return LCM(orders_gens);
 end intrinsic;

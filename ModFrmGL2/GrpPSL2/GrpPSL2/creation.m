@@ -304,6 +304,21 @@ intrinsic GammaNSplus(N::RngIntElt) -> GrpPSL2
    return Normalizer(GammaNS(N));
 end intrinsic;
 
+intrinsic GammaShimura(U::GrpAb, phi::Map,
+		       H::GrpAb, t::RngIntElt) -> GrpPSL2
+{creates the congruence subgroup Gamma(H,t), defined by Shimura.
+    H is a subgroup of UnitGroup(ZZ / N ZZ), and t divides N.
+    These are matrices such that modulo N they are upper triangular,
+    the diagonal elements are in H, and the upper right element is
+    a multiple of t.}
+   N := Modulus(Codomain(phi));
+   h_gens := [phi(g) : g in Generators(H)];
+   all_gens := [phi(g) : g in Generators(U)];           
+   mat_gens := [[-1,0,0,-1],[1,t,0,1]] cat [[a,0,0,1] : a in h_gens]
+		cat [[1,0,0,d] : d in all_gens];
+   return PSL2Subgroup(sub<GL(2, Integers(N)) | mat_gens>);
+end intrinsic;
+
 // Creation of Quotient
 
 intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
