@@ -80,6 +80,9 @@ function DimensionOfCuspidalSpace(M)
    assert IsAmbientSpace(M);
 
    if not IsOfGammaType(M) then
+      if (Weight(M) eq 2) then
+	return Genus(LevelSubgroup(M));
+      end if;
       return &+[Dimension(CuspidalSubspace(a)) : a in MF_ModularSymbols(M,1)];
    end if;
 

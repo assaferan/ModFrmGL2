@@ -77,7 +77,8 @@ intrinsic 'eq' (G::GrpPSL2,H::GrpPSL2) -> BoolElt
     // Warning! this may not work well for non congruence groups!
     if G`BaseRing cmpne H`BaseRing then return false; end if;
      if assigned G`Level and assigned H`Level then
-        levels := {G`Level, H`Level};
+		 // levels := {G`Level, H`Level};
+        levels := {calcLevel(G), calcLevel(H)};
         if levels eq {1} then return true;
         elif 1 in levels then return false;
         end if;
@@ -175,7 +176,7 @@ intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
  			      : g in G`Generators] cat [-H`ModLevel!1]>;
             return H`ImageInLevel subset G_im;
 	 end if;
-         if N mod Level(G) ne 0 then
+         if N mod calcLevel(G) ne 0 then
 	   return false;
          end if;
          require #G`gammaType_list eq 1 :
@@ -191,7 +192,7 @@ intrinsic 'subset'(H::GrpPSL2,G::GrpPSL2) -> BoolElt
       end if;
     end if;
     if not G`IsOfGammaType then
-        if IsGamma(H) and (Level(G) eq Level(H)) then
+        if IsGamma(H) and (calcLevel(G) eq Level(H)) then
           return true;
         end if;
 	// !!! this could be quite slow but will do for now

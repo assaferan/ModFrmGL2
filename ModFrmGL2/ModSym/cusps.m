@@ -21,7 +21,7 @@ freeze;
 
                                                                             
  ***************************************************************************/
-
+import "boundary.m" : BuildTOrbitTable, CuspEquivGrp;
 
 /*
 
@@ -55,7 +55,12 @@ EXAMPLE:
 declare type SetCsp [SetCspElt];
 
 // nothing yet:
-// declare attributes SetCsp: 
+declare attributes SetCsp:
+  G,
+  elements,
+  orbit_table,
+  coset_list,
+  find_coset;
 
 declare type SetCspElt;
 
@@ -69,7 +74,37 @@ declare attributes SetCspElt:
 //                                                            //
 ////////////////////////////////////////////////////////////////
 
+intrinsic CuspsG(G::GrpPSL2) -> SetCsp
+{The set of cusps in the upper half plane for the group G;
+  consists of equivalence classes of the projective rational line under
+    the action of G.}
+  cusps := New(SetCsp);
+  cusps`G := G;
+  cuspList := Cusps(G);
+  cusps`elements := [];
+  for s in cuspList do
+    cusp := s;
+    cusp`parent := cusps;
+    Append(~cusps`elements, cusp);
+  end for;
+  // We modify G to contain -1 in its image,
+  // since the algorithms below use the image of G
+  if Level(G) ne 1 then 
+    H := PSL2Subgroup(sub<ModLevel(G) | ImageInLevel(G), -ModLevel(G)!1>);
+  else
+    H := G;
+  end if;
+  find_coset := GetFindCoset(H);
+  coset_list := [c : c in Codomain(Components(find_coset)[1])];
+  cusps`orbit_table := BuildTOrbitTable(coset_list, find_coset, H);
+  cusps`coset_list := coset_list;
+  cusps`find_coset := find_coset;
+  return cusps;
+end intrinsic;
+
 TheCusps := New(SetCsp);
+// we can't do that because PSL2 is not yet defined when this code runs.
+// TheCusps := CuspsG(PSL2(Integers()));
 
 intrinsic Cusps() -> SetCsp
    {The set of cusps in the upper half plane; consists of the
@@ -78,6 +113,18 @@ intrinsic Cusps() -> SetCsp
    return TheCusps;
 end intrinsic;
 
+intrinsic Group(X::SetCsp) -> GrpPSL2
+{The group for which this set of cusps is defined.}
+   if not assigned X`G then
+     X`G := PSL2(Integers());
+   end if;
+   return X`G;
+end intrinsic;
+
+intrinsic Elements(X::SetCsp) -> GrpPSL2
+{.}
+  return X`elements;
+end intrinsic;
 
 procedure Reduce(z)
    g := GCD(z`u,z`v);
@@ -146,7 +193,17 @@ intrinsic IsCoercible(X::SetCsp,x::.) -> BoolElt, SetCspElt
    {}
    case Type(x):
       when SetCspElt:
-         return true, x;
+         y := Cusp(x`u, x`v);
+         y`parent := X;
+         // for better visibility
+         if assigned X`find_coset then
+	   for x in Elements(X) do
+	     if x eq y then
+	       return true, x;
+	     end if;
+	   end for;
+	 end if;
+         return true, y;
       when SeqEnum:
          if #x ne 2 then
             return false, "Illegal coercion"; 
@@ -158,9 +215,9 @@ intrinsic IsCoercible(X::SetCsp,x::.) -> BoolElt, SetCspElt
          elif U ne RngInt then
             return false, "Illegal coercion"; 
          end if;
-         return true, Cusp(x[1],x[2]);
+         return true, X!Cusp(x[1],x[2]);
       when RngIntElt, FldRatElt, Infty:
-         return true, Cusp(x);
+         return true, X!Cusp(x);
       else
          return false, "Illegal coercion"; 
    end case;
@@ -181,7 +238,7 @@ end intrinsic;
 
 intrinsic Print(X::SetCsp, level::MonStgElt)
    {}
-   printf "Set of all cusps";
+   printf "Set of cusps for the group %o", Group(X);
 end intrinsic;
 
 
@@ -211,15 +268,23 @@ intrinsic Parent(x::SetCspElt) -> SetCsp
    return x`parent;
 end intrinsic;
 
-intrinsic 'eq' (x::SetCsp,Y::SetCsp) -> BoolElt
+intrinsic 'eq' (X::SetCsp,Y::SetCsp) -> BoolElt
    {}
-   return true;  // there is only one set of cusps.
+   return Group(X) eq Group(Y);
 end intrinsic;
 
 intrinsic 'eq' (x::SetCspElt,y::SetCspElt) -> BoolElt
    {}
-   return x`parent eq y`parent and 
-          x`u eq y`u and x`v eq y`v;
+   if (x`parent ne y`parent) then return false; end if;
+   X := x`parent;
+   if assigned X`coset_list then
+     is_eq, _ :=  CuspEquivGrp(X`coset_list, X`find_coset, X`G, X`orbit_table,
+		       Eltseq(x), Eltseq(y));
+   else
+     is_eq := x`parent eq y`parent and 
+              x`u eq y`u and x`v eq y`v;
+   end if;
+   return is_eq;
 end intrinsic;
 
 
@@ -251,3 +316,57 @@ intrinsic '*'(alpha::GrpMatElt[FldRat], x::SetCspElt) -> SetCspElt
  alpha_vec := vec * Transpose(alpha);
  return Cusp(alpha_vec);
 end intrinsic;
+
+// Galois action when the cusp at infinity is rational
+intrinsic '*'(d::RngIntResElt, x::SetCspElt) -> SetCspElt
+{Compute the action of zeta->zeta^d on x.}
+  u, v := Explode(Eltseq(x));
+  if u eq 0 then
+    return x;
+  end if;
+  d_prime := d^(-1);
+  N := Modulus(Parent(d));
+  assert N eq Level(Group(Parent(x)));
+  dp_lift := CRT([Integers()!d_prime, 1], [N,u]);
+  return Parent(x)![u, dp_lift*v];
+end intrinsic;
+
+intrinsic '*'(d::RngIntResElt, S::SetEnum[SetCspElt]) -> SetCspElt
+{Compute the action of zeta->zeta^d on x.}
+  return {d*x : x in S};
+end intrinsic;
+
+intrinsic '#'(X::SetCsp) -> RngIntElt
+{Size of the set.}
+  return #Elements(X);
+end intrinsic;
+
+// other functions
+
+function getOrbit(d, s)
+  orbit := [s];
+  X := Parent(s);
+  next_s := X!(d*orbit[#orbit]);
+  while (next_s ne s) do
+    Append(~orbit, next_s);
+    next_s := X!(d*orbit[#orbit]);
+  end while;
+  return orbit;
+end function;
+  
+function getAllOrbits(d, X)
+  X_elts := Elements(X);
+  orbits := [];
+  covered := {};
+  not_all_covered := true;
+  idx := 1;
+  while not_all_covered do
+    s := X_elts[idx];
+    orbit := getOrbit(d,s);
+    Append(~orbits, orbit);
+    covered join:= {Index(X_elts, s) : s in orbit};
+    not_all_covered := exists(idx){idx : idx in [1..#X_elts]
+				   | idx notin covered};
+  end while;
+  return orbits;
+end function;

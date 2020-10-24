@@ -641,6 +641,9 @@ end intrinsic;
 
 import "../../ModSym/core.m" : CosetReduce, ManinSymbolGenList;
 
+// This is not good enough -
+// we want level as a GL2 subgroup
+
 intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
 {calculates the level of a subgroup of PSL2}
   if Degree(ModLevel(G)) eq 1 then return 1; end if;
@@ -651,8 +654,35 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
   T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
 		      find_coset) : x in coset_list];
   perm_T := SymmetricGroup(#T_map)!T_map;
-  level := Order(perm_T);
-  return level;
+  min_level := Order(perm_T);
+  max_level := Modulus(BaseRing(ModLevel(G)));
+  cur_level := max_level;
+  found := true;
+  while (cur_level gt min_level) and found do
+    primes := [x[1] : x in Factorization(cur_level)];
+    found := false;
+    bigG := GL(2, Integers(cur_level));
+    for p in primes do
+      level := cur_level div p;
+      imG := sub< bigG | Generators(ImageInLevelGL(G))>;
+      if level eq 1 then
+        contains_ker := bigG subset imG;
+      else
+        lifts := [bigG !
+	      [1 + level*a, level*b, level*c, 1+level*d]
+		     : a,b,c,d in [0..p - 1]
+		    | GCD((1+level*a)*(1+level*d)-level^2*(b*c),
+			  cur_level) eq 1];
+        contains_ker := &and[lift in imG : lift in lifts];
+      end if;
+      if contains_ker then
+        cur_level := level;
+        found := true;
+        break;
+      end if;
+    end for;
+  end while; 
+  return cur_level;
 end intrinsic;
 
  // Eventually we would like to compute the level and check

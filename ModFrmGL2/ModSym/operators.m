@@ -508,6 +508,9 @@ with respect to Basis(M).}
 	     // It might be that we don't have here p^(k-1) - check
 	     eps_val := Evaluate(eps, sigma_p)*p^(Weight(M)-1);
 	 else
+	   G := LevelSubgroup(M);
+           eps_val := 0;
+	   /*
 	     if IsAmbientSpace(M) then
 		 T := HeckeOperatorDirectlyOnModularSymbols(M,p : 
 							    Squared := true);
@@ -529,6 +532,7 @@ with respect to Basis(M).}
 	     else
 		 eps_val := eps_mat[1,1];
 	     end if;
+	   */
 	 end if;
 	 T  := HeckeOperator(M,p) * HeckeOperator(M,p^(r-1))
                - eps_val*HeckeOperator(M,p^(r-2));

@@ -129,7 +129,8 @@ intrinsic ModularFormsGroup(G::GrpPSL2, k::RngIntElt) -> ModFrm
      requirege k,1;
  //   Q, pi_Q := G / G;
      G_prime := MaximalNormalizingWithAbelianQuotient(G);
-     Q, pi_Q := ImageInLevel(G_prime) / ImageInLevel(G);
+  // Q, pi_Q := ImageInLevel(G_prime) / ImageInLevel(G);
+     Q, pi_Q := G_prime / G;
      D := FullCharacterGroup(pi_Q, G_prime, G);
      chars := GaloisConjugacyRepresentatives(D);
      return ModularForms(chars, k);

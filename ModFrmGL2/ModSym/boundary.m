@@ -416,9 +416,11 @@ function CuspToFreeHelper(M, sign, a)
    k     := Weight(M);
  
    a := ReduceCusp(a);
+   c := F!1;
    if a[2] lt 0 then
       a[1] *:= F!-1;
       a[2] *:= F!-1;
+      c *:= F!(-1)^k;
    end if;
 
    // Check if we've already encountered this cusp.
@@ -436,9 +438,9 @@ function CuspToFreeHelper(M, sign, a)
             return <F!0,1>;
          end if;
          if is_trivial_eps then
-            return <1,i>;
+            return <c,i>;
          else	    
-	   return <Evaluate(eps,alp)^(-1),i>;
+	   return <c*Evaluate(eps,alp)^(-1),i>;
          end if;
       end if;
       if sign ne 0 then
@@ -454,16 +456,16 @@ function CuspToFreeHelper(M, sign, a)
                return <F!0,1>;
             end if;
             if is_trivial_eps then
-               return <sign,i>;
+               return <c*sign,i>;
             else
-               return <sign*Evaluate(eps,alp)^(-1),i>;
+               return <c*sign*Evaluate(eps,alp)^(-1),i>;
             end if;
          end if;
       end if;
    end for;
 
    // Determine if this cusp class is killed by the relations.
-   c := F!1;
+   
    if not is_trivial_eps then
      if IsOfGammaType(M) then
       u := a[1]; v := a[2];

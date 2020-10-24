@@ -444,7 +444,7 @@ intrinsic FareySymbol(group::GrpPSL2) -> SymFry
 end intrinsic;
     
 // the following produces a Farey symbol from the list of
-// edges indictively constructed while finding the group,
+// edges inductively constructed while finding the group,
 
 function EdgeListToFareySymbol(L)
 
@@ -457,8 +457,8 @@ function EdgeListToFareySymbol(L)
     endpoint:=func<x, y | x[1]*y[2] - y[1]*x[2]>;
     L2:=Sort(L1,endpoint);
     cusps:=[x[1]/x[2] : x in L2];
-    end1:=[e : e in L | e[2] eq 0][1];
-    end2:=[e : e in L | e[4] eq 0][1];
+    end1:=[e : e in L | e[6] ne -5 and e[2] eq 0][1];
+// end2:=[e : e in L | e[4] eq 0][1];
     
     matchings:=[end1[6]];
     for e in L2 do 
@@ -583,7 +583,7 @@ function FindWidths(cusps,labels,extra);
     // infinity, but not counting the width of the
     // last infinity a second time.
     // This function returns 2 times the widths, so
-    // as to return and integer sequence.
+    // as to return an integer sequence.
     widths := [2 : i in [1..#cusps]];
     widths[1] := 0;
     for i := 1 to #labels do
@@ -596,6 +596,10 @@ function FindWidths(cusps,labels,extra);
     // since there is as yet no equality testing for
     // cusps, create "cuspsE"
     cuspsE := [Eltseq(c) : c in cusps];
+    // First one is actually minus infinity.
+    // Also now there is an equality testing for cusps,
+    // so we can use it.
+    cuspsE[1] := [-1,0];
     for a in extra do
 	widths[Index(cuspsE,Eltseq(a[1]))] +:=2;
 	widths[Index(cuspsE,Eltseq(a[2]))] +:=2;

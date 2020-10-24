@@ -80,14 +80,14 @@ end intrinsic;
 
 intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
 {The image of G in GL_2(Z/NZ), where N is the level.}
-  require N mod Level(G) eq 0 : "N must divide level of G";
+  require N mod Level(G) eq 0 : "level of G must divide N";
   if not assigned G`ImageInLevelGL then 
      modLevel := ModLevelGL(G);
      if (#modLevel eq 1) then
         G`ImageInLevelGL := modLevel;
      else
-	 // gens := [[-1,0,0,-1]];
-	 gens := [];
+       // gens := [[-1,0,0,-1]];
+       gens := [];
        level := Level(G);
        Z_N := Integers(level);
        U, psi := UnitGroup(Z_N);
@@ -108,8 +108,11 @@ intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
      end if;
   end if;
   if N ne Level(G) then
+    if Level(G) eq 1 then
+      return GL(2, Integers(N));
+    end if;
     gens := Generators(ImageInLevelGL(G));
-    gens := [x : x in GL(2,Integers(N)) | GL(2, Integers(N))!x in gens];
+    gens := [x : x in GL(2,Integers(N)) | GL(2, Integers(Level(G)))!x in gens];
        // return sub<GL(2,Integers(N)) | [Eltseq(g) : g in Generators(G)]>;
     return sub<GL(2,Integers(N)) | gens>;
   end if;
