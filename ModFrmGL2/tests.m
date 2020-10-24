@@ -813,16 +813,9 @@ procedure Test_Eisenstein_Single(N,k : prec := 100)
     if #E ne 0 then
         f_orig := [PowerSeries(e, prec) : e in E_orig];
 	_<q> := Parent(f_orig[1]);
-	// Right now the k = 2 case is handled differently
-        if k eq 2 then
-	  f := [PowerSeries(e, prec) : e in E];
-          f_vecs := [Vector(Coefficients(x)) : x in f];
-          f_orig_vecs := [Vector(AbsEltseq(f)) : f in f_orig];  
-	else
-	  f := [PowerSeries(e, prec*N) : e in E];
-	  f_vecs := [Vector(AbsEltseq(x)) : x in f];
-	  f_orig_vecs := [Vector(AbsEltseq(Evaluate(f,q^N))) : f in f_orig];
-        end if;
+	f := [PowerSeries(e, prec*N) : e in E];
+	f_vecs := [Vector(AbsEltseq(x)) : x in f];
+	f_orig_vecs := [Vector(AbsEltseq(Evaluate(f,q^N))) : f in f_orig];
 	K := BaseRing(Universe(f_vecs));
 	_ :=  Solution(ChangeRing(Matrix(f_orig_vecs), K), f_vecs);
     end if;

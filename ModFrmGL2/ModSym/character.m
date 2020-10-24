@@ -159,7 +159,19 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
 	     if Dimension(Codomain(x`Map)) eq 0 then
 		 val_gens := [Codomain(x`Map)!1 : g in gens];
 	     else
-		 val_gens := [x(g@@G`QuotientMap) : g in gens];
+	         pre_gens := [g@@G`QuotientMap : g in gens];
+                 // we still have to take preimage at the common level
+                 // for that we need to lift to something with
+                 // determinant prime to the level. here is one way of doing so
+                 fac := Factorization(level);
+                 N1 := &*[x[1]^x[2] : x in fac | level_G mod x[1] eq 0];
+                 N2 := level div N1;
+                 dets := [CRT([Integers()!Determinant(t), 1], [N1, N2])
+			     : t in pre_gens];
+                 lifts := [FindLiftToM2Z(Matrix(pre_gens[i]) : det := dets[i])
+			      : i in [1..#pre_gens]];
+		 // val_gens := [x(g@@G`QuotientMap) : g in gens];
+	         val_gens := [x(Parent(x)`OriginalDomain!lift) : lift in lifts];
 		 val_gens := [Codomain(x`Map)![[v]] : v in val_gens];
 	     end if;
 	     if IsEmpty(val_gens) then

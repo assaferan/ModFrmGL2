@@ -2179,6 +2179,7 @@ function GetModularFunctionAndModel(H)
   eis2basis := EisensteinSeries(ModularForms(K));
   assert #eis2basis gt 0;
   seq := [ i : i in [1..#eis2basis]];
+  // The result here is not considered an Eisenstein object by magma
   // x := &+[ seq[m]*eis2basis[m] : m in [1..#eis2basis]];
 
   fourier_basis := [[[ActionOnEisensteinSeries(S2[j]*S1[i], x)
@@ -2187,7 +2188,7 @@ function GetModularFunctionAndModel(H)
   fourierlist := [[ &+[seq[m]*qExpansion(fourier_basis[i][j][m], prec)
 		   : m in [1..#eis2basis]] : j in [1..#S2]] : i in [1..#S1]];
 
-//  fourierlist := [[Evaluate(f, q^(1/N)) : f in fs] : fs in fourierlist];
+  fourierlist := [[Evaluate(f, q^(1/N)) : f in fs] : fs in fourierlist];
 
   printf "Symmetrizing.\n";
   wt := 0;

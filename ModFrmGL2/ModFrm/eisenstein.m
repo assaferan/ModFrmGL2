@@ -284,9 +284,7 @@ function act(elt,g,N,basislist)
     imag[2] := imag[2] mod N;
     ind := Index(basislist,imag);
     if (ind eq 0) then
-      printf "Error! The vector %o is not in our basis list!.\n",imag;
-      bad := 0;
-      bad2 := 1/bad; 
+      error Sprintf("Error! The vector %o is not in our basis list!.\n",imag);
     end if;
     // Act on elt by zeta^i -> zeta^(i*det)
     coeffs := Eltseq(elt[i]);
@@ -322,7 +320,8 @@ function EisensteinRouse(G)
           addtolist := false;
         end if;
         if addtolist eq true then
-         //printf "Adding %o to the basis list.\n",<a,b>;
+	  vprintf ModularForms,3 :
+	    "Adding %o to the basis list.\n",<a,b>;
           Append(~basislist,<a,b>);
         end if;
       end if;
@@ -330,17 +329,19 @@ function EisensteinRouse(G)
   end for;
   lastbasis := basislist[#basislist];
   dimen := #basislist - 1;
-// printf "The space of Eisenstein series has dimension %o.\n",dimen;
+  vprintf ModularForms, 3:
+    "The space of Eisenstein series has dimension %o.\n",dimen;
 
   // Represent an element of M_2(Gamma) that is a linear combination of the p_tau as a list
   // of coefficients in Q(zeta) corresponding to the basis vectors.
 
-  printf "Computing action of generators of subsub intersect SL_2 on Eisenstein series for Gamma(%o).\n",N;
+  vprintf ModularForms, 2:
+    "Computing action of generators of subsub intersect SL_2 on Eisenstein series for Gamma(%o).\n",N;
 
   subsub := ImageInLevelGL(G);
 
   matlist := [];
-  sl2sub := subsub meet SL(2,Integers(N));
+  sl2sub := subsub meet ModLevel(G);
   K<zeta> := CyclotomicField(N);
   for g in Generators(sl2sub) do
     // Compute a matrix representing g on the space.
@@ -364,9 +365,7 @@ function EisensteinRouse(G)
       imag[2] := imag[2] mod N;
       indind := Index(basislist,imag);
       if (indind eq 0) then
-        printf "Error! The vector %o is not in our basis list!.\n",imag;
-        bad := 0;
-        bad2 := 1/bad; 
+	error Sprintf("Error! The vector %o is not in our basis list!.\n",imag);
       end if;
       rowmat[1][indind] := 1;
       if rowmat[1][#basislist] ne 0 then
@@ -386,22 +385,25 @@ function EisensteinRouse(G)
   if #matlist eq 0 then
     Append(~matlist,I);
   end if;
-  printf "Finding vectors invariant under %o intersect SL_2.\n", subsub;
+  vprintf ModularForms, 2:
+    "Finding vectors invariant under %o intersect SL_2.\n", subsub;
   Ker := Kernel(Transpose(matlist[1]-I));
   for m in [2..#matlist] do
     Ker := Ker meet Kernel(Transpose(matlist[m]-I));
   end for;
   kerbasis := Basis(Ker);
-  printf "The dimension of the space of Eisenstein series for subsub intersect SL_2 is %o.\n",#kerbasis;
+  vprintf ModularForms, 2:
+    "The dimension of the space of Eisenstein series for subsub intersect SL_2 is %o.\n",#kerbasis;
   if (#kerbasis ne (#Cusps(G) - 1)) then
-    printf "Error! We didn't get enough Eisenstein series!.\n";
+    error Sprintf("Error! We didn't get enough Eisenstein series!.\n");
   end if;
 
   // Now we look at the Q-span of the forms with coefficients in Q(zeta_N)
   // that are linear combinations of the elements in K.
 
   phiN := EulerPhi(N);
-  printf "Computing the action of the generators of subsub on the Q-vector space of dimension %o.\n",phiN*#kerbasis;
+  vprintf ModularForms, 2:
+    "Computing the action of the generators of subsub on the Q-vector space of dimension %o.\n",phiN*#kerbasis;
   matlist := [];
   genlist := SetToSequence(Generators(subsub));
   for g in genlist do
@@ -409,8 +411,10 @@ function EisensteinRouse(G)
     for k in [1..#kerbasis] do
       // Compute image of zeta^i*(kth basis vector) under the action of g
       basisvec := act(kerbasis[k],g,N,basislist);
-      //printf "Basis vector is %o.\n",[ basisvec[j] : j in [1..dimen]];
-      //printf "Attempting to coerce into K.\n";
+      vprintf ModularForms, 3:
+        "Basis vector is %o.\n",[ basisvec[j] : j in [1..dimen]];
+      vprintf ModularForms, 3:
+        "Attempting to coerce into K.\n";
       kelt := Ker![ basisvec[j] : j in [1..dimen]];
       coords := Coordinates(Ker,kelt);
 
@@ -434,13 +438,14 @@ function EisensteinRouse(G)
   if #matlist eq 0 then
     Append(~matlist,I);
   end if;
-  printf "Finding vectors invariant under %o.\n", subsub;
+  vprintf ModularForms, 2:
+    "Finding vectors invariant under %o.\n", subsub;
   Ker2 := Kernel(Transpose(matlist[1]-I));
   for m in [2..#matlist] do
     Ker2 := Ker2 meet Kernel(Transpose(matlist[m]-I));
   end for;
   ker2basis := Basis(Ker2);
-  printf "The dimension is %o.\n",#ker2basis;
+  vprintf ModularForms, 2: "The dimension is %o.\n",#ker2basis;
 
   // Translate back to the original form
 

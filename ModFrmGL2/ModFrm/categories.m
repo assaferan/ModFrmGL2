@@ -76,6 +76,10 @@ declare attributes ModFrm:
    // the primitive eisenstein series and their twists over Q(zeta_n)
         eisenstein_series,
 
+   // Store eisenstein series E_v for Gamma(N) for intermediate computations
+        eisenstein_weier,
+        eisenstein_weier_prec,
+
         dimension,      
 
    // the character(s) of the space; takes values in base_ring

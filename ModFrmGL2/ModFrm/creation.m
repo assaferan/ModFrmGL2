@@ -454,10 +454,14 @@ function CoerceRngSerElt(M,x)
    RM := BaseRing(M);
    RMx := BaseRing(Mx);
 
-   if RMx cmpne RM then
-    if not &and[IsCoercible(RM,e) : e in Eltseq(x)] then
-      return false, "Incompatible base rings."; end if;
-   x:=PowerSeriesRing(RM,AbsolutePrecision(x))!x; end if;
+   if IsOfGammaType(M) then
+     if RMx cmpne RM then
+      if not &and[IsCoercible(RM,e) : e in Eltseq(x)] then
+        return false, "Incompatible base rings.";
+      end if;
+     end if;
+     x:=PowerSeriesRing(RM,AbsolutePrecision(x))!x;
+    end if;
 
    type := Type(x);
    assert ISA(type, RngSerElt);
@@ -492,7 +496,11 @@ function CoerceRngSerElt(M,x)
 // TO DO: rewrite this rubbish starting here
    Q := [PowerSeriesInternal(f,prec) : f in Basis(M)];
    exact := IsExact(BaseRing(Universe(Q)));
-   elt := [RM|];
+   if IsOfGammaType(M) then 
+      elt := [RM|];
+   else
+     elt := [];
+   end if;
    f := Parent(Q[1])!0;
    for n in [1..#Q] do
       if exact then
@@ -518,11 +526,20 @@ function CoerceRngSerElt(M,x)
          is essentially impossible, since generic p-adic extensions can't
          be created.   The problem is the XGCD doesn't work over p-adics,
          but I'm  sure this'll be fixed soon.  (WAS, 06/16/03). */
-      coef := Coefficient(x-f,v) / Coefficient(Q[n],v);
-      if not (coef in RM) then
+      if IsOfGammaType(M) then
+         coef := Coefficient(x-f,v) / Coefficient(Q[n],v);
+      else
+         Q_coef := Eltseq(Coefficient(Q[n],v));
+         nz := Minimum([ i : i in [1..#Q_coef] | Q_coef[i] ne 0]);
+         coef := Eltseq(Coefficient(x-f,v))[nz] / Q_coef[nz];
+      end if;
+     
+      if IsOfGammaType(M) and not (coef in RM) then
          return false, error_message;
       end if;
-      coef := RM!coef;
+      if IsOfGammaType(M) then
+        coef := RM!coef;
+      end if;
       f +:= coef*Q[n];
       Append(~elt,coef);
    end for;

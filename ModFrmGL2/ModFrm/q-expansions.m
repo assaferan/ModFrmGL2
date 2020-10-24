@@ -93,7 +93,9 @@ import "half-integral.m": q_expansion_basis_weight_half,
 import "weight1.m":     compute_weight1_cusp_space,
                         qExpansion_wt1_dihedral_form;
 
-import "misc.m" :       EchelonPowerSeriesSequence;
+import "misc.m" :       EchelonPowerSeriesSequence,
+                        EchelonPowerSeriesSequenceOverCyc;
+
 import "misc.m" :       SaturatePowerSeriesSequence;
 import "misc.m" :       CoercePowerSeries;
 import "misc.m" :       ToLowerCaseLetter;
@@ -901,10 +903,12 @@ end function;
 // We use the formula for the Fourier expansion from Chapter 4 of
 // Diamond and Shurman. This is a holomorphic weight two modular
 // form on Gamma(N). We look at ratios of these.
+// Modified it to use power series in q_N instead of Puiseux in q.
 
 function weier(c,d,N,pr)
   K<zeta> := CyclotomicField(N);
-  R<q> := PuiseuxSeriesRing(K);
+// R<q> := PuiseuxSeriesRing(K);
+  R<q> := PowerSeriesRing(K);
   c := c mod N;
   d := d mod N;
   const := R!(-3);
@@ -927,27 +931,39 @@ function weier(c,d,N,pr)
     if (m mod N eq 0) then
       term := term + 72*SumOfDivisors(Floor(m/N));
     end if;
-    ret := ret + term*q^(m/N);
+// ret := ret + term*q^(m/N);
+    ret := ret + term*q^m;
   end for;
-  ret := ret + BigO(q^((pr+N+1)/N));
+// ret := ret + BigO(q^((pr+N+1)/N));
+  ret := ret + BigO(q^(pr+N+1));
   return ret;
 end function;
 
-function qExpansion_Rouse(vec, basislist, prec, N)
+function qExpansion_Rouse(M, vec, basislist, prec, N)
   // Step 4 - Compute Fourier expansions
 
-  printf "Computing Weierstrass p-function Fourier expansions.\n";
+  vprintf ModularForms, 2:
+    "Computing Weierstrass p-function Fourier expansions.\n";
   K<zeta> := CyclotomicField(N);
-  R<q> := PuiseuxSeriesRing(K);
-  xcoords := ZeroMatrix(R,N,N);
-  for i in [1..#basislist-1] do
-    a := basislist[i][1];
-    b := basislist[i][2];
-    //printf "Computing expansion %o of %o.\n",i,#basislist-1;
-    xcoords[a+1][b+1] := weier(a,b,N,prec);
-  end for;
+// R<q> := PuiseuxSeriesRing(K);
+  R<q> := PowerSeriesRing(K);
+//  xcoords := ZeroMatrix(R,N,N);
+  if (not assigned M`eisenstein_weier) or
+     (M`eisenstein_weier_prec lt prec) then
+    M`eisenstein_weier := ZeroMatrix(R,N,N);
+    for i in [1..#basislist-1] do
+      a := basislist[i][1];
+      b := basislist[i][2];
+      vprintf ModularForms, 3:
+	 "Computing expansion %o of %o.\n",i,#basislist-1;
+      // xcoords[a+1][b+1] := weier(a,b,N,prec);
+      M`eisenstein_weier[a+1][b+1] := weier(a,b,N,prec);
+    end for;
+    M`eisenstein_weier_prec := prec;
+  end if;
+  xcoords := M`eisenstein_weier;
 
-  printf "Computing Fourier expansion.\n";
+  vprintf ModularForms,2 : "Computing Fourier expansion.\n";
   fourier := &+[ vec[k]*xcoords[basislist[k][1]+1][basislist[k][2]+1]
 		   : k in [1..#basislist-1]];
 
@@ -966,7 +982,7 @@ function qExpansion_EisensteinSeriesNotGamma(f, prec)
     // E := &+[FullGammaEisenstein(N, v[1], v[2], k, prec) : v in vecs];
     // if k eq 2 we're currently using Jeremy Rouse's code
     if (k eq 2) then
-      return qExpansion_Rouse(eps_vals, vecs, N*prec, N);
+      return qExpansion_Rouse(Parent(f), eps_vals, vecs, prec, N);
     end if;
     assert #vecs eq #eps_vals;
     eis_gamma_N := [FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs];
@@ -1393,6 +1409,10 @@ function CuspformBasisUsingModularSymbols(M,prec)
    assert IsCuspidal(M);
    assert Type(BaseRing(M)) in {FldRat, RngInt};
 
+   // In case the group is not of real type, we cannot take sign quotients
+   if (Dimension(M) eq Dimension(EisensteinSubspace(M))) then
+      return [];
+   end if;
    modsym := MF_ModularSymbols(M,+1);
 
    if Type(modsym) eq SeqEnum then
@@ -1799,7 +1819,7 @@ function BasisOfIntegralWeightAtLeast2Forms(M, prec)
    C_basis := CuspformBasisUsingModularSymbols(C,prec);
    E := EisensteinSubspace(M);
    E_basis := qExpansionOfModularFormsBasis(E,prec);
-   return  EchelonPowerSeriesSequence(C_basis cat E_basis);
+   return EchelonPowerSeriesSequence(C_basis cat E_basis);
 end function;
 
 
@@ -1886,8 +1906,14 @@ function BasisOfEisensteinSpace(M, prec)
    else
       E := EisensteinSeries(M);  
    end if;
-   basis := &cat [RestrictionOfScalarsToQ(PowerSeriesInternal(f,prec)) : f in E];
-   basis := EchelonPowerSeriesSequence(basis);
+   if IsOfGammaType(M) then
+     basis := &cat [RestrictionOfScalarsToQ(PowerSeriesInternal(f,prec)) : f in E];
+     basis := EchelonPowerSeriesSequence(basis);
+   else
+     basis := [PowerSeriesInternal(f,prec) : f in E];
+     basis := EchelonPowerSeriesSequenceOverCyc(basis);
+   end if;
+   
    return basis;
 end function;
 
@@ -1974,7 +2000,11 @@ function qExpansionOfModularFormsBasis(M, prec)
       if AbsolutePrecision(basis[#basis]) ge ApproximatePrecisionBound(M) then 
          assert not IsWeaklyZero(basis[#basis]); end if;
    end if;
-   basis := [R|f + O(q^prec) : f in M`q_expansion_basis[2]];
+   if IsOfGammaType(M) then
+     basis := [R|f + O(q^prec) : f in M`q_expansion_basis[2]];
+   else
+     basis := [f + O(q^prec) : f in M`q_expansion_basis[2]];
+   end if;
    if #basis lt Dimension(M) then
       basis cat:= [O(q^prec) : i in [#basis+1..Dimension(M)]];
    end if;
@@ -1986,7 +2016,7 @@ function ClearDenominators(f)
    if Type(BaseRing(Parent(f))) eq RngInt then
       return f;
    end if;
-   assert Type(BaseRing(Parent(f))) eq FldRat;
+   // assert Type(BaseRing(Parent(f))) eq FldRat;
    denom := LCM([Denominator(Coefficient(f,n)) : n in [0..AbsolutePrecision(f)-1]]);
    return denom*f;
 end function;
@@ -1996,8 +2026,13 @@ function ClearDenominatorsAndSaturate(rational_basis)
    if #rational_basis eq 0 then
       return rational_basis;
    end if;
-   assert Type(BaseRing(Parent(rational_basis[1]))) in {RngInt, FldRat};
+   //  assert Type(BaseRing(Parent(rational_basis[1]))) in {RngInt, FldRat};
    no_denominators := [ClearDenominators(f) : f in rational_basis];
-   basis           := SaturatePowerSeriesSequence(no_denominators);
+   // otherwise we have an issue with saturation
+   if Type(BaseRing(Parent(rational_basis[1]))) in {RngInt, FldRat} then
+      basis           := SaturatePowerSeriesSequence(no_denominators);
+   else
+      basis := no_denominators;
+   end if;
    return basis;
 end function;
