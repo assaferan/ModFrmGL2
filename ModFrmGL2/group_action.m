@@ -2011,7 +2011,7 @@ function GetModularFunctionAndModel(H)
   if (H eq PSL2(Integers())) then
     X<a,b> := ProjectiveSpace(Rationals(), 1);
     covering_map := map< X -> X | [a, b]>;
-    return X, haupt, covering_map;
+    return X, haupt, covering_map, covering_map;
   end if;
   // Change this
   radN := &*[x[1] : x in Factorization(N)];
@@ -2115,12 +2115,14 @@ function GetModularFunctionAndModel(H)
   K := PSL2Subgroup(subsub);
   permsubsub := L[goodgroup];
 
+  xmodfunc := 0;
+  ymodfunc := 0;
   xcoord := 0;
   ycoord := 0;
   expdenomx := 0;
   expdenomy := 0;
   alist := [0,0,0,0,0];
-  Xcov, haupt, Xcov_map := GetModularFunctionAndModel(covergp);
+  Xcov, haupt, Xcov_map, jmap_cov := GetModularFunctionAndModel(covergp);
 
   // If gencover eq 0 then we computed the Fourier expansion of a hauptmodul
   // We suppose that the Fourier expansion was stored with z as the root of unity.
@@ -2190,7 +2192,7 @@ function GetModularFunctionAndModel(H)
 
   fourierlist := [[Evaluate(f, q^(1/N)) : f in fs] : fs in fourierlist];
 
-  printf "Symmetrizing.\n";
+  vprintf ModularForms, 1: "Symmetrizing.\n";
   wt := 0;
   formsused := [];
   if (subsub eq sub) then
@@ -2205,14 +2207,14 @@ function GetModularFunctionAndModel(H)
       for j in [1..#S2] do
         for j2 in [j+1..#S2] do
           termnum := termnum+1;
-          printf "Doing term %o of %o.\n",termnum,maxnum;
+          vprintf ModularForms, 2: "Doing term %o of %o.\n",termnum,maxnum;
           formtouse := formtouse + fourierlist[i][j]*fourierlist[i][j2];
         end for;
       end for;
       Append(~formsused,formtouse);
     end for;
   end if;
-  printf "Done!\n";
+  vprintf ModularForms, 1: "Done!\n";
   chk := #{ formsused[i] : i in [1..#formsused]};
   s := 2;
   while (chk lt #S1) and (s lt #S2) do		     
@@ -2297,6 +2299,9 @@ function GetModularFunctionAndModel(H)
   end for;
   poly := poly/(denomfunc^Degree(poly));
   modf := formsused[1]/denomfunc;
+
+  inftyratpoints := false;
+  noratpoints := false;
 
   if gencover eq 0 then
     coefflist := [];
@@ -2493,7 +2498,8 @@ function GetModularFunctionAndModel(H)
           maptocover := map<EE -> Xcov | [poly1,poly2]>;
           for a in GG do
             curpt := phiphi(a);
-            jimage := maptoj(covergp,Coordinates(maptocover(curpt)));
+// jimage := maptoj(covergp,Coordinates(maptocover(curpt)));
+            jimage := jmap_cov(Coordinates(maptocover(curpt)));
             if jimage[2] eq 0 then
               printf "The point %o is a cusp.\n",curpt;
             else
@@ -2567,7 +2573,8 @@ function GetModularFunctionAndModel(H)
         else
           p1pt := [pt2[1]/pt2[3],1];
         end if;
-        jinvar := maptoj(covergp,p1pt);
+// jinvar := maptoj(covergp,p1pt);
+        jinvar := jmap_cov(p1pt);
         if (jinvar[2] eq 0) then
           printf "The point %o is a cusp.\n",pt;
         else
@@ -2606,9 +2613,12 @@ function GetModularFunctionAndModel(H)
           end if;
         end while;
         if bound gt 60000 then
-          printf "No point found. Giving up.\n";
-          bad := 0;
-          bad2 := 1/bad;
+          printf "No point found. Trying Magma!\n";
+          C_conic, phi := Conic(C);
+          found, P_conic := HasRationalPoint(C_conic);
+          if found then
+	    P := (phi^(-1))(P_conic);
+          end if;
         end if;
       end while;
       inftyratpoints := true;
@@ -2753,7 +2763,8 @@ if gencover eq 1 then
   printf "Here are the points we found on C:\n";
   for pt in foundpoints do
     if (pt[1] ne 0) or (pt[2] ne 0) or (pt[3] ne 0) then
-      jinvar := maptoj(covergp,[pt[1],pt[2],pt[3]]);
+		      // jinvar := maptoj(covergp,[pt[1],pt[2],pt[3]]);
+      jinvar := jmap_cov([pt[1],pt[2],pt[3]]);
       if (jinvar[2] eq 0) then
         printf "The point %o is a cusp.\n",pt;
       else
@@ -2814,7 +2825,13 @@ end if;
       reparsedhaupt := reparsedhaupt + cof*qq^(m/bestexpdenom);
     end for;
     haupt := reparsedhaupt;
-    return X, haupt, covering_map;
+
+    polyRing := CoordinateRing(Xcov);
+    cov_polys := [AlgebraMap(jmap_cov)(x) : x in GeneratorsSequence(polyRing)];
+
+    jmap := map< X -> X | [Evaluate(p, [poly1,poly2]) : p in cov_polys]>;
+    
+    return X, haupt, covering_map, jmap;
   end if;
 
   if (gen eq 1) then
@@ -2822,27 +2839,29 @@ end if;
     poly1 := Evaluate(s2[1],[x,y,z]);
     poly2 := Evaluate(s2[3],[x,y,z]);
     covering_map := map<X -> Xcov | [poly1,poly2]>;
-    expdenom := ExponentDenominator(xmodfunc);
-    bestexpdenom := LCM([ Denominator(a/expdenom) : a in [expdenom*Valuation
+    if (inftyratpoints eq true) then
+      expdenom := ExponentDenominator(xmodfunc);
+      bestexpdenom := LCM([ Denominator(a/expdenom) : a in [expdenom*Valuation
 (xmodfunc)..expdenom*AbsolutePrecision(xmodfunc)-1] | Coefficient(xmodfunc,a/expdenom) ne 0]);
-    endprec := Floor(bestexpdenom*AbsolutePrecision(xmodfunc))/bestexpdenom;
-    reparsedxmodfunc := BigO(qq^endprec);
-    for m in [bestexpdenom*Valuation(xmodfunc)..bestexpdenom*endprec-1] do
-      cof := KK!Eltseq(Coefficient(xmodfunc,m/bestexpdenom));
-      reparsedxmodfunc := reparsedxmodfunc + cof*qq^(m/bestexpdenom);
-    end for;
-    xcoord := reparsedxmodfunc;
-    expdenom := ExponentDenominator(ymodfunc);
-    bestexpdenom := LCM([ Denominator(a/expdenom) : a in [expdenom*Valuation
+      endprec := Floor(bestexpdenom*AbsolutePrecision(xmodfunc))/bestexpdenom;
+      reparsedxmodfunc := BigO(qq^endprec);
+      for m in [bestexpdenom*Valuation(xmodfunc)..bestexpdenom*endprec-1] do
+        cof := KK!Eltseq(Coefficient(xmodfunc,m/bestexpdenom));
+        reparsedxmodfunc := reparsedxmodfunc + cof*qq^(m/bestexpdenom);
+      end for;
+      xcoord := reparsedxmodfunc;
+      expdenom := ExponentDenominator(ymodfunc);
+      bestexpdenom := LCM([ Denominator(a/expdenom) : a in [expdenom*Valuation
 (ymodfunc)..expdenom*AbsolutePrecision(ymodfunc)-1] | Coefficient(ymodfunc,a/expdenom) ne 0]);
-    endprec := Floor(bestexpdenom*AbsolutePrecision(ymodfunc))/bestexpdenom;
-    reparsedymodfunc := BigO(qq^endprec);
-    for m in [bestexpdenom*Valuation(ymodfunc)..bestexpdenom*endprec-1] do
-      cof := KK!Eltseq(Coefficient(ymodfunc,m/bestexpdenom));
-      reparsedymodfunc := reparsedymodfunc + cof*qq^(m/bestexpdenom);
-    end for;
-    ycoord := reparsedymodfunc;
-    return X, [xcoord, ycoord], covering_map;
+      endprec := Floor(bestexpdenom*AbsolutePrecision(ymodfunc))/bestexpdenom;
+      reparsedymodfunc := BigO(qq^endprec);
+      for m in [bestexpdenom*Valuation(ymodfunc)..bestexpdenom*endprec-1] do
+        cof := KK!Eltseq(Coefficient(ymodfunc,m/bestexpdenom));
+        reparsedymodfunc := reparsedymodfunc + cof*qq^(m/bestexpdenom);
+      end for;
+      ycoord := reparsedymodfunc;
+    end if;
+    return X, [xcoord, ycoord], covering_map, _;
   end if;
   
 end function;
