@@ -780,13 +780,14 @@ function GetBadDoubleCosetRepresentatives(G,p)
     H := ImageInLevel(G);
     Zp_gamma := sub<MatrixAlgebra(GF(p),2) | Generators(H)>;
     singulars := {x : x in Zp_gamma | Determinant(x) eq 0};
-    if singulars eq {Zp_gamma!0} then
+    Exclude(~singulars, Zp_gamma!0);
+    if IsEmpty(singulars) then
 	return [];
     end if;
     // This does not always work, sadly
-    //     alpha := FindLiftToM2Z(MatrixAlgebra(Integers(p),2)!Random(singulars) :
-    //			    det := p);
-    //     return HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!alpha);
+    // alpha := FindLiftToM2Z(MatrixAlgebra(Integers(p),2)!Random(singulars) :
+    //		    det := p);
+    // return HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!alpha);
     // The following (correct) version encounters an internal error of Magma
     // until we understand how to circumvent it, we just settle for returning
     // the double coset of some element of determinant p normalizing Gamma
@@ -822,6 +823,7 @@ function GetBadDoubleCosetRepresentatives(G,p)
     // Clearly wrong, but gives some Hecke operator at p
     //if (not found) then
     printf "** WARNING! The Hecke operator at %o is NOT computed correctly! **\n",p;
+    return [alpha_p];
     R := HeckeGeneralCaseRepresentativesDoubleCoset2(G,alpha_p);
     // return [alpha_p];
     //end if;
@@ -906,7 +908,7 @@ function HeckeGeneralCaseRepresentatives(G,p : Squared := false)
       alphas := [FindLiftToM2Z(Matrix(G`DetRep(p)) : det := p)];
   end if;
   if Squared then
-      alphas := [alpha^2 : alpha in alphas];
+      alphas := [(GL2Q!Eltseq(alpha))^2 : alpha in alphas];
   end if;
   R := &cat [HeckeGeneralCaseRepresentativesDoubleCoset2(G, GL2Q!Eltseq(alpha))
 							: alpha in alphas];

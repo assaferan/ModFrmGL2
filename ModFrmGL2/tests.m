@@ -841,7 +841,6 @@ procedure Test_S13()
     _, mp := pMatrixRing(O_B,p);
     S4tp := sub<GL(2,p) | [mp(1+s) : s in [i,j,k]]
     			cat [mp(1-s) : s in [i,j,k]] cat [-1]>;
-    // S4tp := GenerateS4(p);
     H_S4 := sub<GL(2,Integers(p)) | Generators(S4tp)>;
     H_S4 := GetRealConjugate(H_S4);
     G_S4 := PSL2Subgroup(H_S4);
@@ -882,8 +881,8 @@ procedure Test_2adic()
     _<q> := Parent(f);
     assert f eq q - 4*q^5 - 3*q^9 - 4*q^13 - 2*q^17 + 11*q^25 - 4*q^29 +
 		12*q^37 - 10*q^41 + 12*q^45 - 7*q^49 - 4*q^53 + 12*q^61 +
-		16*q^65 - 6*q^73 + 9*q^81 + 8*q^85 + 10*q^89 - 18*q^97 + O(q^100);
-     Cputime(tt);
+		16*q^65 - 6*q^73 + 9*q^81 + 8*q^85 + 10*q^89 - 18*q^97 + O(q^100); 
+    Cputime(tt);
 end procedure;
 
 procedure Test_NotRealType()

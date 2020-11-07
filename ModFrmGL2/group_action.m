@@ -1093,12 +1093,33 @@ function act_on_qexp(t, f, N)
   scalar := det * d^(-2); // also a / d
   D := Denominator(scalar);
   s := Numerator(scalar);
+  Nd := N*Integers()!d;
+  K<zeta> := CyclotomicField(Nd);
+/*
+  Kf := BaseRing(R);
+  if Type(Kf) eq RngMPol then
+    Kf_base := BaseRing(Kf);
+  else
+    Kf_base := Kf;
+  end if;
+  cond_f := Norm(Conductor(AbelianExtension(AbsoluteField(Kf_base))));
+  cond := LCM(cond_f, Nd);
+  Qcond<zeta_c> := CyclotomicField(cond);
+  if Type(Kf) eq RngMPol then
+     R_base := ChangeRing(Kf,Qcond);
+  else
+     R_base := Qcond;
+  end if;
+  _<q_ND> := PowerSeriesRing(R_base);
+  assert IsSubfield(K, Qcond);
+  zeta := Qcond!zeta;
+*/
   _<q_ND> := PowerSeriesRing(BaseRing(R));
-  K<zeta> := CyclotomicField(N*Integers()!d);
   prec := AbsolutePrecision(f);
+// tf := &+[R_base!Coefficient(f,n) * zeta^(b*n) * q_ND^(n * s)
   tf := &+[Coefficient(f,n) * zeta^(b*n) * q_ND^(n * s)
 	      : n in [0..prec-1] | Coefficient(f,n) ne 0];
-  return scalar * tf + O(q^prec * scalar), D;
+  return scalar * tf + O(q_ND^(prec * s)), D;
 end function;
 
 // This function returns the action on the q-expansions of modular forms
@@ -1114,7 +1135,9 @@ end function;
 
 function GetActionOnExpansion(G, alphas, bound)
   GL2Q := GL(2, Rationals());
-  cusps := Cusps(G);
+  cusps := CuspsG(G);
+  infty := cusps![1,0];
+  cusps, sigmas := GaloisOrbit(infty);
   N := Level(G);
   // We don't want a multicharacter one
   M := ModularSymbols(G, 2, Rationals(), 0);
@@ -1162,12 +1185,120 @@ function GetActionOnExpansion(G, alphas, bound)
     Append(~res, f);
     Append(~Ns, N_f);
   end for;
-  return res, Ns, orig_exps;
+  return res, Ns, orig_exps, sigmas;
 end function;
 
 function HeckeActionOnExpansion(G,p,bound)
   alphas := HeckeGeneralCaseRepresentatives(G,p);
   return GetActionOnExpansion(G, alphas, bound);
+end function;
+
+// lambdas is a vector of eigenvalues
+// Still has to figure out what to do when n is not prime
+function get_qexp_coef_from_eigenvalues(G,p,lambdas)
+  GL2Q := GL(2, Rationals());
+  alphas := HeckeGeneralCaseRepresentatives(G,p);
+  n := p;
+  cusps := CuspsG(G);
+  infty := cusps![1,0];
+  cusps, sigmas := GaloisOrbit(infty);
+  N := Level(G);
+  // We don't want a multicharacter one
+  M := ModularSymbols(G, 2, Rationals(), 0);
+  coset_list :=  M`mlist`coset_list;
+  find_coset := M`mlist`find_coset;
+  orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
+  alpha_maps := [];
+  ts := [];
+  for alpha in alphas do
+      alpha_map, t := GetCuspMap(GL2Q!alpha, cusps, G,
+				 orbit_table, find_coset, coset_list);
+      Append(~alpha_maps, alpha_map);
+      Append(~ts, t);
+  end for;
+  if IsEmpty(alphas) then
+    D := 1;
+  else
+    D := Abs(LCM([Integers()!Determinant(GL2Q!alpha) : alpha in alphas]));
+  end if;
+  K<zeta> := CyclotomicField(N*D);
+  Kf := Universe(lambdas);
+  cond_f := Norm(Conductor(AbelianExtension(AbsoluteField(Kf))));
+  cond := LCM(cond_f, N*D);
+  Qcond<zeta_c> := CyclotomicField(cond);
+  assert IsSubfield(K, Qcond);
+  zeta := Qcond!zeta;
+// R := PolynomialRing(K, n*EulerPhi(N));
+  R := PolynomialRing(Qcond, n*EulerPhi(N));
+  var_names := [[Sprintf("a_{%o,%o}", i, j) : j in [0..EulerPhi(N)-1]]
+		   : i in [1..n]];
+  AssignNames(~R, &cat var_names);
+  a := [[R.(EulerPhi(N)*(i-1)+j+1) : j in [0..EulerPhi(N)-1]] : i in [1..n]];
+  A<q_N> := PowerSeriesRing(R);
+  // Here we use the Galois action on the cusps to relate the q-expansions.
+  orig_exps := [&+[&+[a[i][j+1]*zeta^(D*j*(Integers()!d))
+			 : j in [0..EulerPhi(N)-1]] * q_N^i : i in [1..n]]
+		 + O(q_N^(n+1)) : d in sigmas];
+  res := [];
+  Ns := [];
+  for j in [1..#cusps] do
+    f := A!0;
+// D := 1;
+    N_f := N;
+    for l in [1..#alphas] do
+      f_l, d := act_on_qexp(ts[l][j],orig_exps[alpha_maps[l][j]],N);
+      N_l := N * d;
+      next_N := LCM(N_l, N_f);
+      _<q_ND> := Parent(f_l);
+      f := Evaluate(f, q_ND^(next_N div N_f) )
+	    + Evaluate(f_l, q_ND^(next_N div N_l));
+      // f +:= f_l;
+      N_f := next_N;
+    end for;
+    Append(~res, f);
+    Append(~Ns, N_f);
+  end for;
+  // This is the coefficient of q_N
+  //coef := Coefficient(f,N_f div N);
+  
+  polys := [Coefficient(res[i], Ns[i] div N) -
+	     (Qcond!lambdas[n])*Coefficient(orig_exps[i],1)
+	     : i in [1..#res]];
+  mat := Matrix([[Coefficient(poly,i,1) : i in [1..NumberOfGenerators(R)]]
+		    : poly in polys]);
+// mat := Matrix([Eltseq(c) : c in Coefficients(coef)]);
+  vec := Vector([Eltseq(c)
+		    : c in Coefficients(Coefficient(orig_exps[1],1))][1]);
+ 
+  sol := Solution(ChangeRing(mat,Qcond), (Qcond!a[n])*ChangeRing(vec,Qcond));
+  // Does it depend only on these? it appears so.
+  return Evaluate(Coefficient(orig_exps[1],n), Eltseq(sol));
+end function;
+
+function checkSols(G, coeffs, lambdas, Kf)
+  n := #coeffs;
+  N := Level(G);
+  K<zeta_N> := CyclotomicField(N);
+  Qcond<zeta_c> := Universe(coeffs);
+  cond := Conductor(Qcond);
+  cusps := CuspsG(G);
+  infty := cusps![1,0];
+  cusps, sigmas := GaloisOrbit(infty);
+  lifts := [CRT([1,Integers()!d], [cond div N, N]) : d in sigmas];
+  auts := [hom<Qcond -> Qcond | zeta_c^(d)> : d in lifts];
+  _<q_N> := PowerSeriesRing(Qcond);
+  for p in PrimesUpTo(n) do
+    res, Ns, orig_qexps, sigmas := HeckeActionOnExpansion(G, p, n);
+    skips := [nn div N : nn in Ns];
+    all_coeffs := &cat[[aut(c) : aut in auts] : c in coeffs];
+    orig_exps := [&+[Evaluate(Coefficient(qexp,i), all_coeffs)*q_N^i
+			: i in [1..n]] : qexp in orig_qexps];
+    res_exps := [&+[Evaluate(Coefficient(res[j],i*skips[j]), all_coeffs)*q_N^i
+			: i in [1..n div skips[j]]] : j in [1..#res]];
+  assert &and[Valuation(res_exps[i]
+		      - (Qcond!lambdas[p])*orig_exps[i]) gt n div skips[i]
+	    : i in [1..#res]];
+  end for;
 end function;
 
 // This could be made much more efficient,

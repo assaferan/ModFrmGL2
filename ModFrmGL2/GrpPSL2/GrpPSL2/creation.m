@@ -515,6 +515,9 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
   A := ScalarMatrix(2,D) * A;
   det := Integers()!Determinant(A);
 
+  if (G eq PSL2(Integers())) then
+     return G;
+  end if;
   if (A in Gamma0(1)) then
      return PSL2Subgroup(Conjugate(ImageInLevelGL(G),ModLevelGL(G)!A));		
   end if;
@@ -566,6 +569,9 @@ end intrinsic;
 // This was the only way I could get the reduction morphism
 
 function get_coercion_hom(G,H)
+  if Degree(H) eq 1 then
+    return hom<G -> H | [H!1 : i in [1..NumberOfGenerators(G)]]>;
+  end if;
   return hom<G->H | [H!G.i : i in [1..NumberOfGenerators(G)]]>;
 end function;
 
@@ -601,8 +607,13 @@ intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
     else
         ModLevelGL := MatrixAlgebra(quo<G`BaseRing | N>,2);
     end if;
-    red_G := get_coercion_hom(ImageInLevelGL(G), GL(2, Integers(d)));
-    red_H := get_coercion_hom(ImageInLevelGL(H), GL(2, Integers(d)));
+    if (d eq 1) then
+      target := GL(1, Integers(2));
+    else
+      target := GL(2, Integers(d));
+    end if;
+    red_G := get_coercion_hom(ImageInLevelGL(G), target);
+red_H := get_coercion_hom(ImageInLevelGL(H), target);
     G_d := Kernel(red_G);
     H_d := Kernel(red_H);
     im_d := Image(red_G) meet Image(red_H);

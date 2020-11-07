@@ -317,18 +317,26 @@ intrinsic '*'(alpha::GrpMatElt[FldRat], x::SetCspElt) -> SetCspElt
  return Cusp(alpha_vec);
 end intrinsic;
 
-// Galois action when the cusp at infinity is rational
+// Galois action of the automorphism sending zeta to zeta^d
 intrinsic '*'(d::RngIntResElt, x::SetCspElt) -> SetCspElt
 {Compute the action of zeta->zeta^d on x.}
+/*
   u, v := Explode(Eltseq(x));
   if u eq 0 then
     return x;
   end if;
-  d_prime := d^(-1);
+*/
+// d_prime := d^(-1);
   N := Modulus(Parent(d));
   assert N eq Level(Group(Parent(x)));
-  dp_lift := CRT([Integers()!d_prime, 1], [N,u]);
-  return Parent(x)![u, dp_lift*v];
+// dp_lift := CRT([Integers()!d_prime, 1], [N,u]);
+  d_prime := Integers()!(d^(-1));
+  // TODO - check that indeed we get the first column prime to each other
+  G := Group(Parent(x));
+  mat := FindLiftToM2Z(Matrix(G`DetRep(d_prime)) : det := d_prime);
+  GL2Q := GL(2, Rationals());
+  return GL2Q!mat * x;
+//return Parent(x)![u, dp_lift*v];
 end intrinsic;
 
 intrinsic '*'(d::RngIntResElt, S::SetEnum[SetCspElt]) -> SetCspElt
@@ -339,6 +347,29 @@ end intrinsic;
 intrinsic '#'(X::SetCsp) -> RngIntElt
 {Size of the set.}
   return #Elements(X);
+end intrinsic;
+
+intrinsic GaloisOrbit(s::SetCspElt) -> SeqEnum[SetCspElt], SeqEnum[RngIntRes]
+{Return the orbit of the cusp s under the Galois action of the cyclotomic
+    field Q(zeta_N), identified with (Z/NZ)^*. }
+  orbit := [s];
+  X := Parent(s);
+  N := Level(Group(X));
+  U, psi := UnitGroup(Integers(N));
+  gens := [psi(g) : g in Generators(U)];
+  next_idx := 1;
+  actions := [psi(U!0)];
+  while next_idx le #orbit do
+    for g in gens do
+      next := X!(g*orbit[next_idx]);
+      if next notin orbit then
+        Append(~orbit, next);
+        Append(~actions, g*actions[next_idx]);
+      end if;
+    end for;
+    next_idx +:= 1;
+  end while;
+  return orbit, actions;
 end intrinsic;
 
 // other functions
@@ -353,7 +384,28 @@ function getOrbit(d, s)
   end while;
   return orbit;
 end function;
-  
+
+function getGaloisOrbit(s)
+  orbit := [s];
+  X := Parent(s);
+  N := Level(Group(X));
+  U, psi := UnitGroup(Integers(N));
+  gens := [psi(g) : g in Generators(U)];
+  next_idx := 1;
+  actions := [psi(U!0)];
+  while next_idx le #orbit do
+    for g in gens do
+      next := X!(g*orbit[next_idx]);
+      if next notin orbit then
+        Append(~orbit, next);
+        Append(~actions, g*actions[next_idx]);
+      end if;
+    end for;
+    next_idx +:= 1;
+  end while;
+  return orbit, actions;
+end function;
+
 function getAllOrbits(d, X)
   X_elts := Elements(X);
   orbits := [];
@@ -370,3 +422,5 @@ function getAllOrbits(d, X)
   end while;
   return orbits;
 end function;
+
+
