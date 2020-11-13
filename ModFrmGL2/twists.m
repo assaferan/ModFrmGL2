@@ -549,6 +549,10 @@ function MoveRationalPoints(X)
   X_QQ := ChangeRing(ChangeToIntegralEquations(X), QQ);
   pts := RationalPoints(X_QQ);
   d := Dimension(AmbientSpace(X)) + 1;
+  // If there are on rational points, return the curve with the identity map
+  if IsEmpty(pts) then
+    return X, MatrixAlgebra(QQ, d)!1;
+  end if;
   pt_mat := Matrix([Eltseq(pt) : pt in pts]);
   // finding linearly independent rows
   rows := [PivotColumn(EchelonForm(Transpose(pt_mat)),i) : i in [1..d]];
@@ -562,12 +566,11 @@ function MoveRationalPoints(X)
   return ChangeToIntegralEquations(X_new), var_change;
 end function;
 
-function CremonaMethod(H, ps_prec, n_rel)
+// factoring out the big chunl of CremonaMethod
+
+function get_eigenvector_in_subspace(H, T, S, Conj, M)
   N := Modulus(BaseRing(H));
-  M := ModularSymbols(CongruenceSubgroup(N));
   C := CuspidalSubspace(M);
-  T := Restrict(ActionOnModularSymbolsBasis([1,1/N,0,1],M), VectorSpace(C));
-  S := Restrict(ActionOnModularSymbolsBasis([0,-1,N^2,0],M), VectorSpace(C));
   H_inv := GetInvariantSubspaceSL2(H, S, T);
   Cb := Basis(C);
   Cmat := Transpose(Matrix([Eltseq(c) : c in Cb]));
@@ -585,23 +588,17 @@ function CremonaMethod(H, ps_prec, n_rel)
   comps := [c : c in [1..#Cnew_dec] | VectorSpace(Cnew_dec[c]) subset inv_rep];
   W_C :=  Solution(Transpose(Cmat),BasisMatrix(inv_rep));
   W := sub<Universe(Rows(W_C)) | Rows(W_C)>;
-  Conj := Transpose(StarInvolution(C));
   Vplus := Kernel(Transpose(Conj-1)) meet V;
   Wplus := Kernel(Transpose(Conj-1)) meet W;
   evec := my_eigenvector(Vplus, C);
-  K := BaseRing(evec);
-  autK := Automorphisms(K);
-  evecs := [ApplyAut(aut, evec) : aut in autK];
-  X := DirichletGroupFull(N);
-  X_even := [x : x in Elements(X) | IsEven(x)];
+  return S_H, evec, Conj;
+end function;
+
+function init_twist_operators(X, T, N)
   L := BaseRing(X);
-  A, phi := AbelianGroup(X);
-  r,n := DistinguishedRoot(X);
-  ZNstar_gens := UnitGenerators(X);
   X_gens := Generators(X);
   eps := X_gens[1]; // only works when cyclic - TODO : generalize!!!
   Q_N<zeta_N> := CyclotomicField(N);
-  Q_N_q<q> := PowerSeriesRing(Q_N);
   geps := &+[zeta_N^i*eps(i) : i in [0..N-1]];
   gepsvecm := Vector([(-geps)^i : i in [0..EulerPhi(N)-1]]);
   Tpowers := [Parent(T)!1];
@@ -620,11 +617,10 @@ function CremonaMethod(H, ps_prec, n_rel)
     Append(~R_chis, R_chi);
     Append(~gauss, g);
   end for;
-  fs := [* qEigenform(s_h, ps_prec) : s_h in S_H *];
-  // Should we include these as well? I'm not sure
-  // fs cat:= [* qEigenform(Cnew_dec[c], ps_prec) : c in comps
-  // 			| c notin new_H_components  *]; 
-  // Magma works much better over cyclotomic fields, so we switch to cyclotomic
+  return R_chis, gauss, gepsvecm;
+end function;
+
+function find_cond(fs, N)
   cond := EulerPhi(N); // for the values of characters
  
   for f in fs do
@@ -637,10 +633,10 @@ function CremonaMethod(H, ps_prec, n_rel)
     end if;
     cond := LCM(cond, cond_f);
   end for;
-  
-  Qcond<zeta> := CyclotomicField(cond);
-  assert &and[IsSubfield(BaseRing(Parent(f)), Qcond) : f in fs];
-  assert IsSubfield(K, Qcond);
+  return cond;
+end function;
+
+function get_char_idxs(fs, n, X, X_even, Qcond)
   relevant_chars := {};
   idxs_by_f := [];
   
@@ -659,8 +655,10 @@ function CremonaMethod(H, ps_prec, n_rel)
      Append(~idxs_by_f, rel_idxs);
   end for;
   rel_idxs := &cat idxs_by_f;
-  // chars[#chars] is a generator when N is prime -
-  // handle the general case later
+  return relevant_chars, rel_idxs, idxs_by_f;
+end function;
+
+function get_evec_twists(evec, R_chis, Qcond, X_gens, gauss)
   R_chis := [ChangeRing(R, Qcond) : R in R_chis];
   evec_twists := [[ChangeRing(evec, Qcond)]];
   elt_vecs := [[Vector([0 : chi in X_gens])]];
@@ -683,42 +681,30 @@ function CremonaMethod(H, ps_prec, n_rel)
   evec_twists := evec_twists[1];
   elt_vecs := elt_vecs[1];
   all_gauss := all_gauss[1];
-  indices := [Index(Elements(X),phi(A!Eltseq(v))) : v in elt_vecs];
-  W1 := sub<Universe(evec_twists) | evec_twists>;
-  M_evec_twists := Matrix(evec_twists);
-  TW1 := Restrict(ChangeRing(T, Qcond), W1);
-  SW1 := Restrict(ChangeRing(S, Qcond), W1);
-  H_inv_W1 := GetInvariantSubspaceSL2(H, SW1, TW1);
-  // This shouldn't be necessary once we restrict to even characters
-  W1_plus := Kernel(Restrict(Transpose(ChangeRing(Conj,Qcond))-1, W1)); 
-  H_inv_W1 := H_inv_W1 meet W1_plus;
-//  assert Dimension(H_inv_W1) eq 1; // What do we do in general?
+  return evec_twists, elt_vecs, all_gauss;
+end function;
 
-//  H_inv_W1 := Basis(H_inv_W1)[1];
-  basis_HW := Basis(H_inv_W1);
-//  H_inv_1 := Solution(M_evec_twists, H_inv_W1 * BasisMatrix(W1));
-  H_inv_1s := [Solution(M_evec_twists, b * BasisMatrix(W1)) : b in basis_HW];
-
-  // Figure out what do we want here in general, e.g. if K \cap L is not trivial
-  gal, _, psi := AutomorphismGroup(Qcond,L);
-  // next we want to match these to the corresopnding elements of Gal(K)
-  gal_elts := [g : g in gal];
-  autK_vals := [Qcond!aut(K.1) : aut in autK];
-  // exists(g){g : g in gal | Order(g) ne 1};
-  gal_perm := [Index(autK_vals, psi(g)(K.1)) : g in gal_elts];
-  gal_elts := [gal_elts[Index(gal_perm,i)] : i in [1..#autK]];
-  H_invs := [[ApplyAut(psi(g), H_inv_1) : g in gal_elts] : H_inv_1 in H_inv_1s];
-  T_n := [HeckeOperator(C,n) : n in ZNstar_gens];
-//  T_n := [HeckeOperator(C,p) : p in PrimesUpTo(n)];
+function get_scaled_coeffs(Qcond, L, K, autK, evec, N, H_inv_1s, C,
+			   r, n, fs, X, H_invs,
+			   rel_idxs, idxs_by_f, indices, all_gauss)
+  
+  T_n := [HeckeOperator(C,p) : p in PrimesUpTo(N)];
+  eps := Generators(X)[1];
+  eps_vals := [Qcond!eps(p) : p in PrimesUpTo(N)];
   as := [my_eigenvalue(evec, ChangeRing(t_n,K)) : t_n in T_n];
   eigs := [[aut(a) : aut in autK] : a in as];
-  eigs_phi := [[Qcond!a*(Qcond!r)^j : j in [0..n-1]] : a in as];
-  eigs_all := [[Qcond!ai*(Qcond!r)^j : j in [0..n-1], ai in eig] : eig in eigs];
+  eigs_all := [[Qcond!ai*(eps_vals[idx])^j : j in [0..n-1], ai in eigs[idx]]
+		  : idx in [1..#eigs]];
   eigs_rel := [ [eig[n*i+j] : i in [0..Degree(K)-1], j in [1..n] |
 		    indices[j] in rel_idxs] : eig in eigs_all];
   eigs_by_f := [[ [eig[n*i+j] : i in [0..Degree(K)-1], j in [1..n] |
 		      indices[j] in idxs_by_f[m]]
                      : eig in eigs_all] : m in [1..#fs]];
+/*
+  eigs_by_f := [[ [[eig[n*i+j] : i in [0..Degree(K)-1]] :  j in [1..n] |
+		      indices[j] in idxs_by_f[m]]
+                     : eig in eigs_all] : m in [1..#fs]];
+*/
   assert &and[H_inv_1[i] eq 0 : i in [1..n], H_inv_1 in H_inv_1s
 	    | indices[i] notin rel_idxs];
   coeffs := [[[h[i] : i in [1..#X] | indices[i] in rel_idxs]
@@ -726,10 +712,12 @@ function CremonaMethod(H, ps_prec, n_rel)
   rev_inds := [Index(indices, i) : i in rel_idxs];
   coeffs_scaled := [[[h[i]*all_gauss[i] : i in rev_inds] : h in H_inv]
 		     : H_inv in H_invs];
-  Q_huge<zeta_huge> := CyclotomicField(LCM(cond, N));
-  Q_huge_q<q> := PowerSeriesRing(Q_huge);
-  _, conj_huge := HasComplexConjugate(Q_huge);
-  f_conjs := [];
+  return coeffs_scaled, eigs, eigs_by_f;
+end function;
+
+function get_f_conjs(fs, Qcond, eigs_by_f,
+		     Q_huge, Q_huge_q, ps_prec, N, K)
+    f_conjs := [];
 /*
   f := f1;
   Kf := AbsoluteField(BaseRing(Parent(f)));
@@ -748,8 +736,7 @@ function CremonaMethod(H, ps_prec, n_rel)
   for m in [1..#fs] do
     f := fs[m];
     Kf := AbsoluteField(BaseRing(Parent(f)));
-    f_eig := [Coefficient(f,n) : n in ZNstar_gens];
-//    f_eig := [Coefficient(f,p) : p in PrimesUpTo(n)];
+    f_eig := [Coefficient(f,p) : p in PrimesUpTo(N)];
     if Type(Kf) eq FldRat then
        embsKfQcond := [hom<Kf -> Qcond|>];
     else
@@ -758,34 +745,24 @@ function CremonaMethod(H, ps_prec, n_rel)
     end if;
     embs := [[e : e in embsKfQcond | &and[e(f_eig[i]) eq eigs_by_f[m][i][j]
 			     : i in [1..#f_eig]]][1] : j in [1..Degree(Kf)]];
+/*
+    embs := &cat [[e : e in embsKfQcond |
+		 exists(idx){idx : idx in [1..#(eigs_by_f[m][1])]
+	    | &and[e(f_eig[i]) eq eigs_by_f[m][i][idx][j]
+		   : i in [1..#f_eig]]}] : j in [1..Degree(K)]];
+*/
     f_conjs cat:= [Q_huge_q!([Q_huge!e(c) : c in AbsEltseq(f)]) : e in embs];
   end for;
-  
+  q := Q_huge_q.1;
   f_conjs := [f + O(q^ps_prec) : f in f_conjs];
-  coeffs_scaled_conj := [[[conj_huge(c) : c in ci] : ci in cih]
-			  : cih in  coeffs_scaled];
-  // This assertion fails for some reason.
-  assert #f_conjs eq #rel_idxs * Degree(K);
-  hs := [ [&+[csc[j+1][i+1]*f_conjs[Degree(K)*i+j+1]
-	       : i in [0..#rel_idxs-1]] : j in [0..Degree(K)-1]]
-	  : csc in coeffs_scaled_conj];
-  MK := Matrix([[e^j : j in [0..Degree(K)-1]] : e in eigs[1]]);
-  hh := &cat [Eltseq(Vector(hss) * Transpose(ChangeRing(MK^(-1),Q_huge_q)))
-	  : hss in hs];
-  hh := Eltseq(Vector(hs) * Transpose(ChangeRing(MK^(-1),Q_huge_q)));
-  hs := [Q_N_q!h : h in hh];
-  X := FindCurveSimple(hs, ps_prec, n_rel);
-  X, var_change := MoveRationalPoints(X);
-  tt := Eltseq(Vector(hh)*ChangeRing(var_change^(-1),Q_huge_q));
-  ts := [Q_N_q!t : t in tt];
-  infty := [Coefficient(t,1) : t in ts];
-  X_QN := ChangeRing(X, Q_N);
-  cusps_infty := {X_QN![aut(c) : c in infty] : aut in Automorphisms(Q_N)};
-  MM := Transpose(MK^(-1)) * var_change^(-1);
+  return f_conjs;
+end function;
+
+function get_get_cusp_func(X, M_evec_twists, W1, HW_vec, gal_elts, psi,
+			   MM, Q_N, Qcond, Q_huge, gepsvecm, conj_huge, hs)
   function get_cusp(gam)
-  // v1 := Solution(M_evec_twists, H_inv_W1 * gam * BasisMatrix(W1));
-    v1 := Solution(M_evec_twists, basis_HW[1] * gam * BasisMatrix(W1));
-    vs := [ApplyAut(psi(g), v1) : g in gal_elts];
+    v1 := Solution(M_evec_twists, HW_vec * gam * BasisMatrix(W1));
+    vs := &cat[[ApplyAut(psi(g), v) : g in gal_elts] : v in Rows(v1)];
     mat := ChangeRing(Transpose(Matrix(vs))*ChangeRing(MM, Qcond), Q_huge);
     // TODO - what scaling replaces the gepsvec in general?
     p2 := Eltseq(gepsvecm * mat);
@@ -797,8 +774,10 @@ function CremonaMethod(H, ps_prec, n_rel)
     assert &and[Evaluate(pol,p2) eq 0 : pol in DefiningPolynomials(X)];
     return p2;
   end function;
-  cusps := Cusps(PSL2Subgroup(H));
-  gammas := [Eltseq(CuspInftyElt(cusp)) : cusp in cusps];
+  return get_cusp;
+end function;
+
+function get_Xcusps(N, SW1, TW1, gammas, X_QN, get_cusp)
   G := SL(2,Integers(N));
   Z := Center(G);
   PG, quo_G := G / Z;
@@ -808,6 +787,108 @@ function CremonaMethod(H, ps_prec, n_rel)
   Omega_W1 := GModule(PG, [Transpose(x) : x in [SW1,TW1]]);
   gs := [Representation(Omega_W1)(quo_G(G!gamma)) : gamma in gammas];
   X_cusps := [X_QN!get_cusp(Transpose(g^(-1))) : g in gs];
+  return X_cusps;
+end function;
+
+// This has to be adapted to include degeneracy maps
+// The twists of a newform alone do not span everything,
+// only if we allow degeneracy maps
+
+function CremonaMethod(H, ps_prec, n_rel)
+  N := Modulus(BaseRing(H));
+  M := ModularSymbols(CongruenceSubgroup(N));
+  C := CuspidalSubspace(M);
+  T := Restrict(ActionOnModularSymbolsBasis([1,1/N,0,1],M), VectorSpace(C));
+  S := Restrict(ActionOnModularSymbolsBasis([0,-1,N^2,0],M), VectorSpace(C));
+  Conj := Transpose(StarInvolution(C));
+  S_H, evec := get_eigenvector_in_subspace(H, T, S, Conj, M);
+  K := BaseRing(evec);
+  autK := Automorphisms(K);
+  evecs := [ApplyAut(aut, evec) : aut in autK];
+  X := DirichletGroupFull(N);
+  r,n := DistinguishedRoot(X);
+  X_even := [x : x in Elements(X) | IsEven(x)];
+  L := BaseRing(X);
+  X_gens := Generators(X);
+  A, phi := AbelianGroup(X);
+  ZNstar_gens := UnitGenerators(X);
+  Q_N<zeta_N> := CyclotomicField(N);
+  Q_N_q<q> := PowerSeriesRing(Q_N);
+  R_chis, gauss, gepsvecm := init_twist_operators(X, T, N);
+  fs := [* qEigenform(s_h, ps_prec) : s_h in S_H *];
+  // Should we include these as well? I'm not sure
+  // fs cat:= [* qEigenform(Cnew_dec[c], ps_prec) : c in comps
+  // 			| c notin new_H_components  *];
+  // Magma works much better over cyclotomic fields, so we switch to cyclotomic
+  cond := find_cond(fs, N);
+  
+  Qcond<zeta> := CyclotomicField(cond);
+  assert &and[IsSubfield(BaseRing(Parent(f)), Qcond) : f in fs];
+  assert IsSubfield(K, Qcond);
+  relevant_chars, rel_idxs, idxs_by_f := get_char_idxs(fs, n, X, X_even, Qcond);
+  // chars[#chars] is a generator when N is prime -
+  // handle the general case later
+  evec_twists, elt_vecs, all_gauss := get_evec_twists(evec, R_chis,
+						      Qcond, X_gens, gauss);
+  indices := [Index(Elements(X),phi(A!Eltseq(v))) : v in elt_vecs];
+  W1 := sub<Universe(evec_twists) | evec_twists>;
+  M_evec_twists := Matrix(evec_twists);
+  TW1 := Restrict(ChangeRing(T, Qcond), W1);
+  SW1 := Restrict(ChangeRing(S, Qcond), W1);
+  H_inv_W1 := GetInvariantSubspaceSL2(H, SW1, TW1);
+  // This shouldn't be necessary once we restrict to even characters
+  W1_plus := Kernel(Restrict(Transpose(ChangeRing(Conj,Qcond))-1, W1)); 
+  H_inv_W1 := H_inv_W1 meet W1_plus;
+  basis_HW := Basis(H_inv_W1);
+  H_inv_1s := [Solution(M_evec_twists, b * BasisMatrix(W1)) : b in basis_HW];
+
+// Figure out what do we want here in general, e.g. if K \cap L is not trivial
+  gal, _, psi := AutomorphismGroup(Qcond,L);
+  // next we want to match these to the corresopnding elements of Gal(K)
+  gal_elts := [g : g in gal];
+  autK_vals := [Qcond!aut(K.1) : aut in autK];
+  // exists(g){g : g in gal | Order(g) ne 1};
+  gal_perm := [Index(autK_vals, psi(g)(K.1)) : g in gal_elts];
+  gal_elts := [gal_elts[Index(gal_perm,i)] : i in [1..#autK]];
+  H_invs := [[ApplyAut(psi(g), H_inv_1) : g in gal_elts] : H_inv_1 in H_inv_1s];
+  coeffs_scaled, eigs, eigs_by_f := get_scaled_coeffs(Qcond, L, K, autK, evec,
+						      N,
+				      H_inv_1s, C, r, n, fs, X, H_invs,
+				     rel_idxs, idxs_by_f, indices, all_gauss);
+  Q_huge<zeta_huge> := CyclotomicField(LCM(cond, N));
+  Q_huge_q<q> := PowerSeriesRing(Q_huge);
+  _, conj_huge := HasComplexConjugate(Q_huge);
+
+  f_conjs := get_f_conjs(fs, Qcond, eigs_by_f,
+			 Q_huge, Q_huge_q, ps_prec, N, K);
+  coeffs_scaled_conj := [[[conj_huge(c) : c in ci] : ci in cih]
+			  : cih in  coeffs_scaled];
+  // This assertion fails for some reason.
+  assert #f_conjs eq #rel_idxs * Degree(K);
+  hs := [ [&+[csc[j+1][i+1]*f_conjs[Degree(K)*i+j+1]
+	       : i in [0..#rel_idxs-1]] : j in [0..Degree(K)-1]]
+	  : csc in coeffs_scaled_conj];
+  // That's what I think should be here, but it doesn't work
+  // tmp := [* Matrix([[e^j : j in [0..#egg[1]-1]] : e in egg[1]]) :
+  // 		  egg in eigs_by_f *];
+  // MK will then be the direct sum of tmp
+  MK := Matrix([[e^j : j in [0..Degree(K)-1]] : e in eigs[1]]);
+  hh := &cat [Eltseq(Vector(hss) * Transpose(ChangeRing(MK^(-1),Q_huge_q)))
+	  : hss in hs];
+  hs := [Q_N_q!h : h in hh];
+  X := FindCurveSimple(hs, ps_prec, n_rel);
+  X, var_change := MoveRationalPoints(X);
+  tt := Eltseq(Vector(hh)*ChangeRing(var_change^(-1),Q_huge_q));
+  ts := [Q_N_q!t : t in tt];
+  X_QN := ChangeRing(X, Q_N);
+  MK := DirectSum([MK : csc in coeffs_scaled_conj]);  
+  MM := Transpose(MK^(-1)) * var_change^(-1);
+  get_cusp := get_get_cusp_func(X, M_evec_twists, W1, Matrix(basis_HW),
+				 gal_elts, psi,
+			       MM, Q_N, Qcond, Q_huge, gepsvecm, conj_huge, hs);
+  cusps := Cusps(PSL2Subgroup(H));
+  gammas := [Eltseq(CuspInftyElt(cusp)) : cusp in cusps];
+  X_cusps := get_Xcusps(N, SW1, TW1, gammas, X_QN, get_cusp);
   QQ := Rationals();
   X_QQ := ChangeRing(X, QQ);
   return X_QQ, X_cusps, ts;

@@ -320,23 +320,19 @@ end intrinsic;
 // Galois action of the automorphism sending zeta to zeta^d
 intrinsic '*'(d::RngIntResElt, x::SetCspElt) -> SetCspElt
 {Compute the action of zeta->zeta^d on x.}
-/*
-  u, v := Explode(Eltseq(x));
-  if u eq 0 then
-    return x;
-  end if;
-*/
-// d_prime := d^(-1);
   N := Modulus(Parent(d));
   assert N eq Level(Group(Parent(x)));
-// dp_lift := CRT([Integers()!d_prime, 1], [N,u]);
   d_prime := Integers()!(d^(-1));
-  // TODO - check that indeed we get the first column prime to each other
   G := Group(Parent(x));
   mat := FindLiftToM2Z(Matrix(G`DetRep(d_prime)) : det := d_prime);
-  GL2Q := GL(2, Rationals());
-  return GL2Q!mat * x;
-//return Parent(x)![u, dp_lift*v];
+  res := Eltseq(Vector(Eltseq(x))*Transpose(mat));
+  if res[2] eq 0 then
+    res[2] := N;
+  end if;
+  while GCD(res[1], res[2]) gt 1 do
+    res[1] +:= N;
+  end while;
+  return Parent(x)!res;
 end intrinsic;
 
 intrinsic '*'(d::RngIntResElt, S::SetEnum[SetCspElt]) -> SetCspElt
@@ -370,6 +366,25 @@ intrinsic GaloisOrbit(s::SetCspElt) -> SeqEnum[SetCspElt], SeqEnum[RngIntRes]
     next_idx +:= 1;
   end while;
   return orbit, actions;
+end intrinsic;
+
+intrinsic GaloisOrbits(X::SetCsp) -> SeqEnum
+{Returns all orbits of X under the Galois action of the cyclotomic field.}
+  if #X eq 0 then
+    return [];
+  end if;
+  // For convenience we start with the cusp at infinity
+  cusp := X![1,0];
+  covered := [];
+  ret := [];
+  not_done := true;
+  while not_done do
+    orbit, sigmas := GaloisOrbit(cusp);
+    covered cat:= orbit;
+    Append(~ret, <cusp, orbit, sigmas>);
+    not_done := exists(cusp){s : s in Elements(X) | s notin covered};
+  end while;
+  return ret;
 end intrinsic;
 
 // other functions
