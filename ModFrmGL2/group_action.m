@@ -1200,6 +1200,8 @@ function get_qexp_coef_from_eigenvalues(G,p,lambdas)
   alphas := HeckeGeneralCaseRepresentatives(G,p);
   cusps := CuspsG(G);
   infty := cusps![1,0];
+  // TODO : This might change between different cusps.
+  // We should actually get the fields of definition from the Galois orbits.
   N := CuspWidth(G, infty);
   // N := Level(G);
   // n := N*p;
@@ -1212,7 +1214,9 @@ function get_qexp_coef_from_eigenvalues(G,p,lambdas)
   cusps := &cat [orb[2] : orb in gal_orbits];
   assert cusps[1] eq infty;
   cusp_to_gal_orb := &cat[ [<i, j> : j in [1..#gal_orbits[i][2]]]
-			   : i in [1..#gal_orbits]]; 
+			   : i in [1..#gal_orbits]];
+  widths := [CuspWidth(G, orb[1]) : orb in gal_orbits];
+  w := LCM(widths);
   // We don't want a multicharacter one
   M := ModularSymbols(G, 2, Rationals(), 0);
   coset_list :=  M`mlist`coset_list;
@@ -1238,75 +1242,61 @@ function get_qexp_coef_from_eigenvalues(G,p,lambdas)
   else
     cond_f := Norm(Conductor(AbelianExtension(AbsoluteField(Kf))));
   end if;
-  cond := LCM(cond_f, N*D);
+  cond := LCM([cond_f, N*D, w*D]);
   Qcond<zeta_c> := CyclotomicField(cond);
   assert IsSubfield(K, Qcond);
+  assert IsSubfield(CyclotomicField(w*D), Qcond);
   zeta := Qcond!zeta;
-// R := PolynomialRing(K, n*EulerPhi(N));
-// R := PolynomialRing(Qcond, n*EulerPhi(N));
   R := PolynomialRing(Qcond, n*EulerPhi(N)*#gal_orbits);
-/*  var_names := [[Sprintf("a_{%o,%o}", i, j) : j in [0..EulerPhi(N)-1]]
-    : i in [1..n]];*/
   var_names := [[[Sprintf("a_{%o,%o,%o}", k, i, j) : j in [0..EulerPhi(N)-1]]
 		  : i in [1..n]] : k in [1..#gal_orbits]];
-// AssignNames(~R, &cat var_names);
   AssignNames(~R, &cat &cat var_names);
-// a := [[R.(EulerPhi(N)*(i-1)+j+1) : j in [0..EulerPhi(N)-1]] : i in [1..n]];
-   a := [[[R.(EulerPhi(N)*(n*(k-1) + i-1)+j+1)
+  a := [[[R.(EulerPhi(N)*(n*(k-1) + i-1)+j+1)
 	      : j in [0..EulerPhi(N)-1]] : i in [1..n]]
 	    : k in [1..#gal_orbits]];
-  A<q_N> := PowerSeriesRing(R);
+  A<q_w> := PowerSeriesRing(R);
   // Here we use the Galois action on the cusps to relate the q-expansions.
-/*
-  orig_exps := [&+[&+[a[i][j+1]*zeta^(D*j*(Integers()!d))
-			 : j in [0..EulerPhi(N)-1]] * q_N^i : i in [1..n]]
-		 + O(q_N^(n+1)) : d in sigmas];
-*/
   orig_exps := [ [&+[&+[a[k][i][j+1]*zeta^(D*j*(Integers()!d))
-			 : j in [0..EulerPhi(N)-1]] * q_N^i : i in [1..n]]
-		 + O(q_N^(n+1)) : d in gal_orbits[k][3]]
+	: j in [0..EulerPhi(N)-1]] * q_w^((w div widths[k])*i) : i in [1..n]]
+		   + O(q_w^((w div widths[k])*(n+1))) : d in gal_orbits[k][3]]
 		 : k in [1..#gal_orbits]];
   res := [];
-  Ns := [];
+  ws := [];
   cusp_idx := 1;
   for k in [1..#gal_orbits] do
     res_k := [];
-    Ns_k := [];
-	  //for j in [1..#cusps] do
+    ws_k := [];
     for j in [1..#gal_orbits[k][2]] do
       f := A!0;
-// D := 1;
-      N_f := N;
+      w_f := widths[k];
       for l in [1..#alphas] do
-	      // f_l, d := act_on_qexp(ts[l][j],orig_exps[alpha_maps[l][j]],N);
 	k_orig, j_orig := Explode(cusp_to_gal_orb[alpha_maps[l][cusp_idx]]);
-	f_l, d := act_on_qexp(ts[l][cusp_idx], orig_exps[k_orig][j_orig],N);
-        N_l := N * d;
-        next_N := LCM(N_l, N_f);
-        _<q_ND> := Parent(f_l);
-        f := Evaluate(f, q_ND^(next_N div N_f) )
-	    + Evaluate(f_l, q_ND^(next_N div N_l));
+	f_l, d := act_on_qexp(ts[l][cusp_idx], orig_exps[k_orig][j_orig],w);
+        w_l := w * d;
+        next_w := LCM(w_l, w_f);
+        _<q_wD> := Parent(f_l);
+        f := Evaluate(f, q_wD^(next_w div w_f) )
+	    + Evaluate(f_l, q_wD^(next_w div w_l));
         // f +:= f_l;
-        N_f := next_N;
+        w_f := next_w;
       end for;
       Append(~res_k, f);
-      Append(~Ns_k, N_f);
+      Append(~ws_k, w_f);
       cusp_idx +:= 1;
     end for;
     Append(~res, res_k);
-    Append(~Ns, Ns_k);
+    Append(~ws, ws_k);
   end for;
-  // This is the coefficient of q_N
-  //coef := Coefficient(f,N_f div N);
-  polys := [[[Coefficient(res[k][i], j) : j in [1..n]]
+  polys := [[[Coefficient(res[k][i], j*(w div widths[k])) : j in [1..n]]
 	      : i in [1..#res[k]]] : k in [1..#res]];
   for k in [1..#res] do
     for i in [1..#res[k]] do
-      mult := Ns[k][i] div N;
+      mult := ws[k][i] div w;
       max_j := n div mult;
       for j in [1..max_j] do
 	    polys[k][i][j*mult] -:=
-	      (Qcond!lambdas[p])*Coefficient(orig_exps[k][i],j);
+	      (Qcond!lambdas[p])*Coefficient(orig_exps[k][i],
+					     j*(w div widths[k]));
       end for;
     end for;
   end for;
@@ -1326,7 +1316,7 @@ function get_qexp_coef_from_eigenvalues(G,p,lambdas)
   sol_orig := [1] cat Eltseq(sol);
   // Here we use the fact that the first cusp is the cusp at infinity.
   // should verify that
-  ret := Evaluate(Coefficient(orig_exps[1][1],p), sol_orig);
+  ret := Evaluate(Coefficient(orig_exps[1][1],p*(w div widths[1])), sol_orig);
   return ret;
 end function;
 
