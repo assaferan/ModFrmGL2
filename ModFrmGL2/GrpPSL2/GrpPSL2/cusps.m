@@ -320,9 +320,14 @@ intrinsic IsRegularCusp(G::GrpPSL2, a::SetCspElt) -> BoolElt
     GL2Q := GL(2, Rationals());
     alpha := GL2Q!Matrix(CuspInftyElt(Eltseq(a)));
     h := CuspWidth(G^alpha, Infinity());
-    if IsOdd(h) then return true; end if;
-    g := PSL2(Integers())! [-1,-h div 2,0,-1];
-    return not g in G^alpha;
+    // if IsOdd(h) then return true; end if;
+    // g := PSL2(Integers())! [-1,-h div 2,0,-1];
+    g_p := ModLevel(G^alpha)![1,h,0,1];
+    g_m := -g_p;
+    // we would like to check whether it is in the actual
+    // SL2 (not PSL2) subgroup
+    im_sl2 := ImageInLevel(G^alpha);
+    return not ((g_m in im_sl2) and (g_p notin im_sl2));
 end intrinsic;
 
 intrinsic RegularCusps(G::GrpPSL2) -> SeqEnum

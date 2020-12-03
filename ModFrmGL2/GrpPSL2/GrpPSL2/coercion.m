@@ -35,7 +35,7 @@ function MemberTest(G,g)
          return true;
       end if;
       g_N := ModLevel(G)!Matrix(g);
-      // in case -I is not in the group.
+      // covers the case when -I is not in the group
       return (g_N in ImageInLevel(G)) or (-g_N in ImageInLevel(G));
    end if;
    error if not(Type(g[1,1]) eq RngIntElt),

@@ -1051,6 +1051,32 @@ N_prime_proj := sub<cusp_forms_space | [b*B : b in proj_basis]>;
 
 */
 
+// This function return for alpha in M_2(Z), and an index j in the cusp list,
+// the index of the cusp around which one should look, and the parabolic
+// matrix t to act on the q-expansion there.
+// !!! TODO : there are many things here that could be precomputed. 
+
+function GetCuspAndMatrix(alpha, cusps, j, G,
+			  orbit_table, find_coset, coset_list)
+  GL2Q := GL(2, Rationals());
+  x := cusps[j];
+  vec := ChangeRing(Vector(Eltseq(x)),Rationals()) * Transpose(alpha);
+  a := Eltseq(Cusp(vec));
+  g := CuspInftyElt(a);
+  betas := [GL2Q!Eltseq(CuspInftyElt(c)) : c in cusps];
+  cusp_idxs := [CosetReduce(ModLevel(G)!Eltseq(beta), find_coset) :
+			   beta in betas];
+  cusp_orbit_idxs := [orbit_table[idx][1] : idx in cusp_idxs];
+  orb, exp := Explode(orbit_table[CosetReduce(ModLevel(G)!Eltseq(g), 
+						    find_coset)]);
+  alpha_j := Index(cusp_orbit_idxs, orb);
+  bool, gamma := CuspEquivGrp(coset_list, find_coset, G,
+			      orbit_table, a, Eltseq(cusps[alpha_j]));
+  t := betas[alpha_j]^(-1) * GL2Q!Eltseq(gamma)^(-1) * alpha * betas[j];
+  assert IsZero(t[2,1]);
+  return alpha_j, t;
+end function;
+
 function GetCuspMap(alpha, cusps, G, orbit_table, find_coset, coset_list)
   GL2Q := GL(2, Rationals());
   betas := [GL2Q!Eltseq(CuspInftyElt(c)) : c in cusps];
@@ -1080,7 +1106,11 @@ function GetCuspMap(alpha, cusps, G, orbit_table, find_coset, coset_list)
   return alpha_map, ts;
 end function;
 
-function act_on_qexp(t, f, N)
+// This function returns f|t, where f is a fourier expansion in q = e^(2 pi i/N)
+// and t is a parabolic matrix of positive determinant
+// It assumes the ring of coefficients of f is large enough to contain
+// the necessary roots of unity
+function act_on_qexp(t, f, N : change_field := false)
   assert IsZero(t[2,1]);
   R<q> := Parent(f);
   det := Determinant(t);
@@ -1095,29 +1125,35 @@ function act_on_qexp(t, f, N)
   s := Numerator(scalar);
   Nd := N*Integers()!d;
   K<zeta> := CyclotomicField(Nd);
-/*
-  Kf := BaseRing(R);
-  if Type(Kf) eq RngMPol then
-    Kf_base := BaseRing(Kf);
+// _<q_ND> := PowerSeriesRing(BaseRing(R));
+
+  // !! TODO : maybe change it to depend whether zeta is in R
+  if change_field then
+    Kf := BaseRing(R);
+    if Type(Kf) eq RngMPol then
+      Kf_base := BaseRing(Kf);
+    else
+      Kf_base := Kf;
+    end if;
+    cond_f := Norm(Conductor(AbelianExtension(AbsoluteField(Kf_base))));
+    cond := LCM(cond_f, Nd);
+    Qcond<zeta_c> := CyclotomicField(cond);
+    if Type(Kf) eq RngMPol then
+       R_base := ChangeRing(Kf,Qcond);
+    else
+       R_base := Qcond;
+    end if;
+    assert IsSubfield(K, Qcond);
+    zeta := Qcond!zeta;
   else
-    Kf_base := Kf;
+    R_base := BaseRing(R);
   end if;
-  cond_f := Norm(Conductor(AbelianExtension(AbsoluteField(Kf_base))));
-  cond := LCM(cond_f, Nd);
-  Qcond<zeta_c> := CyclotomicField(cond);
-  if Type(Kf) eq RngMPol then
-     R_base := ChangeRing(Kf,Qcond);
-  else
-     R_base := Qcond;
-  end if;
+
   _<q_ND> := PowerSeriesRing(R_base);
-  assert IsSubfield(K, Qcond);
-  zeta := Qcond!zeta;
-*/
-  _<q_ND> := PowerSeriesRing(BaseRing(R));
+  
   prec := AbsolutePrecision(f);
-// tf := &+[R_base!Coefficient(f,n) * zeta^(b*n) * q_ND^(n * s)
-  tf := &+[Coefficient(f,n) * zeta^(b*n) * q_ND^(n * s)
+  tf := &+[R_base!Coefficient(f,n) * zeta^(b*n) * q_ND^(n * s)
+	     //  tf := &+[Coefficient(f,n) * zeta^(b*n) * q_ND^(n * s)
 	      : n in [0..prec-1] | Coefficient(f,n) ne 0];
   return scalar * tf + O(q_ND^(prec * s)), D;
 end function;
@@ -1137,7 +1173,10 @@ function GetActionOnExpansion(G, alphas, bound)
   GL2Q := GL(2, Rationals());
   cusps := CuspsG(G);
   infty := cusps![1,0];
-  cusps, sigmas := GaloisOrbit(infty);
+// cusps, sigmas := GaloisOrbit(infty);
+  orbits := GaloisOrbits(cusps);
+  cusps := &cat[orb[2] : orb in orbits];
+  sigmas := &cat[orb[3] : orb in orbits];
   N := Level(G);
   // We don't want a multicharacter one
   M := ModularSymbols(G, 2, Rationals(), 0);
@@ -1193,29 +1232,79 @@ function HeckeActionOnExpansion(G,p,bound)
   return GetActionOnExpansion(G, alphas, bound);
 end function;
 
-// lambdas is a vector of eigenvalues
-// Still has to figure out what to do when n is not prime
-function get_qexp_coef_from_eigenvalues(G,p,lambdas)
+// This function gtes as input the following:
+// orig_exps - the original Fourier expansions at each of the cusps.
+// alphas - a set of matrices in M_2(Z)
+// widths - the width of the Fourier expansion at every cusp
+// (i.e. w such that the variable in the power seriesis q_w = e^(2 pi i z /w)
+// alpha_maps - for each alpha, and each cusp specifies the index of the cusp
+// around which the Fourier expansion of f|alpha should be
+// ts - for each auch pair (alpha, cusp) gives the parabolic matrix that acts
+// w - the lcm of the widths, to specify the maximal field of definition
+function get_hecke_action(orig_exps, alphas, widths, alpha_maps , ts, w)
+  A := Universe(orig_exps);
+  res := [];
+  ws := [];
+  for k in [1..#orig_exps] do
+    f := A!0;
+    w_f := widths[k];
+    for l in [1..#alphas] do
+       k_orig := alpha_maps[l][k];
+       f_l, d := act_on_qexp(ts[l][k], orig_exps[k_orig],w);
+       w_l := w * d;
+       next_w := LCM(w_l, w_f);
+       _<q_wD> := Parent(f_l);
+       f := Evaluate(f, q_wD^(next_w div w_f) )
+	    + Evaluate(f_l, q_wD^(next_w div w_l));
+       w_f := next_w;
+    end for;
+    Append(~res, f);
+    Append(~ws, w_f);
+  end for;
+  return res, ws;
+end function;
+
+function get_galois_action(orig_exps, widths, cusps, g, w,
+			   G, orbit_table, find_coset, coset_list)
   GL2Q := GL(2, Rationals());
+  A := Universe(orig_exps);
+  res := [];
+  ws := [];
+  for k in [1..#orig_exps] do
+    mat_g := getCuspGaloisAction(g, cusps[k]);
+    k_orig, t := GetCuspAndMatrix(GL2Q!Eltseq(mat_g), cusps, 1, G,
+			   orbit_table, find_coset, coset_list);
+    f, d := act_on_qexp(t, orig_exps[k_orig],w); // : change_field := true);
+    Append(~res, f);
+    Append(~ws, w*d);
+  end for;
+  return res, ws;
+end function;
+
+// lambdas is a vector of eigenvalues
+// This gives a qexpansion of an eigenform in base extension to the
+// cyclotomic field
+
+function get_qexp_coef_from_eigenvalues(G,n,lambdas : known_as := [])
+  assert Type(G) eq GrpPSL2;
+  assert IsField(Universe(lambdas));
+  if n eq 1 then return 1; end if;
+  GL2Q := GL(2, Rationals());
+  p := Factorization(n)[1][1];
   alphas := HeckeGeneralCaseRepresentatives(G,p);
   cusps := CuspsG(G);
   infty := cusps![1,0];
   // TODO : This might change between different cusps.
   // We should actually get the fields of definition from the Galois orbits.
   N := CuspWidth(G, infty);
-  // N := Level(G);
-  // n := N*p;
-  n := p;
+  U, psi := UnitGroup(Integers(N));
+  gens := [psi(g) : g in Generators(U)];
   // The orbit of the cusp at infinity should give us enough equations
   // but one has to be careful there, so for now we use all the equations
-  // cusps, sigmas := GaloisOrbit(infty);
-  // This takes a longer time than expected - figure out why.
-  gal_orbits := GaloisOrbits(cusps);
-  cusps := &cat [orb[2] : orb in gal_orbits];
+  cusps := Elements(cusps);
+  // cusps := GaloisOrbit(infty);
   assert cusps[1] eq infty;
-  cusp_to_gal_orb := &cat[ [<i, j> : j in [1..#gal_orbits[i][2]]]
-			   : i in [1..#gal_orbits]];
-  widths := [CuspWidth(G, orb[1]) : orb in gal_orbits];
+  widths := [CuspWidth(G, s) :  s in cusps];
   w := LCM(widths);
   // We don't want a multicharacter one
   M := ModularSymbols(G, 2, Rationals(), 0);
@@ -1230,11 +1319,13 @@ function get_qexp_coef_from_eigenvalues(G,p,lambdas)
       Append(~alpha_maps, alpha_map);
       Append(~ts, t);
   end for;
+
   if IsEmpty(alphas) then
     D := 1;
   else
     D := Abs(LCM([Integers()!Determinant(GL2Q!alpha) : alpha in alphas]));
   end if;
+  QN := CyclotomicField(N);
   K<zeta> := CyclotomicField(N*D);
   Kf := Universe(lambdas);
   if Type(Kf) eq FldRat then
@@ -1247,65 +1338,79 @@ function get_qexp_coef_from_eigenvalues(G,p,lambdas)
   assert IsSubfield(K, Qcond);
   assert IsSubfield(CyclotomicField(w*D), Qcond);
   zeta := Qcond!zeta;
-  R := PolynomialRing(Qcond, n*EulerPhi(N)*#gal_orbits);
+  num_known := IsEmpty(known_as) select 0 else #known_as[1];
+  num_as := n - num_known;
+  R := PolynomialRing(Qcond, num_as*EulerPhi(N)*#cusps);
   var_names := [[[Sprintf("a_{%o,%o,%o}", k, i, j) : j in [0..EulerPhi(N)-1]]
-		  : i in [1..n]] : k in [1..#gal_orbits]];
+		  : i in [num_known+1..n]] : k in [1..#cusps]];
   AssignNames(~R, &cat &cat var_names);
-  a := [[[R.(EulerPhi(N)*(n*(k-1) + i-1)+j+1)
-	      : j in [0..EulerPhi(N)-1]] : i in [1..n]]
-	    : k in [1..#gal_orbits]];
+  a_new := [[[R.(EulerPhi(N)*(num_as*(k-1) + i-1)+j+1)
+	      : j in [0..EulerPhi(N)-1]] : i in [1..num_as]]
+	 : k in [1..#cusps]];
+  if not IsEmpty(known_as) then
+    a := [[Eltseq(QN!x) : x in known_as[k]] cat a_new[k] : k in [1..#cusps]];
+  else
+    a := a_new;
+  end if;
   A<q_w> := PowerSeriesRing(R);
   // Here we use the Galois action on the cusps to relate the q-expansions.
-  orig_exps := [ [&+[&+[a[k][i][j+1]*zeta^(D*j*(Integers()!d))
-	: j in [0..EulerPhi(N)-1]] * q_w^((w div widths[k])*i) : i in [1..n]]
-		   + O(q_w^((w div widths[k])*(n+1))) : d in gal_orbits[k][3]]
-		 : k in [1..#gal_orbits]];
-  res := [];
-  ws := [];
-  cusp_idx := 1;
-  for k in [1..#gal_orbits] do
-    res_k := [];
-    ws_k := [];
-    for j in [1..#gal_orbits[k][2]] do
-      f := A!0;
-      w_f := widths[k];
-      for l in [1..#alphas] do
-	k_orig, j_orig := Explode(cusp_to_gal_orb[alpha_maps[l][cusp_idx]]);
-	f_l, d := act_on_qexp(ts[l][cusp_idx], orig_exps[k_orig][j_orig],w);
-        w_l := w * d;
-        next_w := LCM(w_l, w_f);
-        _<q_wD> := Parent(f_l);
-        f := Evaluate(f, q_wD^(next_w div w_f) )
-	    + Evaluate(f_l, q_wD^(next_w div w_l));
-        // f +:= f_l;
-        w_f := next_w;
-      end for;
-      Append(~res_k, f);
-      Append(~ws_k, w_f);
-      cusp_idx +:= 1;
-    end for;
-    Append(~res, res_k);
-    Append(~ws, ws_k);
+  orig_exps := [&+[&+[a[k][i][j+1]*zeta^(D*j)
+		       : j in [0..EulerPhi(N)-1]]*q_w^((w div widths[k])*i)
+		    + O(q_w^((w div widths[k])*(n+1)))
+		    : i in [1..n] ] : k in [1..#cusps]];
+  gal_exps := [];
+  for g in gens do
+	  gal_exps cat:= [&+[&+[a[k][i][j+1]*zeta^(D*j*Integers()!g)
+		       : j in [0..EulerPhi(N)-1]]*q_w^((w div widths[k])*i)
+		    + O(q_w^((w div widths[k])*(n+1)))
+		    : i in [1..n] ] : k in [1..#cusps]];
   end for;
-  polys := [[[Coefficient(res[k][i], j*(w div widths[k])) : j in [1..n]]
-	      : i in [1..#res[k]]] : k in [1..#res]];
-  for k in [1..#res] do
-    for i in [1..#res[k]] do
-      mult := ws[k][i] div w;
+  res, ws := get_hecke_action(orig_exps, alphas, widths, alpha_maps , ts, w);
+  res_gal := [];
+  ws_gal := [];
+  for g in gens do
+    res_g, ws_g := get_galois_action(orig_exps, widths, cusps, g, w, G,
+				     orbit_table, find_coset, coset_list);
+    res_gal cat:= res_g;
+    ws_gal cat:= ws_g;
+  end for;
+
+  polygals := [[Coefficient(res_gal[k], j*(w div widths[k])) : j in [1..n]]
+		  : k in [1..#res_gal]];
+  for k in [1..#res_gal] do
+      mult := ws_gal[k] div w;
       max_j := n div mult;
       for j in [1..max_j] do
-	    polys[k][i][j*mult] -:=
-	      (Qcond!lambdas[p])*Coefficient(orig_exps[k][i],
+	    polygals[k][j*mult] -:=
+	      Coefficient(gal_exps[k],
+			   j*(w div widths[k]));
+      end for;
+  end for;
+  polygals := &cat polygals;
+  polys := [[Coefficient(res[k], j*(w div widths[k])) : j in [1..n]]
+	      : k in [1..#res]];
+  for k in [1..#res] do
+      mult := ws[k] div w;
+      max_j := n div mult;
+      for j in [1..max_j] do
+	    polys[k][j*mult] -:=
+	      (Qcond!lambdas[p])*Coefficient(orig_exps[k],
 					     j*(w div widths[k]));
       end for;
-    end for;
   end for;
-  polys := &cat &cat polys;
+  polys := &cat polys;
+  polys cat:= polygals;
+  
   // We may assume a_{1,0} = 1
+  polys cat:= [a[1][1][j] : j in [2..#a[1][1]]];
   arr := [[Qcond!Coefficient(poly,i,1) : poly in polys]
 	     : i in [2..NumberOfGenerators(R)]];
   relmatQ := Matrix([Flat([Eltseq(aij) : aij in ai]) : ai in arr]);
-  const_term := [-Qcond!Coefficient(poly,N,1) : poly in polys];
+// Here we have to be careful - the safe side
+// would be to take the whole kernel and not normalize.
+// The problem is that it could be that the first term vanishes.
+// const_term := [-Qcond!Coefficient(poly,N,1) : poly in polys];
+  const_term := [-Qcond!Coefficient(poly,1,1) : poly in polys];
   vec := Vector(Flat([Eltseq(aij) : aij in const_term]));
   sol := Solution(relmatQ, vec);
 //ker := Kernel(relmatQ);
@@ -1316,9 +1421,166 @@ function get_qexp_coef_from_eigenvalues(G,p,lambdas)
   sol_orig := [1] cat Eltseq(sol);
   // Here we use the fact that the first cusp is the cusp at infinity.
   // should verify that
-  ret := Evaluate(Coefficient(orig_exps[1][1],p*(w div widths[1])), sol_orig);
+  ret := [[Evaluate(Coefficient(f,j*(w div widths[1])), sol_orig)
+	     : j in [1..n]] : f in orig_exps];
   return ret;
 end function;
+
+function qExpHeckeParams(G, alphas)
+  GL2Q := GL(2, Rationals());
+  cusps := CuspsG(G);
+  infty := cusps![1,0];
+  // cusps, dd := GaloisOrbit(infty);
+  orbits := GaloisOrbits(cusps);
+  reps := [orb[1] : orb in orbits];
+  cusps := &cat [orb[2] : orb in orbits];
+  dd := &cat [orb[3] : orb in orbits];
+  mm := &cat [ [i : j in [1..#orbits[i][2]]] : i in [1..#orbits]];
+  M := ModularSymbols(G, 2, Rationals(), 0);
+  coset_list :=  M`mlist`coset_list;
+  find_coset := M`mlist`find_coset;
+  orbit_table := BuildTOrbitTable(coset_list, find_coset, G);
+  t_cusps := [];
+  for orb in orbits do 
+    for i in [1..#orb[2]] do
+      mat := getCuspGaloisAction(orb[3][i], orb[1]);
+      k_orig, h := GetCuspAndMatrix(GL2Q!Eltseq(mat), cusps, 1, G,
+			   orbit_table, find_coset, coset_list);
+      assert k_orig eq #t_cusps + 1;
+      if h[1,1] lt 0 then h := -h; end if;
+      Append(~t_cusps, h[1,2]);
+    end for;
+  end for;
+  s := [[] : alpha in alphas];
+  c := [[Integers() | ] : alpha in alphas];
+  t := [[Integers() | ] : alpha in alphas];
+  I := [ [[],[]] : s in cusps];
+  d := [[Integers() | ] : alpha in alphas];
+  m := [[] : alpha in alphas];
+  for idx in [1..#alphas] do
+      alpha := alphas[idx];
+      for j in [1..#cusps] do
+        cusp_idx, h := GetCuspAndMatrix(GL2Q!alpha, cusps, j, G,
+				 orbit_table, find_coset, coset_list);
+        Append(~s[idx], cusp_idx);
+        if h[1,1] lt 0 then h := -h; end if;
+        if h[1,1] eq 1 then
+          Append(~I[j][1], idx);
+        else
+	  Append(~I[j][2], idx);
+        end if;
+        Append(~c[idx], h[1,2]);
+        Append(~t[idx], t_cusps[cusp_idx]);
+        Append(~d[idx], dd[cusp_idx]);
+        Append(~m[idx], mm[cusp_idx]);
+      end for;
+  end for;
+  return I, s, c, t, d, m;
+end function;
+
+function my_sum(arr, univ)
+  if IsEmpty(arr) then
+    return univ!0;
+  end if;
+  return &+arr;
+end function;
+
+// Now a_n_p and a_n_p2 should be sequences of length
+// equal to the number of Galois orbits
+function qExpCoeff(G, n, p, lambda_p, a_n_p, a_n_p2)
+  assert n mod p eq 0;
+  alphas := HeckeGeneralCaseRepresentatives(G,p);
+  I, s, c, t, d, m := qExpHeckeParams(G, alphas);
+
+  K := Parent(a_n_p);
+// K := Universe(a_n_p);
+  zeta := K.1;
+  if (Type(K) eq FldRat) then
+    sigma := [[hom<K -> K | > : ddd in dd] : dd in d];
+  else
+    sigma := [[hom<K -> K | zeta^ddd> : ddd in dd] : dd in d];
+  end if;
+
+  // C := [p * lambda_p * a : a in a_n_p];
+  C := p * lambda_p * a_n_p;
+  if n mod p^2 eq 0 then
+       /*
+    C := [C[j] - p^2 * &+[zeta^((c[i][j]-t[i][j]*p)*(n div p^2)) *
+		      sigma[i][j](a_n_p2[m[i][j]])
+		     : i in I[j][2]] : j in [1..#C]];
+       */
+    C -:= p^2 * my_sum([zeta^((c[i][1]-t[i][1]*p)*(n div p^2)) *
+		      sigma[i][1](a_n_p2[m[i][1]])
+			 : i in I[1][2] | m[i][1] eq 1], K);
+  end if;
+  
+// const_term := Vector(&cat[Eltseq(c) : c in C]);
+  const_term := Vector(Eltseq(C));
+
+  // !!! TODO - figure out the permutation, exactly
+/*
+  coeffs := [[[[zeta^((c[i][j]-t[i][j]*p)*(n div p)+d[i][j]*k)
+	     : i in I[j][1] | m[i][j] eq l] : l in [1..#C]]
+              : k in [0..Degree(K)-1]] : j in [1..#C]];
+*/
+  coeffs :=  [[zeta^((c[i][1]-t[i][1]*p)*(n div p)+d[i][1]*k)
+	     : i in I[1][1] | m[i][1] eq 1] : k in [0..Degree(K)-1]];
+/*
+  mats := [Matrix([&cat[ Eltseq(my_sum([zeta^((c[i][j]-t[i][j]*p)*(n div p)+d[i][j]*k)
+					   : i in I[j][1] | m[i][j] eq l]))
+			 : l in [1..#C]] : k in [0..Degree(K)-1]])
+	      : j in [1..#C]];
+*/
+
+/*
+  mats := [Matrix([&cat[ Eltseq(my_sum(coeffs[j][k][l], K)) : l in [1..#C]]
+		: k in [1..Degree(K)]]) : j in [1..#C]];
+  mat := VerticalJoin(mats);
+
+*/
+  mat := Matrix([Eltseq(my_sum(coeffs[k], K)) : k in [1..Degree(K)]]);
+
+  // !!! TODO: This matrix might be non-invertible at primes dividing the
+  // conductor (failure of muiltiplicity one) due to a wrong choice of
+  // representative, e.g. when G = GammaNS(11) 
+
+  return K!Eltseq(const_term * mat^(-1));
+end function;
+
+function qEigenform2(A, prec)
+  f := qEigenform(A, prec);
+  Kf := BaseRing(Parent(f));
+  G := LevelSubgroup(A);
+  N := CuspWidth(G, Infinity());
+
+  K := ext<Kf | CyclotomicPolynomial(N)>;
+  zeta := K.1;
+  R<q> := PowerSeriesRing(K);
+  // !!! TODO : Here we should somehow produce the values at the other cusps.
+  // (at different Galois orbits)
+  // Maybe not - we know there should be a solution which is supported
+  // on the Galois orbit at infinity.
+  a := [K | 1];
+  for n in [2..prec-1] do
+    p := PrimeDivisors(n)[1];
+    a_n_p2 := (n mod p^2 eq 0) select a[n div p^2] else 0;
+    Append(~a, qExpCoeff(G, n, p, Coefficient(f,p), a[n div p], a_n_p2));
+  end for;
+  a := [0] cat a;
+  return R!a + O(q^prec);
+end function;
+
+procedure testGammaGroup(G, upto : num_form := 1)
+  M := ModularSymbols(G, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  D := NewformDecomposition(S);
+  f := qEigenform(D[num_form], upto+1);
+  lambdas := [Coefficient(f,n) : n in [1..upto]];
+  for p in PrimesUpTo(upto) do
+    assert get_qexp_coef_from_eigenvalues(G,p,lambdas) eq lambdas[p];
+    vprintf ModularSymbols, 2: "verified prime %o", p;
+  end for;
+end procedure;
 
 function checkSols(G, coeffs, lambdas, Kf)
   n := #coeffs;

@@ -776,6 +776,10 @@ function GetBadDoubleCosetRepresentatives(G,p)
     N := Level(G);
     M2Z := MatrixAlgebra(Integers(),2);
     alpha_p := GL2Q![1,0,0,p];
+    // !!! TODO:  This is temporary.
+    // It seems that for q-expansions any representative should do.
+    // However, we cannot afford empty set of representatives
+    return [alpha_p];
     eta := GL2Q![-1,0,0,1];
     H := ImageInLevel(G);
     Zp_gamma := sub<MatrixAlgebra(GF(p),2) | Generators(H)>;

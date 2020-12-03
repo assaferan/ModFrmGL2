@@ -317,22 +317,58 @@ intrinsic '*'(alpha::GrpMatElt[FldRat], x::SetCspElt) -> SetCspElt
  return Cusp(alpha_vec);
 end intrinsic;
 
-// Galois action of the automorphism sending zeta to zeta^d
-intrinsic '*'(d::RngIntResElt, x::SetCspElt) -> SetCspElt
+// Can we find such a matrix with small determinant?
+// say insist that the determinant be d?
+// Not sure, but a least we can insist of it being with positive det
+
+intrinsic getCuspGaloisAction(d::RngIntResElt, x::SetCspElt) -> AlgMatElt
 {Compute the action of zeta->zeta^d on x.}
   N := Modulus(Parent(d));
   assert N eq Level(Group(Parent(x)));
-  d_prime := Integers()!(d^(-1));
+//  d_prime := Integers()!(d^(-1));
   G := Group(Parent(x));
+// For some reason this simple procedure doesn't work
+  tau_d := ModLevelGL(G)![1,0,0,d];
+//  tau_d := ModLevelGL(G)![d,0,0,1];
+  beta := ModLevel(G)!Eltseq(CuspInftyElt(x));
+  mat := FindLiftToSL2(G`DetRep(d^(-1)) * beta * tau_d);
+//  mat := FindLiftToSL2(G`DetRep(d^(-1)) * tau_d);
+/*
   mat := FindLiftToM2Z(Matrix(G`DetRep(d_prime)) : det := d_prime);
   res := Eltseq(Vector(Eltseq(x))*Transpose(mat));
-  if res[2] eq 0 then
-    res[2] := N;
+  _, coeffs := XGCD([res[1], res[2], N]);
+  u,t,k := Explode(coeffs);
+  gamma := FindLiftToSL2(GL(2, Integers(N))![res[1], -t, res[2], u]);
+  xN := Eltseq(gamma)[1] - res[1];
+  yN := Eltseq(gamma)[3] - res[2];
+  dummy, coeffs := XGCD(Eltseq(x));
+  u, t := Explode(coeffs);
+  new_mat := mat + Parent(mat)![u*xN, t*xN, u*yN, t*yN];
+  det := Determinant(new_mat);
+  // If the determinant is negative, we turn it into a positive one
+  if det lt 0 then
+    a,b,c,d := Explode(Eltseq(mat));
+    r,s := Explode(Eltseq(x));
+    v := (xN*d-yN*b)*s + (xN*c-yN*a)*r;
+    m := Sign(v) * ((-det) div Abs(v) + 1);
+    u +:= m*s;
+    t -:= m*r;
+    new_mat := mat + Parent(mat)![u*xN, t*xN, u*yN, t*yN];
+    assert Determinant(new_mat) gt 0;
   end if;
-  while GCD(res[1], res[2]) gt 1 do
-    res[1] +:= N;
-  end while;
-  return Parent(x)!res;
+  return new_mat;
+*/
+  return mat;
+end intrinsic;
+
+// Galois action of the automorphism sending zeta to zeta^d
+intrinsic '*'(d::RngIntResElt, x::SetCspElt) -> SetCspElt
+{Compute the action of zeta->zeta^d on x.}
+  mat := getCuspGaloisAction(d, x);
+//  final_res := Eltseq(Vector(Eltseq(x))*Transpose(mat));
+//  return final_res;
+//  return Parent(x)!(mat*x);
+  return Parent(x)!(mat*Parent(x)![1,0]);
 end intrinsic;
 
 intrinsic '*'(d::RngIntResElt, S::SetEnum[SetCspElt]) -> SetCspElt
@@ -357,7 +393,8 @@ intrinsic GaloisOrbit(s::SetCspElt) -> SeqEnum[SetCspElt], SeqEnum[RngIntRes]
   actions := [psi(U!0)];
   while next_idx le #orbit do
     for g in gens do
-      next := X!(g*orbit[next_idx]);
+      next_elt := g*orbit[next_idx];
+      next := X!next_elt;
       if next notin orbit then
         Append(~orbit, next);
         Append(~actions, g*actions[next_idx]);

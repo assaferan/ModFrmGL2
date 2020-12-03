@@ -625,11 +625,11 @@ end intrinsic;
 
 // This function calculates the correct L value (even when chi is not primitive)
 function Lvalue(chi, s : Precision := 100)
-    L := LSeries(chi : Precision := Precision);
-    prim_val := Evaluate(L, s);
     N := Modulus(chi);
     f := Conductor(chi);
     chi_0 := DirichletGroupFull(f)!chi;
+    L := LSeries(chi_0 : Precision := Precision);
+    prim_val := Evaluate(L, s);
     fac_N := Factorization(N);
     primes := [p[1] : p in fac_N | f mod p[1] ne 0];
     if IsEmpty(primes) then
@@ -642,17 +642,28 @@ end function;
 // Computes the sum of 1/n^s for n = d mod N positive 
 function HurwitzPlusZetaFunction(N, d, s : Precision := 100)
     // Instead of doing that directly, we use the L functions
-    CC := ComplexField();
+    CC<i> := ComplexField(Precision);
     X := Elements(DirichletGroupFull(N));
+    if (s eq 1) then
+      X := [x : x in X | not IsTrivial(x)];
+    end if;
     X_vals := Vector([CC!chi(d)^(-1) : chi in X]);
     L_vals := Vector([CC!Lvalue(chi,s : Precision := Precision) : chi in X]);
-    return DotProduct(X_vals, L_vals) / EulerPhi(N);
+    res :=  DotProduct(X_vals, L_vals) / EulerPhi(N);
+    return res;
 end function;
 
 // Computes the sum of 1/n^s for n = d mod N (both positive and negative)
 function HurwitzZetaFunction(N, d, s : Precision := 100)
-    return HurwitzPlusZetaFunction(N, d, s : Precision := Precision)
+    ret :=  HurwitzPlusZetaFunction(N, d, s : Precision := Precision)
 	   + (-1)^s*HurwitzPlusZetaFunction(N, -d, s : Precision := Precision);
+    if (s eq 1) then
+      pi := Pi(RealField(Precision));
+      CC<i> := ComplexField(Precision);
+      assert ret eq (pi / N)*Cot(pi*d / N);
+      ret +:= pi*i / N;
+    end if;
+    return ret;
 end function;
 
 // This is now an intrinsic in dirichlet.m
@@ -670,21 +681,22 @@ end function;
 
 // Exact version giving the values divided by C_k = (-2pi i)^k / N^k (k-1)!
 function QLvalue(chi, k)
-    if IsTrivial(chi) then
-	prim_val := -BernoulliNumber(k)/k;
-    else
-	prim_val := - GaussSum(chi) * BernoulliNumber(k, chi^(-1)) / k;
-    end if;
     N := Modulus(chi);
     f := Conductor(chi);
     chi_0 := DirichletGroupFull(f)!chi;
+    if IsTrivial(chi) then
+	prim_val := - BernoulliNumber(k)/k;
+    else
+	prim_val := - GaussSum(chi_0) * BernoulliNumber(k, chi_0^(-1)) / k;
+    end if;
     fac_N := Factorization(N);
     primes := [p[1] : p in fac_N | f mod p[1] ne 0];
     if IsEmpty(primes) then
-	return prim_val;
+      prod := 1;
+    else
+      prod := &*[1 - chi_0(p) / p^k : p in primes];
     end if;
-    prod := &*[1 - chi_0(p) / p^k : p in primes];
-    return prim_val * prod * (N/f)^k;
+    return prim_val * prod * (N/f)^k / 2;
 end function;
 
 // Exact version giving the values divided by C_k = (-2pi i)^k / N^k (k-1)!
@@ -694,7 +706,11 @@ function QHurwitzZetaFunction(N, d, k)
     X := [chi : chi in X | chi(-1) eq (-1)^k];
     L_vals := Vector([QLvalue(chi,k) : chi in X]);
     X_vals := Parent(L_vals)!Vector([chi(d)^(-1) : chi in X]);
-    return K!DotProduct(X_vals, L_vals) / EulerPhi(N);
+    ret :=  2 * K!DotProduct(X_vals, L_vals) / EulerPhi(N);
+    if (k eq 1) then
+      ret -:= 1/2;
+    end if;
+    return ret;
 end function;
 
 // We take n_inv as argument
@@ -905,6 +921,7 @@ end function;
 // form on Gamma(N). We look at ratios of these.
 // Modified it to use power series in q_N instead of Puiseux in q.
 
+/* old code
 function weier(c,d,N,pr)
   K<zeta> := CyclotomicField(N);
 // R<q> := PuiseuxSeriesRing(K);
@@ -938,9 +955,60 @@ function weier(c,d,N,pr)
   ret := ret + BigO(q^(pr+N+1));
   return ret;
 end function;
+*/
 
+// Generalizing the above to arbitrary k
+// This is equivalent to FullGammaEisensteinG - check which is faster
+function weier(c,d,N,pr,k)
+  K<zeta> := CyclotomicField(N);
+// R<q> := PuiseuxSeriesRing(K);
+  R<q> := PowerSeriesRing(K);
+  c := c mod N;
+  d := d mod N;
+// const := R!(-3);
+  if k eq 1 then
+    const := R!(1/2 - c/N);
+  elif k eq 2 then
+    const := R!(1/12);
+  else
+    const := R!0;
+  end if;
+  if (c eq 0) then
+    //cosval := (1/2)*(zeta^d + zeta^(-d));
+    //const := const + R!(-18/(cosval - 1));
+    const := const + QHurwitzZetaFunction(N,d,k);
+    pr := pr + 1;
+  end if;
+  ret := const;
+  for m in [1..pr+N] do
+    term := K!0;
+    list1 := [ r^(k-1)*zeta^(d*r) : r in Divisors(m) |
+		(Floor(m/r)-c) mod N eq 0 ];
+    if #list1 gt 0 then
+	      // term := term - 36*(&+list1);
+      term := term + (&+list1);
+    end if;
+    list2 := [ r^(k-1)*zeta^(-d*r) : r in Divisors(m) |
+		(Floor(m/r)-N+c) mod N eq 0];
+    if #list2 gt 0 then
+	      // term := term - 36*(&+list2);
+      term := term + (-1)^k*(&+list2);
+    end if;
+    if (m mod N eq 0) and (k eq 2) then
+			// term := term + 72*SumOfDivisors(Floor(m/N));
+      term := term - 2*SumOfDivisors(Floor(m/N));
+    end if;
+// ret := ret + term*q^(m/N);
+    ret := ret + term*q^m;
+  end for;
+// ret := ret + BigO(q^((pr+N+1)/N));
+  ret := ret + BigO(q^(pr+N+1));
+  return ret;
+end function;
+
+/* old code
 function qExpansion_Rouse(M, vec, basislist, prec, N)
-  // Step 4 - Compute Fourier expansions
+  // Compute Fourier expansions
 
   vprintf ModularForms, 2:
     "Computing Weierstrass p-function Fourier expansions.\n";
@@ -969,6 +1037,40 @@ function qExpansion_Rouse(M, vec, basislist, prec, N)
 
   return fourier;
 end function;
+*/
+
+// Generalizing the above to arbitrary k
+function qExpansion_Rouse(M, vec, basislist, prec, N)
+  // Compute Fourier expansions
+
+  vprintf ModularForms, 2:
+    "Computing Weierstrass p-function Fourier expansions.\n";
+  K<zeta> := CyclotomicField(N);
+// R<q> := PuiseuxSeriesRing(K);
+  R<q> := PowerSeriesRing(K);
+//  xcoords := ZeroMatrix(R,N,N);
+  eps := Weight(M) eq 2 select 1 else 0;
+  if (not assigned M`eisenstein_weier) or
+     (M`eisenstein_weier_prec lt prec) then
+    M`eisenstein_weier := ZeroMatrix(R,N,N);
+    for i in [1..#basislist-eps] do
+      a := basislist[i][1];
+      b := basislist[i][2];
+      vprintf ModularForms, 3:
+	 "Computing expansion %o of %o.\n",i,#basislist-eps;
+      // xcoords[a+1][b+1] := weier(a,b,N,prec);
+      M`eisenstein_weier[a+1][b+1] := weier(a,b,N,prec,Weight(M));
+    end for;
+    M`eisenstein_weier_prec := prec;
+  end if;
+  xcoords := M`eisenstein_weier;
+
+  vprintf ModularForms,2 : "Computing Fourier expansion.\n";
+  fourier := &+[ vec[k]*xcoords[basislist[k][1]+1][basislist[k][2]+1]
+		   : k in [1..#basislist-eps]];
+
+  return fourier;
+end function;
 
 function qExpansion_EisensteinSeriesNotGamma(f, prec)
     assert Type(f) eq ModFrmElt;
@@ -981,9 +1083,9 @@ function qExpansion_EisensteinSeriesNotGamma(f, prec)
     // for each cusp.
     // E := &+[FullGammaEisenstein(N, v[1], v[2], k, prec) : v in vecs];
     // if k eq 2 we're currently using Jeremy Rouse's code
-    if (k eq 2) then
+    /*if (k eq 2) then */
       return qExpansion_Rouse(Parent(f), eps_vals, vecs, prec, N);
-    end if;
+// end if;
     assert #vecs eq #eps_vals;
     eis_gamma_N := [FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs];
     K := BaseRing(Universe(eis_gamma_N));

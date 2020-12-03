@@ -804,20 +804,27 @@ procedure Test_NewformDecomp(N, char)
     assert dims eq dims0;
 end procedure;
 
-procedure Test_Eisenstein_Single(N,k : prec := 100)
+procedure Test_Eisenstein_Single(N,k : prec := 100, gamma_type:=0)
     print "Testing creation of Eisenstein series";
     tt := Cputime();
-    E_orig := EisensteinSeries(ModularForms(Gamma0(N),k));
-    E := EisensteinSeries(ModularForms(my_Gamma(N,0),k));
-    assert #E eq #E_orig;
+    assert gamma_type in [0,1];
+    G := (gamma_type eq 0) select Gamma0(N) else Gamma1(N);
+    E_orig := EisensteinSeries(ModularForms(G,k));
+    E := EisensteinSeries(ModularForms(my_Gamma(N,gamma_type),k));
+    assert #E eq Dimension(EisensteinSubspace(ModularForms(G,k)));
     if #E ne 0 then
         f_orig := [PowerSeries(e, prec) : e in E_orig];
 	_<q> := Parent(f_orig[1]);
 	f := [PowerSeries(e, prec*N) : e in E];
 	f_vecs := [Vector(AbsEltseq(x)) : x in f];
 	f_orig_vecs := [Vector(AbsEltseq(Evaluate(f,q^N))) : f in f_orig];
-	K := BaseRing(Universe(f_vecs));
-	_ :=  Solution(ChangeRing(Matrix(f_orig_vecs), K), f_vecs);
+        cond := LCM([Conductor(BaseRing(Universe(fs)))
+			: fs in [f_vecs, f_orig_vecs]]);
+        K := CyclotomicField(cond);
+        assert &and[IsSubfield(BaseRing(Universe(fs)), K)
+		    : fs in [f_vecs, f_orig_vecs]];
+        _ := Solution(ChangeRing(Matrix(f_vecs), K),
+		      ChangeRing(Matrix(f_orig_vecs),K));
     end if;
     Cputime(tt);
 end procedure;
@@ -827,6 +834,7 @@ procedure Test_Eisenstein(numcheck)
 	N      := Random([1..maxN]);
 	k      := Random([2..maxk]);
 	Test_Eisenstein_Single(N,k);
+        Test_Eisenstein_Single(N,k : gamma_type := 1);
     end for;
 end procedure;
 
