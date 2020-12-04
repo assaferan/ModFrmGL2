@@ -911,61 +911,24 @@ function FullGammaEisenstein(N, c, d, k, prec)
     return E;
 end function;
 
-// Compute the Weierstrass p-function to a precision of q^(prec/N).
-// This is up to and includeing q^(prec/N).
+// Compute the Eisenstein series for Gamma(N) to a precision of q_N^(prec).
+// In the case of k = 2, this is the Weierstrass p-function
+// This is up to and including q_N^(prec).
 // This routine returns the Fourier expansion
 // of normalized version of p((c*t+d)/N;t)
-// This is p multiplied by (9/Pi^2)
+// This is p multiplied by (1/4*Pi^2)
 // We use the formula for the Fourier expansion from Chapter 4 of
 // Diamond and Shurman. This is a holomorphic weight two modular
 // form on Gamma(N). We look at ratios of these.
 // Modified it to use power series in q_N instead of Puiseux in q.
 
-/* old code
-function weier(c,d,N,pr)
-  K<zeta> := CyclotomicField(N);
-// R<q> := PuiseuxSeriesRing(K);
-  R<q> := PowerSeriesRing(K);
-  c := c mod N;
-  d := d mod N;
-  const := R!(-3);
-  if (c eq 0) then
-    cosval := (1/2)*(zeta^d + zeta^(-d));
-    const := const + R!(-18/(cosval - 1));
-    pr := pr + 1;
-  end if;
-  ret := const;
-  for m in [1..pr+N] do
-    term := K!0;
-    list1 := [ r*zeta^(d*r) : r in Divisors(m) | (Floor(m/r)-c) mod N eq 0 ];
-    if #list1 gt 0 then
-      term := term - 36*(&+list1);
-    end if;
-    list2 := [ r*zeta^(-d*r) : r in Divisors(m) | (Floor(m/r)-N+c) mod N eq 0];
-    if #list2 gt 0 then
-      term := term - 36*(&+list2);
-    end if;
-    if (m mod N eq 0) then
-      term := term + 72*SumOfDivisors(Floor(m/N));
-    end if;
-// ret := ret + term*q^(m/N);
-    ret := ret + term*q^m;
-  end for;
-// ret := ret + BigO(q^((pr+N+1)/N));
-  ret := ret + BigO(q^(pr+N+1));
-  return ret;
-end function;
-*/
-
 // Generalizing the above to arbitrary k
 // This is equivalent to FullGammaEisensteinG - check which is faster
 function weier(c,d,N,pr,k)
   K<zeta> := CyclotomicField(N);
-// R<q> := PuiseuxSeriesRing(K);
   R<q> := PowerSeriesRing(K);
   c := c mod N;
   d := d mod N;
-// const := R!(-3);
   if k eq 1 then
     const := R!(1/2 - c/N);
   elif k eq 2 then
@@ -974,8 +937,6 @@ function weier(c,d,N,pr,k)
     const := R!0;
   end if;
   if (c eq 0) then
-    //cosval := (1/2)*(zeta^d + zeta^(-d));
-    //const := const + R!(-18/(cosval - 1));
     const := const + QHurwitzZetaFunction(N,d,k);
     pr := pr + 1;
   end if;
@@ -985,59 +946,21 @@ function weier(c,d,N,pr,k)
     list1 := [ r^(k-1)*zeta^(d*r) : r in Divisors(m) |
 		(Floor(m/r)-c) mod N eq 0 ];
     if #list1 gt 0 then
-	      // term := term - 36*(&+list1);
       term := term + (&+list1);
     end if;
     list2 := [ r^(k-1)*zeta^(-d*r) : r in Divisors(m) |
 		(Floor(m/r)-N+c) mod N eq 0];
     if #list2 gt 0 then
-	      // term := term - 36*(&+list2);
       term := term + (-1)^k*(&+list2);
     end if;
     if (m mod N eq 0) and (k eq 2) then
-			// term := term + 72*SumOfDivisors(Floor(m/N));
       term := term - 2*SumOfDivisors(Floor(m/N));
     end if;
-// ret := ret + term*q^(m/N);
     ret := ret + term*q^m;
   end for;
-// ret := ret + BigO(q^((pr+N+1)/N));
   ret := ret + BigO(q^(pr+N+1));
   return ret;
 end function;
-
-/* old code
-function qExpansion_Rouse(M, vec, basislist, prec, N)
-  // Compute Fourier expansions
-
-  vprintf ModularForms, 2:
-    "Computing Weierstrass p-function Fourier expansions.\n";
-  K<zeta> := CyclotomicField(N);
-// R<q> := PuiseuxSeriesRing(K);
-  R<q> := PowerSeriesRing(K);
-//  xcoords := ZeroMatrix(R,N,N);
-  if (not assigned M`eisenstein_weier) or
-     (M`eisenstein_weier_prec lt prec) then
-    M`eisenstein_weier := ZeroMatrix(R,N,N);
-    for i in [1..#basislist-1] do
-      a := basislist[i][1];
-      b := basislist[i][2];
-      vprintf ModularForms, 3:
-	 "Computing expansion %o of %o.\n",i,#basislist-1;
-      // xcoords[a+1][b+1] := weier(a,b,N,prec);
-      M`eisenstein_weier[a+1][b+1] := weier(a,b,N,prec);
-    end for;
-    M`eisenstein_weier_prec := prec;
-  end if;
-  xcoords := M`eisenstein_weier;
-
-  vprintf ModularForms,2 : "Computing Fourier expansion.\n";
-  fourier := &+[ vec[k]*xcoords[basislist[k][1]+1][basislist[k][2]+1]
-		   : k in [1..#basislist-1]];
-
-  return fourier;
-end function;
-*/
 
 // Generalizing the above to arbitrary k
 function qExpansion_Rouse(M, vec, basislist, prec, N)
@@ -1045,10 +968,8 @@ function qExpansion_Rouse(M, vec, basislist, prec, N)
 
   vprintf ModularForms, 2:
     "Computing Weierstrass p-function Fourier expansions.\n";
-  K<zeta> := CyclotomicField(N);
-// R<q> := PuiseuxSeriesRing(K);
+  K := BaseRing(vec);
   R<q> := PowerSeriesRing(K);
-//  xcoords := ZeroMatrix(R,N,N);
   eps := Weight(M) eq 2 select 1 else 0;
   if (not assigned M`eisenstein_weier) or
      (M`eisenstein_weier_prec lt prec) then
@@ -1058,7 +979,6 @@ function qExpansion_Rouse(M, vec, basislist, prec, N)
       b := basislist[i][2];
       vprintf ModularForms, 3:
 	 "Computing expansion %o of %o.\n",i,#basislist-eps;
-      // xcoords[a+1][b+1] := weier(a,b,N,prec);
       M`eisenstein_weier[a+1][b+1] := weier(a,b,N,prec,Weight(M));
     end for;
     M`eisenstein_weier_prec := prec;
@@ -1076,55 +996,36 @@ function qExpansion_EisensteinSeriesNotGamma(f, prec)
     assert Type(f) eq ModFrmElt;
     assert Type(prec) eq RngIntElt;
     assert assigned f`eisenstein;
-    vecs, vecs0, eps_vals := Explode(EisensteinData(f));
+    basislist, _, coeffs := Explode(EisensteinData(f));
     N := Level(f);
     k := Weight(f);
-    // We sum over the vectors in the orbit to obtain a Gamma-invariant function
+    // we're currently using Jeremy Rouse's code
+    return qExpansion_Rouse(Parent(f), coeffs, basislist, prec, N);
+
+// Here is what we did previously -
+// When we traced, and this includes a character
+// We sum over the vectors in the orbit to obtain a Gamma-invariant function
     // for each cusp.
-    // E := &+[FullGammaEisenstein(N, v[1], v[2], k, prec) : v in vecs];
-    // if k eq 2 we're currently using Jeremy Rouse's code
-    /*if (k eq 2) then */
-      return qExpansion_Rouse(Parent(f), eps_vals, vecs, prec, N);
-// end if;
+/*
     assert #vecs eq #eps_vals;
     eis_gamma_N := [FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs];
     K := BaseRing(Universe(eis_gamma_N));
     L := Universe(eps_vals);
     KL := Compositum(K,L);
     R := PowerSeriesRing(KL);
-    // eps_vals := [KL!val : val in eps_vals];
-//    auts := [hom< K->K | zeta^d> : d in det_vals];
-//    E := &+[KL!eps_vals[j]
-//	       * R!ApplyAut(auts[j],eis_gamma_N[j]) : j in [1..#vecs]];
     E := &+[KL!eps_vals[j] * R!eis_gamma_N[j] : j in [1..#vecs]];
-    /*
-    E := &+[eps_vals[j] *
-	    FullGammaEisensteinG(N, vecs[j][1], vecs[j][2], k, prec)
-	    : j in [1..#vecs]];
-   */
     // This clause takes care of the weight 2 case, where we have to
     // take differences
     if IsEmpty(vecs0) then
 	E0 := 0;
     else
-	//E0 := &+[FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs0];
 	eis0_gamma_N := [FullGammaEisensteinG(N, v[1], v[2], k, prec)
 			: v in vecs0];
         E0 := &+[KL!eps_vals[j] * R!eis0_gamma_N[j] : j in [1..#vecs0]];
-//E0 := &+[KL!eps_vals[j]
-//	       * R!ApplyAut(auts[j],eis0_gamma_N[j]) : j in [1..#vecs0]];
-	/*
-	E0 := &+[eps_vals[j] *
-	    FullGammaEisensteinG(N, vecs0[j][1], vecs0[j][2], k, prec)
-		 : j in [1..#vecs0]];
-       */
     end if;
-    // What's the correct field ??
-    // K := Rationals();
-    // return PowerSeriesNormalizeMagma(E-E0);
     return E - E0; // we want the action to correlate in scalars
-    // return ApproximatePowerSeries(PowerSeriesNormalizeMagma(E), K, N);
-    // return PowerSeriesNormalizeMagma(ApproximatePowerSeries(E, K));
+*/
+   
 end function;
 
 function qExpansion_EisensteinSeries(f,prec)

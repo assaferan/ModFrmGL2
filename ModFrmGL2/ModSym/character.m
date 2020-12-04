@@ -383,11 +383,11 @@ intrinsic 'eq' (x::GrpChrElt,y::GrpChrElt) -> BoolElt
    // !!! TODO : figure out why, and fix this
    // test the more frequent cases first
    if IsIdentical(Gx, Gy) then
-       return ValuesOnGenerators(x) cmpeq ValuesOnGenerators(y);
+       return ValuesOnUnitGenerators(x) cmpeq ValuesOnUnitGenerators(y);
    elif Gx ne Gy then 
       return false;   // not sure why we want to do this
    else
-      return ValuesOnGenerators(x) cmpeq ValuesOnGenerators(y);
+      return ValuesOnUnitGenerators(x) cmpeq ValuesOnUnitGenerators(y);
    end if;
 end intrinsic;
 
@@ -461,7 +461,8 @@ intrinsic Elements(G::GrpChr) -> SeqEnum
    {The characters in G.}
    if not assigned G`Elements then
      chars := [initGrpChrElt(G, Representation(M)) :
-			       M in IrreducibleModules(G`Domain,G`BaseRing)];
+			       M in IrreducibleModules(G`Domain,G`BaseRing)
+			    | Dimension(M) eq 1];
      G`Elements := chars;
    end if;
    return G`Elements;
@@ -523,7 +524,7 @@ intrinsic '@'(M::AlgMatElt[RngIntRes], x::GrpChrElt) -> RngElt
    end if;
 end intrinsic;
  
-intrinsic ValuesOnGenerators(x::GrpChrElt) -> SeqEnum
+intrinsic ValuesOnUnitGenerators(x::GrpChrElt) -> SeqEnum
 {The values of x on the ordered sequence generators of Q, where
  Q is the domain of x.}
    Q := x`Domain;

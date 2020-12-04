@@ -213,6 +213,7 @@ function MakeEisensteinSeries(M,chi,psi,t)
    return f;
 end function;
 
+/*
 function MakeEisensteinSeriesNotGamma(M, vecs, vecs0, eps_vals)
     assert Type(M) eq ModFrm;
     
@@ -220,6 +221,17 @@ function MakeEisensteinSeriesNotGamma(M, vecs, vecs0, eps_vals)
     // Check here if we need in general to extend
     f`parent := EisensteinSubspace(M);
     f`eisenstein := <vecs, vecs0, eps_vals>;
+    return f;
+end function;
+*/
+
+function MakeEisensteinSeriesNotGamma(M, basislist, rel_dict, coeffs)
+    assert Type(M) eq ModFrm;
+    
+    f := New(ModFrmElt);
+    // Check here if we need in general to extend
+    f`parent := EisensteinSubspace(M);
+    f`eisenstein := <basislist, rel_dict, coeffs>;
     return f;
 end function;
 
@@ -241,19 +253,9 @@ function ActionOnEisensteinSeries(gamma, f)
     M := AmbientSpace(Parent(f));
     k := Weight(M);
     N := Level(M);
-    // if k eq 2 we use Jeremy's code at the moment.
-    if (k eq 2) then
-      basislist, _, elt := Explode(EisensteinData(f));
-      new_vec := act(elt,gamma,N,basislist : k := k);
-      return MakeEisensteinSeriesNotGamma(M, basislist, [], new_vec);
-    end if;
-    vecs, vecs0, eps_vals := Explode(EisensteinData(f));
-    new_vecs := [v * gamma : v in vecs];
-    new_vecs0 := [v * gamma : v in vecs0];
-//    new_dets := [det*Determinant(gamma) : det in det_vals];
-// M := AmbientSpace(Parent(f));
-    return MakeEisensteinSeriesNotGamma(M, new_vecs, new_vecs0,
-					eps_vals);
+    basislist, rel_dict, elt := Explode(EisensteinData(f));
+    new_vec := act(elt,gamma,N,basislist : k := k, dict := rel_dict);
+    return MakeEisensteinSeriesNotGamma(M, basislist, rel_dict, new_vec);
 end function;
 
 function lift(r,N)
@@ -265,8 +267,9 @@ function lift(r,N)
   return liftr;
 end function;
 
-function act(elt,g,N,basislist : k := 2, dict := AssociativeArray())
-  K<zeta> := CyclotomicField(N);
+function act(elt,g,N,basislist,zeta : k := 2, dict := AssociativeArray())
+// K := Parent(zeta);
+  K := BaseRing(elt);
   newvec := [ K!0 : i in [1..#basislist]];
   det := lift(Determinant(g),N);
   eps := (k eq 2) select 1 else 0;
@@ -289,8 +292,12 @@ function act(elt,g,N,basislist : k := 2, dict := AssociativeArray())
     imag[2] := imag[2] mod N;
     ind := Index(basislist,imag);
     // Act on elt by zeta^i -> zeta^(i*det)
-    coeffs := Eltseq(elt[i]);
-    scalar := coeff* &+[ coeffs[i]*zeta^((i-1)*det) : i in [1..#coeffs]];
+    // This is when we change to an algebra
+    // coeffs := Eltseq(elt[i]);
+    coeffss := [Eltseq(elt[i][j]) : j in [1..Degree(elt[i])]];
+    t := [&+[ coeffs[i]*zeta^((i-1)*det) : i in [1..#coeffs]]
+	      : coeffs in coeffss];
+    scalar := coeff* Parent(elt[i])!t;
 
     if (ind eq 0) then
       if k eq 1 then    
@@ -310,190 +317,17 @@ function act(elt,g,N,basislist : k := 2, dict := AssociativeArray())
       newvec[i] := newvec[i] - c;
     end for;
   end if;
-  newvec2 := [ newvec[i] : i in [1..#basislist-eps]];
-  return VectorSpace(K,#basislist-eps)!newvec2;
+// newvec2 := [ newvec[i] : i in [1..#basislist-eps]];
+  newvec2 := RSpace(K,#basislist-eps)!0;
+  for i in [1..#basislist-eps] do
+     newvec2[i] := newvec[i];
+  end for;
+  return newvec2;
 end function;
 
-/* old code
-function EisensteinRouse(G)
-  // Step 3 - Compute Eisenstein series
-
-  // First do the forms that transform nicely under SL_2.
-  // Note that there are 3*N^2/8 cusps on Gamma(N) if N is a power of 2, and so the space of Eisenstein
-  // series (which should be spanned by the xcoords) has dimension 3*N^2/8 - 1. The relation between these
-  // is that the sum of all of them is zero (since the sum of all of them is a holomorphic modular form of
-  // weight 2 on Gamma(N)).
-
-  N := Level(G);
-  basislist := [];
-  for a in [0..Floor(N/2)] do
-    for b in [0..N-1] do
-      if GCD([a,b,N]) eq 1 then
-        addtolist := true;
-        if (a eq 0) and (b gt N/2) then
-          addtolist := false;
-        end if;
-        if (a eq N/2) and (b gt N/2) then
-          addtolist := false;
-        end if;
-        if addtolist eq true then
-	  vprintf ModularForms,3 :
-	    "Adding %o to the basis list.\n",<a,b>;
-          Append(~basislist,<a,b>);
-        end if;
-      end if;
-    end for;
-  end for;
-  lastbasis := basislist[#basislist];
-  dimen := #basislist - 1;
-  vprintf ModularForms, 3:
-    "The space of Eisenstein series has dimension %o.\n",dimen;
-
-  // Represent an element of M_2(Gamma) that is a linear combination of the p_tau as a list
-  // of coefficients in Q(zeta) corresponding to the basis vectors.
-
-  vprintf ModularForms, 2:
-    "Computing action of generators of subsub intersect SL_2 on Eisenstein series for Gamma(%o).\n",N;
-
-  subsub := ImageInLevelGL(G);
-
-  matlist := [];
-  sl2sub := subsub meet ModLevel(G);
-  K<zeta> := CyclotomicField(N);
-  for g in Generators(sl2sub) do
-    // Compute a matrix representing g on the space.
-    M := ZeroMatrix(Rationals(),dimen,dimen);
-    for i in [1..dimen] do
-      // We could call act here, but it is wasteful since we only need the
-      // image of a single basis element
-      rowmat := ZeroMatrix(K,1,#basislist);
-      a := basislist[i][1];
-      b := basislist[i][2];
-      imag := <lift(g[1][1]*a+g[2][1]*b,N),lift(g[1][2]*a+g[2][2]*b,N)>;
-      if (imag[1] gt N/2) then
-        imag[1] := N-imag[1];
-        imag[2] := N-imag[2];
-      end if;
-      if ((imag[1] eq 0) or (imag[1] eq N/2)) and (imag[2] gt N/2) then
-        imag[1] := N-imag[1];
-        imag[2] := N-imag[2];
-      end if;
-      imag[1] := imag[1] mod N;
-      imag[2] := imag[2] mod N;
-      indind := Index(basislist,imag);
-      if (indind eq 0) then
-	error Sprintf("Error! The vector %o is not in our basis list!.\n",imag);
-      end if;
-      rowmat[1][indind] := 1;
-      if rowmat[1][#basislist] ne 0 then
-        c := rowmat[1][#basislist];
-        for j in [1..#basislist] do
-          rowmat[1][j] := rowmat[1][j] - c;
-        end for;
-      end if;
-      for j in [1..dimen] do
-        M[j][i] := rowmat[1][j];
-      end for;
-    end for;
-    Append(~matlist,M);
-  end for;
-
-  I := IdentityMatrix(Rationals(),dimen);
-  if #matlist eq 0 then
-    Append(~matlist,I);
-  end if;
-  vprintf ModularForms, 2:
-    "Finding vectors invariant under %o intersect SL_2.\n", subsub;
-  Ker := Kernel(Transpose(matlist[1]-I));
-  for m in [2..#matlist] do
-    Ker := Ker meet Kernel(Transpose(matlist[m]-I));
-  end for;
-  kerbasis := Basis(Ker);
-  vprintf ModularForms, 2:
-    "The dimension of the space of Eisenstein series for subsub intersect SL_2 is %o.\n",#kerbasis;
-  if (#kerbasis ne (#Cusps(G) - 1)) then
-    error Sprintf("Error! We didn't get enough Eisenstein series!.\n");
-  end if;
-
-  // Now we look at the Q-span of the forms with coefficients in Q(zeta_N)
-  // that are linear combinations of the elements in K.
-
-  phiN := EulerPhi(N);
-  vprintf ModularForms, 2:
-    "Computing the action of the generators of subsub on the Q-vector space of dimension %o.\n",phiN*#kerbasis;
-  matlist := [];
-  genlist := SetToSequence(Generators(subsub));
-  for g in genlist do
-    M := ZeroMatrix(Rationals(),phiN*#kerbasis,phiN*#kerbasis);
-    for k in [1..#kerbasis] do
-      // Compute image of zeta^i*(kth basis vector) under the action of g
-      basisvec := act(kerbasis[k],g,N,basislist);
-      vprintf ModularForms, 3:
-        "Basis vector is %o.\n",[ basisvec[j] : j in [1..dimen]];
-      vprintf ModularForms, 3:
-        "Attempting to coerce into K.\n";
-      kelt := Ker![ basisvec[j] : j in [1..dimen]];
-      coords := Coordinates(Ker,kelt);
-
-      det := Integers()!Determinant(g);
-      for i in [0..phiN-1] do
-        // Write the image of zeta^i*(kth basis vector) to column
-        // (i+1) + phiN*k
-        fac := Eltseq(zeta^(i*det));
-        for j in [0..phiN-1] do
-          for m in [1..#kerbasis] do
-            entry := coords[m]*fac[j+1];
-            M[(m-1)*phiN+(j+1)][i+1 + phiN*(k-1)] := entry;
-          end for;
-        end for;
-      end for;
-    end for;
-    Append(~matlist,M);
-  end for;
-
-  I := IdentityMatrix(Rationals(),phiN*#kerbasis);
-  if #matlist eq 0 then
-    Append(~matlist,I);
-  end if;
-  vprintf ModularForms, 2:
-    "Finding vectors invariant under %o.\n", subsub;
-  Ker2 := Kernel(Transpose(matlist[1]-I));
-  for m in [2..#matlist] do
-    Ker2 := Ker2 meet Kernel(Transpose(matlist[m]-I));
-  end for;
-  ker2basis := Basis(Ker2);
-  vprintf ModularForms, 2: "The dimension is %o.\n",#ker2basis;
-
-  // Translate back to the original form
-
-  finalbasismat := ZeroMatrix(K,#ker2basis,dimen);
-  Vsp := VectorSpace(K,dimen);
-  for n in [1..#ker2basis] do
-    vec := Vsp!0;
-    for m in [1..phiN*#kerbasis] do
-      formnum := Floor((m-1)/phiN) + 1;
-      rootnum := m - phiN*(formnum-1) - 1;
-      vec := vec + ker2basis[n][m]*zeta^rootnum*(Vsp!kerbasis[formnum]);
-    end for;
-    finalbasismat[n] := vec;
-  end for;
-
-  return basislist, finalbasismat;
-end function;
-*/
-
-// Generalizing the above to arbitrary k
-function EisensteinRouse(G, k)
-  // Compute Eisenstein series
-  N := Level(G);
-  K<zeta> := CyclotomicField(N);
-  // If k is odd and -1 in Gamma, there can be no modular forms
-  if IsOdd(k) and (-ImageInLevel(G)!1 in ImageInLevel(G)) then
-     return [], ZeroMatrix(K,0,0);
-  end if;
-  // First do the forms that transform nicely under SL_2.
-  // We collect representatives for the cusps of Gamma(N)
-  
+// This function generates a basis for the
+// space of eisenstein series for Gamma(N)
+function GenerateEisensteinBasisList(N)
   basislist := [];
   for a in [0..Floor(N/2)] do
     for b in [0..N-1] do
@@ -510,22 +344,22 @@ function EisensteinRouse(G, k)
       end if;
     end for;
   end for;
-  lastbasis := basislist[#basislist];
-  if k eq 2 then
-    dimen := #basislist - 1;
-  else
-    dimen := #basislist;
-  end if;
-  level1_dict := AssociativeArray();
-  if k eq 1 then
-    // Here we have to figure out the linear relations
-    // among the original weierstrass expansions for Gamma(N)
-    // Expeceted number of equations needed is #basislist + 2
-    // This gives us a large enough confidence
+  return basislist;
+end function;
+
+// This function reduces the basis when k = 1
+// Since the dimension is then 1/2
+function ReduceBasisListWeight1(basislist, N)
+  // Here we have to figure out the linear relations
+  // among the original weierstrass expansions for Gamma(N)
+  // Expeceted number of equations needed is #basislist + 2
+  // This gives us a large enough confidence
+    level1_dict := AssociativeArray();
     prec := #basislist + 10;
     qexps := [weier(v[1],v[2],N,prec,1) : v in basislist];
     mat := Matrix([AbsEltseq(qexp)[1..prec] : qexp in qexps]);
     ker := Kernel(mat);
+    // Sanity check - if it fails we can add more equations
     assert Dimension(ker) eq #basislist div 2;
     dimen := Dimension(ker);
     pivots := [PivotColumn(BasisMatrix(ker),i) : i in [1..dimen]];
@@ -533,30 +367,20 @@ function EisensteinRouse(G, k)
     for i in [1..dimen] do
       level1_dict[basislist[pivots[i]]] :=
 	    -Vector([BasisMatrix(ker)[i,j] : j in free]);
+      // Sanity check
       assert &and[BasisMatrix(ker)[i,j] eq 0 : j in pivots | j ne pivots[i]];
     end for;
     basislist := [basislist[i] : i in free];
-  end if;
+    return basislist, dimen, level1_dict;
+end function;
 
-  vprintf ModularForms, 3:
-    "The space of Eisenstein series of weight %o has dimension %o.\n",k,dimen;
-
-  // Represent an element of M_k(Gamma) that is a linear combination of the
-  // p_tau as a list
-  // of coefficients in Q(zeta) corresponding to the basis vectors.
-
-  vprintf ModularForms, 2:
-    "Computing action of generators of image of G in SL_2 on Eisenstein series for Gamma(%o).\n",N;
-
-  subsub := ImageInLevelGL(G);
-  sl2sub := ImageInLevel(G);
-
-  matlist := [];
-  for g in Generators(sl2sub) do
-    // Compute a matrix representing g on the space.
-    // M := ZeroMatrix(Rationals(),dimen,dimen);
-    M := ZeroMatrix(K,dimen,dimen);
-    for i in [1..dimen] do
+// This function computes the action of a matrix g
+// in terms of our basis elements, over the field K
+// This uses the fact that E_{v} | g = E_{vg}
+function RepresentationOnEisensteinBasis(g, basislist, dimen, K, N,
+					 level1_dict, k)
+   M := ZeroMatrix(K,dimen,dimen);
+   for i in [1..dimen] do
       rowmat := ZeroMatrix(K,1,#basislist);
       a := basislist[i][1];
       b := basislist[i][2];
@@ -579,7 +403,7 @@ function EisensteinRouse(G, k)
 
       if (indind eq 0) then
 	if k eq 1 then
-	  rowmat[1] := level1_dict[imag];
+	  rowmat[1] := coeff*Vector([K!x : x in Eltseq(level1_dict[imag])]);
         else
 	   error Sprintf("Error! The vector %o is not in our basis list!.\n"
 			 ,imag);
@@ -597,22 +421,223 @@ function EisensteinRouse(G, k)
         M[j][i] := rowmat[1][j];
       end for;
     end for;
+    return M;
+end function;
+
+function FindSubfieldCycRel(d,n)
+  X_d := DirichletGroupFull(d);
+  X_n := DirichletGroupFull(n);
+  U_d, umap_d := AbelianGroup(X_d);
+  U_n, umap_n := AbelianGroup(X_n);
+  gens := Generators(U_d);
+  gens_U_n := [(umap_n^(-1))(X_n!umap_d(g)) : g in gens];
+  // _, psi := IsIsomorphic(U_n, X_n`UGroup);
+  //  im_gens := [X_n`UnitsMap(psi(g)) : g in gens_U_n];
+  Qn := CyclotomicField(n);
+  gal, _, psi := AutomorphismGroup(Qn);
+  psi1 := Components(psi)[1]^(-1);
+  _, phi := IsIsomorphic(U_n, Domain(psi1));
+  subgal := sub<gal | [psi1(phi(g)) : g in gens_U_n]>;
+  return FixedField(Qn, subgal); 
+end function;
+
+// This function computes the action of a matrix g
+// in terms of our basis elements, over the field K
+// This uses the fact that E_{v} | g = E_{vg}
+function RepresentationOnEisensteinBasisQ(g, V, basis, basislist, dimen, N,
+					  level1_dict, k, L, zeta)
+  phiN := EulerPhi(N);
+// K := Parent(zeta);
+/*
+  KL := ext< L | CyclotomicPolynomial(N)>;
+  h := hom<KL -> K | zeta>;
+  // We actually want the inverse isomorphism, so we trick Magma into it.
+  cond := Conductor(K);
+  _<x> := PolynomialRing(KL);
+  roots := Roots(x^(cond div N) - KL.1, KL);
+  assert exists(zz){r[1] : r in roots | h(r[1]) eq K.1};
+  h_inv := hom<K -> KL | zz>;
+  basis := [Vector([h_inv(x) : x in Eltseq(b)]) : b in Basis(V)];
+*/
+//  KL, emb := ChangeRing(L,K);
+//  basis := [Vector([emb(x) : x in Eltseq(b)]) : b in Basis(V)];
+  M := ZeroMatrix(L,phiN*#basis,phiN*#basis);
+  for idx in [1..#basis] do
+      // Compute image of zeta^i*(idx-th basis vector) under the action of g
+      basisvec := act(basis[idx],g,N,basislist,zeta :
+		      k:=k, dict := level1_dict);
+      vprintf ModularForms, 3:
+        "Basis vector is %o.\n",[ basisvec[j] : j in [1..dimen]];
+      vprintf ModularForms, 3:
+        "Attempting to coerce into K.\n";
+      // Doesn't work over an algebra
+      // kelt := V![ basisvec[j] : j in [1..dimen]];
+      kelt := RSpace(BaseRing(V), Degree(V))!0;
+      for j in [1..dimen] do
+	kelt[j] := basisvec[j];
+      end for;
+      assert kelt in V;
+      coords := Coordinates(V,kelt);
+
+      det := Integers()!Determinant(g);
+      for i in [0..phiN-1] do
+        // Write the image of zeta^i*(idx-th basis vector) to column
+        // (i+1) + phiN*k
+	for m in [1..#basis] do
+	  t := coords[m]*(zeta^(i*det));	
+          entry := [Eltseq(t[j]) : j in [1..Degree(t)]];
+          for j in [0..phiN-1] do
+	    val := L![e[j+1] : e in entry];
+	    M[(m-1)*phiN+(j+1)][i+1 + phiN*(idx-1)] := val;
+          end for;
+        end for;
+      end for;
+  end for;
+  return M;
+end function;
+
+// This function returns the space of fixed vectors
+// under the action of subgrp
+// If it takes too long we can change that to summing over representatives
+function GetFixedVectors(subgrp, basislist, dimen,
+			 K, N, level1_dict, k, eps, alg_map)
+  matlist := [];
+  eps_vals := [];
+  for g in Generators(subgrp) do
+    M := RepresentationOnEisensteinBasis(g, basislist, dimen,
+					 K, N, level1_dict, k);
+    Append(~matlist,M);
+    Append(~eps_vals, eps(g));
+  end for;
+
+  I := IdentityMatrix(K,dimen);
+  if #matlist eq 0 then
+    Append(~matlist,I);
+    Append(~eps_vals, 1);
+  end if;
+  vprintf ModularForms, 2:
+    "Finding vectors invariant under %o.\n", subgrp;
+  if dimen ne 0 then
+    diags := [DiagonalMatrix([alg_map(eps_val) : i in [1..dimen]])
+	       : eps_val in eps_vals];
+  else
+    diags := [I : eps_val in eps_vals];
+  end if;
+  // !!! TODO: Here the Kernel computation sometimes failed,
+  // When (N, phi(N)) > 1, and we have fields which are not linearly disjoint.
+  // (Though this was the reason for introducing this algebra in the first place)
+  // One can force it to work by using the beautiful fact that
+  // Q(zeta_m) \otimes Q(\zeta_n) \isom Q(\zeta_[m,n])^(\phi((m,n)))
+  // where [m,n] is LCM and (m,n) is GCD.
+  // Here the RHS is a product of fields.
+  // If we will write down the isomorphism explicitly,
+  // we will be able to separate the solving process coordinate-wise.
+ // Ker := Kernel(Transpose(matlist[1]-eps_vals[1]*I));
+  Ker := Kernel(Transpose(matlist[1]-diags[1]));
+  for m in [2..#matlist] do
+	  // Ker := Ker meet Kernel(Transpose(matlist[m]-eps_vals[m]*I));
+    Ker := Ker meet Kernel(Transpose(matlist[m]-diags[m]));
+  end for;
+  return Ker;
+end function;
+/*
+function GetFixedVectors(subgrp, basislist, dimen, K, N, level1_dict, k)
+  matlist := [];
+  for g in Generators(subgrp) do
+    M := RepresentationOnEisensteinBasis(g, basislist, dimen,
+					 K, N, level1_dict, k);
     Append(~matlist,M);
   end for;
 
-  I := IdentityMatrix(Rationals(),dimen);
+  I := IdentityMatrix(K,dimen);
   if #matlist eq 0 then
     Append(~matlist,I);
   end if;
   vprintf ModularForms, 2:
-    "Finding vectors invariant under %o.\n", sl2sub /*subsub */;
+    "Finding vectors invariant under %o.\n", subgrp;
   Ker := Kernel(Transpose(matlist[1]-I));
   for m in [2..#matlist] do
     Ker := Ker meet Kernel(Transpose(matlist[m]-I));
   end for;
   kerbasis := Basis(Ker);
+  return Ker;
+end function;
+*/
+
+// This function returns the space of fixed vectors over the rational field
+// under the action of subgrp
+function GetFixedVectorsQ(subgrp, V, basis, basislist, dimen,
+			  L, zeta, N, level1_dict, k, eps, alg_map)
+// L := BaseRing(eps);
+  dim := Dimension(V);
+  phiN := EulerPhi(N);
   vprintf ModularForms, 2:
-    "The dimension of the space of Eisenstein series for G intersect SL2 is %o.\n",#kerbasis;
+    "Computing the action of the generators of G on the Q-vector space of dimension %o.\n",phiN*dim;
+  matlist := [];
+  eps_vals := [];
+  genlist := SetToSequence(Generators(subgrp));
+// K := BaseRing(V);
+// L := FindSubfieldCycRel(N,Conductor(K));
+  for g in genlist do
+    M := RepresentationOnEisensteinBasisQ(g, V, basis, basislist, dimen, N,
+					  level1_dict, k, L, zeta);
+    Append(~matlist,M);
+    Append(~eps_vals, eps(g));
+  end for;
+
+  I := IdentityMatrix(L,phiN*dim);
+  if #matlist eq 0 then
+    Append(~matlist,I);
+    Append(~eps_vals,1);
+  end if;
+  vprintf ModularForms, 2:
+    "Finding vectors invariant under %o.\n", subgrp;
+  if phiN*dim ne 0 then
+   diags := [DiagonalMatrix([alg_map(eps_val) : i in [1..phiN*dim]])
+	       : eps_val in eps_vals];
+  else
+    diags := [I : eps_val in eps_vals];
+  end if;
+// Ker2 := Kernel(Transpose(matlist[1]-eps_vals[1]*I));
+  Ker2 := Kernel(Transpose(matlist[1]-diags[1]));
+  for m in [2..#matlist] do
+	  // Ker2 := Ker2 meet Kernel(Transpose(matlist[m]-eps_vals[m]*I));
+    Ker2 := Ker2 meet Kernel(Transpose(matlist[m]-diags[m]));
+  end for;
+  return Ker2;
+end function;
+/*
+function GetFixedVectorsQ(subgrp, V, basislist, dimen, N, level1_dict, k)
+  dim := Dimension(V);
+  phiN := EulerPhi(N);
+  vprintf ModularForms, 2:
+    "Computing the action of the generators of G on the Q-vector space of dimension %o.\n",phiN*dim;
+  matlist := [];
+  genlist := SetToSequence(Generators(subgrp));
+  for g in genlist do
+    M := RepresentationOnEisensteinBasisQ(g, V, basislist, dimen, N,
+					  level1_dict, k);
+    Append(~matlist,M);
+  end for;
+
+  I := IdentityMatrix(Rationals(),phiN*dim);
+  if #matlist eq 0 then
+    Append(~matlist,I);
+  end if;
+  vprintf ModularForms, 2:
+    "Finding vectors invariant under %o.\n", subgrp;
+  Ker2 := Kernel(Transpose(matlist[1]-I));
+  for m in [2..#matlist] do
+    Ker2 := Ker2 meet Kernel(Transpose(matlist[m]-I));
+  end for;
+  return Ker2;
+end function;
+*/
+procedure VerifyDimension(G,k,eps,dim)
+  // !!! TODO : temporary, to check everything works
+  if not IsTrivial(eps) then return; end if;
+   vprintf ModularForms, 2:
+    "The dimension of the space of Eisenstein series for G intersect SL2 is %o.\n",dim;
   num_cusps := IsOdd(k) select #RegularCusps(G) else #Cusps(G);
   if k eq 1 then
     target_dim := num_cusps div 2;
@@ -622,63 +647,20 @@ function EisensteinRouse(G, k)
     target_dim := num_cusps;
   end if;
   // The trouble is that sometimes we get too many - how could that happen?
-  if (#kerbasis ne target_dim) then
+  if (dim ne target_dim) then
     error Sprintf("Error! We didn't get enough Eisenstein series!.\n");
   end if;
+end procedure;
 
-  // Now we look at the Q-span of the forms with coefficients in Q(zeta_N)
-  // that are linear combinations of the elements in K.
+function QVectorsToOriginal(kerbasis, ker2basis, dimen, N, L, alg_map)
+  QN<zeta> := CyclotomicField(N);
+// cond := Norm(Conductor(AbelianExtension(AbsoluteField(L))));
+  cond := Conductor(L);
+  K := CyclotomicField(LCM(cond,N));
 
+  Lalg := BaseRing(Universe(ker2basis));
+  L_basis := [(alg_map^(-1))(Lalg.j) : j in [1..Degree(L)]];
   phiN := EulerPhi(N);
-  vprintf ModularForms, 2:
-    "Computing the action of the generators of G on the Q-vector space of dimension %o.\n",phiN*#kerbasis;
-  matlist := [];
-  genlist := SetToSequence(Generators(subsub));
-  for g in genlist do
-    M := ZeroMatrix(Rationals(),phiN*#kerbasis,phiN*#kerbasis);
-    for ker_idx in [1..#kerbasis] do
-      // Compute image of zeta^i*(ker_idx-th basis vector) under the action of g
-      basisvec := act(kerbasis[ker_idx],g,N,basislist :
-		      k:=k, dict := level1_dict);
-      vprintf ModularForms, 3:
-        "Basis vector is %o.\n",[ basisvec[j] : j in [1..dimen]];
-      vprintf ModularForms, 3:
-        "Attempting to coerce into K.\n";
-      kelt := Ker![ basisvec[j] : j in [1..dimen]];
-      coords := Coordinates(Ker,kelt);
-
-      det := Integers()!Determinant(g);
-      for i in [0..phiN-1] do
-        // Write the image of zeta^i*(ker_idx-th basis vector) to column
-        // (i+1) + phiN*k
-        // fac := Eltseq(zeta^(i*det));
-	for m in [1..#kerbasis] do
-	  entry := Eltseq(coords[m]*(zeta^(i*det)));
-          for j in [0..phiN-1] do
-		  // entry := coords[m]*fac[j+1];
-            M[(m-1)*phiN+(j+1)][i+1 + phiN*(ker_idx-1)] := entry[j+1];
-          end for;
-        end for;
-      end for;
-    end for;
-    Append(~matlist,M);
-  end for;
-
-  I := IdentityMatrix(Rationals(),phiN*#kerbasis);
-  if #matlist eq 0 then
-    Append(~matlist,I);
-  end if;
-  vprintf ModularForms, 2:
-    "Finding vectors invariant under %o.\n", subsub;
-  Ker2 := Kernel(Transpose(matlist[1]-I));
-  for m in [2..#matlist] do
-    Ker2 := Ker2 meet Kernel(Transpose(matlist[m]-I));
-  end for;
-  ker2basis := Basis(Ker2);
-  vprintf ModularForms, 2: "The dimension is %o.\n",#ker2basis;
-
-  // Translate back to the original form
-
   finalbasismat := ZeroMatrix(K,#ker2basis,dimen);
   Vsp := VectorSpace(K,dimen);
   for n in [1..#ker2basis] do
@@ -686,12 +668,87 @@ function EisensteinRouse(G, k)
     for m in [1..phiN*#kerbasis] do
       formnum := Floor((m-1)/phiN) + 1;
       rootnum := m - phiN*(formnum-1) - 1;
-      vec := vec + ker2basis[n][m]*zeta^rootnum*(Vsp!kerbasis[formnum]);
+      ker2_c := &+[ker2basis[n][m][j]*L_basis[j] : j in [1..Degree(L)]];
+      ker_c := [&+[kerbasis[formnum][m][j]*L_basis[j] : j in [1..Degree(L)]]
+	     : m in [1..Degree(kerbasis[formnum])] ];
+      vec := vec + ker2_c*zeta^rootnum*(Vsp!ker_c);
     end for;
     finalbasismat[n] := vec;
   end for;
+ 
+  return finalbasismat;
+end function;
 
-  return basislist, finalbasismat;
+// Generalizing what Jeremy Rouse did to arbitrary k
+function EisensteinRouse(M, eps)
+  // Compute Eisenstein series
+  G := Parent(eps)`GammaPrime;
+  N := Level(G);
+  k := Weight(M);
+
+  L := BaseRing(eps);
+// K := ext<L | CyclotomicPolynomial(N)>;
+// cond := LCM(Conductor(L),N);
+//  K<zeta_cond> := CyclotomicField(cond);
+//  zeta := zeta_cond^(cond div N);
+  K<zeta> := CyclotomicField(N);
+  Lalg, alg_map := Algebra(L, Rationals());
+  KL, emb := ChangeRing(Lalg, K);
+
+  level1_dict := AssociativeArray();
+  sl2sub := ImageInLevel(G);
+  minus_one := -sl2sub!1;
+  // If and -1 in Gamma and eps(-1) ne (-1)^k, there can be no modular forms
+  if (minus_one in sl2sub) and (eps(minus_one) ne (-1)^k) then
+     return [], level1_dict, ZeroMatrix(KL,0,0);
+  end if;
+  // First do the forms that transform nicely under SL_2.
+  // We collect representatives for the cusps of Gamma(N)
+  
+  basislist :=  GenerateEisensteinBasisList(N);
+
+  if k eq 2 then
+    dimen := #basislist - 1;
+  else
+    dimen := #basislist;
+  end if;
+  
+  if k eq 1 then
+     basislist, dimen, level1_dict := ReduceBasisListWeight1(basislist, N);
+  end if;
+
+  vprintf ModularForms, 3:
+    "The space of Eisenstein series of weight %o has dimension %o.\n",k,dimen;
+
+  // Represent an element of M_k(Gamma) that is a linear combination of the
+  // p_tau as a list
+  // of coefficients in Q(zeta) corresponding to the basis vectors.
+
+  vprintf ModularForms, 2:
+    "Computing action of generators of image of G in SL_2 on Eisenstein series for Gamma(%o).\n",N;
+
+  Ker := GetFixedVectors(sl2sub, basislist, dimen, KL,
+			 N, level1_dict, k, eps, alg_map*emb);
+  
+  VerifyDimension(G,k,eps,Dimension(Ker));
+
+  // Now we look at the Q-span of the forms with coefficients in Q(zeta_N)
+  // that are linear combinations of the elements in K.
+  subsub := ImageInLevelGL(G);
+  // ChangeRing doesn't work here
+  // kerbasis := [Vector([emb(x) : x in Eltseq(b)]) : b in Basis(Ker)];
+  kerbasis := Basis(Ker);
+  Ker2 := GetFixedVectorsQ(subsub, Ker, kerbasis, basislist, dimen,
+			   Lalg, zeta, N, level1_dict, k, eps, alg_map);
+  ker2basis := Basis(Ker2);
+  vprintf ModularForms, 2: "The dimension is %o.\n",#ker2basis;
+
+  // Translate back to the original form
+
+  finalbasismat := QVectorsToOriginal(Basis(Ker), ker2basis, dimen,
+				      N, L, alg_map);
+
+  return basislist, level1_dict, finalbasismat;
 end function;
 
 function ComputeAllEisensteinSeries(M : all:=false)
@@ -701,20 +758,17 @@ function ComputeAllEisensteinSeries(M : all:=false)
    N   := Level(M);
    k   := Weight(M);
    if not IsOfGammaType(M) then
-       /*
-     error "This function is not implemented for levels other than 
-            Gamma0 or Gamma1";
-      
-       if not &and[IsTrivial(eps) : eps in DirichletCharacters(M)] then
-	   error "Not implemented for nontrivial characters";
-       end if;
-*/
-       // if k = 2, right now we only take care of trivial character case
-	  /* if (k eq 2) then */
-         G := LevelSubgroup(M);
-         basislist, vecs := EisensteinRouse(G, k);
-         ans := [* MakeEisensteinSeriesNotGamma(M, basislist, [], vec)
-		    : vec in Rows(vecs) *];
+	  //  right now we only take care of trivial character case
+	  // G := LevelSubgroup(M);
+         for eps in DirichletCharacters(M) do
+	    basislist, rel_dict, vecs := EisensteinRouse(M, eps);
+            ans cat:= [* MakeEisensteinSeriesNotGamma(M, basislist,
+						       rel_dict, vec)
+			   : vec in Rows(vecs) *];
+         end for;
+
+// The part below deals also with characters by averaging
+// See how to fit them together
 /*
        else
          G := Parent(DirichletCharacters(M)[1])`GammaPrime;
@@ -800,70 +854,6 @@ function ComputeAllEisensteinSeries(M : all:=false)
 */
        dim := #ans;
 
-       // So far, we only have the H meet SL2-invariant space of
-       // Eisenstein forms.
-       // Would like to get the ones that are also invariant for the GL2-action
-
-      // Now we look at the Q-span of the forms with coefficients in Q(zeta_N)
-      // that are linear combinations of the elements in K.
-/*
-       phiN := EulerPhi(N);
-       printf "Computing the action of the generators on the Q-vector space of dimension %o.\n",phiN*dim;
-       matlist := [];
-       genlist := SetToSequence(Generators(ImageInLevelGL(G)));
-       for g in genlist do
-         M := ZeroMatrix(Rationals(),phiN*dim,phiN*dim);
-         for k in [1..dim] do
-           // Compute image of zeta^i*(kth basis vector) under the action of g
-           basisvec := act(kerbasis[k],g,N,basislist);
-    //printf "Basis vector is %o.\n",[ basisvec[j] : j in [1..dimen]];
-    //printf "Attempting to coerce into K.\n";
-    kelt := Ker![ basisvec[j] : j in [1..dimen]];
-    coords := Coordinates(Ker,kelt);
-
-    det := Integers()!Determinant(g);
-    for i in [0..phiN-1] do
-      // Write the image of zeta^i*(kth basis vector) to column
-      // (i+1) + phiN*k
-      fac := Eltseq(zeta^(i*det));
-      for j in [0..phiN-1] do
-        for m in [1..#kerbasis] do
-          entry := coords[m]*fac[j+1];
-          M[(m-1)*phiN+(j+1)][i+1 + phiN*(k-1)] := entry;
-        end for;
-      end for;
-    end for;
-  end for;
-  Append(~matlist,M);
-end for;
-
-I := IdentityMatrix(Rationals(),phiN*#kerbasis);
-if #matlist eq 0 then
-  Append(~matlist,I);
-end if;
-printf "Finding vectors invariant under subsub.\n",subnum;
-Ker2 := Kernel(Transpose(matlist[1]-I));
-for m in [2..#matlist] do
-  Ker2 := Ker2 meet Kernel(Transpose(matlist[m]-I));
-end for;
-ker2basis := Basis(Ker2);
-printf "The dimension is %o.\n",#ker2basis;
-
-// Translate back to the original form
-
-finalbasismat := ZeroMatrix(K,#ker2basis,dimen);
-Vsp := VectorSpace(K,dimen);
-for n in [1..#ker2basis] do
-  vec := Vsp!0;
-  for m in [1..phiN*#kerbasis] do
-    formnum := Floor((m-1)/phiN) + 1;
-    rootnum := m - phiN*(formnum-1) - 1;
-    vec := vec + ker2basis[n][m]*zeta^rootnum*(Vsp!kerbasis[formnum]);
-  end for;
-  finalbasismat[n] := vec;
-end for;
-
-*/
        if all then 
 	   return ans, _;
        else

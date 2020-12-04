@@ -32,6 +32,7 @@ freeze;
       
  ***************************************************************************/
 
+import "eisenstein.m" : ActionOnEisensteinSeries;
 import "predicates.m" : Element;
 
 function CreateModularFormFromOperation(op,g,h)
@@ -201,6 +202,13 @@ intrinsic '*'(f::ModFrmElt, T::AlgMatElt) -> ModFrmElt
       end if;
    end if;
    return Parent(f)!(Element(f)*T);
+end intrinsic;
+
+intrinsic '*'(f::ModFrmElt, gamma::GrpPSL2Elt) -> ModFrmElt
+{Image of modular form f under the matrix gamma}
+   require IsEisenstein(Parent(f)) :
+    "Form must be eisenstein. Right now we don't know how to transform cusp forms";
+   return ActionOnEisensteinSeries(gamma, f);
 end intrinsic;
 
 
