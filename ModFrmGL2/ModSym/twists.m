@@ -1,17 +1,17 @@
 // Following correspondence with Joshua Box, this is implementation of twists
 // in order to get q-expansions.
 
-import "ModSym/arith.m" : SmallestPrimeNondivisor;
-import "ModFrm/q-expansions.m" : PowerSeriesNormalizeMagma;
-import "ModSym/linalg.m" : Restrict;
-import "ModSym/operators.m" : ActionOnModularSymbolsBasis;
-import "ModSym/qexpansion.m" : EigenvectorModSymSign,
+import "arith.m" : SmallestPrimeNondivisor;
+import "../ModFrm/q-expansions.m" : PowerSeriesNormalizeMagma;
+import "linalg.m" : Restrict;
+import "operators.m" : ActionOnModularSymbolsBasis;
+import "qexpansion.m" : EigenvectorModSymSign,
                                EigenvectorOfMatrixWithCharpoly,
                                QuickIrredTest;
-import "ModSym/modsym.m" : GetDegeneracyReps,
+import "modsym.m" : GetDegeneracyReps,
                            GetGLModel,
                            GetRealConjugate;
-import "ModSym/core.m" : ConvFromModularSymbol;
+import "core.m" : ConvFromModularSymbol;
 
 function TwistBasis_old(N, prec)
     X := DirichletGroupFull(N);
@@ -1170,3 +1170,14 @@ function sameF(F1, F2)
     F3 := [[R!v : v in f] : f in F1];
     return &and [F2[i] eq F3[i] : i in [1..#F2]];
 end function;
+
+intrinsic ModularCurve(G::GrpPSL2) -> Crv, SeqEnum[Pt], SeqEnum[RngSerPowElt]
+{Returns the modular curve X_G, its cusps and the canonical coordinate map.}
+  genus := Genus(G);
+  max_deg := Maximum(7-genus, 2);
+  bound := HeckeBound(ModularSymbols(G));
+  prec := Level(G)*bound;
+  X, X_cusps, fs := CremonaMethod(ImageInLevel(G), prec, max_deg);
+  _<[x]> := CoordinateRing(X);
+  return X, X_cusps, fs;
+end intrinsic;

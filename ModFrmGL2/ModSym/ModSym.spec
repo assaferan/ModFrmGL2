@@ -29,5 +29,6 @@
     representation.m
     subspace.m
     twist.m
+    twists.m
     verbose.m
 }
