@@ -182,8 +182,8 @@ intrinsic VectorSpace(M::ModSym) -> ModTupFld, Map, Map
      p := NextPrime(p);
      continue;
  end if;
-            V_sum, _, pi := DirectSum([V : i in [1..NumComponents(M)]]);
-            Tp := Restrict(HeckeOperator(AmbientSpace(M),p), V_sum);
+
+            Tp := Restrict(HeckeOperator(AmbientSpace(M),p),V);
             Tquo := DualHeckeOperator(M,p);
             cp := CharacteristicPolynomial(Tquo);
             R<x> := Parent(cp);
@@ -202,7 +202,7 @@ intrinsic VectorSpace(M::ModSym) -> ModTupFld, Map, Map
                fT := Evaluate(cp, Tp);
             end if;
 
-            V  := pi[1](KernelOn(fT,V_sum));
+            V  := KernelOn(fT,V);
 
 	    if p gt HeckeBound(M) and Dimension(V) gt Dimension(M) then
  if not IsEmpty(skipped_small_primes) then
@@ -323,7 +323,7 @@ that is isomorphic to M as module of the Hecke algebra}
             // which calls Complement, which in turn calls us!  All the full
             // space the ProjectionMatrix problem doesn't arise.
             Tsub := Restrict(HeckeOperator(AmbientSpace(M),p),
-		    DirectSum([VectorSpace(M) : i in [1..NumComponents(M)]]));
+				VectorSpace(M));
             cp := CharacteristicPolynomial(Tsub);
  
             vprintf ModularSymbols, 3: "charpoly = %o\n", cp;

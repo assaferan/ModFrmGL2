@@ -1,0 +1,41 @@
+// This file was intended for functions that approximate complex numbers by algebraic
+// ones. The folder NumApprox should contain a more robust version, implemented by
+// Edgar et al. 
+
+function myalgdep(a, d : D := 10^6)
+    aa_real := [Floor(Real(D*a^i)) : i in [0..d]];
+    aa_im := [Floor(Im(D*a^i)) : i in [0..d]];
+    A := IdentityMatrix(Integers(), d+1);
+    B := Transpose(Matrix(Integers(), 2, d+1, [aa_real, aa_im]));
+    A := HorizontalJoin(A, B);
+    L := LLL(A);
+    v := Eltseq(L[1]);
+    _<x> := PolynomialRing(Integers());
+    return &+[v[i+1]*x^i : i in [0..d]];
+end function;
+
+// It seems to work when taking D := 10^d, and prec := 1000 so far
+function num_approx(a,K : D := 10^6)
+    d := Degree(K);
+    // D := 10^d;
+    zeta := Roots(DefiningPolynomial(K), K)[1][1];
+    CC := ComplexField();
+    zeta_C := Roots(DefiningPolynomial(K), CC)[1][1];
+    aa_real := [Floor(Real(D*a))] cat [Floor(Real(D*zeta_C^i))
+				       : i in [0..d-1]];
+    aa_im := [Floor(Im(D*a))] cat [Floor(Im(D*zeta_C^i))
+				     : i in [0..d-1]];
+    B := Transpose(Matrix(Integers(), 2, d+1, [aa_real, aa_im]));
+    A := IdentityMatrix(Integers(), d+1);
+    A := HorizontalJoin(A, B);
+    L := LLL(A);
+    v := Eltseq(L[1])[1..d+1];
+    t := &+[v[i+2]*zeta^i : i in [0..d-1]];
+    t_C := &+[v[i+2]*zeta_C^i : i in [0..d-1]];
+    if v[1] eq 0 then
+	error Sprintf("bound %o is not large enough. Should be larger than %o!", D, a);
+    end if;
+    eps := a + t_C / v[1];
+    a_K := -t / v[1];
+    return a_K, Norm(eps);
+end function;

@@ -46,7 +46,7 @@ freeze;
 if assigned SmallestPrimeNondivisor then
    delete SmallestPrimeNondivisor;
 end if;
-import "./Geometry/ModSym/arith.m" : SmallestPrimeNondivisor;
+import "./ModSym/arith.m" : SmallestPrimeNondivisor;
 
 function my_idxG0(n)
    return 

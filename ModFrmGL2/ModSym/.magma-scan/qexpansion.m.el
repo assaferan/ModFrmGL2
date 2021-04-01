@@ -1,0 +1,3 @@
+;;; This file was generated automatically.
+
+(setq magma-completion-table (-union magma-completion-table '("find_echelon_forms_vecs" "get_eigenvector_galois_orbit" "get_eigenform_galois_orbit" "NumberFieldToPolyQuo_Factor" "AbsoluteRep" "DenominatorOf" "EigenformInTermsOfIntegralBasis" "EigenvectorModSymSign" "EigenvectorModSym" "my_eigenvector" "EigenvectorBeforeLift" "FindIrreducibleHeckeOperator" "my_ev_before_lift" "QuickIrredTest" "deg_set" "EigenvectorOfMatrixWithCharpoly" "qExpansionBasisUniversal" "qExpansionBasisNewform" "SpaceGeneratedByImages" "Compute_qExpansion" "EisensteinConstantCoefficient" )))

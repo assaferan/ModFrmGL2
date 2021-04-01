@@ -135,8 +135,6 @@ import "linalg.m" :   EchelonPolySeq,
                       Restrict,
                       SaturatePolySeq,
                       Saturate;
-import "misc.m"  :    PivotColumn;
-import "modsym.m":    GetDegeneracyReps;
 
 import "multichar.m": 
    AssociatedNewformSpace, 
@@ -840,12 +838,10 @@ function qExpansionBasisNewform(A, prec, do_saturate)
          print "Calling qEigenform ...";
          IndentPush(); time0 := Cputime();
       end if;
-      f := qEigenform(A,prec : debug:=debug);
-      old_eigforms := [f];
+      old_eigforms := [qEigenform(A,prec : debug:=debug)];
       Anew := AssociatedNewSpace(A);
       if (not IsOfGammaType(A)) and
-	 (LevelSubgroup(A) ne LevelSubgroup(Anew)) then
-	  /*
+	  (LevelSubgroup(A) ne LevelSubgroup(Anew)) then
         orig_eigvec := EigenvectorModSymSign(Anew,
 				      IsMinusQuotient(Anew) 
                                         select -1 else +1);
@@ -870,24 +866,6 @@ function qExpansionBasisNewform(A, prec, do_saturate)
         old_eigvecs := [orig_eigvec * Transpose(alpha) : alpha in alphas];
         old_eigforms := {eigenvecToEigenform(A, eig, prec) :
 		  eig in old_eigvecs};
-       */
-//	N1 := CuspWidth(LevelSubgroup(Anew), Infinity());
-//	N2 := CuspWidth(LevelSubgroup(A), Infinity());
-//	divisors := Divisors(N1 mod N2 eq 0
-//			     select N1 div N2 else N2 div N1);
-	N := LCM(Level(Anew), Level(A));
-	divisors := GetDegeneracyReps(Anew, A, Divisors(N));
-	old_eigforms := [];
-	R := Parent(f);
-	q_R := R.1;
-	for a in divisors do
-	    mat := DegeneracyMatrix(AmbientSpace(A),AmbientSpace(Anew),a);
-	    mat := ChangeRing(Transpose(mat), BaseRing(R));
-	    // Check if this is the correct exponent
-	    // f_a := Evaluate(f, q_R^(N div Integers()!a[1,1]));
-	    f_a := Evaluate(f, q_R^(Integers()!a[2,2]));
-	    Append(~old_eigforms, f_a);
-	end for;
       end if;
       if debug then 
          IndentPop();
@@ -1037,17 +1015,14 @@ end function;
  *                                                           *
  *************************************************************/
 
-function EigenvectorOfMatrixWithCharpoly(T, f : e := 1)
+function EigenvectorOfMatrixWithCharpoly(T, f)
 /* Let T be an nxn matrix over K with irreducible characteristic
  polynomial f.  This function returns an eigenvector for T
- over the extension field K[x]/(f(x)). 
- assaferan : added e to denot exponent, so that T could have as
- a characteristic polynomial a power of an irreducible - f^e
-*/
+ over the extension field K[x]/(f(x)). */
 
    // This is implemented using a quotient of a polynomial ring
    // because this works generically for any field.
-   n  := Degree(f) * e;
+   n  := Degree(f);
    K  := Parent(T[1,1]);
    if n eq 1 then
       return VectorSpace(K,n)![1];
@@ -1250,9 +1225,9 @@ function my_ev_before_lift(A, M)
   return EigenvectorOfMatrixWithCharpoly(T,f);
 end function;
 
-function FindIrreducibleHeckeOperator(A : e := 1)
+function FindIrreducibleHeckeOperator(A)
     // Find a linear combination of Hecke operators whose
-    // charpoly on A is irreducible to the e-th power.
+    // charpoly on A is irreducible. 
 
     vprintf ModularSymbols, 1: 
         "Looking for an irreducible element in the Hecke algebra of %o\n", A;
@@ -1281,13 +1256,6 @@ function FindIrreducibleHeckeOperator(A : e := 1)
             if IsIrreducible(f) then
                 break;
             end if;
-	    if (e gt 1) then
-	        FAC := Factorization(f);
-	        if #FAC eq 1 and FAC[1][2] eq e then
-		   f := FAC[1][1];
-		   break;
-		end if;
-	    end if;
         end if; 
 
 	if i eq 15 then
@@ -2043,7 +2011,6 @@ function find_echelon_forms_vecs(M)
     ChangeRing(Matrix(Basis(DualVectorSpace(S))), F);
   hol_forms := sub< ChangeRing(DualVectorSpace(M),F) | Rows(t_eigvecs_in_M) >;
   decomp := [hol_forms meet ChangeRing(DualVectorSpace(d),F) : d in D];
-  // This doesn't always work, because this is up to automorphism
   eigenvecs := Matrix(&cat[get_eigenvector_galois_orbit(
 						 my_eigenvector(d,M),
 						 F) : d in decomp]);
