@@ -39,6 +39,7 @@ declare attributes GrpPSL2:
    IsNSCartanPlus,// for more efficeint treatment of the non-split Cartan case
    IsReal,     // Whether the group is of real type
    NSCartanU,// for more efficeint treatment of the non-split Cartan case
+   NSCartanV,
    // a congruence subgroup of gamma type will be given by a list of
    // groups of the form Gamma_0(N), Gamma_1(N), Gamma(N),
    // Gamma^0(N) and Gamma^1(N), and congugates of these;

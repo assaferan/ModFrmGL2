@@ -317,7 +317,12 @@ intrinsic FareySymbol(group::GrpPSL2,restrictions::SeqEnum) -> SymFry
        elif N eq 1 and M eq P and (not assigned group`subgroup_list) then
           return FareySequenceForGammaUpper1N(group);
        end if;
-    end if;   
+    end if;
+
+    if group eq PSL then
+	return FareySequenceForGamma0N(group);
+    end if;
+    
     // assume for now the index is at least 2,
     // need to change this, as currently won't work in that case
     // (this case does not yet come up though)
@@ -343,12 +348,14 @@ intrinsic FareySymbol(group::GrpPSL2,restrictions::SeqEnum) -> SymFry
 	Append(~gen_edges,[1,3]);
     end if;
 
-    // following assumes index is not 2:
+    // following assumes index is greater than 2:
     cosets := CosetImages(PSL!1);
         
     finished := false;
     i := 2;			
 
+    // There is still some bug here.
+    // This does not always terminate for some reason.
     while not finished do
 	e := L[i];
 	mat := Mat(e : PSL:=PSL);
@@ -437,7 +444,7 @@ intrinsic FareySymbol(group::GrpPSL2) -> SymFry
 end intrinsic;
     
 // the following produces a Farey symbol from the list of
-// edges indictively constructed while finding the group,
+// edges inductively constructed while finding the group,
 
 function EdgeListToFareySymbol(L)
 
@@ -450,8 +457,8 @@ function EdgeListToFareySymbol(L)
     endpoint:=func<x, y | x[1]*y[2] - y[1]*x[2]>;
     L2:=Sort(L1,endpoint);
     cusps:=[x[1]/x[2] : x in L2];
-    end1:=[e : e in L | e[2] eq 0][1];
-    end2:=[e : e in L | e[4] eq 0][1];
+    end1:=[e : e in L | e[6] ne -5 and e[2] eq 0][1];
+// end2:=[e : e in L | e[4] eq 0][1];
     
     matchings:=[end1[6]];
     for e in L2 do 
@@ -576,7 +583,7 @@ function FindWidths(cusps,labels,extra);
     // infinity, but not counting the width of the
     // last infinity a second time.
     // This function returns 2 times the widths, so
-    // as to return and integer sequence.
+    // as to return an integer sequence.
     widths := [2 : i in [1..#cusps]];
     widths[1] := 0;
     for i := 1 to #labels do
@@ -589,6 +596,10 @@ function FindWidths(cusps,labels,extra);
     // since there is as yet no equality testing for
     // cusps, create "cuspsE"
     cuspsE := [Eltseq(c) : c in cusps];
+    // First one is actually minus infinity.
+    // Also now there is an equality testing for cusps,
+    // so we can use it.
+    cuspsE[1] := [-1,0];
     for a in extra do
 	widths[Index(cuspsE,Eltseq(a[1]))] +:=2;
 	widths[Index(cuspsE,Eltseq(a[2]))] +:=2;
@@ -708,8 +719,8 @@ intrinsic Widths(FS::SymFry) -> SeqEnum
       return FS`widths;
    else
       if not assigned FS`otherEdges then
-	 FS`otherEdges := MakeOtherEdges(FS`cusps,FS`labels);
-	 FS`group`FS_otherEdges := FS`otherEdges;
+       FS`otherEdges := MakeOtherEdges(FS`cusps,FS`labels);
+       FS`group`FS_otherEdges := FS`otherEdges;
       end if;
       FS`widths := FindWidths(FS`cusps,FS`labels,FS`otherEdges);
       return FS`widths;

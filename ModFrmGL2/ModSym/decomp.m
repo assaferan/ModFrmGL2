@@ -10,6 +10,13 @@ freeze;
   $Header: /home/was/magma/packages/ModSym/code/RCS/decomp.m,v 1.20 2002/10/01 06:02:33 was Exp $
 
   $Log: decomp.m,v $
+  Revision 1.21  2020/09/07 11:23:27  was
+  Modified image_of_old_newform_factor, 
+  image_of_old_newform_factor_using_operators to use divisors 
+  of the quotient of levels.
+  Modified get_NN to identify all subgroups that are conjugate in SL(2,Z/NZ), and use the 
+  method GetModSymPrimes defined in subspace.m, to prevent code duplication.
+
   Revision 1.20  2002/10/01 06:02:33  was
   nothing.
 
@@ -141,7 +148,10 @@ import "arith.m"  : DotProd,
 import "linalg.m" : KernelOn,
                     MyCharpoly;
 
-import "modsym.m" : ModularSymbolsDual,
+import "../GrpPSL2/GrpPSL2/misc.m" : IntermediateSubgroups;
+
+import "modsym.m" : GetDegeneracyReps,
+		    ModularSymbolsDual,
                     ModularSymbolsSub;
 
 import "multichar.m": MC_Decomposition,
@@ -152,10 +162,10 @@ import "multichar.m": MC_Decomposition,
 
 import "operators.m":FastTn;
 
-import "subspace.m":  MinusSubspaceDual,
-                      PlusSubspaceDual;
-
-import "subspace.m":  MinusSubspace,
+import "subspace.m":  GetModSymPrimes,
+		      MinusSubspaceDual,
+                      PlusSubspaceDual,
+		      MinusSubspace,
                       PlusSubspace;
 
 forward             NewformDecompositionOfNewNonzeroSignSpaceOverQ,
@@ -165,7 +175,7 @@ forward             NewformDecompositionOfNewNonzeroSignSpaceOverQ,
 declare attributes CrvEll: /* MW 18 Nov 2010 */
  ModularSymbolsMinus, ModularSymbolsPlus, ModularSymbolsZero;
 
-function SimpleIrreducibleTest(W,a,elliptic_only)
+function SimpleIrreducibleTest(W,a,elliptic_only : check_star := true)
 
    // a is the exponent of the factor of the charpoly.
    
@@ -175,10 +185,13 @@ function SimpleIrreducibleTest(W,a,elliptic_only)
       end if;
       
       if a eq 2 then
-        if Sign(W) eq 0 and IsCuspidal(W) and IsOfRealType(LevelSubgroup(W)) and
-	    Dimension(Kernel(DualStarInvolution(W)-1)) eq Dimension(W)/2 then
+        is_irred := Sign(W) eq 0 and IsCuspidal(W);
+        if check_star then
+	  is_irred and:= IsOfRealType(LevelSubgroup(W)) and
+	    Dimension(Kernel(DualStarInvolution(W)-1)) eq Dimension(W)/2;
+        end if;
+        if is_irred then
 	    return true;
-	    
 	 end if;
       end if;
 
@@ -203,7 +216,7 @@ function W_is_irreducible(W,a,elliptic_only, random_operator_bound)
    a = exponent of factor of the characteristic polynomial.
    */
 
-   irred := SimpleIrreducibleTest(W,a,elliptic_only);
+  irred := SimpleIrreducibleTest(W,a,elliptic_only);
 
    if irred then
       return true;
@@ -506,20 +519,33 @@ end function;
 function image_of_old_newform_factor_using_operators(M, A)
    assert Type(M) eq ModSym;
    assert Type(A) eq ModSym;
-   numdiv := NumberOfDivisors(Level(M) div Level(A));
-   d := Dimension(A) * numdiv;
-   V := CuspidalSubspace(AmbientSpace(M));
-   p := 2;
-   while Dimension(V) gt d do
-      p := SmallestPrimeNondivisor(Level(M),p);
-      f := HeckePolynomial(A,p);
-      if Characteristic(BaseField(M)) ne 0 then
-         f := f^numdiv;
-      end if;
-      V := Kernel([<p,f>], V);
-      p := NextPrime(p);
-   end while;         
-   error if Dimension(V) ne d, "Bug in image_of_old_newform_factor_using_operators";
+   if IsOfGammaType(M) then
+       numdiv := NumberOfDivisors(Level(M) div Level(A));
+       d := Dimension(A) * numdiv;
+       V := CuspidalSubspace(AmbientSpace(M));
+       p := 2;
+       while Dimension(V) gt d do
+	   p := SmallestPrimeNondivisor(Level(M),p);
+	   f := HeckePolynomial(A,p);
+	   if Characteristic(BaseField(M)) ne 0 then
+               f := f^numdiv;
+	   end if;
+	   V := Kernel([<p,f>], V);
+	   p := NextPrime(p);
+	   error if p gt HeckeBound(M), "Image of old newform factor is smaller than an irreducible piece.";
+       end while;         
+       error if Dimension(V) ne d, "Bug in image_of_old_newform_factor_using_operators";
+   else
+       // We cannot tell a priori what should be the dimension
+       p := 2;
+       V := CuspidalSubspace(AmbientSpace(M));
+       while (p le HeckeBound(M)) do
+	   p := SmallestPrimeNondivisor(Level(M),p);
+	   f := HeckePolynomial(A,p);
+	   V := Kernel([<p,f>], V);
+	   p := NextPrime(p);
+       end while;
+   end if;
    return V;
 end function;
 
@@ -532,30 +558,52 @@ function image_of_old_newform_factor(M, A)
    assert Level(M) mod Level(A) eq 0;
    if IsOfGammaType(M) then
       if Level(M) eq Level(A) then
-         return A;
+         return A, true;
       end if;
       d := Level(M) div Level(A);
       if IsPrime(d) then
-         return image_of_old_newform_factor_using_degen_maps(M,A);
+         return image_of_old_newform_factor_using_degen_maps(M,A), true;
       else
-         return image_of_old_newform_factor_using_operators(M,A);
+         return image_of_old_newform_factor_using_operators(M,A), true;
       end if;
    else
-     if LevelSubgroup(M) eq LevelSubgroup(A) then
-       return A;
+       //if LevelSubgroup(M) eq LevelSubgroup(A) then
+     G_M := Parent(DirichletCharacter(M))`Gamma;
+     G_A := Parent(DirichletCharacter(A))`Gamma;
+     // It might be that the groups are the same as PSL2subgroups
+     // but not as SL2 subgrups (relevnat in odd weight)
+     if ImageInLevel(G_M) eq ImageInLevel(G_A) then
+       return A, true;
      end if;
-// !!! Check later if we want to change also the operators !!! 
-     return image_of_old_newform_factor_using_degen_maps(M,A);
+     /*
+     d := CuspWidth(G_M, Infinity()) div
+	  CuspWidth(G_A, Infinity());
+    */
+     /*
+     d := Level(G_M) div Level(G_A);
+     if IsPrime(d) or (d eq 1) then
+         return image_of_old_newform_factor_using_degen_maps(M,A);
+     else
+         return image_of_old_newform_factor_using_operators(M,A);
+     end if;
+    */
+     // Check ourselves
+     B := image_of_old_newform_factor_using_degen_maps(M,A);
+     B2 := image_of_old_newform_factor_using_operators(M,A);
+
+     return B2, B eq B2;
    end if;
 end function;
 
-function get_NN(M)
-   eps := DirichletCharacter(M);
-   G_N := ImageInLevelGL(LevelSubgroup(M));
+function GetNN(M)
+    eps := DirichletCharacter(M);
+    G_N := ImageInLevelGL(LevelSubgroup(M));
    G := Parent(eps)`Gamma;
    N := ImageInLevelGL(G);
    NN := [N];
    // !!! TODO : This might be slow - change it later
+   // Apparently this is a new addition to magma (only exists in versions
+   // 2.24 and above. We therefore check versions here.
    NN := NN cat IntermediateSubgroups(ModLevelGL(G), ImageInLevelGL(G));
    Append(~NN, ModLevelGL(G));
 // Is this necessary? Currently we need it for the complete decomposition
@@ -580,13 +628,21 @@ function get_NN(M)
    idxs := Sort(SetToSequence(Keys(NN_idxs)));
    for idx in idxs do
       Nidx := NN_idxs[idx];
-      is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];
+//      is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in Nidx] : y in Nidx];
+      is_conj := [[IsConjugate(ModLevel(G), x meet ModLevel(G),
+			       y meet ModLevel(G)) : x in Nidx] : y in Nidx];
       NN_idxs[idx] := {[Nidx[i] : i in [1..#Nidx] |
 			    is_conj[i][j]] : j in [1..#Nidx]};
    end for;
    // One of each conjugacy class
    NN := &cat[[y[1] : y in NN_idxs[idx]] : idx in idxs];
-   
+/*
+   NN := [N] cat [y : y in NN | CuspWidth(PSL2Subgroup(y),Infinity()) ne
+				CuspWidth(G, Infinity())];
+*/
+   normalizers := [Normalizer(ModLevelGL(G), n) : n in NN];
+   good := [i : i in [1..#NN] | G_N subset normalizers[i]];
+   NN := [NN[i] : i in good];
    return NN;
 end function;
 
@@ -649,22 +705,13 @@ IsCuspidal(M) is true.}
         NN := Reverse([a : a in Divisors(N)]);
         pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
       else
-        eps := DirichletCharacter(M);
-        G := Parent(eps)`Gamma;
-        G_N := ImageInLevelGL(LevelSubgroup(M));
-        N := ImageInLevelGL(G);
-        NN := get_NN(M);
-        primes := MinimalOvergroups(ModLevelGL(G), N);
-// SL_N := ModLevel(G);
-        eta := ModLevelGL(G)![-1,0,0,1];
-// primes := [p : p in primes | (p meet SL_N)^eta eq (p meet SL_N)];
-        primes := [p : p in primes | p^eta eq p];
-        is_conj := [[IsConjugate(ModLevelGL(G), x, y) : x in primes] :
-							    y in primes];
-        primes := {[primes[i] : i in [1..#primes] |
-			    is_conj[i][j]] : j in [1..#primes]};
-        primes := [y[1] : y in primes];
-        pnew := [p : p in primes | IsNew(M,p)];
+	  eps := DirichletCharacter(M);
+          G := Parent(eps)`Gamma;
+	  N := ImageInLevelGL(G);
+	  NN := GetNN(M);
+	  primes := GetModSymPrimes(M);
+	  G_N := ImageInLevelGL(LevelSubgroup(M));
+	  pnew := [p : p in primes | IsNew(M,p)];
       end if;
 
       for i in [1..#NN] do
@@ -709,8 +756,9 @@ IsCuspidal(M) is true.}
         
          // Take all images of DD in M.
          for A in DD do
-            B := image_of_old_newform_factor(M,A);       
-            if B subset M then
+            B, is_factor := image_of_old_newform_factor(M,A);
+            // if is_factor and (B subset M) then
+	    if B subset M then
                Append(~D,B);
                D[#D]`associated_new_space := A;
                D[#D]`associated_new_space`associated_new_space := true;
@@ -760,6 +808,10 @@ intrinsic HasAssociatedNewSpace(M::ModSym) -> BoolElt
    return assigned M`associated_new_space;
 end intrinsic;
 
+// Interesting observation which I should ask Stein about -
+// When working with multicharacter spaces, he replaces each space in
+// the decomposition by the associated newspace (TraceSortDecomposition)
+// However, when working with single character spaces, he doesn't. Why?
 
 intrinsic SortDecomposition(D::[ModSym]) -> SeqEnum
 {Sort the sequence of spaces of modular symbols with respect to
@@ -795,7 +847,12 @@ of traces is sorted in increasing dictionary order.}
          return false;
       end if;
       n := 1;
-      while Trace(Trace(HeckeOperator(A,n))) eq Trace(Trace(HeckeOperator(B,n))) do
+      // !!! The n lt 20 is a temporary fix for the case where the Hecke
+      // operators have the same traces on these spaces.
+      // This can occur if both are essentially the same space,
+      // but with images having different characters.
+      
+      while (Trace(Trace(HeckeOperator(A,n))) eq Trace(Trace(HeckeOperator(B,n)))) and (n lt 20)  do
          n := n+1;
       end while;
       return Trace(Trace(HeckeOperator(A,n))) lt Trace(Trace(HeckeOperator(B,n)));
@@ -1310,6 +1367,9 @@ function AssociatedSubspace(W, V)
    return RowSpace( BasisMatrix(V) * BasisMatrix(W) );
 end function;
 
+// This sometimed fails for arbitrary congruence subgroups.
+// Figure out why !!!!
+
 function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
    assert Type(M) eq ModSym;
    assert IsNew(M) and Sign(M) ne 0;
@@ -1333,11 +1393,11 @@ function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
 
    // until we can correctly write down
    // Hecke operators at primes dividing the level
-
+/*
    if not IsOfGammaType(M) then
       primes := [SmallestPrimeNondivisor(N,2)];
    end if;
-
+*/
    procedure get_heckes_modp(~heckes, primes, GFp, BMp)
       ls := [l : l in primes | l notin Keys(heckes)];
       for l in ls do 
@@ -1703,4 +1763,115 @@ We require that M is either cuspidal or its ambient space.}
 
    return B;
 
+end intrinsic;
+
+function Decomposition_dimension_recurse(M, p, stop, 
+                                         proof, elliptic_only, random_op)
+
+   assert Type(M) eq ModSym;
+   assert Type(p) eq RngIntElt;
+   assert IsPrime(p);
+   assert Type(stop) eq RngIntElt;
+   assert Type(proof) eq BoolElt;
+   assert Type(elliptic_only) eq BoolElt;
+   assert Type(random_op) eq BoolElt;
+
+   // Compute the Decomposition of the subspace V of DualRepresentation(M)
+   // starting with Tp.
+   if Dimension(M) eq 0 then
+      return [];
+   end if;
+
+   p := SmallestPrimeNondivisor(Level(M),p);
+
+   if p gt stop then   // by definition of this function!
+      return [M];
+   end if;
+   
+
+   vprintf ModularSymbols, 1 : "Decomposing space of level %o and dimension %o using T_%o.\n",Level(M),Dimension(M), p;
+   vprintf ModularSymbols, 2 : "\t\t(will stop at %o)\n", stop;
+
+   T := HeckeOperator(M, p);
+   dims := [];
+
+   if not elliptic_only then
+      if GetVerbose("ModularSymbols") ge 2 then
+         t := Cputime();
+         printf "Computing characteristic polynomial of T_%o.\n", p;
+      end if;
+      f := MyCharpoly(T,proof);
+      if GetVerbose("ModularSymbols") ge 2 then
+         f;
+         printf "\t\ttime = %o\n", Cputime(t);
+         t := Cputime();
+         printf "Factoring characteristic polynomial.\n";
+      end if;
+      FAC := Factorization(f);
+      if GetVerbose("ModularSymbols") ge 2 then
+         FAC;
+         printf "\t\ttime = %o\n", Cputime(t);
+      end if;
+   else
+      R := PolynomialRing(BaseField(M)); x := R.1;
+      FAC := [<x-a,1> : a in [-Floor(2*Sqrt(p))..Floor(2*Sqrt(p))]];
+   end if;
+
+   for fac in FAC do
+      f,a := Explode(fac);
+      // Checking (quickly) if this space is irreducible
+      // We want to avoid constructing the space before
+      //  checking for irreduciblity
+      irred := SimpleIrreducibleTest(M,a,elliptic_only : check_star := proof);
+      if irred then
+        Append(~dims, 2*Degree(f));
+        continue;
+      end if;
+      if Characteristic(BaseField(M)) eq 0 then
+         fa := f;
+      else
+         fa := f^a;
+      end if;
+      vprintf ModularSymbols, 2: "Cutting out subspace using f(T_%o), where f=%o.\n",p, f;
+      fT  := Evaluate(fa,T);
+      V   := KernelOn(fT,M);
+      W   := ModularSymbolsSub(M,V);
+      if assigned M`sub_representation then
+         W`sub_representation := M`sub_representation;
+      end if;    
+
+      if elliptic_only and Dimension(W) eq 0 then
+          continue;
+      end if;
+
+      if Dimension(W) eq 0 then
+          error "WARNING: dim W = 0 factor; shouldn't happen.";
+      end if;
+
+      if Characteristic(BaseField(W)) eq 0 and W_is_irreducible(W,a,elliptic_only, random_op select p else 0) then
+	 W`is_irreducible := true;
+         Append(~dims,Dimension(W)); 
+      else
+         if not assigned W`is_irreducible then
+            if NextPrime(p) le stop then
+               q    := Dimension(W) eq Dimension(M) select NextPrime(p) else 2;
+               Sub  := Decomposition_dimension_recurse(W, q, stop, 
+                                             proof, elliptic_only, random_op); 
+               for WW in Sub do 
+                  Append(~dims, WW);
+               end for;
+            else
+	        Append(~dims,Dimension(W));
+            end if;
+         end if;
+      end if;
+   end for;
+   return dims;
+end function;
+
+intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
+  -> SeqEnum[RngIntElt]
+{Return the dimensions of the isotypic components of M.}
+   return Decomposition_dimension_recurse(M, 2,
+                                          HeckeBound(M), Proof, false, false);
 end intrinsic;

@@ -88,10 +88,12 @@ vector space whose basis consists of the weight-k cusps.}
          M`boundary_map := RMatrixSpace(BaseField(M),Dimension(M),Ncols(B))!
                   &cat [ Eltseq(v*B) : v in Basis(Representation(M))];
       else
+	 //Why do we need it? That will happen anyway, right? 
          if Dimension(M) eq 0 then
             M`boundary_map := RMatrixSpace(BaseField(M),0,0)!0;
             return M`boundary_map;
          end if;
+	 
          Tgens := M`quot`Tgens;
          Sgens := M`quot`Sgens;
          F     := BaseField(M);
@@ -100,7 +102,7 @@ vector space whose basis consists of the weight-k cusps.}
          // This check takes too long -
          // Either make it efficient, or use something to mark the fact that
          // a group is of a non-split type
-         if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) then
+         if (IsGammaNS(M`G) or IsGammaNSplus(M`G)) and IsPrime(Level(M)) then
 	    cusp_to_free_helper := CuspToFreeHelperNS;
          else
 	    cusp_to_free_helper := CuspToFreeHelper;
@@ -222,100 +224,120 @@ end function;
 // transferring one coset to the other
  
 function BuildTOrbitTable(coset_list, find_coset, G)
-  T := ModLevel(G) ! [1,1,0,1];
-  T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
-		      find_coset) : x in coset_list];
-  orbit_table := [[] : idx in [1..#coset_list]];
-  cur_idx := 1;
-  cur_orbit := 1;
-  cur_ord_in_orbit := 1;
-  while (cur_idx le #orbit_table) do                    
-     orbit_table[cur_idx] := [cur_orbit, cur_ord_in_orbit];
-     cur_idx := T_map[cur_idx];                            
-     if (#orbit_table[cur_idx] gt 0) then
-         cur_orbit := cur_orbit + 1;
-         cur_ord_in_orbit := 1;
-         while (cur_idx le #orbit_table) and (#orbit_table[cur_idx] gt 0) do
-	      cur_idx := cur_idx + 1;
-         end while;
-     else
-         cur_ord_in_orbit := cur_ord_in_orbit + 1;
-     end if;
-  end while;
-  return orbit_table;
+    if Level(G) eq 1 then
+	return [[1,1]];
+    end if;
+    T := ModLevel(G) ! [1,1,0,1];
+    T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
+			  find_coset) : x in coset_list];
+    orbit_table := [[] : idx in [1..#coset_list]];
+    cur_idx := 1;
+    cur_orbit := 1;
+    cur_ord_in_orbit := 1;
+    while (cur_idx le #orbit_table) do                    
+	orbit_table[cur_idx] := [cur_orbit, cur_ord_in_orbit];
+	cur_idx := T_map[cur_idx];                            
+	if (#orbit_table[cur_idx] gt 0) then
+            cur_orbit := cur_orbit + 1;
+            cur_ord_in_orbit := 1;
+            while (cur_idx le #orbit_table) and (#orbit_table[cur_idx] gt 0) do
+		cur_idx := cur_idx + 1;
+            end while;
+	else
+            cur_ord_in_orbit := cur_ord_in_orbit + 1;
+	end if;
+    end while;
+    return orbit_table;
 end function;
 
 // This function finds an element in PSL2 mapping the cusp at infinity to
-// a. 
-
+// a.
+// These are now intrinsics in GrpPSL2/cusps.m
+/*
 function CuspInftyElt(a)
   cusp := ReduceCusp(a);
   g := PSL2(Integers())!Reverse(LiftToCosetRep(Reverse(cusp),1));
   return Transpose(Matrix(g));
 end function;
 
+function IsRegularCusp(G, a)
+    GL2Q := GL(2, Rationals());
+    alpha := GL2Q!CuspInftyElt(Eltseq(a));
+    h := CuspWidth(G^alpha, Infinity());
+    if IsOdd(h) then return true; end if;
+    g := PSL2(Integers())! [-1,-h div 2,0,-1];
+    return not g in G;
+end function;
+*/
 // This function checks whether the cusps a and b are equivalent.
 // It uses the orbit_table as input
 
 function CuspEquivGrp(coset_list, find_coset, G, orbit_table, a, b)
-  gs := [CuspInftyElt(cusp) : cusp in [a,b]];
-  idxs := [CosetReduce(ModLevel(G)!g, find_coset) : g in gs];
+    gs := [PSL2(Integers()) | CuspInftyElt(cusp) : cusp in [a,b]];
+    if Level(G) eq 1 then
+	idxs := [CosetReduce(ModLevel(G)!1, find_coset) : g in gs];
+    else
+	idxs := [CosetReduce(ModLevel(G)!Eltseq(g), find_coset) : g in gs];
+    end if;
   orbit := [orbit_table[idx] : idx in idxs];
   if orbit[1][1] ne orbit[2][1] then // They are not in the same orbit
      return false, PSL2(Integers())!1;
   end if;
   t := PSL2(Integers())![1, orbit[2][2] - orbit[1][2], 0, 1];
-  gamma  := gs[1] * Matrix(t) * gs[2]^(-1);
-  return true, PSL2(Integers())!gamma;
+  gamma  := gs[1] * t * gs[2]^(-1);
+  return true, gamma;
 end function; 
 
 function CuspEquivNS(G, a, b)
-  u := NSCartanU(G);
-  p := Level(G);
-  p1, q1 := Explode(ReduceCusp(a));
-  p2, q2 := Explode(ReduceCusp(b));
-  d1, s1, r1 := ExtendedGreatestCommonDivisor(p1, q1);
-  d2, s2, r2 := ExtendedGreatestCommonDivisor(p2, q2);
-  r1 := -r1;
-  r2 := -r2;
-  pqrs := [[p1,p2], [q1,q2],[r1,r2],[s1,s2]];
-  pqrs_mod_p := [[IntegerRing(p)!x : x in arr] : arr in pqrs];
-  p_p, q_p, r_p, s_p := Explode(pqrs_mod_p);
-  norm_1 := p_p[1]^2 - u*q_p[1]^2;
-  norm_2 := p_p[2]^2 - u*q_p[2]^2;
-  equiv := (norm_1 eq norm_2);
-  equiv_by_nor := IsGammaNSplus(G) and (norm_1 eq -norm_2);
-  if (equiv or equiv_by_nor) then
-     if not equiv then
-	// solving alp^2-uc^2=-1 for a nontrivial element of the normalizer
-        for c in IntegerRing(p) do
-	  is_sq, alp := IsSquare(u*c^2-1);
-          if is_sq then
-	     S_mod_p := SL(2,IntegerRing(p))![alp,-u*c,c,-alp];
-             S := FindLiftToSL2(S_mod_p)`Element;
-             break;
-	  end if;
-	end for;
+    u := NSCartanU(G);
+    v := NSCartanV(G);
+    N := Level(G);
+    p1, q1 := Explode(ReduceCusp(a));
+    p2, q2 := Explode(ReduceCusp(b));
+    d1, s1, r1 := ExtendedGreatestCommonDivisor(p1, q1);
+    d2, s2, r2 := ExtendedGreatestCommonDivisor(p2, q2);
+    r1 := -r1;
+    r2 := -r2;
+    pqrs := [[p1,p2], [q1,q2],[r1,r2],[s1,s2]];
+    pqrs_mod_N := [[IntegerRing(N)!x : x in arr] : arr in pqrs];
+    p_N, q_N, r_N, s_N := Explode(pqrs_mod_N);
+    norm_1 := p_N[1]^2 + v * p_N[1] * q_N[1]  - u*q_N[1]^2;
+    norm_2 := p_N[2]^2  + v * p_N[1] * q_N[1] - u*q_N[2]^2;
+    equiv := (norm_1 eq norm_2);
+    equiv_by_nor := IsGammaNSplus(G) and (norm_1 eq -norm_2);
+    if (equiv or equiv_by_nor) then
+	if not equiv then
+	    // solving a^2+vac-uc^2=-1 for a nontriv element of the normalizer
+            for c in IntegerRing(N) do
+		is_sq, d := IsSquare((4*u+v^2)*c^2-4);
+		if is_sq then
+		    alp := (-v*c + d) / 2;
+		    S_mod_N := SL(2,IntegerRing(N))![alp,-u*c,c,v-alp];
+		    S := FindLiftToSL2(S_mod_N)`Element;
+		    break;
+		end if;
+	    end for;
         pqrs2 := S * Matrix([[p2, r2], [q2, s2]]);
         p2 := pqrs2[1,1];
         q2 := pqrs2[2,1];
         r2 := pqrs2[1,2];
         s2 := pqrs2[2,2];
-        p_p[2] := IntegerRing(p)!p2;
-        q_p[2] := IntegerRing(p)!q2;
-        r_p[2] := IntegerRing(p)!r2;
-        s_p[2] := IntegerRing(p)!s2;
+        p_N[2] := IntegerRing(N)!p2;
+        q_N[2] := IntegerRing(N)!q2;
+        r_N[2] := IntegerRing(N)!r2;
+        s_N[2] := IntegerRing(N)!s2;
      end if;
-     num_1 := r_p[1]*q_p[2]-p_p[1]*s_p[2]+p_p[2]*s_p[1]-q_p[1]*r_p[2];
-     denom_1 := p_p[1]*q_p[2]+p_p[2]*q_p[1];
+     num_1 := r_N[1]*q_N[2]-p_N[1]*s_N[2]+p_N[2]*s_N[1]-q_N[1]*r_N[2];
+     denom_1 := p_N[1]*q_N[2]+p_N[2]*q_N[1] - v * q_N[1] * q_N[2];
      if denom_1 eq 0 then
-        num_2 := u*(q_p[2]*s_p[1]-q_p[1]*s_p[2])+p_p[2]*r_p[1]-p_p[1]*r_p[2];
-        denom_2 := p_p[1] * p_p[2] + u*q_p[1]*q_p[2];
-        x_p := num_2 * denom_2^(-1);
+         num_2 := u*(q_N[2]*s_N[1]-q_N[1]*s_N[2])+p_N[2]*r_N[1]-p_N[1]*r_N[2];
+	 num_2 +:= v* (s_N[1] * q_N[2] - q_N[1] * s_N[2]);
+         denom_2 := p_N[1] * p_N[2] + u*q_N[1]*q_N[2];
+         x_N := num_2 * denom_2^(-1);
      else
-        x_p := num_1 * denom_1^(-1);
+         x_N := num_1 * denom_1^(-1);
      end if;
-     x := Integers()!x_p;
+     x := Integers()!x_N;
      T_x := SL(2, Integers())![1,x,0,1];
      M2 := SL(2, Integers())![p2, r2, q2, s2];
      M1_inv := SL(2,Integers())![s1,-r1,-q1,p1];
@@ -394,9 +416,11 @@ function CuspToFreeHelper(M, sign, a)
    k     := Weight(M);
  
    a := ReduceCusp(a);
+   c := F!1;
    if a[2] lt 0 then
       a[1] *:= F!-1;
       a[2] *:= F!-1;
+      c *:= F!(-1)^k;
    end if;
 
    // Check if we've already encountered this cusp.
@@ -414,9 +438,9 @@ function CuspToFreeHelper(M, sign, a)
             return <F!0,1>;
          end if;
          if is_trivial_eps then
-            return <1,i>;
+            return <c,i>;
          else	    
-	   return <Evaluate(eps,alp)^(-1),i>;
+	   return <c*Evaluate(eps,alp)^(-1),i>;
          end if;
       end if;
       if sign ne 0 then
@@ -432,16 +456,16 @@ function CuspToFreeHelper(M, sign, a)
                return <F!0,1>;
             end if;
             if is_trivial_eps then
-               return <sign,i>;
+               return <c*sign,i>;
             else
-               return <sign*Evaluate(eps,alp)^(-1),i>;
+               return <c*sign*Evaluate(eps,alp)^(-1),i>;
             end if;
          end if;
       end if;
    end for;
 
    // Determine if this cusp class is killed by the relations.
-   c := F!1;
+   
    if not is_trivial_eps then
      if IsOfGammaType(M) then
       u := a[1]; v := a[2];

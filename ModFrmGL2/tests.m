@@ -1,8 +1,12 @@
 // freeze;
 ROOT_DIR := "./";
-AttachSpec(ROOT_DIR cat "GrpPSL2/GrpPSL2.spec");
-AttachSpec(ROOT_DIR cat "ModSym/ModSym.spec");
-AttachSpec(ROOT_DIR cat "ModFrm/ModFrm.spec");
+v1, v2, v3 := GetVersion();
+version := Vector([v1, v2, v3]);
+if version lt Vector([2,19,6]) then
+    error Sprintf("This package only supports Magma version >= 2.19-6!
+    	  	    This is version %o.%o-%o!", v1, v2, v3);
+end if;
+AttachSpec(ROOT_DIR cat "ModFrmGL2.spec");
 SetHelpUseExternalBrowser(false);
 SetDebugOnError(true);
 // SetVerbose("ModularSymbols", 0);
@@ -53,7 +57,15 @@ SetDebugOnError(true);
 if assigned SmallestPrimeNondivisor then
    delete SmallestPrimeNondivisor;
 end if;
-import "./Geometry/ModSym/arith.m" : SmallestPrimeNondivisor;
+import "./ModSym/arith.m" : SmallestPrimeNondivisor;
+if assigned MC_NewformDecompositionOfCuspidalSubspace then
+   delete MC_NewformDecompositionOfCuspidalSubspace;
+end if;
+import "./ModSym/multichar.m" : MC_NewformDecompositionOfCuspidalSubspace;
+import "./Tests/nsCartan.m" : Test_NSCartan_11, Test_NSCartan_17, Test_NSCartan;
+import "./ModSym/decomp.m" : GetNN;
+import "./ModSym/modsym.m" : GetRealConjugate;
+import "twists.m" : TwistBasis0, get_qexps_from_bases, FindCurveSimple;
 
 function my_idxG0(n)
    return 
@@ -117,10 +129,37 @@ function RandomSpaceWithTrivialCharacter()
       return ModularSymbols(N, k), N, k;
 end function;
 
+forward MakeGroupCopy, my_Gamma;
+
+procedure Test_DimensionConsistency_GammaN_Single(N, k)
+  t := Cputime();
+  M := ModularSymbols(CongruenceSubgroup(N), k);
+  M1 := ModularSymbols(my_Gamma(N, "full"), k);
+  // This wouldn't work when k is odd, since we need Gamma prime to
+  // contain -1.
+  // Test without characters
+  //  M2 := ModularSymbols(my_Gamma(N, "full"), k, Rationals(), 0);
+  assert Dimension(M) eq Dimension(M1);
+  //  assert Dimension(M) eq Dimension(M2);
+  S := CuspidalSubspace(M);
+  S1 := CuspidalSubspace(M1);
+  //  S2 := CuspidalSubspace(M2);
+  assert Dimension(S) eq Dimension(S1);
+  //  assert Dimension(S) eq Dimension(S2);
+  printf " \tdim  = %o,    \t%os\n",Dimension(CuspidalSubspace(M)),Cputime(t);
+end procedure;
 
 /* Compute several random spaces of modular symbols, and verify
    that their dimensions agree with the dimensions computed using
    the standard dimension formulas. */
+
+procedure Test_DimensionConsistency_Single(M, N, k, eps)
+    t := Cputime();
+    d := DimensionCuspForms(eps,k);
+    assert 2*d eq Dimension(CuspidalSubspace(M));
+    printf " \tdim  = %o,    \t%os\n",Dimension(CuspidalSubspace(M)),Cputime(t);
+end procedure;
+
 procedure Test_DimensionConsistency(numchecks)
    print "** Dimension of cuspidal subspace test **";
    if Characteristic(base) ne 0 then
@@ -129,78 +168,118 @@ procedure Test_DimensionConsistency(numchecks)
 
    for i in [1..numchecks] do
       M,N,k,eps := RandomSpace();
-      t := Cputime();
-      d := DimensionCuspForms(eps,k);
-      assert 2*d eq Dimension(CuspidalSubspace(M));
-      printf " \tdim  = %o,    \t%os\n",Dimension(CuspidalSubspace(M)),Cputime(t);
+      Test_DimensionConsistency_Single(M, N, k, eps);
+      M_copy := MakeGroupCopy(M);
+      Test_DimensionConsistency_Single(M_copy, N, k, eps);
+      // Testing Gamma(N)
+      Test_DimensionConsistency_GammaN_Single(N,k);
    end for;
 end procedure;
 
-
 /* Compute two random Hecke operators on a random space, and
    verify that they commute. */
+
+procedure Test_HeckeOperatorsCommute_Single(M)
+    t := Cputime();
+    n := Random(2,17);
+    m := Random(2,17);
+    T1:= HeckeOperator(M,n);
+    T2:= HeckeOperator(M,m);
+    printf "n = %o, m = %o\n", n, m;
+    assert T1*T2 eq T2*T1;
+    printf " time = %os\n", Cputime(t);
+end procedure;
+
 procedure Test_HeckeOperatorsCommute(numcheck)
    print "** Hecke operators commute test **";
    for i in [1..numcheck] do
       M := RandomSpace();
-      t := Cputime();
-      n := Random(2,17);
-      m := Random(2,17);
-      T1:= HeckeOperator(M,n);
-      T2:= HeckeOperator(M,m);
-      printf "n = %o, m = %o\n", n, m;
-      assert T1*T2 eq T2*T1;
-      printf " time = %os\n", Cputime(t);
+      Test_HeckeOperatorsCommute_Single(M);
+      //if Evaluate(DirichletCharacter(M),-1) eq 1 then
+	  Test_HeckeOperatorsCommute_Single(MakeGroupCopy(M));
+      //end if;
    end for;
 end procedure;
 
+procedure Test_DegeneracyMaps_Single(M, N, k, eps)
+    t := Cputime();
+    if N gt 1 then
+	if IsOfGammaType(M) then
+            divs := [d : d in Divisors(N) | d mod Conductor(eps) eq 0 ];
+	else
+	    G_N := ImageInLevelGL(LevelSubgroup(M));
+	    divs := [d : d in GetNN(M) | d meet G_N subset Kernel(eps)];
+	end if;
+        NN   := Random(divs);
+    else
+        return;
+    end if;
+    
+    oldM := ModularSymbols(M,NN);
+    print "  Lower level space has level ",NN;
+
+    if IsOfGammaType(M) then
+	one := 1;
+	d := N div NN;
+	idx := my_idxG0(N) div my_idxG0(NN);
+	idx_d := idx * (d^(k-2));
+    else
+	one := GL(2, Rationals())!1;
+	NN_prime := sub<ModLevelGL(LevelSubgroup(M)) | G_N, NN>;
+	PNN := PSL2Subgroup(NN_prime);
+	d := GL(2, Rationals())![1,0,0,N div Level(PNN)];
+	idx := Index(PNN, LevelSubgroup(M));
+	idx_d := Index(PNN, LevelSubgroup(M)^d);
+    end if;
+    
+    beta_1  := DegeneracyMatrix(oldM,M,one);
+    alpha_1 := DegeneracyMatrix(M,oldM,one);
+    
+    
+    beta_d  := DegeneracyMatrix(oldM,M,d);
+    alpha_d := DegeneracyMatrix(M,oldM,d);
+    
+    if Dimension(M) eq 0 or Dimension(oldM) eq 0 then
+        return;
+    end if;
+    
+    ba_1:= beta_1*alpha_1; 
+    X   := Parent(ba_1)!0;
+    for i in [1..NumberOfRows(X)] do 
+        X[i,i] := 1;
+    end for;
+    assert ba_1 eq X*idx;
+    ba_d := beta_d*alpha_d;
+    assert ba_d eq X*idx_d;
+    printf " time = %os\n", Cputime(t);
+end procedure;
 
 procedure Test_DegeneracyMaps(numcheck)
    print "** Degeneracy maps test **";
    print "This tests conversion between Manin and modular symbols.";
    for i in [1..numcheck] do
-      t := Cputime();
       M,N,k,eps := RandomSpace();
-      if N gt 1 then
-         divs := [d : d in Divisors(N) | d mod Conductor(eps) eq 0 ];
-         NN   := Random(divs);
-      else
-         continue;
-      end if;
-
-      oldM := ModularSymbols(M,NN);
-      print "  Lower level space has level ",NN;
-
-      beta_1  := DegeneracyMatrix(oldM,M,1);
-      alpha_1 := DegeneracyMatrix(M,oldM,1);
-      d := N div NN;
-      beta_d  := DegeneracyMatrix(oldM,M,d);
-      alpha_d := DegeneracyMatrix(M,oldM,d);
- 
-      if Dimension(M) eq 0 or Dimension(oldM) eq 0 then
-         continue;
-      end if;
-
-      ba_1:= beta_1*alpha_1; 
-      X   := Parent(ba_1)!0;
-      idx := my_idxG0(N) div my_idxG0(NN);
-      for i in [1..NumberOfRows(X)] do 
-         X[i,i] := idx;
-      end for;
-      assert ba_1 eq X;
-      ba_d := beta_d*alpha_d;
-      assert ba_d eq X*(d^(k-2));
-      printf " time = %os\n", Cputime(t);
+      Test_DegeneracyMaps_Single(M, N, k, eps);
+      //if Evaluate(eps, -1) eq 1 then
+	  M_copy := MakeGroupCopy(M);
+	  eps_copy := DirichletCharacter(M_copy);
+	  Test_DegeneracyMaps_Single(M_copy, N, k, eps_copy);
+      //end if;
    end for;
-
 end procedure;
-
-
 
 /* Compute several random spaces of modular symbols with trivial
    character, and verify that the dimensions of their cuspidal new 
    subspaces agree with the dimensions computed using the standard 
    dimension formulas. */
+
+procedure Test_DimensionNewSubspace_Single(M, N, k)
+    t := Cputime();
+    d := DimensionNewCuspFormsGamma0(N,k);
+    assert 2*d eq Dimension(NewSubspace(CuspidalSubspace(M)));
+    printf " \tdim  = %o,    \t%os\n",
+           Dimension(NewSubspace(CuspidalSubspace(M))),Cputime(t);
+end procedure;
 
 procedure Test_DimensionNewSubspace(numcheck)
    if Characteristic(base) ne 0 then
@@ -209,14 +288,17 @@ procedure Test_DimensionNewSubspace(numcheck)
    print "** Dimension of new subspace check **";
    for i in [1..numcheck] do
       M,N,k := RandomSpaceWithTrivialCharacter();
-      t := Cputime();
-      d := DimensionNewCuspFormsGamma0(N,k);
-      assert 2*d eq Dimension(NewSubspace(CuspidalSubspace(M)));
-      printf " \tdim  = %o,    \t%os\n",
-              Dimension(NewSubspace(CuspidalSubspace(M))),Cputime(t);
+      Test_DimensionNewSubspace_Single(M, N, k);
+      // This cannot work on the copy due to the differnet definition of new
    end for;
 end procedure;
 
+procedure Test_NewformDecomposition_Single(M)
+    t := Cputime();
+    D := NewformDecomposition(CuspidalSubspace(M));
+    D;
+    printf " \ttime  = %os\n\n",Cputime(t);
+end procedure;
 
 procedure Test_NewformDecomposition(numchecks)
    if Characteristic(base) ne 0 then
@@ -229,13 +311,22 @@ procedure Test_NewformDecomposition(numchecks)
 
    for i in [1..numchecks] do
       M := RandomSpace();
-      t := Cputime();
-      D := NewformDecomposition(CuspidalSubspace(M));
-      D;
-      printf " \ttime  = %os\n\n",Cputime(t);
+      Test_NewformDecomposition_Single(M);
+      //if Evaluate(DirichletCharacter(M),-1) eq 1 then
+	  Test_NewformDecomposition_Single(MakeGroupCopy(M));
+      //end if;
    end for;
 end procedure;
 
+procedure Test_Decomposition_Single(M)
+    t := Cputime();
+    D := Decomposition(M,13);
+    D;
+    for A in D do
+        VectorSpace(A);
+    end for;
+    printf " \ttime  = %os\n\n",Cputime(t);
+end procedure;
 
 procedure Test_Decomposition(numchecks)
    print "** Compute a bunch of decompositions ** ";
@@ -244,31 +335,36 @@ procedure Test_Decomposition(numchecks)
 
    for i in [1..numchecks] do
       M := RandomSpace();
-      t := Cputime();
-      D := Decomposition(M,13);
-      D;
-      for A in D do
-         VectorSpace(A);
-      end for;
-      printf " \ttime  = %os\n\n",Cputime(t);
+      Test_Decomposition_Single(M);
+      //if Evaluate(DirichletCharacter(M),-1) eq 1 then
+	  Test_Decomposition_Single(MakeGroupCopy(M));
+      //end if;
+      
    end for;
 
+end procedure;
+
+procedure Test_Eigenforms_Single(M)
+    t := Cputime();
+    D := Decomposition(NewSubspace(CuspidalSubspace(M)),23);
+    D;
+    for i in [1..#D] do
+        if IsIrreducible(D[i]) and IsCuspidal(D[i]) then
+            qEigenform(D[i],7);
+        end if;
+    end for;
+    printf " \ttime  = %os\n\n",Cputime(t);
 end procedure;
 
 procedure Test_Eigenforms(numchecks)
    print "** Compute a bunch of eigenforms ** ";
    print "The only check is that the program doesn't bomb.";
    for i in [1..numchecks] do
-      M := RandomSpace();
-      t := Cputime();
-      D := Decomposition(NewSubspace(CuspidalSubspace(M)),23);
-      D;
-      for i in [1..#D] do
-         if IsIrreducible(D[i]) and IsCuspidal(D[i]) then
-            qEigenform(D[i],7);
-         end if;
-      end for;
-      printf " \ttime  = %os\n\n",Cputime(t);
+       M := RandomSpace();
+       Test_Eigenforms_Single(M);
+       //if Evaluate(DirichletCharacter(M), -1) eq 1 then
+	   Test_Eigenforms_Single(MakeGroupCopy(M));
+       //end if;
    end for;
 end procedure;
 
@@ -394,16 +490,18 @@ function my_Gamma(N, type)
   end if;
   Z_N := IntegerRing(N);
   G_N := GL(2, Z_N);
-  gens := [-G_N!1];
+  // gens := [-G_N!1];
+  gens := [];
   U, psi := UnitGroup(Z_N);
+  // This matches our convention for the Galois action
   for t in Generators(U) do
-     Append(~gens, G_N![psi(t),0,0,1]);
+    Append(~gens, G_N![1,0,0,psi(t)]);
   end for;
   if Type(type) eq RngIntElt then
      Append(~gens, G_N![1,1,0,1]);   
      if type eq 0 then
        for t in Generators(U) do
-          Append(~gens, G_N![1,0,0,psi(t)]);
+	 Append(~gens, G_N![psi(t),0,0,1]);
        end for;
      end if;
   end if;
@@ -545,200 +643,38 @@ procedure Test_Stein()
 // Test_Stein_9_8();
 end procedure;
 
-// just to record the actions 
-function action_on_mod_sym(N)
-  M := ModularSymbols(CongruenceSubgroup(N), 2, Rationals(), 0);
-  S := CuspidalSubspace(M);
-  D := NewformDecomposition(S);
-  G := SL(2, Integers(N));
-  gens := [Eltseq(FindLiftToSL2(x)): x in Generators(G)];
-  import "./Geometry/ModSym/operators.m" : ActionOnModularSymbolsBasis;
-  actions := [ActionOnModularSymbolsBasis(g, M) : g in gens];
-  F := CyclotomicField(7);
-  S_action := [ChangeRing(Restrict(a, VectorSpace(S)),F) : a in actions];
-  S_mod := GModule(G, S_action);
-  irred := Decomposition(S_mod);
-  irr := [S_mod!b : b in Basis(irred[1])];
-  irr_in_M := Matrix(irr)*ChangeRing(BasisMatrix(VectorSpace(S)),F);
-  s := actions[3];
-  t := actions[1];
-  mults :=[Parent(t)!1, s, t, s*t, t*s, t^2];
-  v := Basis(ChangeRing(VectorSpace(D[1]),F) meet
-	     sub<ChangeRing(VectorSpace(M),F) | Rows(irr_in_M)>)[1];
+// Not used at the moment - in the end would like to use that for testing
 
-  vecs := [v*ChangeRing(g,F) : g in mults];
-  return 0;
-end function;
-
-function make_group_copy(M)
+function MakeGroupCopy(M)
   k := Weight(M);
   sign := Sign(M);
   eps := DirichletCharacter(M);
+  R := BaseRing(eps);
+  /*
   if (Evaluate(eps,-1) eq -1) then
      print "Currently can only work with even characters...";
      return false;
   end if;
+  */
   N := Level(M);
   G0 := my_Gamma(N,0);
   G1 := my_Gamma(N,1);
-  Q, pi_Q := G0`ImageInLevel / G1`ImageInLevel;
-  gens := SetToSequence(Generators(G0`ImageInLevel));
-  D := AbsolutelyIrreducibleModules(Q,Rationals());
-  reps := [pi_Q * Representation(r) : r in D];
-  vals_all := [[r(g)[1,1] : g in gens] : r in reps];
+  Q, pi_Q := G0 / G1;
+  gens := GeneratorsSequence(ImageInLevel(G0));
+  // Should add coercion of Dirichlet character to group character
+  // (Maybe should just extend the functionality of Dirichlet character
+  // instead?)
+  X := Elements(CharacterGroup(pi_Q, R, G0, G1));
+  vals_all := [[Evaluate(x, g) : g in gens] : x in X];
   vals_eps := [Evaluate(eps, g[2,2]) : g in gens];
-  for i in [1..#reps] do
-     if vals_eps eq vals_all[i] then
-	return ModularSymbols(D[i], k, sign, G0, pi_Q); 
-     end if;
-  end for;
+  i := Index(vals_all, vals_eps);
+  if i ne 0 then
+      return ModularSymbols(X[i], k, sign);
+  end if;
   print "Error! Could not find an appropriate character!\n";
   return false;
 end function;
 
-function genusNSCartan(N, plus)
-  primes_mul := Factorization(N);
-  primes := [x[1] : x in primes_mul];
-  beta3 := &and[p mod 3 eq 2 : p in primes];
-  if beta3 then beta3 := 1; else beta3 := 0; end if;
-  mult_n := 2^(#primes);
-  A := (N-6)*EulerPhi(N) / 12;
-  B := beta3 / 3;
-  if plus then
-    A := A / (mult_n);
-    C := N / (mult_n * 4);
-    for p_m in primes_mul do
-       p := p_m[1];
-       m := p_m[2];
-       if p mod 4 eq 1 then C := C*(1-1/p); end if;
-       if p mod 4 eq 3 then C := C*(1+1/p+2/p^m); end if;
-    end for;
-  else
-    B := B * (mult_n);
-    beta2 := &and[p mod 4 eq 3 : p in primes];
-    if beta2 then beta2 := 1; else beta2 := 0; end if;
-    C := mult_n * beta2 / 4;
-  end if;
-  return 1 + A - B - C;
-end function;
-
-procedure SingleTestNSCartan(N, plus)
-  if plus then
-    G := GammaNSplus(N);
-  else
-    G := GammaNS(N);
-  end if;
-  M := ModularSymbols(G);
-  S := CuspidalSubspace(M);
-  assert Dimension(S) eq 2*genusNSCartan(N,plus);
-end procedure;
-
-procedure TestNSCartan_11()
-  printf "Testing the eigenform of non-split Cartan 11...\n";
-  N := 11;
-  G := GammaNSplus(N);
-  M := ModularSymbols(G);
-  S := CuspidalSubspace(M);
-  f := qEigenform(S,100);
-  f2 := qExpansion(Newform("121k2A"),100);
-  assert f eq f2;
-end procedure;
-
-function conjugateForm(sigma, f, prec)
-  q := Parent(f).1;
-  conj := [sigma(x) : x in Coefficients(f)];
-  conj_f := &+([conj[i]*q^i : i in [1..#conj]]);
-  return conj_f + O(q^prec);
-end function;
-
-function traceForm(f, prec)
-  q := Parent(f).1;
-  K := BaseRing(Parent(f));
-  coefs := [Trace(x) : x in Coefficients(f)];
-  trace_f := &+([coefs[i]*q^i : i in [1..#coefs]]);
-  return PowerSeriesRing(Rationals())!(trace_f + O(q^prec));
-end function;
-
-function IsFormConjugate(f1,f2,prec)
-  assert Parent(f1) eq Parent(f2);
-  K := BaseRing(Parent(f1));
-  Gal_K := Automorphisms(K);
-  for sigma in Gal_K do
-    if conjugateForm(sigma,f1,prec) eq f2 then
-      return true;
-    end if;
-  end for;
-  return false;
-end function;
-
-procedure TestNSCartan_17()
-  printf "Testing the eigenforms of non-split Cartan 17...\n";
-  N := 17;
-  G := GammaNSplus(N);
-  M := ModularSymbols(G);
-  S := CuspidalSubspace(M);
-  D := Decomposition(S, HeckeBound(S));
-  // These are tested against the results of Mercuri and Schoof
-  g1 := qEigenform(D[1],19);
-  g2 := qEigenform(D[2], 17);
-  g3 := qEigenform(D[3], 13);
-// Here they are from the paper
-  q := Parent(g1).1;
-  f1 := q-q^2-q^4+2*q^5-4*q^7+3*q^8-3*q^9-2*q^10-2*q^13+
-    4*q^14-q^16+3*q^18+O(q^19);
-  assert f1 eq g1;
-  q := Parent(g2).1;
-  K := BaseRing(Parent(g2));
-  a := K.1;
-  f2 := q-(a+1)*q^2+a*q^3+(a+2)*q^4-(a+1)*q^5-3*q^6+(a-1)*q^7-3*q^8-a*q^9+
-  (a+4)*q^10-3*q^11+(a+3)*q^12-(a+2)*q^13+(a-2)*q^14-3*q^15+(a-1)*q^16+O(q^17);
-  assert IsFormConjugate(f2,g2,17);
-  q := Parent(g3).1;
-  K := BaseRing(Parent(g3));
-  b := K.1;
-  f3 := q-(b^2+b-2)*q^2-(b+1)*q^3+b*q^4+(b^2+b-4)*q^5+(2*b^2+2*b-3)*q^6+b*q^7+
-  (b^2+b-3)*q^8+(b^2+2*b-2)*q^9+
-  (2*b^2+b-6)*q^10-(2*b^2-2)*q^11-(b^2+b)*q^12+O(q^13);
-  assert IsFormConjugate(f3,g3,13);
-end procedure;
-
-function buildEigenbasisNS(N)
-  G := GammaNSplus(N);
-  M := ModularSymbols(G);
-  S := CuspidalSubspace(M);
-// return qIntegralBasis(S,prec : Al := "Universal");
-  prec := Dimension(S) div 2 + 10;
-  return qEigenformBasis(M, prec);
-end function;
-
-function timeEigenbasisNS(N)
-  res := [];
-  primes := PrimesUpTo(N);
-  odd_primes := primes[2..#primes];
-  for p in odd_primes do
-     printf "Constructing eigenbasis for Xns+(%o)...\n", p;
-     tm := Cputime();
-     tmp := buildEigenbasisNS(p);
-     tm := Cputime() - tm;
-     printf "Took %o seconds.\n", tm;
-     Append(~res, [p,tm]);
-  end for;
-  return res;
-end function;
-
-// These are tests for the non-split Cartan
-procedure Test_NS_cartan(max_N)
-   // right now, this is only worked out for odd primes
-   //  !!! TODO : handle all N, shouldn't be much more work
-  printf "Testing dimensions of non-split Cartan...\n";
-  primes := PrimesUpTo(max_N);
-  odd_primes := primes[2..#primes];
-  for p in odd_primes do
-      printf "testing p=%o..\n", p;
-      SingleTestNSCartan(p, false);
-      SingleTestNSCartan(p, true);
-  end for;
-end procedure;
 
 function benchmark(G)
   M := ModularForms(G);
@@ -757,54 +693,6 @@ function Test_John_timing(N)
   time_1 := benchmark(G);
   return [time_0, time_1];
 end function;
-
-function get_traces_data_up_to(max_N, prec)
-  primes := PrimesUpTo(max_N);
-  odd_primes := primes[2..#primes];
-  res := [];
-  for p in odd_primes do
-     G := GammaNSplus(p);
-     M := ModularForms(G);
-     Snew := NewSubspace(CuspidalSubspace(M));
-     forms := [* qExpansion(f[1],prec) : f in Newforms(Snew) *];
-     trace_forms := [traceForm(f,prec) : f in forms];
-     if #trace_forms ne 0 then
-        trace_form := &+trace_forms;
-     else
-        trace_form := PowerSeriesRing(Rationals())!0;
-     end if;
-     Append(~res, trace_form);
-  end for;
-  return odd_primes, res;
-end function;
-
-function get_decomposition_dim_and_char_poly(N, max_p)
-  G := GammaNSplus(N);
-  M := ModularSymbols(G,2,1);
-  S := CuspidalSubspace(M);
-  D := Decomposition(S, HeckeBound(S));
-  dims := [Dimension(d) : d in D];
-  primes := PrimesUpTo(max_p);
-  polys := [CharacteristicPolynomial(HeckeOperator(S,p)) : p in primes];
-  facs := [<primes[i], Factorization(polys[i])> : i in [1..#primes]];
-  return dims, facs;
-end function;
-
-procedure dec_dim_char_poly_up_to(N, max_p, output_fname)
-  // This is just so that the polynomials will look better
-  R<x> := PolynomialRing(Rationals());
-  primes := PrimesUpTo(N);
-  odd_primes := primes[5..#primes];
-  output_file := Open(output_fname, "w");
-  for p in odd_primes do
-     fprintf output_file, "Data for X_ns+(%o):\n", p;
-     dims, facs := get_decomposition_dim_and_char_poly(p, max_p);
-     fprintf output_file, "Dimensions of the irreducible subspaces:\n%o\n",
-             dims;
-     fprintf output_file, "Factorization of the characteristic polynomial of the Hecke operators:\n%o\n\n", facs;
-  end for;
-  delete output_file;
-end procedure;
 
 procedure Test_Zywina()
   printf "Testing the Zywina example Gamma(7)...\n";
@@ -830,17 +718,6 @@ procedure Test_Zywina()
   assert s_mat eq Zywina_mat;
 end procedure;
 
-function all_hecke(N, p)
-  GL_N := GL(2, Integers(N));
-  SL_N := SL(2, Integers(N));
-  triv := sub<GL_N | -GL_N!1>;
-  all_subs := [triv] cat IntermediateSubgroups(GL_N, triv) cat [GL_N];
-  subs := [s : s in all_subs | #(s / (s meet SL_N)) eq EulerPhi(N)];
-  Gs := [PSL2Subgroup(s) : s in all_subs];
-  Ms := [ModularSymbols(G, 2, Rationals(), 0) : G in Gs];
-  return [* HeckeOperator(M,p) : M in Ms *];
-end function;
-
 function get_eigenforms(N, gens : prec := -1)
   if N eq 1 then
     return [];
@@ -863,7 +740,10 @@ function GetEigenforms(grp : prec := -1)
   return get_eigenforms(grp`level, grp`matgens : prec := prec);
 end function;
 
-function is_same_eigenform(f,g)
+// This method is for comparison of eigenforms.
+// At the moment not being used
+/*
+function IsSameEigenform(f,g)
   K_f := BaseRing(Parent(f));
   K_g := BaseRing(Parent(g));
   auts := Automorphisms(K_g);
@@ -889,94 +769,238 @@ function is_same_eigenform(f,g)
   end for;
   return false;	      
 end function;
-	      
-function get_all_eigenforms_level(N, grps)
-  M_full := ModularSymbols(CongruenceSubgroup(N));
-  S_full := CuspidalSubspace(M_full);
-  D := NewformDecomposition(S_full);
-  prec := 2*Dimension(S_full)+10;
-  eigs := [* qEigenform(d, prec) : d in D*];
-  result := AssociativeArray();
-  not_in_eigs := [];
-  errors := [];
-  for G in grps do
-    printf "working on G = %o\n", G[1];
-    try
-      result[G[1]] := get_eigenforms(N, G[2]);
-      are_in_eigs := true;
-      for f in result[G[1]] do
-	is_in_eigs := &or [is_same_eigenform(f,eig) : eig in eigs];
-        are_in_eigs := are_in_eigs and is_in_eigs;
-      end for;
-      if not are_in_eigs then
-        Append(~not_in_eigs, G[1]);
-      end if;
-    catch err
-        Append(~errors, <G[1],err`Object>);
-    end try;
-  end for;
-  return result, not_in_eigs, errors;
-end function;
-
-function get_all_eigenforms(grps)
-  result := AssociativeArray();
-  not_in_eigs := [];
-  errors := [];
-  for N in Keys(grps) do
-	  res, neig, err := get_all_eigenforms_level(N, grps[N]);
-     for k in Keys(res) do
-	result[k] := res[k];
-     end for;
-     not_in_eigs cat:= neig;
-     errors cat:= err;
-  end for;
-  return result, not_in_eigs, errors;
-end function;
-
+*/
 // The load can't be in a function. do that before.
 // Have to change original data files to be able to import them.
-
-  dir := GetCurrentDirectory();
-  ChangeDirectory("/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/");
-  if assigned L then
+/*
+dir := GetCurrentDirectory();
+ChangeDirectory("/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/");
+if assigned L then
     delete L;
+end if;
+load "/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/csg6-lev120.dat";
+ChangeDirectory(dir);
+*/
+// This fails at N = 8 when char = true,
+// because the multicharacter decomposition decomposes one of the seemingly irreducible spaces !???
+
+procedure Test_NewformDecomp(N, char)
+    print "Testing NewformDecomposition of S_2(Gamma(N))";
+    if (char) then
+	M := ModularSymbols(my_Gamma(N, "full"));
+    else
+	M := ModularSymbols(my_Gamma(N, "full") ,2, Rationals(), 0);
+    end if;
+    S := CuspidalSubspace(M);
+    D := NewformDecomposition(S);
+    dims := [Dimension(d) : d in D];
+    M0 := ModularSymbols(CongruenceSubgroup(N));
+    if (N eq 1) or char then
+	S0 := CuspidalSubspace(M0);
+	D0 := NewformDecomposition(S0);
+    else
+	D0 := MC_NewformDecompositionOfCuspidalSubspace(M0);
+    end if;
+    dims0 := [Dimension(d) : d in D0];
+    assert dims eq dims0;
+end procedure;
+
+function GetAllCycHom(F, K)
+  assert Type(F) in [FldCyc, FldRat];
+  assert Type(K) in [FldCyc, FldRat];
+  if Type(F) eq FldRat then
+    ret := [hom<F->K | >];
+  else
+    cond_K := Conductor(K);
+    cond_F := Conductor(F);
+    K_cyc := CyclotomicField(cond_K);
+    F_cyc := CyclotomicField(cond_F);
+    is_K_cyc, phi_K := IsIsomorphic(K, K_cyc);
+    is_F_cyc, phi_F := IsIsomorphic(F, F_cyc);
+    assert is_F_cyc and is_K_cyc;
+    ret := [hom<F_cyc->K_cyc | K_cyc.1^((cond_K div cond_F)*j)>
+	     : j in [0..cond_F-1] | GCD(j,cond_F) eq 1];
+    ret := [phi_F*h*((phi_K)^(-1)): h in ret];
   end if;
-  load "/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/csg6-lev120.dat";
-  ChangeDirectory(dir);
-
-function load_groups(L)
-  grps_by_name := AssociativeArray();
-  for l in L do
-     grps_by_name[l`name] := l;
-  end for;
-  return grps_by_name;
+  return ret;
 end function;
 
-function load_groups_by_level(L)
-  gens_by_level := AssociativeArray();
-  for l in L do
-     if IsDefined(gens_by_level, l`level) then
-       Append(~gens_by_level[l`level], <l`name, l`matgens>);
-     else
-       gens_by_level[l`level] := [<l`name, l`matgens>];
-     end if;
-  end for;
-  return gens_by_level;
+procedure Test_Eisenstein_Single(N,k : prec := 100, gamma_type:=0)
+    print "Testing creation of Eisenstein series";
+    tt := Cputime();
+    assert gamma_type in [0,1];
+    G := (gamma_type eq 0) select Gamma0(N) else Gamma1(N);
+    E_orig := EisensteinSeries(ModularForms(G,k));
+    E := EisensteinSeries(ModularForms(my_Gamma(N,gamma_type),k));
+// assert #E eq Dimension(EisensteinSubspace(ModularForms(G,k)));
+    assert #E eq #E_orig;
+    if #E ne 0 then
+        f_orig := [PowerSeries(e, prec) : e in E_orig];
+	_<q> := Parent(f_orig[1]);
+	f := [PowerSeries(e, prec*N) : e in E];
+	f_vecs := [Vector(AbsEltseq(x)) : x in f];
+	f_orig_vecs := [Vector(AbsEltseq(Evaluate(f,q^N))) : f in f_orig];
+
+        // This is not good enough, as we might need a different embedding
+        /*
+        cond := LCM([Conductor(BaseRing(Universe(fs)))
+			: fs in [f_vecs, f_orig_vecs]]);
+        K := CyclotomicField(cond);
+        
+        assert &and[IsSubfield(BaseRing(Universe(fs)), K)
+		    : fs in [f_vecs, f_orig_vecs]];
+        _ := Solution(ChangeRing(Matrix(f_vecs), K),
+		      ChangeRing(Matrix(f_orig_vecs),K));
+	*/
+        // The fields
+        Fs := [* BaseRing(Universe(fs)) : fs in [*f_vecs, f_orig_vecs*] *];
+        // They should be cyclotomic fields
+        assert &and[Type(F) in [FldCyc,FldRat] : F in Fs];
+        conds := [Conductor(F) : F in Fs];
+        cond := LCM(conds);
+        K := CyclotomicField(cond);
+        embs := [GetAllCycHom(F,K) : F in Fs];
+        for hs in CartesianProduct(embs) do
+	  M := ChangeRing(Matrix(f_vecs), hs[1]);
+          M_orig := ChangeRing(Matrix(f_orig_vecs), hs[2]);
+/*
+          submats := [Submatrix(mat, [1..#E], [1+N*j : j in [0..#E-1]])
+	       : mat in [M, M_orig]];
+          if submats[1]*submats[2]^(-1)*M_orig eq M then
+*/
+          if EchelonForm(M) eq EchelonForm(M_orig) then
+	    Cputime(tt);
+	    return;
+          end if;
+	end for;
+        // If we are here no pair of embeddings worked!
+        assert false;
+    end if;
+    Cputime(tt);
+end procedure;
+
+procedure Test_Eisenstein(numcheck)
+    for i in [1..numcheck] do
+	N      := Random([1..maxN]);
+	k      := Random([2..maxk]);
+	Test_Eisenstein_Single(N,k);
+        Test_Eisenstein_Single(N,k : gamma_type := 1);
+    end for;
+end procedure;
+
+procedure Test_S13()
+    print "Testing exceptional Gamma_S(13)";
+    tt := Cputime();
+    p := 13;
+//    B<i,j,k> := Quaternions();
+    B<i,j,k> := QuaternionAlgebra(Rationals(), -1,-1);
+    O_B := QuaternionOrder([1,i,j,k]);
+    //    O_B, i, j, k := QuaternionStandardOrder();
+    _, mp := pMatrixRing(O_B,p);
+    S4tp := sub<GL(2,p) | [mp(1+s) : s in [i,j,k]]
+    			cat [mp(1-s) : s in [i,j,k]] cat [-1]>;
+    H_S4 := sub<GL(2,Integers(p)) | Generators(S4tp)>;
+    H_S4 := GetRealConjugate(H_S4);
+    G_S4 := PSL2Subgroup(H_S4);
+    M := ModularSymbols(G_S4, 2, Rationals(), 0);
+    S := CuspidalSubspace(M);
+    D := Decomposition(S, HeckeBound(S));
+    assert #D eq 1;
+    f := qEigenform(D[1]);
+    R<q> := Parent(f);
+    K<a> := BaseRing(R);
+    assert qEigenform(D[1],20) eq
+	   q + a*q^2 + (-a^2 - 2*a)*q^3 + (a^2 - 2)*q^4 +
+	   (a^2 + 2*a - 2)*q^5 + (-a - 1)*q^6 + (a^2 - 3)*q^7 +
+	   (-2*a^2 - 3*a + 1)*q^8 + (a^2 + 3*a - 1)*q^9 +
+	   (-a + 1)*q^10 + (-a^2 - 2*a - 2)*q^11 + (a^2 + 3*a)*q^12 +
+	   (-2*a^2 - 2*a + 1)*q^14 + (a^2 + a - 2)*q^15 +
+	   (-a^2 - a + 2)*q^16 + (-a^2 + a + 2)*q^17 +
+	   (a^2 + 1)*q^18 + (-2*a^2 - a + 2)*q^19 + O(q^20);
+    f := DefiningPolynomial(K);
+    _<x> := Parent(f);
+    assert f eq x^3 + 2*x^2 - x - 1;
+    Cputime(tt);
+end procedure;
+
+procedure Test_2adic()
+    print "Testing example of a 2-adic group";
+    tt := Cputime();
+    gens := [[1,3,12,3],[1,1,12,7],[1,3,0,3],[1,0,2,3]];
+    N := 16;
+    H_N := sub<GL(2,Integers(N)) | gens>;
+    H_N := GetRealConjugate(H_N);
+    H := PSL2Subgroup(H_N);
+    
+    M := ModularSymbols(H, 2, Rationals(), 0);
+    S := CuspidalSubspace(M);
+    D := Decomposition(S, HeckeBound(S));
+    f := qEigenform(D[1],100);
+    _<q> := Parent(f);
+    assert f eq q - 4*q^5 - 3*q^9 - 4*q^13 - 2*q^17 + 11*q^25 - 4*q^29 +
+		12*q^37 - 10*q^41 + 12*q^45 - 7*q^49 - 4*q^53 + 12*q^61 +
+		16*q^65 - 6*q^73 + 9*q^81 + 8*q^85 + 10*q^89 - 18*q^97 + O(q^100); 
+    Cputime(tt);
+end procedure;
+
+procedure Test_NotRealType()
+    print "Testing example of a group not of real type";
+    tt := Cputime();
+    gens := [[ 7, 0, 0, 7 ],[ 2, 3, 3, 5 ],[ 0, 7, 7, 7 ],
+	     [ 3, 0, 0, 3 ],[ 4, 7, 7, 3 ]];
+    N := 8;
+    H_N := sub<GL(2,Integers(N)) | gens>;
+    H := PSL2Subgroup(H_N);
+    
+    M := ModularSymbols(H, 2, Rationals(), 0);
+    S := CuspidalSubspace(M);
+    assert &and[IsScalar(HeckeOperator(S,p)) : p in PrimesUpTo(100)];
+    assert HeckeOperator(S,97)[1,1] eq 18;
+    Cputime(tt);
+end procedure;
+
+function Test_Shimura(N)
+    Z_N := Integers(N);
+    U, phi := UnitGroup(Z_N);
+    H := Random(Subgroups(U));
+//    h_gens := [phi(g) : g in Generators(U_h`subgroup)];
+//    all_gens := [phi(g) : g in Generators(U)];           
+    t := Random(Divisors(N));
+//    mat_gens := [[-1,0,0,-1],[1,t,0,1]] cat [[a,0,0,1] : a in h_gens]
+//		cat [[1,0,0,d] : d in all_gens];
+//    gamma := PSL2Subgroup(sub<GL(2, Integers(N)) | mat_gens>);
+    gamma := GammaShimura(N, U, phi, H`subgroup, t);
+//   M := ModularSymbols(gamma, 2, Rationals(), 0);
+    M := ModularSymbols(gamma);
+    S := CuspidalSubspace(M);
+    D := NewformDecomposition(S);
+    // D := Decomposition(S, HeckeBound(S));
+    return D, S;
 end function;
 
-function load_groups_genus(L)
-  grps_by_genus := AssociativeArray();
-  for l in L do
-     if IsDefined(grps_by_genus, l`genus) then
-       Append(~grps_by_genus[l`genus], l`name);
-     else
-       grps_by_genus[l`genus] := [l`name];
-     end if;
-  end for;
-  return grps_by_genus;
-end function;
+procedure Test_IsotypicDecomposition()
+  printf "Testing dimensions of isotypic components...\n";
+  H_N := sub<GL(2,Integers(11^2))|[[1,61,45,1],[10,2,62,111]]>;
+  H := PSL2Subgroup(H_N);
+  M := ModularSymbols(H, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  assert IsotypicDimensionDecomposition(S) eq
+    [2, 10, 10, 70, 70, 100, 180, 180, 400 ];
+end procedure;
 
 procedure DoTests(numchecks)
+   // Tests from the paper
+   Test_2adic();
+   Test_NotRealType();
+   Test_NSCartan_11();
+   Test_NSCartan_17();
+   Test_S13();
+   // These test that everything works for
+   // Gamma0, Gamma1 as in the examples from Stein's book
+   Test_Stein();
+   // Test_Zywina();
+   // testing random spaces of type gamma0 and gamma1
+   Test_Eisenstein(numchecks);
    Test_Eigenforms(numchecks);
    Test_NewformDecomposition(numchecks);
    Test_Decomposition(numchecks);
@@ -986,87 +1010,11 @@ procedure DoTests(numchecks)
    Test_DimensionConsistency(numchecks);
  //  Test_EllipticCurve();
    Test_qExpansionBasis(numchecks);
-   Test_Rouse();
-   Test_Stein();
-   Test_NS_cartan(30);
-   TestNSCartan_11();
-   TestNSCartan_17();
-// Test_Zywina();
+   // This is no longer really needed
+   // Test_Rouse();
+   // not needed - tests the construction of spaces for ns cartan
+   // Test_NSCartan(30);
+   Test_IsotypicDecomposition()
 end procedure;
 
-function get_det_n_order(G, n)
-  N := Level(G);
-  H := ImageInLevelGL(G);
-  gens := Generators(H);
-  prods := {H!1};
-  old_prods := {};
-  while #old_prods ne #prods do
-    old_prods := prods;
-    new_prods := &join{{g1*g2 : g2 in prods} : g1 in gens};
-    new_prods := new_prods join &join{{g2*g1 : g2 in prods} : g1 in gens};
-    prods := prods join new_prods;
-  end while;
-  basis := [Vector(prod) : prod in prods];
-  U := sub<Universe(basis) | basis>;
-  M2N := MatrixAlgebra(Integers(N),2);
-  det_n_reps := [M2N!Eltseq(x) : x in U | (x[1]*x[4]-x[2]*x[3] eq n) and
-		    (x ne 0)];
-  return det_n_reps;
-end function;
 
-function involution(A)
-  a,b,c,d := Explode(Eltseq(A));
-  return Parent(A)![d,-b,-c,a];
-end function;
-
-// This is incredibly slow, but seems to at least work...
-
-function get_hecke_representatives(G,n)
-  N := Level(G);
-  M2N := MatrixAlgebra(Integers(N),2);
-  M2Z := MatrixAlgebra(Integers(), 2);
-  det_n_reps := get_det_n_order(G,n);
-  H := ImageInLevel(G);
-  // !!! TODO : This could be done much more efficiently, using Todd-Coxeter
-  // Unfortunately, at the moment Magma would only do it with groups as
-  // arguments
-  good_idxs := [1..#det_n_reps];
-  equivalents := [];
-  i := 1;
-  while i lt #good_idxs do
-       for_removal := [];                    
-       for j in good_idxs[i+1..#good_idxs] do
-	  if exists(h){h : h in H | det_n_reps[good_idxs[i]] eq
-		       h*det_n_reps[j]} then
-	     Append(~for_removal, j);
-          end if;
-       end for;
-       good_idxs := [j : j in good_idxs | j notin for_removal];
-       Append(~equivalents, [good_idxs[i]] cat for_removal);
-       i +:= 1;
-  end while;
-  R := &cat[[[n div a, b, 0, a] : b in [0..a-1]] : a in Divisors(n)];
-  d, n_inv, dummy := XGCD(n,N);
-  reps := [];
-  for r in R do
-    for j in [1..#equivalents] do
-       idx := 1;
-       found := false;
-       while (not found) and (idx le #equivalents[j]) do
-          xr := det_n_reps[equivalents[j][idx]] * involution(M2N!r);
-          // We lift to ZZ because magma can't compute ideal<M2N | d>
-          if M2Z!xr in ideal<M2Z | d> then
-            mod_rep := MatrixAlgebra(Integers(N div d), 2)!(M2Z!xr div d);
-            mod_rep := n_inv * mod_rep;
-            rep := FindLiftToM2Z(mod_rep)*M2Z!r;
-            if M2N!rep eq det_n_reps[equivalents[j][idx]] then
-              Append(~reps, rep);
-              found := true;
-            end if;
-          end if;
-          idx +:= 1;
-      end while;
-    end for;
-  end for;
-  return [Eltseq(rep) : rep in reps];
-end function;

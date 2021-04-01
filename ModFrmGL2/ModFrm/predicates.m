@@ -11,6 +11,10 @@ freeze;
    $Header: /home/was/magma/packages/ModFrm/code/RCS/predicates.m,v 1.7 2002/08/26 20:12:58 was Exp was $
 
    $Log: predicates.m,v $
+
+   Revision 1.8  2020/09/07 11:03:37  was
+   Modified Precision to depend on the cusp width.
+
    Revision 1.7  2002/08/26 20:12:58  was
    Deleted a comment.
 
@@ -76,6 +80,9 @@ function DimensionOfCuspidalSpace(M)
    assert IsAmbientSpace(M);
 
    if not IsOfGammaType(M) then
+      if (Weight(M) eq 2) then
+	return Genus(LevelSubgroup(M));
+      end if;
       return &+[Dimension(CuspidalSubspace(a)) : a in MF_ModularSymbols(M,1)];
    end if;
 
@@ -144,23 +151,24 @@ end function;
 
 
 function ObviouslyHasDimensionZero(M)
-   k := Weight(M);
-   if not IsGamma1(M) and k in Integers() then
-      t := true;
-      for eps in DirichletCharacters(M) do
-         if not ((IsEven(k) and IsOdd(eps)) or (IsOdd(k) and IsEven(eps))) then
-            t := false;
-            break;
-         end if;
-      end for;
-      if t then
-         return true;
-      end if;
-   end if;
-   if k le 0 then
-      return true;
-   end if;
-   return false;
+    k := Weight(M);
+    if (not IsOfGammaType(M)) or (not IsGamma1(M) and k in Integers()) then
+	t := true;
+	for eps in DirichletCharacters(M) do
+            if not ((IsEven(k) and IsOdd(eps)) or
+		    (IsOdd(k) and IsEven(eps))) then
+		t := false;
+		break;
+            end if;
+	end for;
+	if t then
+            return true;
+	end if;
+    end if;
+    if k le 0 then
+	return true;
+    end if;
+    return false;
 end function;
 
 intrinsic Dimension(M::ModFrm) -> RngIntElt
@@ -678,7 +686,14 @@ intrinsic Precision(M::ModFrm) -> RngIntElt
       return Precision(AmbientSpace(M));
    end if;
    if not assigned M`default_precision or M`default_precision eq -1 then
-      M`default_precision := 12;
+      if IsOfGammaType(M) then
+	  M`default_precision := 12;
+      else
+	  G := LevelSubgroup(M);
+	  h := CuspWidth(G, Infinity());
+	  N := Level(M);
+	  M`default_precision := 12 * N div h;
+      end if;
    end if;
    return M`default_precision;
 end intrinsic;

@@ -55,10 +55,19 @@ intrinsic IsGammaUpper1(G::GrpPSL2) -> BoolElt
 end intrinsic;
 
 intrinsic IsOfRealType(G::GrpPSL2) -> BoolElt
-{ returns true if and only if G is of real type (normalized by J) }
-  if not assigned G`IsReal then
-    J := GL(2,Integers())![-1,0,0,1];
-    gens := Generators(G);
+{ returns true if and only if G is of real type (normalized by J).
+  In fact we check more - we check that its image in GL(Z/NZ) is of real type}
+   if not assigned G`IsReal then
+       if Level(G) eq 1 then
+	   G`IsReal := true;
+       else
+	   G_N := ImageInLevelGL(G);
+	   J := ModLevelGL(G)![-1,0,0,1];
+	   G`IsReal := G_N^J eq G_N;
+       end if;
+/*
+  J := GL(2,Integers())![-1,0,0,1];	
+      gens := Generators(G);  
     G`IsReal := true;
     for g in gens do
       if not PSL2(Integers())!(J * Matrix(g) * J) in G then
@@ -66,6 +75,7 @@ intrinsic IsOfRealType(G::GrpPSL2) -> BoolElt
          break;
       end if;
     end for;
+*/
   end if;
   return G`IsReal;
 end intrinsic;

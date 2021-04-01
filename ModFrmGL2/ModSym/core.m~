@@ -838,7 +838,8 @@ end function;
 intrinsic ModularSymbolApply(g::SeqEnum, s::SeqEnum) -> SeqEnum
 {Apply an element g=[a,b, c,d] of GL(2,Q) to the modular symbol s,
  given as a sequence of tuples <coeff,[cusp1,cusp2]> (as returned by
- ModularSymbolRepresentation).  The result is returned in the same format.}
+ ModularSymbolRepresentation).  The result is returned in the same format.
+ The argument M plays no role and is ignored.}
 
    // TO DO: checks ...
 
@@ -1750,8 +1751,7 @@ function get_general_phi(G)
      mat_sl2 := ModLevel(G)!(det_rep * mat * ScalarMatrix(2,det)^(-1));
      ind, s := CosetReduce(mat_sl2, G`FindCoset);
 // s := det_rep * ModLevel(G)!Eltseq(s);
-     // s := det_rep^(-1) * ScalarMatrix(2,det) * ModLevel(G)!Eltseq(s);
-     s := ModLevel(G)!Eltseq(s);
+     s := det_rep^(-1) * ScalarMatrix(2,det) * ModLevel(G)!Eltseq(s);
      return ind, s;
   end function;
   return phi, G;
@@ -1801,9 +1801,6 @@ function get_non_split_cartan_plus_coset(g,x)
 end function;
 
 function get_Cartan_phi(G)
-  if not IsPrime(Level(G)) then
-      error "Not Implemented for Nonsplit Cartan of composite level!";
-  end if;
   F := GF(Level(G));
   u := F!NSCartanU(G);
   R<x> := PolynomialRing(F);
@@ -1838,7 +1835,7 @@ function get_Cartan_phi(G)
 end function;
 
 function get_phi(G,p)
-  if (IsGammaNS(G) or IsGammaNSplus(G)) and IsPrime(Level(G)) then
+  if IsGammaNS(G) or IsGammaNSplus(G) then
     return get_Cartan_phi(G);
 // Once we figure out how to do it correctly, that's what will happen here.
 /*

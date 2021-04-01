@@ -48,9 +48,11 @@ intrinsic ImageInLevel(G::GrpPSL2 : N := Level(G)) -> GrpMat
      if #modLevel eq 1 then
         G`ImageInLevel := modLevel;
      elif IsGamma(G) then
-       G`ImageInLevel := sub<modLevel|-modLevel!1>;
+     // G`ImageInLevel := sub<modLevel|-modLevel!1>;
+       G`ImageInLevel := sub<modLevel|>;
      else
-       gens := [[1,1,0,1],[-1,0,0,-1]];
+	 // gens := [[1,1,0,1],[-1,0,0,-1]];
+	gens := [[1,1,0,1]];
        if IsGamma0(G) then
           level := Level(G);
           for t in [1..level-1] do
@@ -66,7 +68,11 @@ intrinsic ImageInLevel(G::GrpPSL2 : N := Level(G)) -> GrpMat
      end if;
   end if;
   if N ne Level(G) then
-    gens := [Eltseq(g) : g in Generators(G)] cat [[-1,0,0,-1]];
+       // gens := [Eltseq(g) : g in Generators(G)] cat [[-1,0,0,-1]];
+    gens := [Eltseq(g) : g in Generators(G)];
+    if -ImageInLevel(G)!1 in ImageInLevel(G) then
+      Append(~gens, [-1,0,0,-1]);
+    end if;
     return sub<SL(2,Integers(N)) | gens>;
   end if;
   return G`ImageInLevel;
@@ -74,25 +80,26 @@ end intrinsic;
 
 intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
 {The image of G in GL_2(Z/NZ), where N is the level.}
-  require N mod Level(G) eq 0 : "N must divide level of G";
+  require N mod Level(G) eq 0 : "level of G must divide N";
   if not assigned G`ImageInLevelGL then 
      modLevel := ModLevelGL(G);
      if (#modLevel eq 1) then
         G`ImageInLevelGL := modLevel;
      else
-       gens := [[-1,0,0,-1]];
+       // gens := [[-1,0,0,-1]];
+       gens := [];
        level := Level(G);
        Z_N := Integers(level);
        U, psi := UnitGroup(Z_N);
        for t in Generators(U) do
-	  Append(~gens, [psi(t),0,0,1]);
+	  Append(~gens, [1,0,0,psi(t)]);
        end for;
        if IsGamma1(G) or IsGamma0(G) then
           Append(~gens, [1,1,0,1]);
        end if;
        if IsGamma0(G) then
           for t in Generators(U) do
-            Append(~gens, [1,0,0,psi(t)]);
+	    Append(~gens, [psi(t),0,0,1]);
           end for;
        elif not (IsGamma1(G) or IsGamma(G)) then
 	 gens := gens cat [Eltseq(x) : x in Generators(G)];
@@ -101,8 +108,11 @@ intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
      end if;
   end if;
   if N ne Level(G) then
+    if Level(G) eq 1 then
+      return GL(2, Integers(N));
+    end if;
     gens := Generators(ImageInLevelGL(G));
-    gens := [x : x in GL(2,Integers(N)) | GL(2, Integers(N))!x in gens];
+    gens := [x : x in GL(2,Integers(N)) | GL(2, Integers(Level(G)))!x in gens];
        // return sub<GL(2,Integers(N)) | [Eltseq(g) : g in Generators(G)]>;
     return sub<GL(2,Integers(N)) | gens>;
   end if;
@@ -160,6 +170,12 @@ intrinsic GetFindCoset(G::GrpPSL2) -> Map
   end if;
   return G`FindCoset;
 end intrinsic;
+
+intrinsic NSCartanV(G::GrpPSL2) -> RngIntResElt
+{return the middle coefficient in the quadratic polynomial x^2+vx-u used to create the group, i.e. such that it is the regular representation of ZZ[alpha], where alpha is a root of the polynomial mod N.}
+  if assigned G`NSCartanV then return G`NSCartanV; end if;
+  require false : "Not Implemented!";
+end intrinsic;	  
 
 intrinsic NSCartanU(G::GrpPSL2) -> RngIntResElt
  {return the (non square) element u used to create the group.

@@ -8,6 +8,19 @@ freeze;
                          
    FILE: q-expansions.m
 
+   09/2020:  (Eran) Added qExpansion_EisensteinSeriesNotGamma, that creates the 
+             q-expansion for an Eisenstein form when the group is not Gamma0(N), Gamma1(N)
+             This function uses several helper functions - FullGammaEisenstein, 
+             FullGammaEisensteinG, ApproximatePowerSeries, PowerSeriesNormalizeMagma, 
+             NumApprox, SigmaFunctionUpTo, SigmaFunction, HurwitzZetaFunction, 
+             HurwitzZetaMuFunction, QHurwitzZetaFunction, QHurwitzZetaMuFunction,
+             Lvalue, QLvalue, GaussSum, HurwitzPlusZetaFunction.
+             Some of them are not used at the moment, but might be used in a slight 
+	     variation.
+             We are using the description of the Eisenstein Series for Gamma(N) found in 
+             [DS, Chapter 4].
+             Modified qExpansion_EisensteinSeries accordingly.
+
    05/2007:  (Steve) Slightly adjusted syntax in ExactPrecisionBound so it will work
              correctly over inexact base rings.
 
@@ -80,7 +93,9 @@ import "half-integral.m": q_expansion_basis_weight_half,
 import "weight1.m":     compute_weight1_cusp_space,
                         qExpansion_wt1_dihedral_form;
 
-import "misc.m" :       EchelonPowerSeriesSequence;
+import "misc.m" :       EchelonPowerSeriesSequence,
+                        EchelonPowerSeriesSequenceOverCyc;
+
 import "misc.m" :       SaturatePowerSeriesSequence;
 import "misc.m" :       CoercePowerSeries;
 import "misc.m" :       ToLowerCaseLetter;
@@ -244,7 +259,7 @@ function ApproximatePrecisionBound(M)
       end if;
       if IsCuspidal(M) then MM := CuspidalSubspace(MM); end if;
       ans := ApproximatePrecisionBound(MM);
-   else
+  elif IsOfGammaType(M) then
      // NEW VERSION (by Steve)
      // Using sharper bounds based on results from William's book.
      // Also, using Buzzard's observation (when there is only one character).
@@ -275,6 +290,10 @@ function ApproximatePrecisionBound(M)
         ans := IsCuspidal(M) select Floor( idx*k/12 - cusp_term(M,idx) ) + 1
                               else  Floor(idx*k/12) + 1;
      end if;
+   else
+     // Should modify it to math characters, but good enough for now    
+     idx := Index(LevelSubgroup(M));
+     return N*(Ceiling(idx*(k/12))+1+ Dimension(EisensteinSubspace(M)));
    end if;
    vprintf ModularForms: "Obtained precision bound %o for %o\n", ans, M;
    if k ne 1 then 
@@ -604,15 +623,13 @@ eps(a)*t*e^(at)/(e^(N*t)-1), where N is Modulus(eps)}
    return Bk;
 end intrinsic;
 
-<<<<<<< Updated upstream
-=======
 // This function calculates the correct L value (even when chi is not primitive)
 function Lvalue(chi, s : Precision := 100)
-    L := LSeries(chi : Precision := Precision);
-    prim_val := Evaluate(L, s);
     N := Modulus(chi);
     f := Conductor(chi);
     chi_0 := DirichletGroupFull(f)!chi;
+    L := LSeries(chi_0 : Precision := Precision);
+    prim_val := Evaluate(L, s);
     fac_N := Factorization(N);
     primes := [p[1] : p in fac_N | f mod p[1] ne 0];
     if IsEmpty(primes) then
@@ -625,19 +642,32 @@ end function;
 // Computes the sum of 1/n^s for n = d mod N positive 
 function HurwitzPlusZetaFunction(N, d, s : Precision := 100)
     // Instead of doing that directly, we use the L functions
-    CC := ComplexField();
+    CC<i> := ComplexField(Precision);
     X := Elements(DirichletGroupFull(N));
+    if (s eq 1) then
+      X := [x : x in X | not IsTrivial(x)];
+    end if;
     X_vals := Vector([CC!chi(d)^(-1) : chi in X]);
     L_vals := Vector([CC!Lvalue(chi,s : Precision := Precision) : chi in X]);
-    return DotProduct(X_vals, L_vals) / EulerPhi(N);
+    res :=  DotProduct(X_vals, L_vals) / EulerPhi(N);
+    return res;
 end function;
 
 // Computes the sum of 1/n^s for n = d mod N (both positive and negative)
 function HurwitzZetaFunction(N, d, s : Precision := 100)
-    return HurwitzPlusZetaFunction(N, d, s : Precision := Precision)
+    ret :=  HurwitzPlusZetaFunction(N, d, s : Precision := Precision)
 	   + (-1)^s*HurwitzPlusZetaFunction(N, -d, s : Precision := Precision);
+    if (s eq 1) then
+      pi := Pi(RealField(Precision));
+      CC<i> := ComplexField(Precision);
+      assert ret eq (pi / N)*Cot(pi*d / N);
+      ret +:= pi*i / N;
+    end if;
+    return ret;
 end function;
 
+// This is now an intrinsic in dirichlet.m
+/*
 function GaussSum(chi)
     N := Conductor(chi);
     if N eq 1 then
@@ -647,24 +677,26 @@ function GaussSum(chi)
     K<zeta> := CyclotomicField(N);
     return &+[chi(n)*zeta^n : n in Z_N_star];
 end function;
+*/
 
 // Exact version giving the values divided by C_k = (-2pi i)^k / N^k (k-1)!
 function QLvalue(chi, k)
-    if IsTrivial(chi) then
-	prim_val := -BernoulliNumber(k)/k;
-    else
-	prim_val := - GaussSum(chi) * BernoulliNumber(k, chi^(-1)) / k;
-    end if;
     N := Modulus(chi);
     f := Conductor(chi);
     chi_0 := DirichletGroupFull(f)!chi;
+    if IsTrivial(chi) then
+	prim_val := - BernoulliNumber(k)/k;
+    else
+	prim_val := - GaussSum(chi_0) * BernoulliNumber(k, chi_0^(-1)) / k;
+    end if;
     fac_N := Factorization(N);
     primes := [p[1] : p in fac_N | f mod p[1] ne 0];
     if IsEmpty(primes) then
-	return prim_val;
+      prod := 1;
+    else
+      prod := &*[1 - chi_0(p) / p^k : p in primes];
     end if;
-    prod := &*[1 - chi_0(p) / p^k : p in primes];
-    return prim_val * prod * (N/f)^k;
+    return prim_val * prod * (N/f)^k / 2;
 end function;
 
 // Exact version giving the values divided by C_k = (-2pi i)^k / N^k (k-1)!
@@ -674,7 +706,11 @@ function QHurwitzZetaFunction(N, d, k)
     X := [chi : chi in X | chi(-1) eq (-1)^k];
     L_vals := Vector([QLvalue(chi,k) : chi in X]);
     X_vals := Parent(L_vals)!Vector([chi(d)^(-1) : chi in X]);
-    return K!DotProduct(X_vals, L_vals) / EulerPhi(N);
+    ret :=  2 * K!DotProduct(X_vals, L_vals) / EulerPhi(N);
+    if (k eq 1) then
+      ret -:= 1/2;
+    end if;
+    return ret;
 end function;
 
 // We take n_inv as argument
@@ -845,6 +881,9 @@ function PowerSeriesNormalizeMagma(f : eps := 10^(-20))
 	    pivot +:= 1;
 	end while;
     end if;
+    if pivot eq AbsolutePrecision(f) then
+	return f;
+    end if;
     return f / Coefficient(f, pivot);
 end function;
 
@@ -872,37 +911,129 @@ function FullGammaEisenstein(N, c, d, k, prec)
     return E;
 end function;
 
+// Compute the Eisenstein series for Gamma(N) to a precision of q_N^(prec).
+// In the case of k = 2, this is the Weierstrass p-function
+// This is up to and including q_N^(prec).
+// This routine returns the Fourier expansion
+// of normalized version of p((c*t+d)/N;t)
+// This is p multiplied by (1/4*Pi^2)
+// We use the formula for the Fourier expansion from Chapter 4 of
+// Diamond and Shurman. This is a holomorphic weight two modular
+// form on Gamma(N). We look at ratios of these.
+// Modified it to use power series in q_N instead of Puiseux in q.
+
+// Generalizing the above to arbitrary k
+// This is equivalent to FullGammaEisensteinG - check which is faster
+function weier(c,d,N,pr,k)
+  K<zeta> := CyclotomicField(N);
+  R<q> := PowerSeriesRing(K);
+  c := c mod N;
+  d := d mod N;
+  if k eq 1 then
+    const := R!(1/2 - c/N);
+  elif k eq 2 then
+    const := R!(1/12);
+  else
+    const := R!0;
+  end if;
+  if (c eq 0) then
+    const := const + QHurwitzZetaFunction(N,d,k);
+    pr := pr + 1;
+  end if;
+  ret := const;
+  for m in [1..pr+N] do
+    term := K!0;
+    list1 := [ r^(k-1)*zeta^(d*r) : r in Divisors(m) |
+		(Floor(m/r)-c) mod N eq 0 ];
+    if #list1 gt 0 then
+      term := term + (&+list1);
+    end if;
+    list2 := [ r^(k-1)*zeta^(-d*r) : r in Divisors(m) |
+		(Floor(m/r)-N+c) mod N eq 0];
+    if #list2 gt 0 then
+      term := term + (-1)^k*(&+list2);
+    end if;
+    if (m mod N eq 0) and (k eq 2) then
+      term := term - 2*SumOfDivisors(Floor(m/N));
+    end if;
+    ret := ret + term*q^m;
+  end for;
+  ret := ret + BigO(q^(pr+N+1));
+  return ret;
+end function;
+
+// Generalizing the above to arbitrary k
+function qExpansion_Rouse(M, vec, basislist, prec, N)
+  // Compute Fourier expansions
+
+  vprintf ModularForms, 2:
+    "Computing Weierstrass p-function Fourier expansions.\n";
+  K := BaseRing(vec);
+  R<q> := PowerSeriesRing(K);
+  eps := Weight(M) eq 2 select 1 else 0;
+  if (not assigned M`eisenstein_weier) or
+     (M`eisenstein_weier_prec lt prec) then
+    M`eisenstein_weier := ZeroMatrix(R,N,N);
+    for i in [1..#basislist-eps] do
+      a := basislist[i][1];
+      b := basislist[i][2];
+      vprintf ModularForms, 3:
+	 "Computing expansion %o of %o.\n",i,#basislist-eps;
+      M`eisenstein_weier[a+1][b+1] := weier(a,b,N,prec,Weight(M));
+    end for;
+    M`eisenstein_weier_prec := prec;
+  end if;
+  xcoords := M`eisenstein_weier;
+
+  vprintf ModularForms,2 : "Computing Fourier expansion.\n";
+  fourier := &+[ vec[k]*xcoords[basislist[k][1]+1][basislist[k][2]+1]
+		   : k in [1..#basislist-eps]];
+
+  return fourier;
+end function;
+
 function qExpansion_EisensteinSeriesNotGamma(f, prec)
     assert Type(f) eq ModFrmElt;
     assert Type(prec) eq RngIntElt;
     assert assigned f`eisenstein;
-    vecs, vecs0 := Explode(EisensteinData(f));
+
+    basislist, _, coeffs := Explode(EisensteinData(f));
     N := Level(f);
     k := Weight(f);
-    // We sum over the vectors in the orbit to obtain a Gamma-invariant function
+    // we're currently using Jeremy Rouse's code
+    return qExpansion_Rouse(Parent(f), coeffs, basislist, prec, N);
+
+// Here is what we did previously -
+// When we traced, and this includes a character
+// We sum over the vectors in the orbit to obtain a Gamma-invariant function
     // for each cusp.
-    // E := &+[FullGammaEisenstein(N, v[1], v[2], k, prec) : v in vecs];
-    E := &+[FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs];
+/*
+    assert #vecs eq #eps_vals;
+    eis_gamma_N := [FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs];
+    K := BaseRing(Universe(eis_gamma_N));
+    L := Universe(eps_vals);
+    KL := Compositum(K,L);
+    R := PowerSeriesRing(KL);
+    E := &+[KL!eps_vals[j] * R!eis_gamma_N[j] : j in [1..#vecs]];
     // This clause takes care of the weight 2 case, where we have to
     // take differences
     if IsEmpty(vecs0) then
 	E0 := 0;
     else
-	E0 := &+[FullGammaEisensteinG(N, v[1], v[2], k, prec) : v in vecs0];
+	eis0_gamma_N := [FullGammaEisensteinG(N, v[1], v[2], k, prec)
+			: v in vecs0];
+        E0 := &+[KL!eps_vals[j] * R!eis0_gamma_N[j] : j in [1..#vecs0]];
     end if;
-    // What's the correct field ??
-    // K := Rationals();
-    return PowerSeriesNormalizeMagma(E-E0); 
-    // return ApproximatePowerSeries(PowerSeriesNormalizeMagma(E), K, N);
-    // return PowerSeriesNormalizeMagma(ApproximatePowerSeries(E, K));
+    return E - E0; // we want the action to correlate in scalars
+*/
+   
 end function;
->>>>>>> Stashed changes
 
 function qExpansion_EisensteinSeries(f,prec)
    assert Type(f) eq ModFrmElt;
    assert Type(prec) eq RngIntElt;
    assert assigned f`eisenstein;
-
+   
    /* 
    chi is a primitive character of conductor L
    psi is a primitive character of conductor M
@@ -1164,8 +1295,12 @@ function Compute_qExpansionsOfForm(f, type, data, prec)
             vprint ModularForms, 3: "created from";
             g := qExpansion_CreatedFrom(f,prec);
          elif assigned f`eisenstein then
-            vprint ModularForms, 3: "eisenstein";
-            g := qExpansion_EisensteinSeries(f,prec);
+             vprint ModularForms, 3: "eisenstein";
+	     if IsOfGammaType(Parent(f)) then
+		 g := qExpansion_EisensteinSeries(f,prec);
+	     else
+		 g := qExpansion_EisensteinSeriesNotGamma(f,prec);
+	     end if;
          elif assigned f`wt1_dihedral_data then
             vprint ModularForms, 3: "dihedral";
             g := qExpansion_wt1_dihedral_form(f,prec);
@@ -1278,6 +1413,10 @@ function CuspformBasisUsingModularSymbols(M,prec)
    assert IsCuspidal(M);
    assert Type(BaseRing(M)) in {FldRat, RngInt};
 
+   // In case the group is not of real type, we cannot take sign quotients
+   if (Dimension(M) eq Dimension(EisensteinSubspace(M))) then
+      return [];
+   end if;
    modsym := MF_ModularSymbols(M,+1);
 
    if Type(modsym) eq SeqEnum then
@@ -1684,7 +1823,7 @@ function BasisOfIntegralWeightAtLeast2Forms(M, prec)
    C_basis := CuspformBasisUsingModularSymbols(C,prec);
    E := EisensteinSubspace(M);
    E_basis := qExpansionOfModularFormsBasis(E,prec);
-   return  EchelonPowerSeriesSequence(C_basis cat E_basis);
+   return EchelonPowerSeriesSequence(C_basis cat E_basis);
 end function;
 
 
@@ -1771,8 +1910,14 @@ function BasisOfEisensteinSpace(M, prec)
    else
       E := EisensteinSeries(M);  
    end if;
-   basis := &cat [RestrictionOfScalarsToQ(PowerSeriesInternal(f,prec)) : f in E];
-   basis := EchelonPowerSeriesSequence(basis);
+   if IsOfGammaType(M) then
+     basis := &cat [RestrictionOfScalarsToQ(PowerSeriesInternal(f,prec)) : f in E];
+     basis := EchelonPowerSeriesSequence(basis);
+   else
+     basis := [PowerSeriesInternal(f,prec) : f in E];
+     basis := EchelonPowerSeriesSequenceOverCyc(basis);
+   end if;
+   
    return basis;
 end function;
 
@@ -1859,7 +2004,11 @@ function qExpansionOfModularFormsBasis(M, prec)
       if AbsolutePrecision(basis[#basis]) ge ApproximatePrecisionBound(M) then 
          assert not IsWeaklyZero(basis[#basis]); end if;
    end if;
-   basis := [R|f + O(q^prec) : f in M`q_expansion_basis[2]];
+   if IsOfGammaType(M) then
+     basis := [R|f + O(q^prec) : f in M`q_expansion_basis[2]];
+   else
+     basis := [f + O(q^prec) : f in M`q_expansion_basis[2]];
+   end if;
    if #basis lt Dimension(M) then
       basis cat:= [O(q^prec) : i in [#basis+1..Dimension(M)]];
    end if;
@@ -1871,7 +2020,7 @@ function ClearDenominators(f)
    if Type(BaseRing(Parent(f))) eq RngInt then
       return f;
    end if;
-   assert Type(BaseRing(Parent(f))) eq FldRat;
+   // assert Type(BaseRing(Parent(f))) eq FldRat;
    denom := LCM([Denominator(Coefficient(f,n)) : n in [0..AbsolutePrecision(f)-1]]);
    return denom*f;
 end function;
@@ -1881,8 +2030,13 @@ function ClearDenominatorsAndSaturate(rational_basis)
    if #rational_basis eq 0 then
       return rational_basis;
    end if;
-   assert Type(BaseRing(Parent(rational_basis[1]))) in {RngInt, FldRat};
+   //  assert Type(BaseRing(Parent(rational_basis[1]))) in {RngInt, FldRat};
    no_denominators := [ClearDenominators(f) : f in rational_basis];
-   basis           := SaturatePowerSeriesSequence(no_denominators);
+   // otherwise we have an issue with saturation
+   if Type(BaseRing(Parent(rational_basis[1]))) in {RngInt, FldRat} then
+      basis           := SaturatePowerSeriesSequence(no_denominators);
+   else
+      basis := no_denominators;
+   end if;
    return basis;
 end function;

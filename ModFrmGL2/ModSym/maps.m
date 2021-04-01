@@ -10,6 +10,9 @@ freeze;
    $Header: /home/was/magma/packages/ModSym/code/RCS/maps.m,v 1.8 2002/10/01 06:03:10 was Exp was $
 
    $Log: maps.m,v $
+   Revision 1.9  2020/09/07 11:28:29  was
+   Modified DegeneracyMatrix to use the quotient of levels instead of cusp widths.
+
    Revision 1.8  2002/10/01 06:03:10  was
    *** empty log message ***
 
@@ -422,9 +425,13 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
          return MC_DegeneracyMatrix(M1, M2, d);
    end if;
  
-   G1 := LevelSubgroup(M1);
-   G2 := LevelSubgroup(M2);
-
+   // G1 := LevelSubgroup(M1);
+   // G2 := LevelSubgroup(M2);
+  eps1 := DirichletCharacter(M1);
+  eps2 := DirichletCharacter(M2);
+  G1 := Parent(eps1)`Gamma;
+  G2 := Parent(eps2)`Gamma;
+  
    if not assigned M1`degeneracy_matrices_out then
       M1`degeneracy_matrices_out := [* *];
    end if;
@@ -459,7 +466,8 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
 
   det := Determinant(MatrixAlgebra(Integers(),2)!d);
 
-  if G1 eq G2 then
+  N := LCM(Level(G1), Level(G2));
+  if ImageInLevel(G1 : N := N) eq ImageInLevel(G2 : N := N) then
       require d eq Parent(d)!1 : "Argument 3 must equal 1.";
       require M1 eq M2: "Arguments 1 and 2 must be equal.";
                        // we easily *could* write down the map between
@@ -473,10 +481,15 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
                Representation(M2))!MatrixAlgebra(F,Degree(M1))!1;
 
    elif G1 subset G2 then  // G1 subset G2 -- lower  
-      require (Level(G1) div Level(G2)) mod det eq 0 :
-              "Determinant of argument 3 must divide Level(G1) div Level(G2).";
-      eps1 := DirichletCharacter(M1);
-      eps2 := DirichletCharacter(M2);
+/*
+       require (CuspWidth(G1, Infinity()) div CuspWidth(G2, Infinity()))
+	       mod det eq 0 : 
+	       "Determinant of argument 3 must divide CuspWidth(G1) div CuspWidth(G2).";
+*/
+       // require (Level(G1) div Level(G2)) mod det eq 0 :
+       require Level(G1) mod det eq 0 : 
+      "Determinant of argument 3 must divide Level(G1)."; // div Level(G2).";
+// bool, eps21 := IsCoercible(Parent(eps2), eps1);
       bool, eps21 := IsCoercible(Parent(eps1), eps2);
       require bool and eps21 eq eps1 :
          "Arguments 1 and 2 must have compatible dirichlet characters.";
@@ -485,67 +498,72 @@ Basis(M2).  Both IsAmbientSpace(M1) and IsAmbientSpace(M2) must be true.}
          return already_known;
       end if;
 
-
+// This doesn't seem to work at the moment
       /* Proposition 2.6.15 of Merel's paper. */
-      Heil := Heilbronn(M1, det, true);           
-      A := GeneralizedHeilbronnOperator(M1, M2, Heil : t:=d);
+//      Heil := Heilbronn(M1, det, true);           
+  //    A := GeneralizedHeilbronnOperator(M1, M2, Heil : t:=d);
 
 // Previous version -- VASTLY SLOWER, but well tested and good
 // for testing the above fast version.
 
-/*    B  := ModularSymbolsBasis(M1);
-      D  := [d,0,0,1];
+      B  := ModularSymbolsBasis(M1);
+      d_tilde := ScalarMatrix(Rationals(),2,Determinant(d))*d^(-1);
+      D := Eltseq(d_tilde); // D  := [1,0,0,d];
       DB := [ModularSymbolApply(D, B[i])  : i in [1..#B] ];
       otherA  := [Representation(ConvFromModularSymbol(M2,DB[i])) : i in [1..#DB]]; 
-      assert A eq Hom(Representation(M1), Representation(M2)) ! otherA; 
-*/
+//      assert A eq Hom(Representation(M1), Representation(M2)) ! otherA; 
+      A := otherA;
 
+elif G2 subset G1 then// G2 subset G1 -- raise level
+    //   require (CuspWidth(G2, Infinity()) div CuspWidth(G1, Infinity()))
+    require Level(G2) // div Level(G1)
+	    mod det eq 0 :
+      "Determinant of Argument 3 must divide Level(G2)."; // div Level(G1).";
+ //     "Determinant of Argument 3 must divide CuspWidth(G2) div CuspWidth(G1).";
 
-   elif G2 subset G1 then// G2 subset G1 -- raise level
-      require (Level(G2) div Level(G1)) mod det eq 0 : 
-          "Determinant of Argument 3 must divide Level(G2) div Level(G1).";
-      eps1 := DirichletCharacter(M1);
-      eps2 := DirichletCharacter(M2);
-      // bool, eps12 := IsCoercible(Parent(eps2), eps1);
-      // require bool and eps12 eq eps2 :
-     bool, eps12 := IsCoercible(Parent(eps1), eps2);
-         require bool and eps12 eq eps1 :
-         "Arguments 1 and 2 must have compatible dirichlet characters.";
+ 
+  // bool, eps12 := IsCoercible(Parent(eps1), eps2);
+  bool, eps12 := IsCoercible(Parent(eps2), eps1);
+  //         require bool and eps12 eq eps1 :
+  require bool and eps12 eq eps2 :
+      "Arguments 1 and 2 must have compatible dirichlet characters.";
 
-      if assigned already_known then
-         return already_known;
-      end if;
+  if assigned already_known then
+      return already_known;
+  end if;
 
-      B   := ModularSymbolsBasis(M1);
-      alpha := d;
-      alpha_conj := Conjugate(G2,alpha : IsExactLevel := true);
-      conj := ImageInLevel(alpha_conj);
-      im_G1 := ImageInLevel(G1 : N := Level(alpha_conj));
-      require conj subset im_G1 :
-            "alpha must conjugate G1 to G2";
-      D := Transversal(im_G1, conj);
-      D_lift := [PSL2(Integers()) | FindLiftToSL2(dd) : dd in D];
-      R := [Eltseq(alpha*Parent(alpha)!Matrix(dd)) : dd in D_lift];
-      eps := DirichletCharacter(M1);
-      eps_vals := [(dd@eps)^(-1) : dd in D];
-      // R   := DegeneracyCosetReps(N1, N2, d);
-      if IsTrivial(eps) then
-         RB := [ &cat[ModularSymbolApply(M1, r, B[i]) : r in R] 
-                                                  : i in [1..#B]];
-         // This step takes a lot of time.
-         A := [Representation(ConvFromModularSymbol(M2,RB[i])) 
-                                                  : i in [1..#RB]];
-      else
-         A   := [ &+[eps_vals[j]*
-                      Representation(ConvFromModularSymbol(M2,
-                              ModularSymbolApply(M1, R[j], B[i]))) :
-			       j in [1..#R]] : i in [1..#B]];
-      end if;
-   else
-      assert false;
-   end if;
+  G1 := LevelSubgroup(M1);
+  G2 := LevelSubgroup(M2);
+  B   := ModularSymbolsBasis(M1);
+  alpha := d;
+  alpha_conj := Conjugate(G2,alpha : IsExactLevel := true);
+  conj := ImageInLevel(alpha_conj);
+  im_G1 := ImageInLevel(G1 : N := Level(alpha_conj));
+  require conj subset im_G1 :
+      "alpha must conjugate G1 to G2";
+  D := Transversal(im_G1, conj);
+  D_lift := [PSL2(Integers()) | FindLiftToSL2(dd) : dd in D];
+  R := [Eltseq(alpha*Parent(alpha)!Matrix(dd)) : dd in D_lift];
 
-   vprintf ModularSymbols, 2: "\t\t(%o s)\n",Cputime(t);
+  eps_vals := [(dd@eps1)^(-1) : dd in D];
+  // R   := DegeneracyCosetReps(N1, N2, d);
+  if IsTrivial(eps1) then
+      RB := [ &cat[ModularSymbolApply(M1, r, B[i]) : r in R] 
+              : i in [1..#B]];
+      // This step takes a lot of time.
+      A := [Representation(ConvFromModularSymbol(M2,RB[i])) 
+            : i in [1..#RB]];
+  else
+      A   := [ &+[eps_vals[j]*
+                  Representation(ConvFromModularSymbol(M2,
+						       ModularSymbolApply(M1, R[j], B[i]))) :
+		  j in [1..#R]] : i in [1..#B]];
+  end if;
+  else
+assert false;
+  end if;
+  
+  vprintf ModularSymbols, 2: "\t\t(%o s)\n",Cputime(t);
 
    h := Hom(Representation(M1), Representation(M2)) ! A; 
    if not assigned ii_out then
@@ -654,7 +672,8 @@ then the 0 space is returned.
    else
      eps := DirichletCharacter(M);
      GG := Parent(eps)`Gamma;
-     GG_N := ImageInLevelGL(LevelSubgroup(M));
+     // GG_N := ImageInLevelGL(LevelSubgroup(M));
+     GG_N := ImageInLevel(LevelSubgroup(M));
    end if;
 
    GG_im := ImageInLevelGL(GG);
@@ -698,9 +717,9 @@ then the 0 space is returned.
 				       Weight(M),epsG,Sign(M),Gamma0(1))>);
          else
             if GG_im subset G then
-	       epsG := ChangeRing(Restrict(eps,G),BaseRing(M));
-            else
 	       epsG := ChangeRing(Extend(eps,G),BaseRing(M));
+            else
+	       epsG := ChangeRing(Restrict(eps,G),BaseRing(M));
             end if;
             if IsAmbientSpace(M) then
                MS  := ModularSymbols(epsG,Weight(M),Sign(M));

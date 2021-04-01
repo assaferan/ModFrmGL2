@@ -91,6 +91,22 @@ function EchelonPowerSeriesSequence(P)
    return [ R! Eltseq(A[i]) + O(R.1^prec) : i in [1..r]];
 end function;
 
+function EchelonPowerSeriesSequenceOverCyc(P)
+  prec := Min([AbsolutePrecision(f) : f in P]);
+  A := Matrix(Rationals(), [&cat[Eltseq(Coefficient(f,i)) : i in [0..prec-1]]
+			     : f in P]);
+  A := EchelonForm(A);
+  // ignore zero rows
+  r := Nrows(A);
+  while r gt 0 and IsZero(A[r]) do r -:= 1; end while;
+  Rq<q> := Universe(P);
+  R := BaseRing(Rq);
+  d := Degree(R);
+  A := [[R!Eltseq(A[i])[d*(j-1)+1..d*j] : j in [1..Ncols(A) div d]]
+		: i in [1..r]];
+  return [ Rq! Eltseq(A[i]) + O(q^prec) : i in [1..r]];
+end function;
+
 function CoercePowerSeries(f, phi, q)
    assert Type(f) eq RngSerPowElt;
    assert Type(phi) eq Map;
@@ -146,11 +162,20 @@ function SaturatePowerSeriesSequence(P)
    R := Parent(P[1]);
    prec := Min([AbsolutePrecision(f) : f in P]);
    Z := IntegerRing();
+//   Z := Integers(BaseRing(R));
    S := Matrix([[Z!Coefficient(f,i) : i in [0..prec-1]] :  f in P]);
    S := Saturation(S);
    S := HermiteForm(S);
-   return [&+[Integers()!(S[r, i])*R.1^(i-1) : 
-                 i in [1..prec]] + O(R.1^prec): r in [1 .. Nrows(S)]];
+/*
+   if Type(S) eq PMat then
+     gens := [Generators(I)[1] : I in CoefficientIdeals(S)];
+     S := DiagonalMatrix(gens)*Matrix(S);
+   end if;
+*/
+   return [&+[Integers()!(S[r, i])*R.1^(i-1) :
+		      //   return [&+[Z!(S[r, i])*R.1^(i-1) : 
+                  i in [1..prec]] + O(R.1^prec): r in [1 .. Nrows(S)]];
+//i in [1..prec]] + O(R.1^prec): r in [1 .. #P]];
 end function;
 
 

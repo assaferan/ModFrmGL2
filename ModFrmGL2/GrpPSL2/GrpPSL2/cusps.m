@@ -16,6 +16,8 @@ freeze;
 /////////////////////////////////////////////////////
 
 import "coercion.m":  MemberTest;
+// This is actually a function on groups - should move it
+import "../../ModSym/core.m" : LiftToCosetRep;
 
 forward FindCusps;
 
@@ -116,6 +118,9 @@ intrinsic Cusps(G::GrpPSL2) -> SeqEnum
             end for; // d,c
         else
 	    _:=FindCusps(G);
+	    // There's some kind of bug in FindCusps, so I'm patching it right now,
+	    // until I'll have the time to fix it.
+	    // G`cusps := Cusps(ModularSymbols(G, 2, Rationals(), 0));
         end if;
     end if;
     return G`cusps;
@@ -297,3 +302,36 @@ if false and assigned G`cusp_widths then
    end for;
 end intrinsic;
 
+intrinsic CuspInftyElt(cusp::SetCspElt) -> GrpPSL2Elt
+{Computes an element alpha such that alpha sends infinity to the cusp}
+  a := Eltseq(cusp);
+  PSLZ := PSL2(Integers());
+  g := PSLZ!Reverse(LiftToCosetRep(Reverse(a),1));
+  return PSLZ!Transpose(Matrix(g));
+end intrinsic;
+
+intrinsic CuspInftyElt(cusp::SeqEnum[RngIntElt]) -> GrpPSL2Elt
+{Computes an element alpha such that alpha sends infinity to the cusp}
+   return CuspInftyElt(Cusp(cusp[1], cusp[2]));
+end intrinsic;	  
+
+intrinsic IsRegularCusp(G::GrpPSL2, a::SetCspElt) -> BoolElt
+{Returns whether a is a regular cusp for G.}
+    GL2Q := GL(2, Rationals());
+    alpha := GL2Q!Matrix(CuspInftyElt(Eltseq(a)));
+    h := CuspWidth(G^alpha, Infinity());
+    // if IsOdd(h) then return true; end if;
+    // g := PSL2(Integers())! [-1,-h div 2,0,-1];
+    g_p := ModLevel(G^alpha)![1,h,0,1];
+    g_m := -g_p;
+    // we would like to check whether it is in the actual
+    // SL2 (not PSL2) subgroup
+    im_sl2 := ImageInLevel(G^alpha);
+    return not ((g_m in im_sl2) and (g_p notin im_sl2));
+end intrinsic;
+
+intrinsic RegularCusps(G::GrpPSL2) -> SeqEnum
+    {returns a list of coset representatives of G in PSL2(Z);
+     only defined for G a subgroup of PSL2(Z)}
+    return [cusp : cusp in Cusps(G) | IsRegularCusp(G, cusp)];
+end intrinsic;

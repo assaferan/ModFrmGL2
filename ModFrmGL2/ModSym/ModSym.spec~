@@ -19,7 +19,6 @@
     linalg.m
     maps.m
     mestre.m
-    misc.m
     modsym.m
     multichar.m
     operators.m          
@@ -29,6 +28,5 @@
     representation.m
     subspace.m
     twist.m
-    twists.m
     verbose.m
 }

@@ -6,6 +6,8 @@ freeze;
 //                                                                //
 ////////////////////////////////////////////////////////////////////
 
+import "misc.m" : NormalizerGrpMat;
+
 // update, 3rd Sept 2002: changed order in which
 // generators of SL2(Z) are given, to be compatible
 // with functions for computing words for matrices
@@ -183,19 +185,18 @@ intrinsic GammaS(N::RngIntElt) -> GrpPSL2
   return G;
 end intrinsic;
 
-/*
-intrinsic GammaNSGeneral(N::RngIntElt, f::RngUPolElt[RngInt]) -> GrpPSL2
-{creates the congruence subgroup Gamma_ns(N), choosing alpha as the root of the polynomial f, which should be irreducible modulo each prime dividing N}
-*/ 
-function GammaNSGeneral(N, f)
-// require N gt 0 : "N must be a positive integer";
+intrinsic GammaNS(N::RngIntElt, f::RngUPolElt[RngInt]) -> GrpPSL2
+{creates the congruence subgroup Gamma_ns(N), choosing alpha as the root of the polynomial f, which should be irreducible modulo each prime dividing N. Currently supports only the case where ZZ[alpha] is a maximal order, where alpha is a root of f.}
+   require N gt 0 : "N must be a positive integer";
    
    primes := [x[1] : x in Factorization(N)];
+    
    for p in primes do
      Fp_x := PolynomialRing(Integers(p));
-//   require IsIrreducible(Fp_x!f) :
-//             "f must be irreducible mod every prime dividing N";
+     require IsIrreducible(Fp_x!f) :
+             "f must be irreducible mod every prime dividing N";
    end for;
+
    F := ext<Rationals() | f>;
    alpha := F.1;
    assert Evaluate(f,alpha) eq 0;
@@ -203,7 +204,8 @@ function GammaNSGeneral(N, f)
    // This is needed for Magma to be able to compute the unit groups
    // !!! problem : this is not always maximal
    // We want to use the generators for fast generation of the group
-   assert IsMaximal(R);
+   require IsMaximal(R): "N for which ZZ[alpha] is not a maximal order 
+   	   		 are not supported at the moment";
    pi_1 := hom< R -> Integers() | [1,0]>;
    pi_2 := hom< R -> Integers() | [0,1]>;
    NR := ideal<R | N>;
@@ -220,17 +222,24 @@ function GammaNSGeneral(N, f)
    G := PSL2Subgroup(C_N);
    G`Label := Sprintf("Gamma_ns(%o)", N);
    G`IsReal := true;
-   G`NSCartanU := f;
+   G`NSCartanU := -Evaluate(f,0);
+   G`NSCartanV := Coefficient(f,1);
    G`IsNSCartan := true;
    return G;
-// end intrinsic;
-end function;
+end intrinsic;
+
 
 intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns(N), choosing u as the nonsquare
     such that N | a-d, N | b-uc}
   require N gt 0: "N must be a positive integer";
   require Modulus(Parent(u)) eq N: "u must be a mod N residue";
+  if not IsPrime(N) then
+      ZZ_X<X> := PolynomialRing(Integers());
+      u_lift := ChineseRemainderTheorem([3,Integers()!u], [4, N]);
+      f := X^2 - u_lift;
+      return GammaNS(N, f);
+  end if;				       
   primes := [x[1] : x in Factorization(N)];
   good_u := &and[not IsSquare(IntegerRing(p)!u) : p in primes | p ne 2];
   require good_u: "u must be a nonsquare mod every prime dividing N";
@@ -253,14 +262,31 @@ intrinsic GammaNS(N::RngIntElt, u::RngIntResElt) -> GrpPSL2
   G`Label := Sprintf("Gamma_ns(%o)", N);
   G`IsReal := true;
   G`NSCartanU := u;
+  G`NSCartanV := 0;
   G`IsNSCartan := true;
   return G;
 end intrinsic;
 
 intrinsic GammaNS(N::RngIntElt) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns(N)}
-   u := PrimitiveElement(IntegerRing(N));
-   return GammaNS(N,u);
+   if IsPrime(N) then
+       return GammaNS(N, Integers(N)!Nonsquare(GF(N)));
+   end if;
+   primes := [x[1] : x in Factorization(N)];
+   ZZ_x<x> := PolynomialRing(Integers());
+   if 2 in primes then
+       primes := [p : p in primes | p ne 2];
+       crt_vals := [5] cat [Integers()!Nonsquare(GF(p)) :
+			    p in primes];
+       y := ChineseRemainderTheorem(crt_vals, [8] cat primes);
+       v := (1-y) div 4;   
+       return GammaNS(N, x^2 + x + v);
+   else
+       crt_vals := [3] cat [Integers()!Nonsquare(GF(p)) : p in primes];
+       u := ChineseRemainderTheorem(crt_vals, [4] cat primes);
+       return GammaNS(N, x^2 - u);
+   end if;
+//   u := PrimitiveElement(IntegerRing(N));
 end intrinsic;
 
 intrinsic GammaSplus(N::RngIntElt) -> GrpPSL2
@@ -275,16 +301,47 @@ end intrinsic;
 
 intrinsic GammaNSplus(N::RngIntElt) -> GrpPSL2
 {creates the congruence subgroup Gamma_ns^plus(N)}
-  return Normalizer(GammaNS(N));
+   return Normalizer(GammaNS(N));
+end intrinsic;
+
+intrinsic GammaShimura(U::GrpAb, phi::Map,
+		       H::GrpAb, t::RngIntElt) -> GrpPSL2
+{creates the congruence subgroup Gamma(H,t), defined by Shimura.
+    H is a subgroup of UnitGroup(ZZ / N ZZ), and t divides N.
+    These are matrices such that modulo N they are upper triangular,
+    the diagonal elements are in H, and the upper right element is
+    a multiple of t.}
+   N := Modulus(Codomain(phi));
+   h_gens := [phi(g) : g in Generators(H)];
+   all_gens := [phi(g) : g in Generators(U)];           
+   mat_gens := [[-1,0,0,-1],[1,t,0,1]] cat [[a,0,0,1] : a in h_gens]
+		cat [[1,0,0,d] : d in all_gens];
+   return PSL2Subgroup(sub<GL(2, Integers(N)) | mat_gens>);
 end intrinsic;
 
 // Creation of Quotient
 
 intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
-{Currently assumes the same level.}
-   require ModLevelGL(G) eq ModLevelGL(H) :
+	     {Currently assumes the same level.}
+
+//   require ModLevelGL(G) eq ModLevelGL(H) :
+//          "the groups must be of the same level";
+
+   level := LCM(Level(G), Level(H));
+   return ImageInLevelGL(G : N := level)/ImageInLevelGL(H : N := level);
+/*
+   require ModLevel(G) eq ModLevel(H) :
           "the groups must be of the same level";
-   return ImageInLevelGL(G)/ImageInLevelGL(H);
+   return ImageInLevel(G)/ImageInLevel(H);
+*/
+end intrinsic;
+
+intrinsic Transversal(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
+{Return coset representatives for H\G}
+  require H subset G : "argument 2 must a subgroup of argument 1.";
+  im_G := ImageInLevel(G : N := Level(H));
+  im_H := ImageInLevel(H);
+  return [PSL2(Integers()) | FindLiftToSL2(x) : x in Transversal(im_G, im_H)];
 end intrinsic;
 
 //////////////////////////////////////////////////////////
@@ -306,14 +363,15 @@ intrinsic Normalizer(G::GrpPSL2) -> GrpPSL2
      H`LevelFactorization := F;
      H`AtkinLehnerInvolutions := VectorSpace(FiniteField(2),r);
    else     
-     N_G := Normalizer(ModLevelGL(G), ImageInLevelGL(G));
+     N_G := NormalizerGrpMat(ModLevelGL(G), ImageInLevelGL(G));
      H := PSL2Subgroup(N_G, true);
    end if;
    H`IsNormalizer := true;
    H`Label := Sprintf("Normalizer in PSL_2(%o) of ", G`BaseRing) cat Label(G);
    if IsOfRealType(G) then H`IsReal := true; end if;
    if IsGammaNS(G) or IsGammaNSplus(G) then
-     H`NSCartanU := G`NSCartanU;
+       H`NSCartanU := G`NSCartanU;
+       H`NSCartanV := G`NSCartanV;
      H`IsNSCartan := false;
      H`IsNSCartanPlus := true;
    end if;
@@ -324,7 +382,7 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
 						G::GrpMat,
 						H::GrpMat) -> GrpMat
 {}
-    N_G := Normalizer(G_prime, G);
+    N_G := NormalizerGrpMat(G_prime, G);
     require H subset N_G : "H must normalize G";
     Q, pi_Q := N_G / G;
     H_im := H@pi_Q;
@@ -335,9 +393,11 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
     // In fact, if Q is not nilpotent,
     // currently don't know how to find maximal abelian subgroups
     if IsAbelian(Q) then
-       return N_G;
+	return N_G;
+/* In this case it might not work, but it is worth a try
     elif not IsNilpotent(Q) then
        return H;
+*/
     else
       // find a maximal abelian subgroup containing H
       A := sub<Q | Center(Q), H_im>;
@@ -367,10 +427,12 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
                         PSL_2(%o) of ", G`BaseRing) cat Label(G);
     if IsOfRealType(G) then H`IsReal := true; end if;
     if IsGammaNS(G) or IsGammaNSplus(G) then
-      H`NSCartanU := G`NSCartanU;
+	H`NSCartanU := G`NSCartanU;
+	H`NSCartanV := G`NSCartanV;
       H`IsNSCartan := false;
       H`IsNSCartanPlus := true;
     end if;
+    H`DetRep := G`DetRep;
     return H;
 end intrinsic;
 
@@ -453,6 +515,9 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
   A := ScalarMatrix(2,D) * A;
   det := Integers()!Determinant(A);
 
+  if (G eq PSL2(Integers())) then
+     return G;
+  end if;
   if (A in Gamma0(1)) then
      return PSL2Subgroup(Conjugate(ImageInLevelGL(G),ModLevelGL(G)!A));		
   end if;
@@ -489,7 +554,7 @@ intrinsic Conjugate(G::GrpPSL2, A::GrpMatElt : IsExactLevel := false) -> GrpPSL2
       new_g := PSL2(Integers())!Eltseq(elt);
       Append(~H_gens, new_g);
   end for;
-  gens_level := [Eltseq(h) : h in H_gens] cat [[-1,0,0,-1]];
+  gens_level := [Eltseq(h) : h in H_gens];// cat [[-1,0,0,-1]];
   mod_level := ModLevel(G);
   mod_level := SL(2, Integers(Level(G) * det));
   im_in_level := sub<mod_level | gens_level >;
@@ -504,6 +569,9 @@ end intrinsic;
 // This was the only way I could get the reduction morphism
 
 function get_coercion_hom(G,H)
+  if Degree(H) eq 1 then
+    return hom<G -> H | [H!1 : i in [1..NumberOfGenerators(G)]]>;
+  end if;
   return hom<G->H | [H!G.i : i in [1..NumberOfGenerators(G)]]>;
 end function;
 
@@ -539,8 +607,13 @@ intrinsic Intersection(G::GrpPSL2,H::GrpPSL2) -> GrpPSL2
     else
         ModLevelGL := MatrixAlgebra(quo<G`BaseRing | N>,2);
     end if;
-    red_G := get_coercion_hom(ImageInLevelGL(G), GL(2, Integers(d)));
-    red_H := get_coercion_hom(ImageInLevelGL(H), GL(2, Integers(d)));
+    if (d eq 1) then
+      target := GL(1, Integers(2));
+    else
+      target := GL(2, Integers(d));
+    end if;
+    red_G := get_coercion_hom(ImageInLevelGL(G), target);
+red_H := get_coercion_hom(ImageInLevelGL(H), target);
     G_d := Kernel(red_G);
     H_d := Kernel(red_H);
     im_d := Image(red_G) meet Image(red_H);
@@ -579,6 +652,9 @@ end intrinsic;
 
 import "../../ModSym/core.m" : CosetReduce, ManinSymbolGenList;
 
+// This is not good enough -
+// we want level as a GL2 subgroup
+
 intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
 {calculates the level of a subgroup of PSL2}
   if Degree(ModLevel(G)) eq 1 then return 1; end if;
@@ -589,8 +665,35 @@ intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
   T_map := [CosetReduce(ModLevel(G)!Matrix(x) * T,
 		      find_coset) : x in coset_list];
   perm_T := SymmetricGroup(#T_map)!T_map;
-  level := Order(perm_T);
-  return level;
+  min_level := Order(perm_T);
+  max_level := Modulus(BaseRing(ModLevel(G)));
+  cur_level := max_level;
+  found := true;
+  while (cur_level gt min_level) and found do
+    primes := [x[1] : x in Factorization(cur_level)];
+    found := false;
+    bigG := GL(2, Integers(cur_level));
+    for p in primes do
+      level := cur_level div p;
+      imG := sub< bigG | Generators(ImageInLevelGL(G))>;
+      if level eq 1 then
+        contains_ker := bigG subset imG;
+      else
+        lifts := [bigG !
+	      [1 + level*a, level*b, level*c, 1+level*d]
+		     : a,b,c,d in [0..p - 1]
+		    | GCD((1+level*a)*(1+level*d)-level^2*(b*c),
+			  cur_level) eq 1];
+        contains_ker := &and[lift in imG : lift in lifts];
+      end if;
+      if contains_ker then
+        cur_level := level;
+        found := true;
+        break;
+      end if;
+    end for;
+  end while; 
+  return cur_level;
 end intrinsic;
 
  // Eventually we would like to compute the level and check
@@ -723,7 +826,9 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
      if N eq 1 then
        H`FS_cosets := [G!1];
      else
-       H`FS_cosets := [G | FindLiftToSL2(c) : c in cosets];
+       psl_image := sub<H`ModLevel | H`ImageInLevel, [-1,0,0,-1]>;
+       pcosets, _ := Transversal(H`ModLevel, psl_image);
+       H`FS_cosets := [G | FindLiftToSL2(find_coset(c)) : c in pcosets];
      end if;
      codom := [<i, cosets[i]^(-1)> : i in [1..#cosets]];
      coset_idx := map<cosets -> codom |

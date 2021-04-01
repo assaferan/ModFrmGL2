@@ -42,6 +42,7 @@ declare attributes GrpChrElt:
    Domain,        // = x`Parent`Domain
    Element,       // corresponding element in the abelian group
    Conductor,     // Quotient by the kernel of Q--> R^*.
+   ConductorMap,
    Kernel,
    Map,           // the actual map
    ReducedMap,    // the map from the conductor
@@ -118,6 +119,7 @@ intrinsic Conductor(x::GrpChrElt) -> GrpFin
      C, pi_C := x`Domain / K;
      x`ReducedMap := map<C->Codomain(x`Map) | [<c,x`Map(c @@ pi_C)> : c in C]>;
      x`Conductor := C;
+     x`ConductorMap := pi_C;
   end if;
   return x`Conductor;
 end intrinsic;
@@ -145,8 +147,82 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
          xG := G! x`Map;
          return true, xG;
       else
-	 // This is done because at the moment Magma only supports
-	 // homomorphisms of abelian groups.
+	  level_G := Modulus(BaseRing(G`OriginalDomain));
+	  level_x := Modulus(BaseRing(Parent(x)`OriginalDomain));
+	  level := LCM(level_G, level_x);
+	  G_in_level := ImageInLevelGL(G`GammaPrime : N := level);
+	  x_in_level := ImageInLevelGL(Parent(x)`GammaPrime : N := level);
+	  
+	  //	  if G`OriginalDomain subset Parent(x)`OriginalDomain then
+	  if G_in_level subset x_in_level then
+	     gens := GeneratorsSequence(G`Domain);
+	     if Dimension(Codomain(x`Map)) eq 0 then
+		 val_gens := [Codomain(x`Map)!1 : g in gens];
+	     else
+	         pre_gens := [g@@G`QuotientMap : g in gens];
+                 // we still have to take preimage at the common level
+                 // for that we need to lift to something with
+                 // determinant prime to the level. here is one way of doing so
+                 fac := Factorization(level);
+                 N1 := &*[x[1]^x[2] : x in fac | level_G mod x[1] eq 0];
+                 N2 := level div N1;
+                 dets := [CRT([Integers()!Determinant(t), 1], [N1, N2])
+			     : t in pre_gens];
+                 lifts := [FindLiftToM2Z(Matrix(pre_gens[i]) : det := dets[i])
+			      : i in [1..#pre_gens]];
+		 // val_gens := [x(g@@G`QuotientMap) : g in gens];
+	         val_gens := [x(Parent(x)`OriginalDomain!lift) : lift in lifts];
+		 val_gens := [Codomain(x`Map)![[v]] : v in val_gens];
+	     end if;
+	     if IsEmpty(val_gens) then
+		 mat_alg := MatrixAlgebra(G`BaseRing, 1);
+		 rep := map<G`Domain -> mat_alg|<G`Domain!1,mat_alg!1> >;
+		 // This is what we would like to do, but stopped working
+		 // in magma v.2.25
+//		 rep := Representation(TrivialModule(G`Domain, G`BaseRing));
+	     else
+		 rep := Representation(GModule(G`Domain, val_gens));
+	     end if;
+	     return true, initGrpChrElt(G, rep);
+	     //	 elif Parent(x)`OriginalDomain subset G`OriginalDomain then
+	  elif x_in_level subset G_in_level then
+              G_ab, pi_ab := AbelianQuotient(G`Domain);
+	      // Here we go through some pains to define
+	      // the natural map GL(2,level) -> GL(2, level_G)
+	      mod_lev_G := hom<Integers(level) -> Integers(level_G)|>;
+	      mod_mat := hom<MatrixAlgebra(Integers(level),2) ->
+					  MatrixAlgebra(Integers(level_G),2)
+					  | mod_lev_G>;
+	      mod_gl := hom<G_in_level -> G`OriginalDomain | g :-> mod_mat(g)>;
+	      // H_ab := pi_ab(G`QuotientMap(Parent(x)`OriginalDomain));
+	      H_ab := pi_ab(G`QuotientMap(mod_gl(x_in_level)));
+	     Q, pi_Q := G_ab / H_ab;
+	     //	 Q, pi_Q := G`OriginalDomain / Parent(x)`OriginalDomain;
+	     gens_Q := [g@@pi_Q@@pi_ab : g in Generators(Q)];
+	     //	 gens_x := [g@@Parent(x)`QuotientMap : g in Generators(Domain(x))];
+	     gens_x_orig := Generators(Domain(x));
+	     gens_x := [G`QuotientMap(g@@Parent(x)`QuotientMap) :
+			g in gens_x_orig];
+	     //gens := [G`QuotientMap(g) : g in gens_x cat gens_Q];
+	     gens_ab := GeneratorsSequence(Kernel(pi_ab));
+	     gens := gens_x cat gens_Q cat gens_ab;
+	     val_gens := [x(g) : g in gens_x_orig] cat
+			 [1 : g in gens_Q cat gens_ab];
+	     if Dimension(Codomain(x`Map)) eq 0 then
+		 val_gens := [Codomain(x`Map)!1 : v in val_gens];
+	     else
+		 val_gens := [Codomain(x`Map)![[v]] : v in val_gens];
+	     end if;
+	     // If everything is correct, iota is an isomorphism.
+	     GG, iota := sub<G`Domain | gens>;
+	     // We do this to be able to choose our own generators
+	     assert GG eq G`Domain;
+	     GG_map := Representation(GModule(GG, val_gens));
+	     return true, initGrpChrElt(G, iota^(-1) * GG_map);
+	 else
+	     return false, "Invalid coercion: character groups are not contained in one another.";
+	 end if;
+	 /*	
          A := G`AbGrp;
          phi := G`AbGrpMap;
          B, psi := AbelianGroup(Conductor(x));
@@ -157,6 +233,7 @@ intrinsic IsCoercible(G::GrpChr,x::.) -> BoolElt, GrpChrElt
          end if;
          G_map := phi*h*psi^(-1)*x`ReducedMap; 
          return true, initGrpChrElt(G,G_map); 
+	 */
       end if;
    elif Type(x) eq RngIntElt and x eq 1 then
      return true, initGrpChrElt(G,TrivialRepresentation(G`Domain));
@@ -267,7 +344,7 @@ end intrinsic;
 
 intrinsic Print(x::GrpChrElt, level::MonStgElt)
    {}
-   print x`Map;
+   printf "%o", x`Map;
 end intrinsic;
 
 ////////////////////////////////////////////////////////////////
@@ -305,13 +382,12 @@ intrinsic 'eq' (x::GrpChrElt,y::GrpChrElt) -> BoolElt
    // We don't do it because they might be of different types
    // !!! TODO : figure out why, and fix this
    // test the more frequent cases first
-   //if IsIdentical(Gx, Gy) then
-   //   return x`Map eq y`Map;
-   // elif
-   if Gx`Domain ne Gy`Domain then 
+   if IsIdentical(Gx, Gy) then
+       return ValuesOnUnitGenerators(x) cmpeq ValuesOnUnitGenerators(y);
+   elif Gx ne Gy then 
       return false;   // not sure why we want to do this
    else
-      return ValuesOnGenerators(x) cmpeq ValuesOnGenerators(y);
+      return ValuesOnUnitGenerators(x) cmpeq ValuesOnUnitGenerators(y);
    end if;
 end intrinsic;
 
@@ -369,8 +445,9 @@ end intrinsic;
 
 intrinsic Order(x::GrpChrElt) -> RngIntElt
 {The order of x.}
-  A, phi := MultiplicativeGroup(BaseRing(x));
-  orders_gens := [Order(Evaluate(x,q) @@ phi) : q in Generators(Domain(x))];
+  R := Integers(BaseRing(x));
+  A, phi := MultiplicativeGroup(R);
+  orders_gens := [Order((R!Evaluate(x,q)) @@ phi) : q in Generators(Domain(x))];
   if #orders_gens eq 0 then return 1; end if;
   return LCM(orders_gens);
 end intrinsic;
@@ -384,7 +461,8 @@ intrinsic Elements(G::GrpChr) -> SeqEnum
    {The characters in G.}
    if not assigned G`Elements then
      chars := [initGrpChrElt(G, Representation(M)) :
-			       M in IrreducibleModules(G`Domain,G`BaseRing)];
+			       M in IrreducibleModules(G`Domain,G`BaseRing)
+			    | Dimension(M) eq 1];
      G`Elements := chars;
    end if;
    return G`Elements;
@@ -413,7 +491,9 @@ end intrinsic;
 
 intrinsic Evaluate(x::GrpChrElt,g::SeqEnum[RngIntElt]) -> RngElt
 {Evaluation x(g).}
-   return Evaluate(x, PSL2(Integers())!g);
+   D := Parent(x)`OriginalDomain;
+   if Degree(D) eq 1 then return 1; end if;
+   return Evaluate(x, D!g);
 end intrinsic;
 
 intrinsic '@'(g::GrpPermElt, x::GrpChrElt) -> RngElt
@@ -436,10 +516,15 @@ intrinsic '@'(M::AlgMatElt[RngIntRes], x::GrpChrElt) -> RngElt
    // !!!! TODO : Change this for treating the general case
    // This should be an extension of epsilon to the order generated
    // by the group (additively)
-   return 1;
+   is_coer, g := IsCoercible(Parent(x)`OriginalDomain, M);
+   if is_coer then
+       return Evaluate(x, g);
+   else
+       return 1;
+   end if;
 end intrinsic;
  
-intrinsic ValuesOnGenerators(x::GrpChrElt) -> SeqEnum
+intrinsic ValuesOnUnitGenerators(x::GrpChrElt) -> SeqEnum
 {The values of x on the ordered sequence generators of Q, where
  Q is the domain of x.}
    Q := x`Domain;
@@ -465,13 +550,15 @@ end intrinsic;
 intrinsic IsEven(chi::GrpChrElt) -> BoolElt
 {True iff the Dirichlet character chi satisfies chi(-1) = 1}
    G := Parent(chi)`Gamma;
-   return Evaluate(chi,G!(-1)) eq 1;
+   if Level(G) eq 1 then return true; end if;
+   return Evaluate(chi,ModLevel(G)!([-1,0,0,-1])) eq 1;
 end intrinsic;
 
 intrinsic IsOdd(chi::GrpChrElt) -> BoolElt
 {True iff the Dirichlet character chi satisfies chi(-1) = -1}
    G := Parent(chi)`Gamma;
-   return Evaluate(chi,G!(-1)) eq -1;
+   if Level(G) eq 1 then return false; end if;
+   return Evaluate(chi,ModLevel(G)!([-1,0,0,-1])) eq -1;
 end intrinsic;
 
 intrinsic CharacterGroupCopy(G::GrpChr) -> GrpChr
@@ -490,27 +577,31 @@ intrinsic CharacterGroupCopy(G::GrpChr) -> GrpChr
    return GG;
 end intrinsic;
 
-intrinsic Restrict(eps::GrpChrElt, G::GrpMat) -> GrpChrElt
-{Restrict epsilon to G}
-   Gamma := PSL2Subgroup(G, false);
-   N_G := Normalizer(ModLevelGL(Parent(eps)`Gamma), G);
-//N_G := Normalizer(ModLevel(Parent(eps)`Gamma), G);
+intrinsic Extend(eps::GrpChrElt, G::GrpMat) -> GrpChrElt
+{Extend epsilon to G}
+//   Gamma := PSL2Subgroup(G, false);
+   Gamma := PSL2Subgroup(G, true);
+  N_G := Normalizer(ModLevelGL(Parent(eps)`Gamma), G);
+//   N_G := Normalizer(ModLevel(Parent(eps)`Gamma), G);
    G_prime := sub<N_G | ImageInLevelGL(Parent(eps)`GammaPrime), G>;
-//G_prime := sub<N_G | ImageInLevel(Parent(eps)`GammaPrime), G>;
-   Gamma_prime := PSL2Subgroup(G_prime, false);
+//   G_prime := sub<N_G | ImageInLevel(Parent(eps)`GammaPrime), G>;
+   //  Gamma_prime := PSL2Subgroup(G_prime, false);
+   Gamma_prime := PSL2Subgroup(G_prime, true);
    Q, pi_Q := Gamma_prime / Gamma;
    D := CharacterGroup(pi_Q, Gamma_prime, Gamma);
    return D!eps;
 end intrinsic;
 
-intrinsic Extend(eps::GrpChrElt, G::GrpMat) -> GrpChrElt
+intrinsic Restrict(eps::GrpChrElt, G::GrpMat) -> GrpChrElt
 {Restrict epsilon to G}
-   Gamma := PSL2Subgroup(G, false);
+//   Gamma := PSL2Subgroup(G, false);
+   Gamma := PSL2Subgroup(G, true);
    N_G := Normalizer(ModLevelGL(Parent(eps)`Gamma), G);
-//N_G := Normalizer(ModLevel(Parent(eps)`Gamma), G);
+ //  N_G := Normalizer(ModLevel(Parent(eps)`Gamma), G);
    G_prime := N_G meet ImageInLevelGL(Parent(eps)`GammaPrime);
-//G_prime := N_G meet ImageInLevel(Parent(eps)`GammaPrime);
-   Gamma_prime := PSL2Subgroup(G_prime, false);
+//   G_prime := N_G meet ImageInLevel(Parent(eps)`GammaPrime);
+   //   Gamma_prime := PSL2Subgroup(G_prime, false);
+   Gamma_prime := PSL2Subgroup(G_prime, true);
    Q, pi_Q := Gamma_prime / Gamma;
    D := CharacterGroup(pi_Q, Gamma_prime, Gamma);
    return D!eps;

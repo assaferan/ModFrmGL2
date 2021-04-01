@@ -18,6 +18,9 @@ freeze;
    $Header: /home/was/magma/packages/ModSym/code/RCS/modsym.m,v 1.18 2002/08/25 19:39:33 was Exp was $
 
    $Log: modsym.m,v $
+   Revision 1.19  2002/09/07 11:30:11  was
+   Modified '!!' to use the levels instead of cusp widths.
+
    Revision 1.18  2002/08/25 19:39:33  was
    Add support for multichar spaces in coercion.
 
@@ -172,6 +175,8 @@ freeze;
 
  
  ***************************************************************************/
+
+import "../GrpPSL2/GrpPSL2/misc.m" : Conjugates, IsConjugate, NormalizerGrpMat;
 
 import "arith.m" : ReductionMap,
                    SmallestPrimeNondivisor;
@@ -522,8 +527,8 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    return ModularSymbols(G,k,Rationals(),sign);
 end intrinsic;
 
-forward get_real_conjugate;
-forward get_gl_model;
+forward GetRealConjugate;
+forward GetGLModel;
 
 intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, 
 			 F::Fld, sign::RngIntElt) -> ModSym
@@ -540,22 +545,23 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
 
    H := ImageInLevelGL(G);
 
-// Trying to make this work - start with allowing non surjective
-
+   /*
    if not IsOfRealType(G) then
-     H := get_real_conjugate(H);
+     H := GetRealConjugate(H);
      G := PSL2Subgroup(H);
    end if;
 /*
    if assigned G`DetRep and #Domain(G`DetRep) lt EulerPhi(Level(G)) then
-     H := get_gl_model(H);
+     H := GetGLModel(H);
      G := PSL2Subgroup(H);
    end if;
-*/
-
-   Q, pi_Q := G/G;
-   eps := CharacterGroup(pi_Q, F, G, G)!1;
-   return ModularSymbols(eps,G,k,F,sign);
+  */
+   // Z := Center(ModLevel(G));
+   Z := [-1,0,0,-1];
+   ZG := PSL2Subgroup(sub<ModLevelGL(G) | Z, ImageInLevelGL(G)>);
+   Q, pi_Q := ZG/G;
+   eps := CharacterGroup(pi_Q, F, ZG, G)!1;
+   return ModularSymbols(eps,ZG,k,F,sign);
 end intrinsic;
 
 intrinsic ModularSymbols(eps::GrpDrchElt, k::RngIntElt) -> ModSym
@@ -1182,7 +1188,10 @@ intrinsic IsNew (M::ModSym, p::GrpMat[RngIntRes]) -> BoolElt
 {True if and only if M is contained in the p-new cuspidal 
 subspace of the ambient space.}
 
-   if not (ImageInLevelGL(LevelSubgroup(M)) subset p) then
+//   if not (ImageInLevelGL(LevelSubgroup(M)) subset p) then
+   eps := DirichletCharacter(M);
+   G := ImageInLevelGL(Parent(eps)`Gamma);
+   if not (G subset p) then
       return true;
    end if;
 
@@ -1383,37 +1392,68 @@ intrinsic IsCoercible(M::ModSym,x::.) -> BoolElt, ModSymElt
    end case;
 end intrinsic;
 
-function get_degeneracy_reps(M1, M2, divisors)
-  candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]] :
-		     a in Divisors(n)] : n in divisors];
-// at the moment we only support trivial (type I) degeneracy reps
-//  candidates := [[1,0,0,1]];
-//   candidates := [[1,0,0,n] : n in divisors];
-  candidates := [GL(2,Rationals())!x : x in candidates];
-  G1 := LevelSubgroup(M1);
-  G2 := LevelSubgroup(M2);
-  if (G1 subset G2) then
-     G := G1;
-     H := G2;
-  else
-     G := G2;
-     H := G1;
-  end if;
-      
-  gens := Generators(G);
-  conj_gens := [[GL(2,Rationals())!Matrix(g)^alpha : g in gens]
-			  : alpha in candidates];
-  M2Z := MatrixAlgebra(Integers(),2);
-  is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
-				cg in conj_gens];
-  candidates := [candidates[j] : j in [1..#candidates] |
-				  is_coercible[j]];
-  conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
-				  is_coercible[j]];
-  is_good := [&and[g in H : g in cg] : cg in conj_gens];
-  single_divisors := [candidates[j] : j in [1..#candidates] |
-			 is_good[j]];
+function GetDegeneracyReps(M1, M2, divisors)
+    candidates := &cat[&cat[[[n div a, b, 0, a] : b in [0..a-1]
+			     | GCD(b, GCD(a, n div a)) eq 1] :
+			    a in Divisors(n)] : n in divisors];
+    candidates := [GL(2,Rationals())!x : x in candidates];
+    G1 := LevelSubgroup(M1);
+    G2 := LevelSubgroup(M2);
+    if (G1 subset G2) then
+	G := G1;
+	H := G2;
+    else
+	G := G2;
+	H := G1;
+    end if;
+    
+    gens := Generators(G);
+    conj_gens := [[GL(2,Rationals())!Matrix(g)^alpha : g in gens]
+		  : alpha in candidates];
+    M2Z := MatrixAlgebra(Integers(),2);
+    is_coercible := [&and[IsCoercible(M2Z, g) : g in cg] :
+		     cg in conj_gens];
+    candidates := [candidates[j] : j in [1..#candidates] |
+		   is_coercible[j]];
+    conj_gens := [conj_gens[j] : j in [1..#conj_gens] |
+		  is_coercible[j]];
+    is_good := [&and[g in H : g in cg] : cg in conj_gens];
+    single_divisors := [candidates[j] : j in [1..#candidates] |
+			is_good[j]];
 
+    ans := [];
+    // Checking for compatibility with Hecke operators
+    for divisor in single_divisors do
+	det := Integers()!Determinant(divisor);
+	if Level(G) mod (Level(H) * det) ne 0 then
+	    M2D := MatrixAlgebra(Integers(det),2);
+	    alpha := M2D!Eltseq(divisor);
+	    a, b, c, d := Explode(Eltseq(alpha));
+	    alpha_tilde := M2D![d,-b,-c,a];
+	    // Problem := as we only know H`DetRep(n) mod Level(H)
+	    // There are several possibilities modulo D
+	    hecke := [];
+	    d_prime := det div GCD(det, Level(H));
+	    offsets := CartesianPower([0..d_prime-1], 4);
+	    for n in Domain(H`DetRep) do
+		elt := [Integers()!a : a in Eltseq(H`DetRep(n))];
+		for offset in offsets do
+	    	   Append(~hecke, M2D![elt[i] + offset[i] : i in [1..4]]);
+		end for;
+	    end for;
+	    // hecke := [M2D!H`DetRep(n) : n in Domain(H`DetRep)];
+	    compat := &and[IsZero(alpha_tilde * h * alpha) : h in hecke];
+	else
+	    // This is Proposition 5.3.2
+	    compat := true;
+	end if;
+	if compat then
+	    Append(~ans, divisor);
+	end if;
+    end for;
+
+    return ans;
+    
   // I thought this should help, but these maps don't necessarily commute
   // with the Hecke Operators
 /*
@@ -1437,7 +1477,7 @@ function get_degeneracy_reps(M1, M2, divisors)
 			beta in betas];
    return &cat[[beta * d : d in single_divisors] : beta in beta_lifts];
 */
-   return single_divisors;
+   //return single_divisors;
 end function;
 
 
@@ -1474,26 +1514,60 @@ return M3, otherwise terminate with an error.}
          return M2;
        end if;
    else
-       if LevelSubgroup(M1) eq LevelSubgroup(M2) then
+       // if LevelSubgroup(M1) eq LevelSubgroup(M2) then
+       G1 := Parent(DirichletCharacter(M1))`Gamma;
+       G2 := Parent(DirichletCharacter(M2))`Gamma;
+       if ImageInLevel(G1) eq ImageInLevel(G2) then
          require M2 subset M1 :  
            "Argument 2 must be contained in argument 1.";
          return M2;
        end if;
    end if;
 
-   divisors := Divisors(Level(M1) mod Level(M2) eq 0 select
+   /*
+   if IsOfGammaType(M1) then
+       N1 := Level(M1);
+       N2 := Level(M2);
+   else
+       N1 := CuspWidth(LevelSubgroup(M1), Infinity());
+       N2 := CuspWidth(LevelSubgroup(M2), Infinity());
+   end if;
+  */
+   N1 := Level(M1);
+   N2 := Level(M2);
+   
+/*   divisors := Divisors(Level(M1) mod Level(M2) eq 0 select
                            Level(M1) div Level(M2) 
                         else
                            Level(M2) div Level(M1));
-
+*/
+   divisors := Divisors(N1 mod N2 eq 0 select N1 div N2 else N2 div N1);
    if not IsOfGammaType(M1) then
-      divisors := get_degeneracy_reps(M1, M2, divisors);
+       // divisors := get_degeneracy_reps(M1, M2, divisors);
+       divisors := GetDegeneracyReps(M1, M2, Divisors(LCM(N1, N2)));
    end if;
 
    B := Basis(VectorSpace(M2));
    imB := [];
    for d in divisors do
-      f := DegeneracyMatrix(AmbientSpace(M2),AmbientSpace(M1),d);
+       f := DegeneracyMatrix(AmbientSpace(M2),AmbientSpace(M1),d);
+       /*
+       is_invariant := true;
+       if not IsOfGammaType(M1) then
+	   // Check that f commutes with the Hecke operators
+	   // at primes dividing the level
+	   primes := [x[1] : x in Factorization(N1)];
+	   for p in primes do
+	       Tp1 := HeckeOperator(AmbientSpace(M1), p);
+	       Tp2 := HeckeOperator(AmbientSpace(M2), p);
+	       if f * Tp1 ne Tp2 * f then
+		   is_invariant := false;
+		   break;
+	       end if;
+	   end for;
+       end if;
+       if not is_invariant then continue; end if;
+*/
       for b in B do
          v := b*f;
          require v in VectorSpace(M1) :
@@ -1504,7 +1578,7 @@ return M3, otherwise terminate with an error.}
    return ModularSymbolsSub(M1, sub<VectorSpace(M1) | imB>);
    // Why did I add the following check??  ( ---Steve)
    ans := ModularSymbolsSub(M1, sub<VectorSpace(M1) | imB>);
-   error if Dimension(ans) eq 0, "Coerced structure has dimension 0, we're told";
+   // error if Dimension(ans) eq 0, "Coerced structure has dimension 0, we're told";
    return ans;
 end intrinsic;
 
@@ -1649,11 +1723,7 @@ intrinsic 'eq'(M1::ModSym, M2::ModSym) -> BoolElt
    if IsOfGammaType(M1) ne IsOfGammaType(M2) then
       return false;
    end if;
-   if IsOfGammaType(M1) then
-      complete_eq := DirichletCharacter(M1) eq DirichletCharacter(M2);
-   else
-      complete_eq := LevelSubgroup(M1) eq LevelSubgroup(M2);
-   end if;
+   complete_eq := DirichletCharacter(M1) eq DirichletCharacter(M2);
    return IsMultiChar(M1) eq IsMultiChar(M2) and
           Weight(M1) eq Weight(M2) and
           Level(M1) eq Level(M2) and
@@ -2180,9 +2250,9 @@ intrinsic '-'(x::ModSymElt,y::ModSymElt) -> ModSymElt
 end intrinsic;
 
 // Helper functions for creation
-function get_real_conjugate(H)
+function GetRealConjugate(H)
   GL_N := GL(2, BaseRing(H));
-  N_H := Normalizer(GL_N, H);
+  N_H := NormalizerGrpMat(GL_N, H);
   N_H_conjs := Conjugates(GL_N, N_H);
   eta := GL_N![-1,0,0,1];
   real := exists(real_N_H){ real_N_H : real_N_H in N_H_conjs | eta in real_N_H};
@@ -2193,11 +2263,11 @@ function get_real_conjugate(H)
   return real_H; 
 end function;
 
-function get_gl_model(H)
+function GetGLModel(H : RealType := true)
   N := Modulus(BaseRing(H));
   SL_N := SL(2, Integers(N));
   GL_N := GL(2, BaseRing(H));
-  N_H := Normalizer(GL_N, H);
+  N_H := NormalizerGrpMat(GL_N, H);
   Q, pi_Q := N_H / H;
   subs := SubgroupClasses(N_H/H : OrderEqual := EulerPhi(N));
   cands := [s`subgroup@@pi_Q : s in subs];
@@ -2206,13 +2276,14 @@ function get_gl_model(H)
 //  cands := [s : s in subs | Index(s, H) eq EulerPhi(N)];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
   error if IsEmpty(cands), Error("No model with surjective determinant");
-// Is this necessary?
-// Yes, if we would like the Hecke operators to commute with the Star
-// involution !!!!
-  eta := GL_N![-1,0,0,1];
-  cands := [c : c in cands | c^eta eq c];
-  error if IsEmpty(cands), Error("No model with surjective determinant, 
-                                  which commutes with eta");
+
+  if RealType then
+      eta := GL_N![-1,0,0,1];
+      cands := [c : c in cands | c^eta eq c];
+      error if IsEmpty(cands), Error("No model with surjective determinant, 
+                 	                        which commutes with eta");
+  end if;
+  // We would perfer a model for which the Hecke operators are standard
   if exists(c){c : c in cands |
       ImageInLevelGL(CongruenceSubgroup(N)) subset c} then
       return c;

@@ -1,4 +1,4 @@
-# ModularSymbols
+# ModFrmGL2
 Extending magma's implementation of modular symbols to arbitrary congruence subgroups
 
 Brief Description
