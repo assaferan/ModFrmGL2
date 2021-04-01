@@ -903,7 +903,10 @@ function MC_RestrictDualVectorOfSummandToSummand(M, S, v)
      end if;
      start_offset +:= Degree(K) * Dimension(MS);
    end for;
-   return V![v[i] : i in [start_offset..end_offset]];
+   vv := [v[i] : i in [start_offset..end_offset]];
+   return V![K![vv[j + Degree(V)*(i-1)] : i in [1..Degree(K)]]
+		: j in [1..Degree(V)]];
+   //return V![v[i] : i in [start_offset..end_offset]];
 end function;
 
 function MC_DecompositionOfCuspidalSubspace(M, bound)

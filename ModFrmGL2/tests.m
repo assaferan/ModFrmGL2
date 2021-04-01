@@ -1014,7 +1014,7 @@ procedure DoTests(numchecks)
    // Test_Rouse();
    // not needed - tests the construction of spaces for ns cartan
    // Test_NSCartan(30);
-   Test_IsotypicDecomposition()
+   Test_IsotypicDecomposition();
 end procedure;
 
 
