@@ -986,6 +986,11 @@ procedure Test_IsotypicDecomposition()
   S := CuspidalSubspace(M);
   assert IsotypicDimensionDecomposition(S) eq
     [2, 10, 10, 70, 70, 100, 180, 180, 400 ];
+  H := my_Gamma(22,0);
+  M := ModularSymbols(H, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  assert IsotypicDimensionDecomposition(S) eq [4];
+  assert IsotypicDimensionDecomposition(S : Proof) eq [<2,2>];
 end procedure;
 
 procedure DoTests(numchecks)
