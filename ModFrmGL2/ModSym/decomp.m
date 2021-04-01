@@ -175,7 +175,7 @@ forward             NewformDecompositionOfNewNonzeroSignSpaceOverQ,
 declare attributes CrvEll: /* MW 18 Nov 2010 */
  ModularSymbolsMinus, ModularSymbolsPlus, ModularSymbolsZero;
 
-function SimpleIrreducibleTest(W,a,elliptic_only)
+function SimpleIrreducibleTest(W,a,elliptic_only : check_star := true)
 
    // a is the exponent of the factor of the charpoly.
    
@@ -185,10 +185,13 @@ function SimpleIrreducibleTest(W,a,elliptic_only)
       end if;
       
       if a eq 2 then
-        if Sign(W) eq 0 and IsCuspidal(W) and IsOfRealType(LevelSubgroup(W)) and
-	    Dimension(Kernel(DualStarInvolution(W)-1)) eq Dimension(W)/2 then
+        is_irred := Sign(W) eq 0 and IsCuspidal(W);
+        if check_star then
+	  is_irred and:= IsOfRealType(LevelSubgroup(W)) and
+	    Dimension(Kernel(DualStarInvolution(W)-1)) eq Dimension(W)/2;
+        end if;
+        if is_irred then
 	    return true;
-	    
 	 end if;
       end if;
 
@@ -213,7 +216,7 @@ function W_is_irreducible(W,a,elliptic_only, random_operator_bound)
    a = exponent of factor of the characteristic polynomial.
    */
 
-   irred := SimpleIrreducibleTest(W,a,elliptic_only);
+  irred := SimpleIrreducibleTest(W,a,elliptic_only);
 
    if irred then
       return true;
@@ -1751,4 +1754,115 @@ We require that M is either cuspidal or its ambient space.}
 
    return B;
 
+end intrinsic;
+
+function Decomposition_dimension_recurse(M, p, stop, 
+                                         proof, elliptic_only, random_op)
+
+   assert Type(M) eq ModSym;
+   assert Type(p) eq RngIntElt;
+   assert IsPrime(p);
+   assert Type(stop) eq RngIntElt;
+   assert Type(proof) eq BoolElt;
+   assert Type(elliptic_only) eq BoolElt;
+   assert Type(random_op) eq BoolElt;
+
+   // Compute the Decomposition of the subspace V of DualRepresentation(M)
+   // starting with Tp.
+   if Dimension(M) eq 0 then
+      return [];
+   end if;
+
+   p := SmallestPrimeNondivisor(Level(M),p);
+
+   if p gt stop then   // by definition of this function!
+      return [M];
+   end if;
+   
+
+   vprintf ModularSymbols, 1 : "Decomposing space of level %o and dimension %o using T_%o.\n",Level(M),Dimension(M), p;
+   vprintf ModularSymbols, 2 : "\t\t(will stop at %o)\n", stop;
+
+   T := HeckeOperator(M, p);
+   dims := [];
+
+   if not elliptic_only then
+      if GetVerbose("ModularSymbols") ge 2 then
+         t := Cputime();
+         printf "Computing characteristic polynomial of T_%o.\n", p;
+      end if;
+      f := MyCharpoly(T,proof);
+      if GetVerbose("ModularSymbols") ge 2 then
+         f;
+         printf "\t\ttime = %o\n", Cputime(t);
+         t := Cputime();
+         printf "Factoring characteristic polynomial.\n";
+      end if;
+      FAC := Factorization(f);
+      if GetVerbose("ModularSymbols") ge 2 then
+         FAC;
+         printf "\t\ttime = %o\n", Cputime(t);
+      end if;
+   else
+      R := PolynomialRing(BaseField(M)); x := R.1;
+      FAC := [<x-a,1> : a in [-Floor(2*Sqrt(p))..Floor(2*Sqrt(p))]];
+   end if;
+
+   for fac in FAC do
+      f,a := Explode(fac);
+      // Checking (quickly) if this space is irreducible
+      // We want to avoid constructing the space before
+      //  checking for irreduciblity
+      irred := SimpleIrreducibleTest(M,a,elliptic_only : check_star := proof);
+      if irred then
+        Append(~dims, 2*Degree(f));
+        continue;
+      end if;
+      if Characteristic(BaseField(M)) eq 0 then
+         fa := f;
+      else
+         fa := f^a;
+      end if;
+      vprintf ModularSymbols, 2: "Cutting out subspace using f(T_%o), where f=%o.\n",p, f;
+      fT  := Evaluate(fa,T);
+      V   := KernelOn(fT,M);
+      W   := ModularSymbolsSub(M,V);
+      if assigned M`sub_representation then
+         W`sub_representation := M`sub_representation;
+      end if;    
+
+      if elliptic_only and Dimension(W) eq 0 then
+          continue;
+      end if;
+
+      if Dimension(W) eq 0 then
+          error "WARNING: dim W = 0 factor; shouldn't happen.";
+      end if;
+
+      if Characteristic(BaseField(W)) eq 0 and W_is_irreducible(W,a,elliptic_only, random_op select p else 0) then
+	 W`is_irreducible := true;
+         Append(~dims,Dimension(W)); 
+      else
+         if not assigned W`is_irreducible then
+            if NextPrime(p) le stop then
+               q    := Dimension(W) eq Dimension(M) select NextPrime(p) else 2;
+               Sub  := Decomposition_dimension_recurse(W, q, stop, 
+                                             proof, elliptic_only, random_op); 
+               for WW in Sub do 
+                  Append(~dims, WW);
+               end for;
+            else
+	        Append(~dims,Dimension(W));
+            end if;
+         end if;
+      end if;
+   end for;
+   return dims;
+end function;
+
+intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
+  -> SeqEnum[RngIntElt]
+{Return the dimensions of the isotypic components of M.}
+   return Decomposition_dimension_recurse(M, 2,
+                                          HeckeBound(M), Proof, false, false);
 end intrinsic;

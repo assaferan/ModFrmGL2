@@ -978,6 +978,16 @@ function Test_Shimura(N)
     return D, S;
 end function;
 
+procedure Test_IsotypicDecomposition()
+  printf "Testing dimensions of isotypic components...\n";
+  H_N := sub<GL(2,Integers(11^2))|[[1,61,45,1],[10,2,62,111]]>;
+  H := PSL2Subgroup(H_N);
+  M := ModularSymbols(H, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  assert IsotypicDimensionDecomposition(S) eq
+    [2, 10, 10, 70, 70, 100, 180, 180, 400 ];
+end procedure;
+
 procedure DoTests(numchecks)
    // Tests from the paper
    Test_2adic();
@@ -1004,6 +1014,7 @@ procedure DoTests(numchecks)
    // Test_Rouse();
    // not needed - tests the construction of spaces for ns cartan
    // Test_NSCartan(30);
+   Test_IsotypicDecomposition()
 end procedure;
 
 

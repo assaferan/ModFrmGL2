@@ -96,9 +96,9 @@ function NewformDecompositionSubspaceMaps2(M, prec)
 	evs_d := [];
 	v := EigenvectorModSymSign(d,1);
 	f := qEigenform(d, prec);
-	K := BaseRing(v);
-	F := Compositum(F, K);
-	assert IsIsomorphic(K, BaseRing(Parent(f)));
+        K := NormalClosure(BaseRing(v));
+        F := Compositum(F, K);
+        assert IsIsomorphic(K, NormalClosure(BaseRing(Parent(f))));
 	f := PowerSeriesRing(K)!f;
 	gal, _, psi := AutomorphismGroup(K, Rationals());
 	aut := [psi(g) : g in gal];
@@ -353,6 +353,14 @@ end function;
 function FullGammaIsom(M, M_full)
     return Matrix([Representation(FullGammaIsomElt(M, x)) :
 		   x in Basis(M_full)]);
+end function;
+
+function DegMapToFullSpace(M, M_full)
+  N := Level(M);
+  symbs := [ModularSymbol(x) : x in Basis(M_full)];
+  new_symbs := [ModularSymbolApply([1,0,0,1/N], symb) : symb in symbs];
+  new_xs := [ConvFromModularSymbol(M, new_symb) : new_symb in new_symbs];
+  return Matrix([Representation(new_x) : new_x in new_xs]);
 end function;
 
 function FindCurveSimple(qexps, prec, n_rel)
