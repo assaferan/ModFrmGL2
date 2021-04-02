@@ -1779,14 +1779,14 @@ function Decomposition_dimension_recurse(M, p, stop,
    p := SmallestPrimeNondivisor(Level(M),p);
 
    if p gt stop then   // by definition of this function!
-     return [Dimension(M)], [false];
+       return [<Dimension(M), 1>], [false];
    end if;
    
 
    vprintf ModularSymbols, 1 : "Decomposing space of level %o and dimension %o using T_%o.\n",Level(M),Dimension(M), p;
    vprintf ModularSymbols, 2 : "\t\t(will stop at %o)\n", stop;
 
-   T := HeckeOperator(M, p);
+   T := DualHeckeOperator(M, p);
    dims := [];
    is_verified := [];
 
@@ -1819,7 +1819,8 @@ function Decomposition_dimension_recurse(M, p, stop,
       //  checking for irreduciblity
       irred := SimpleIrreducibleTest(M,a,elliptic_only : check_star := proof);
       if irred then
-        Append(~dims, 2*Degree(f));
+        Append(~dims, <Degree(f), a>);
+        Append(~is_verified, true);
         continue;
       end if;
       if Characteristic(BaseField(M)) eq 0 then
@@ -1829,8 +1830,8 @@ function Decomposition_dimension_recurse(M, p, stop,
       end if;
       vprintf ModularSymbols, 2: "Cutting out subspace using f(T_%o), where f=%o.\n",p, f;
       fT  := Evaluate(fa,T);
-      V   := KernelOn(fT,VectorSpace(M));
-      W   := ModularSymbolsSub(M,V);
+      V   := KernelOn(fT,DualVectorSpace(M));
+      W   := ModularSymbolsDual(M,V);
       if assigned M`sub_representation then
          W`sub_representation := M`sub_representation;
       end if;    
@@ -1845,7 +1846,7 @@ function Decomposition_dimension_recurse(M, p, stop,
 
       if Characteristic(BaseField(W)) eq 0 and W_is_irreducible(W,a,elliptic_only, random_op select p else 0) then
 	 W`is_irreducible := true;
-         Append(~dims,Dimension(W));
+         Append(~dims,<Degree(f), a>);
          Append(~is_verified, true);
       else
          if not assigned W`is_irreducible then
@@ -1856,8 +1857,9 @@ function Decomposition_dimension_recurse(M, p, stop,
                dims cat:= Sub;
                is_verified cat:= is_ver_sub;
             else
-	        Append(~dims,Dimension(W));
-                Append(~is_verified, false);
+	      //Append(~dims,<Dimension(W),1>);
+	       Append(~dims,<Degree(f),a>);
+               Append(~is_verified, false);
             end if;
          end if;
       end if;
@@ -1962,9 +1964,19 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
                                           HeckeBound(M), Proof, false, false);
    rigor := &and verified;
    if rigor or (not Proof) then
-     return D, rigor;
+     combined := [<D[i][1], D[i][2], verified[i]> : i in [1..#D]];
+     Sort(~combined);
+     D := [<d[1], d[2]> : d in combined];
+     verified := [d[3] : d in combined];
+     return D, verified;
    end if;
-   
+
+   // nice try, but it doesn't really work.
+   // See issue #5 - we might have that S(H) does not contain
+   // any eigenform for Gamma(N)
+   // In that case, the method below fails
+   // We can try and employ Box's method of twists, or decompose using
+   // NewformDecomposition
    N := Level(M);
    M_full := ModularSymbols(CongruenceSubgroup(N));
    phi := DegMapToFullSpace(M, M_full);

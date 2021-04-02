@@ -172,16 +172,16 @@ intrinsic VectorSpace(M::ModSym) -> ModTupFld, Map, Map
                continue;
             end if;
 
- if do_skipped_small_primes and #skipped_small_primes gt 0 then
-     p := skipped_small_primes[#skipped_small_primes];
-     Prune(~skipped_small_primes);
-     vprintf ModularSymbols, 1: "Using %o after all\n", p;
- elif p in {2,3,5,7} and Level(M) mod p eq 0 then
-     vprintf ModularSymbols, 1: "Skipping %o\n", p;
-     Append( ~skipped_small_primes, p);
-     p := NextPrime(p);
-     continue;
- end if;
+	    if do_skipped_small_primes and #skipped_small_primes gt 0 then
+	      p := skipped_small_primes[#skipped_small_primes];
+	      Prune(~skipped_small_primes);
+	      vprintf ModularSymbols, 1: "Using %o after all\n", p;
+	      elif p in {2,3,5,7} and Level(M) mod p eq 0 then
+				  vprintf ModularSymbols, 1: "Skipping %o\n", p;
+	      Append( ~skipped_small_primes, p);
+              p := NextPrime(p);
+	      continue;
+	    end if;
 
             Tp := Restrict(HeckeOperator(AmbientSpace(M),p),V);
             Tquo := DualHeckeOperator(M,p);
