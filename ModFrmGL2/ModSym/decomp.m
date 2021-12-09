@@ -1874,6 +1874,7 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
 {Return the dimensions of the isotypic components of M.}
    return Decomposition_dimension_recurse(M, 2,
                                           HeckeBound(M), Proof, false, false);
+/*
    rigor := &and verified;
    if rigor or (not Proof) then
      combined := [<D[i][1], D[i][2], verified[i]> : i in [1..#D]];
@@ -1906,5 +1907,5 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
    end for;
 
    return D, true;
-
+*/
 end intrinsic;
