@@ -1874,4 +1874,38 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
 {Return the dimensions of the isotypic components of M.}
    return Decomposition_dimension_recurse(M, 2,
                                           HeckeBound(M), Proof, false, false);
+/*
+   rigor := &and verified;
+   if rigor or (not Proof) then
+     combined := [<D[i][1], D[i][2], verified[i]> : i in [1..#D]];
+     Sort(~combined);
+     D := [<d[1], d[2]> : d in combined];
+     verified := [d[3] : d in combined];
+     return D, verified;
+   end if;
+
+   // nice try, but it doesn't really work.
+   // See issue #5 - we might have that S(H) does not contain
+   // any eigenform for Gamma(N)
+   // In that case, the method below fails
+   // We can try and employ Box's method of twists
+   N := Level(M);
+   M_full := ModularSymbols(CongruenceSubgroup(N));
+   phi := DegMapToFullSpace(M, M_full);
+   phi_d := Transpose(phi);
+     
+   cusp := DualVectorSpace(M);
+   im_cusp := cusp * phi_d;
+
+   D := [];
+   for ms in MultiSpaces(M_full) do
+       basis := [MC_RestrictDualVectorOfSummandToSummand(M_full, ms, v)
+		    : v in Basis(im_cusp)];
+       im_cusp_ms := sub< Universe(basis) | basis >;
+       S := CuspidalSubspace(ms);
+       D cat:= NewformDimensionDecomposition(S, im_cusp_ms);
+   end for;
+
+   return D, true;
+*/
 end intrinsic;

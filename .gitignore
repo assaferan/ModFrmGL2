@@ -2,3 +2,8 @@
 *.m~
 *.m~
 *.el
+*.m#
+*.m#
+ModFrmGL2/ModSym/.#modsym.m
+ModFrmGL2/ModSym/modsym.m~
+*.m~
