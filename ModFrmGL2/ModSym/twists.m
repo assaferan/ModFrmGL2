@@ -160,6 +160,43 @@ function NewformDecompositionSubspaceMaps2(M, prec)
     return DD, F;
 end function;
 
+function NewformDecompositionSubspaceMaps3(M)
+    ms := MultiSpaces(M);
+    S := CuspidalSubspace(M);
+    D := NewformDecomposition(S);
+    DD := [* *];
+    for d in D do
+	M_old := AmbientSpace(d);
+	if not IsIdentical(M_old, M) then
+	    assert exists(i){i : i in [1..#ms] | IsCompatibleChar(ms[i],M_old)};
+	    M_new := ms[i];
+	    quo_mat := Matrix([Representation(MultiQuotientMaps(M)[i](x))
+			       : x in Basis(M)]);
+	    quo_lev := Level(M_new) div Level(M_old);
+	    divs := Divisors(quo_lev);
+	    betas := [];
+	    ims := [];
+	    for m in divs do
+		dmap := DegeneracyMatrix(M_new, M_old, m);
+		alpha := DegeneracyMatrix(M_old, M_new, m)
+			 * Transpose(quo_mat);
+		beta := Transpose(dmap) * Transpose(quo_mat);
+		im_d := DualVectorSpace(d) * beta;
+		Append(~ims, im_d);
+		Append(~betas, <beta, alpha, quo_lev div m>);
+	    end for;
+	    for j in [1..#betas] do
+		Append(~DD, <d, betas[j]>);
+	    end for;
+	else
+	    one := <IdentityMatrix(BaseRing(d), Dimension(M)),
+		    IdentityMatrix(BaseRing(d), Dimension(M)), 1>;
+	    Append(~DD, <d, one >); 
+	end if;
+    end for;
+    return DD;
+end function;
+
 function TwistBasis0(N, prec)
     X := DirichletGroupFull(N);
     L := Compositum(CyclotomicField(N), BaseRing(X));
@@ -574,7 +611,7 @@ function MoveRationalPoints(X)
   return ChangeToIntegralEquations(X_new), var_change;
 end function;
 
-// factoring out the big chunl of CremonaMethod
+// factoring out the big chunk of CremonaMethod
 
 function get_eigenvector_in_subspace(H, T, S, Conj, M)
   N := Modulus(BaseRing(H));
@@ -600,6 +637,33 @@ function get_eigenvector_in_subspace(H, T, S, Conj, M)
   Wplus := Kernel(Transpose(Conj-1)) meet W;
   evec := my_eigenvector(Vplus, C);
   return S_H, evec, Conj;
+end function;
+
+function get_eigenvector_in_old_subspace(H, T, S, Conj, M)
+  N := Modulus(BaseRing(H));
+  C := CuspidalSubspace(M);
+  H_inv := GetInvariantSubspaceSL2(H, S, T);
+  Cb := Basis(C);
+  Cmat := Transpose(Matrix([Eltseq(c) : c in Cb]));
+  DD := NewformDecompositionSubspaceMaps3(M);
+  proj := [*BasisMatrix(DualVectorSpace(dd[1]))*dd[2][1]*Cmat : dd in DD*];
+  H_inv_bas := Transpose(BasisMatrix(H_inv));
+  H_components := [i : i in [1..#proj] | proj[i]*H_inv_bas ne 0];
+  S_H := [*DD[h] : h in H_components*];
+  // We could organize it better to save some work here if needed
+  Vplus := Kernel(StarInvolution(S_H[1][1])-1);
+  W_M := &+[VectorSpace(c[1])*c[2][2] : c in S_H];
+  inv_rep := GetContainingIrreducibleRep(W_M, M, N);
+  comps := [c : c in [1..#DD]
+	    | VectorSpace(DD[c][1])*DD[c][2][2] subset inv_rep];
+  W_C :=  Solution(Transpose(Cmat),BasisMatrix(inv_rep));
+  W := sub<Universe(Rows(W_C)) | Rows(W_C)>;
+  Wplus := Kernel(Transpose(Conj-1)) meet W;
+  evec_orig := my_eigenvector(Vplus, S_H[1][1]);
+  evec_orig *:= BasisMatrix(VectorSpace(S_H[1][1]));
+  evecs := [evec_orig * s_h[2][2] : s_h in S_H | s_h[1] eq S_H[1][1]];
+  evecs := [Solution(Transpose(Cmat), ev) : ev in evecs];  
+  return S_H, evecs, Conj;
 end function;
 
 function init_twist_operators(X, T, N)
@@ -654,7 +718,7 @@ function get_char_idxs(fs, n, X, X_even, Qcond)
      Kf := AbsoluteField(BaseRing(Parent(f)));
 // chars_f := {chi : chi in Elements(X) |
      chars_f := {chi : chi in X_even |
-		 &and[chi(g)^(-1)*Qcond!Coefficient(f1,g) in
+		 &and[(chi^(-1))(g)*Qcond!Coefficient(f1,g) in
 	        {Qcond!a(Coefficient(f,g)) : a in Automorphisms(Kf)}
 		      //		     	      : g in ZNstar_gens]};
 : g in [1..n-1]]};
@@ -809,6 +873,8 @@ function CremonaMethod(H, ps_prec, n_rel)
   T := Restrict(ActionOnModularSymbolsBasis([1,1/N,0,1],M), VectorSpace(C));
   S := Restrict(ActionOnModularSymbolsBasis([0,-1,N^2,0],M), VectorSpace(C));
   Conj := Transpose(StarInvolution(C));
+  assert (Transpose(Conj)*T*Transpose(Conj)*T eq 1) and
+	 (Transpose(Conj)*S*Transpose(Conj) eq S);
   S_H, evec := get_eigenvector_in_subspace(H, T, S, Conj, M);
   K := BaseRing(evec);
   autK := Automorphisms(K);
