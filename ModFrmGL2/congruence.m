@@ -1,5 +1,69 @@
 // This treats the database of congruence subgroups
 
+function get_eigenforms(N, gens : prec := -1)
+  if N eq 1 then
+    return [];
+  end if;
+  SL_N := SL(2, Integers(N));
+  H := sub<SL_N | gens>;
+  G := PSL2Subgroup(H);
+  M := ModularSymbols(G, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  // When we make this one work as well, we will use it
+  // D := Decomposition(S, HeckeBound(S));
+  D := NewformDecomposition(S);
+  if prec eq -1 then prec := 2*Dimension(S)+10; end if;
+  B := [*qEigenform(d, prec) : d in D*];
+  // B := qIntegralBasis(S, 2*Dimension(S) + 10);
+  return B;
+end function;
+
+function GetEigenforms(grp : prec := -1)
+  return get_eigenforms(grp`level, grp`matgens : prec := prec);
+end function;
+
+// This method is for comparison of eigenforms.
+// At the moment not being used
+/*
+function IsSameEigenform(f,g)
+  K_f := BaseRing(Parent(f));
+  K_g := BaseRing(Parent(g));
+  auts := Automorphisms(K_g);
+  // This branching is due to Magma's different behaviour in the case of the rational field
+  K_f_is_Q := K_f eq Rationals();
+  K_g_is_Q := K_g eq Rationals();
+  if K_f_is_Q or K_g_is_Q then
+    if K_f_is_Q ne K_g_is_Q then
+      return false;
+    else
+      phi := auts[1];
+    end if;
+  else
+    is_isomorphic, phi := IsIsomorphic(K_f, K_g);
+    if not is_isomorphic then return false; end if;
+  end if;
+  q := Parent(g).1;
+  prec := Minimum(AbsolutePrecision(f), AbsolutePrecision(g));
+  for aut in auts do
+    psi := phi*aut;
+    is_eq := &and [Coefficient(f,i)@psi eq Coefficient(g,i) : i in [1..prec-1]];
+    if is_eq then return true; end if;
+  end for;
+  return false;
+end function;
+*/
+// The load can't be in a function. do that before.
+// Have to change original data files to be able to import them.
+/*
+dir := GetCurrentDirectory();
+ChangeDirectory("/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/");
+if assigned L then
+    delete L;
+end if;
+load "/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/csg6-lev120.dat";
+ChangeDirectory(dir);
+*/
+
 function GetAllEigenformsLevel(N, grps)
   M_full := ModularSymbols(CongruenceSubgroup(N));
   S_full := CuspidalSubspace(M_full);
