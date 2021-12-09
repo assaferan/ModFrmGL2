@@ -1429,3 +1429,71 @@ function Box_qExpansions(G, prec)
         end for;
     end for;
 end function;
+
+import "ModSym/operators.m" : ActionOnModularSymbolsBasisBetween;
+
+function gen_to_mat(gs, C1, C2)
+    C1b := Basis(C1);
+    C2mat := Transpose(Matrix([Eltseq(c) : c in Basis(C2)]));
+    ims := [C2!(&cat[ModularSymbolApply(Eltseq(g), ModularSymbolRepresentation(c))
+	    : g in gs]) : c in C1b];
+    mat_ret := Transpose(Solution(Transpose(C2mat), Matrix([Vector(Eltseq(im))
+							    : im in ims])));
+    return mat_ret, ims;
+end function;
+
+
+procedure rewrite_Box_example()
+    M := 5;
+    K := 7;
+    N := M * K^2;
+    g1 := CRT([8,1], [K^2,M]);
+    g2 := CRT([1,2], [K^2,M]);
+    M := ModularSymbolsH(N, [g1,g2], 2, 0);
+    C := CuspidalSubspace(M);
+    assert Dimension(C) eq 122;
+    dim := Dimension(C);
+    M35 := ModularSymbolsH(35, [CRT([2,1],[5,7])], 2, 0);
+    M49 := ModularSymbolsH(49, [8], 2, 0);
+    C35 := CuspidalSubspace(M35);
+    C49 := CuspidalSubspace(M49);
+    Cnew := NewSubspace(C);
+    C35new := NewSubspace(C35);
+    C49new := NewSubspace(C49);
+    assert Dimension(C35) eq Dimension(C35new);
+    assert Dimension(C49) eq Dimension(C49new);
+    C35b := Basis(C35);
+    C49b := Basis(C49);
+    C35mat := Transpose(Matrix([Eltseq(c) : c in C35b]));
+    C49mat := Transpose(Matrix([Eltseq(c) : c in C49b]));
+    g0 := [61,-55,10,-9];
+    assert Determinant(Matrix(2,2,g0)) eq 1;
+    phi7 := [3,1,-10,-3];
+    assert Determinant(Matrix(2,2,phi7)) eq 1;
+    w5 := [2890, 193 , -8685, -580];
+    assert Determinant(Matrix(2,2,w5)) eq 5;
+    phi7w5 := Eltseq(Matrix(2,2,phi7)*Matrix(2,2,w5));
+    gens := [g0,phi7,w5,phi7w5];
+    gmats := [Matrix(2,2,[g[1],g[2]/K,g[3]*K,g[4]]) : g in gens];
+    Bmats := [Matrix(2,2,[6,5/K,-5*K,-4]),IdentityMatrix(Rationals(),2)];
+    // This could be made faster,
+    // but right now I want to follow Box closely
+    gs := [gen_to_mat([g^(-1)],C,C) : g in gmats];
+    Bs := [gen_to_mat([B^(-1)],C,C) : B in Bmats];
+    J := Transpose(StarInvolution(C));
+//    Qdim := VectorSpace(Rationals(), dim);
+    Cplus := Kernel(Transpose(J-1));
+    CosetReps351 := [Matrix(2,2,g) : g in [[1,0,0,1],[8,-3, 35, -13],[ 29, -21,1\
+05, -76],[ 29,-17, 70, -41],[-13, 3,-35,8],[ -76, 21,-105,29],[-41,  17,-70,  \
+29]]];
+    CosetReps357 := [Matrix(2,2,g) : g in [[1,0,0,7],[1, 1,0, 7],[ 8,-3,245,-91],[ 1,-1,0,7],[-13,3,-245, 56],[1,2,0,7],[ 43,-16,245,-91]]];
+    CosetReps491 := [Matrix(2,2,g) : g in [[1, 0,0, 1],[-13,2,-98,15],[ 50,-11,4\
+41, -97],[ 155,-114,1274,-937],[-41,11,-343,92],[ -83,34,-686,281]]];
+    CosetReps495 := [Matrix(2,2,g) : g in [[1, 0,0, 5],[1, 1,0, 5],[ 1, -1, 0,  \
+5],[1, 2,0, 5],[ 50,-11,2205, -485],[71,-32,2940,-1325]]];
+    Tr357_mat, Tr357_ims := gen_to_mat([gam : gam in CosetReps357],C35,C);
+    Tr351_mat, Tr351_ims := gen_to_mat(CosetReps351,C35,C);
+    Tr491_mat, Tr491_ims := gen_to_mat(CosetReps491,C49,C);
+    Tr495_mat, Tr495_ims := gen_to_mat(CosetReps495,C49,C);
+    
+end procedure;
