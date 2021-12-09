@@ -693,7 +693,7 @@ function get_char_idxs(fs, n, X, X_even, Qcond)
      Kf := AbsoluteField(BaseRing(Parent(f)));
 // chars_f := {chi : chi in Elements(X) |
      chars_f := {chi : chi in X_even |
-		 &and[chi(g)^(-1)*Qcond!Coefficient(f1,g) in
+		 &and[(chi^(-1))(g)*Qcond!Coefficient(f1,g) in
 	        {Qcond!a(Coefficient(f,g)) : a in Automorphisms(Kf)}
 		      //		     	      : g in ZNstar_gens]};
 : g in [1..n-1]]};
