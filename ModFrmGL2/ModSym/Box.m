@@ -494,7 +494,7 @@ function get_Box_gens()
     return gens, Bgens;
 end function;
 
-function get_degeneracy_map(M_old, M, d)
+function get_degeneracy_maps(M_old, M, d)
     C := CuspidalSubspace(M);
     C_old := CuspidalSubspace(M_old);
     Cbmat := BasisMatrix(VectorSpace(C));
@@ -502,26 +502,40 @@ function get_degeneracy_map(M_old, M, d)
     ms := MultiSpaces(M);
     ms_old := MultiSpaces(M_old);
     all_alphas := [];
+    all_betas := [];
     for j in [1..#ms_old] do
 	assert exists(i){i : i in [1..#ms]
 			 | IsCompatibleChar(ms[i], ms_old[j])};
 	deg := DegeneracyMatrix(ms_old[j], ms[i], d);
+	deg_d := DegeneracyMatrix(ms[i], ms_old[j], d);
 	multi := MultiQuotientMaps(M)[i];
 	multi_old := MultiQuotientMaps(M_old)[j];
-	tmp := Matrix([Representation(multi_old(Representation(b)))
-		       : b in Basis(M_old)]);
+	quo_mat := Matrix([Representation(multi(x))
+			       : x in Basis(M)]);
+	// quo_old := Matrix([Representation(multi_old(Representation(b)))
+	quo_old := Matrix([Representation(multi_old(b))
+			   : b in Basis(M_old)]);
 	deg_eltseq := [&cat[Eltseq(x) : x in Eltseq(row)]
-			: row in Rows(tmp*deg)];
+		       : row in Rows(quo_old*deg)];
+	deg_d_eltseq := [&cat[Eltseq(x) : x in Eltseq(row)]
+			 : row in Rows(quo_mat*deg_d)];
 	quo_inv := Matrix([Representation((z*b)@@multi)
 			   : z in Basis(BaseRing(ms[i])),
 			     b in Basis(ms[i])]);
+	quo_old_inv := Matrix([Representation((z*b)@@multi_old)
+			       : z in Basis(BaseRing(ms_old[j])),
+				 b in Basis(ms_old[j])]);
 	alpha := Matrix(deg_eltseq)*quo_inv;
+	beta := Transpose(quo_old_inv)*Transpose(Matrix(deg_d_eltseq));
 	Append(~all_alphas, alpha);
+	Append(~all_betas, beta);
     end for;
     big_alpha := &+all_alphas;
+    big_beta := &+all_betas;
     ims_mat := Cboldmat*big_alpha;
-    sol := Transpose(Solution(Cbmat, ims_mat));
-    return sol, [M!v : v in Rows(ims_mat)];
+    alpha_C := Transpose(Solution(Cbmat, ims_mat));
+    beta_C := Transpose(Solution(Cboldmat, Cbmat*Transpose(big_beta)));
+    return alpha_C, [M!v : v in Rows(ims_mat)], beta_C;
 end function;
 
 function BoxExample(gens, Bgens, prec)
@@ -564,25 +578,22 @@ function BoxExample(gens, Bgens, prec)
     NumCosetReps357 := 7;
     NumCosetReps495 := 6;
     
-    Tr357_mat, Tr357_ims := get_degeneracy_map(M_old[2], MS, 7);
-    Tr351_mat, Tr351_ims := get_degeneracy_map(M_old[2], MS, 1);
-    Tr491_mat, Tr491_ims := get_degeneracy_map(M_old[1], MS, 1);
-    Tr495_mat, Tr495_ims := get_degeneracy_map(M_old[1], MS, 5);
+    Tr357_mat, Tr357_ims, B357_mat := get_degeneracy_maps(M_old[2], MS, 7);
+    Tr351_mat, Tr351_ims, B351_mat := get_degeneracy_maps(M_old[2], MS, 1);
+    Tr491_mat, Tr491_ims, B491_mat := get_degeneracy_maps(M_old[1], MS, 1);
+    Tr495_mat, Tr495_ims, B495_mat := get_degeneracy_maps(M_old[1], MS, 5);
     
     assert [Rank(m) : m in [*Tr357_mat, Tr351_mat, Tr491_mat, Tr495_mat*]]
 	   eq [14,14,6,6];
 
     Tr357_mat /:= 7;
     Tr495_mat /:= 5;
+    B357_mat *:= 7;
+    B495_mat *:= 5;
 
     I14 := IdentityMatrix(Rationals(), 14);
     I6 := IdentityMatrix(Rationals(), 6);
-    
-    B351_mat := Bdmatrix(C_old[2],C_oldmat[2],1,C);
-    B357_mat := Bdmatrix(C_old[2],C_oldmat[2],7,C);
-    B491_mat := Bdmatrix(C_old[1],C_oldmat[1],1,C);
-    B495_mat := Bdmatrix(C_old[1],C_oldmat[1],5,C);
-    
+  
     assert Transpose(Tr351_mat)*Transpose(B351_mat) eq 7*I14;
     assert Transpose(Tr357_mat)*Transpose(B357_mat) eq 7*I14;
     assert Transpose(Tr491_mat)*Transpose(B491_mat) eq 6*I6;
