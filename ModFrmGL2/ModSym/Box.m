@@ -645,11 +645,11 @@ function BoxExample(gens, Bgens, prec)
 
     Tr_mats, Tr_ims, B_mats, deg_divs,
     num_coset_reps, oldspaces_full, oldspaces, C_old_new := get_old_spaces(MS);
- 
-    T3 := HeckeOperator(C,3);
-    T3plus := Restrict(T3, Cplus);
-    T2 := HeckeOperator(C,2);
-    T2plus := Restrict(T2, Cplus);
+
+    max_hecke := 3;
+    Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
+    Tpluslist := [Restrict(T, Cplus) : T in Ts];
+
     Qrt2<rt2> := QuadraticField(2);
     Q21<zeta21> := CyclotomicField(21);
     sigma_Q21 := hom<Q21 -> Q21 | zeta21>;
@@ -708,7 +708,6 @@ function BoxExample(gens, Bgens, prec)
     assert &and[a3s[i] eq -a3stw[i] : i in [1..#a3s]];
     a2s := a2s cat [* a2stw[i] : i in [2..6] *];
     a3s := a3s cat [* a3stw[i] : i in [2..6] *];
-    Tpluslist := [T2plus,T3plus];
  
     Nnew := NewSubspace(C);
 
