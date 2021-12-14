@@ -38,30 +38,6 @@ function make_Q21_func(a, Q21, f_Q21)
 	      : i in [1..Degree(K)]];
 end function;
 
-/*
-function P2(a, Q21, P2_Q21)
-    F := Parent(a);
-    if F eq Q21 then
-	return P2_Q21(a);
-    end if;
-    V, embinv := VectorSpace(F, BaseRing(F));
-    emb := embinv^(-1);
-    return &+[P2_Q21(Eltseq(a)[i])*emb(Basis(V)[i])
-	      : i in [1..Dimension(V)]];
-end function;
-
-function Pm1(a, Q21, Pm1_Q21)
-    F := Parent(a);
-    if F eq Q21 then
-	return Pm1_Q21(a);
-    end if;
-    V, embinv := VectorSpace(F, BaseRing(F));
-    emb := embinv^(-1);
-    return &+[Pm1_Q21(Eltseq(a)[i])*emb(Basis(V)[i])
-	      : i in [1..Dimension(V)]];
-end function;
-*/
-
 function gauss_sum(eps, Q21, zeta7, K, Q3_to_Q21, Q7_to_Q21)
     if Order(eps) eq 1 then
 	return Q21!1;
@@ -193,19 +169,6 @@ function IsEqualPowerSeries(f, g)
 			  eq Coefficient(g,i) : i in [0..prec-1]]};
 end function;
 
-/*
-function make_real_twist_orbit(alist, Kf_to_KK,Tpluslist,
-			       prec, cc, sigma, NN, N35, N49,
-			       oldspace35, oldspace351,
-			       oldspace357, oldspace49,
-			       oldspace491,
-			       C, Cplus, chi, Q21, zeta7,
-			       K, SKpowersQ3,
-			       B351_mat, B491_mat,
-			       Tr357_mat, Tr495_mat,
-			       NumCosetReps357, NumCosetReps495,
-			       Q3_to_Q21, Q7_to_Q21)
-*/
 function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
 			       prec, cc, sigma, NN, Nold,
 			       oldspaces_full, oldspaces,
@@ -242,15 +205,7 @@ function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
 	    break;
 	end if;
     end for;
-    /*
-    if exists(g){g : g in N49 | IsEqualPowerSeries(f,g)} then
-	subsp := ChangeRing(oldspace491, Kf);
-    elif exists(g){g : g in N35 | IsEqualPowerSeries(f,g)} then
-	subsp := ChangeRing(oldspace351, Kf);
-    else
-	subsp := VectorSpace(Kf, dim);
-    end if;
-   */
+
     intsn := VectorSpace(Kf, Dimension(C) div 2);
     for i in [1..#Tpluslist] do
 	T := Tpluslist[i];
@@ -288,29 +243,6 @@ function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
 		Append(~powerlist, i);
 	    end if;
 	end for;
-	/*
-	if mutw in ChangeRing(oldspace35, Kf) then
-	    mutwists cat:= [pi35(mutw, oldspace35, oldspace351,
-				 oldspace357, B351_mat)*
-			    Transpose(ChangeRing(Tr357_mat, Kf))
-			    / NumCosetReps357];
-	    ftwpr35 := pr35(ftw, #alist, N35, prec);
-	    ftwpr35B7 := &+[gauss_sum(chi^(-2*i),Q21,zeta7,K,Q3_to_Q21,Q7_to_Q21)
-			    *ftwpr35[j]*qKK^(7*j)
-			    : j in [1..prec-1]];
-	    ftwists cat:= [[Coefficient(ftwpr35B7,i) : i in [1..prec-1]]];
-	    Append(~powerlist, i);
-	elif mutw in ChangeRing(oldspace49, Kf) then
-	    mutwists cat:= [mutw * Transpose(ChangeRing(Tr495_mat, Kf)
-					     *ChangeRing(B491_mat, Kf))
-			    / NumCosetReps495];
-	    ftwB7 := &+[gauss_sum(chi^(-2*i),Q21,zeta7,K,Q3_to_Q21,Q7_to_Q21)
-			*ftw[j]*qKK^(5*j)
-			: j in [1..prec-1]];
-	    ftwists cat:= [[Coefficient(ftwB7,i) : i in [1..prec-1]]];
-	    Append(~powerlist, i);
-	end if;
-*/
     end for;
     return VectorSpaceWithBasis(mutwists), ftwists, powerlist;
 end function;
@@ -405,21 +337,6 @@ function Pdmatrix(Pd, d, powerlist, chi, Q3, Q21, zeta7,K, Q3_to_Q21, Q7_to_Q21)
     return BlockMatrix(list);
 end function;
 
-/*
-function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
-			     Gamma_fixed_spaces, Bmats, Pds, ds,
-			     cc, sigma, NN, N35, N49,
-			     oldspace35, oldspace351,
-			     oldspace357,
-			     oldspace49, oldspace491,
-			     C, Cplus, chi,
-			     Q21, Q3, zeta21, zeta7,
-			     K, SKpowersQ3,
-			     B351_mat, B491_mat,
-			     Tr357_mat, Tr495_mat,
-			     NumCosetReps357, NumCosetReps495, J,
-			     Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21)
-*/
 function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 			     Gamma_fixed_spaces, Bmats, Pds, ds,
 			     cc, sigma, NN, Nold,
@@ -441,20 +358,6 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 	Kf := Domain(Kf_to_KK);
 	KK := Codomain(Kf_to_KK);
 	Q21_to_KK := hom<Q21->KK| KK!zeta21>;
-	/*
-	real_twist_orbit_ms, twist_mfs, powerlist :=
-	    make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
-				  prec, cc, sigma, NN, N35, N49,
-				  oldspace35, oldspace351,
-				  oldspace357,
-				  oldspace49, oldspace491,
-				  C, Cplus, chi, Q21, zeta7,
-				  K, SKpowersQ3,
-				  B351_mat, B491_mat,
-				  Tr357_mat, Tr495_mat,
-				  NumCosetReps357, NumCosetReps495,
-				  Q3_to_Q21, Q7_to_Q21);
-       */
 	real_twist_orbit_ms, twist_mfs, powerlist :=
 	    make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
 				  prec, cc, sigma, NN, Nold,
@@ -690,9 +593,6 @@ function BoxExample(gens, Bgens, prec)
 
     Cplus := Kernel(Transpose(J-1));
 
-    // Calculate these independently
-    // NumCosetReps357 := 7;
-    // NumCosetReps495 := 6;
     num_coset_reps := [];
     Tr_mats := [];
     Tr_ims := [];
@@ -807,21 +707,7 @@ function BoxExample(gens, Bgens, prec)
     oldspaces_full := [&+spaces : spaces in oldspaces];
     assert &and[Dimension(oldspaces_full[i]) eq
 		&+[Dimension(s) : s in oldspaces[i]] : i in [1..#oldspaces]];
-    /*
-    oldspace491 := oldspaces[1][1];
-    oldspace495 := oldspaces[1][2];
-    oldspace351 := oldspaces[2][1];
-    oldspace357 := oldspaces[2][2];
-    oldspace49 := oldspaces_full[1];
-    oldspace35 := oldspaces_full[2];
-    NumCosetReps495 := num_coset_reps[1];
-    NumCosetReps357 := num_coset_reps[2];
-    B351_mat := B_mats[2][1];
-    B491_mat := B_mats[1][1];
-    Tr357_mat := Tr_mats[2][2];
-    Tr495_mat := Tr_mats[1][2];
-   */
-    
+
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
 		     : gmat in gs];
@@ -857,23 +743,6 @@ function BoxExample(gens, Bgens, prec)
 				  num_coset_reps,
 				  J,
 				  Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21);
-    /*
-    fs,tos := fixed_cusp_forms_QQ(a2s,a3s,Tpluslist,Kf_to_KKs,prec,
-				  Gamma_fixed_spaces,Bs,
-				  [P2,Pm1],
-				  [2,-1], cc, sigma_i,
-				  NN,N35,N49,
-				  oldspace35, oldspace351,
-				  oldspace357,
-				  oldspace49, oldspace491,
-				  C, Cplus, chi,
-				  Q21, Q3, zeta21, zeta7,
-				  K, SKpowersQ3,
-				  B351_mat, B491_mat,
-				  Tr357_mat, Tr495_mat,
-				  NumCosetReps357, NumCosetReps495, J,
-				  Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21);
-*/
     return fs, tos;
 end function;
 
@@ -887,20 +756,12 @@ function FindCurveSimple(qexps, prec, n_rel)
     R<q> := Universe(qexps);
     K := BaseRing(R);
     zeta := K.1;
-   fs := [f + O(q^prec) : f in qexps];
-//     T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+    fs := [f + O(q^prec) : f in qexps];
     n := #fs;
-//    fs := [&+[E[j][i]*fs[i] : i in [1..n]] : j in [1..n]];
     R<[x]> := PolynomialRing(K,n);
     degmons := [MonomialsOfDegree(R, d) : d in [1..n_rel]];
     prods := [[Evaluate(m, fs) + O(q^prec) : m in degmons[d]] :
 	      d in [1..n_rel]];
-    // This part is for equations over QQ, but should be tested thoroughly
-    /*
-prod_traces := [[&cat[[Trace(zeta^j*x) : x in AbsEltseq(f)] :  
-j in [0..Degree(K)-1]] : f in prod] : prod in prods];
-kers := [Kernel(Matrix(pr_tr)) : pr_tr in prod_traces];
-*/
     kers := [Kernel(Matrix([AbsEltseq(f) : f in prod])) : prod in prods];
     rels := [[&+[Eltseq(kers[d].i)[j]*degmons[d][j] : j in [1..#degmons[d]]] :
 	      i in [1..Dimension(kers[d])]] : d in [1..n_rel]];
