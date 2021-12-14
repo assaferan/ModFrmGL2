@@ -557,17 +557,10 @@ function get_degeneracy_maps(M_old, M, d)
     return alpha_C, [M!v : v in Rows(ims_mat)], beta_C;
 end function;
 
-function BoxExample(gens, Bgens, prec)
-    M := 5;
-    K := 7;
-    N := M * K^2;
-    g1 := CRT([8,1], [K^2,M]);
-    g2 := CRT([1,2], [K^2,M]);
-    MS := ModularSymbolsH(N, [g1,g2], 2, 0);
-    C := CuspidalSubspace(MS);
-    dim := Dimension(C);
-    assert dim eq 122;
+function get_old_spaces(MS)
+    N := Level(MS);
     old_levels := [N div p : p in PrimeDivisors(N)];
+    C := CuspidalSubspace(MS);
     D := NewformDecomposition(C);
     dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
@@ -579,20 +572,7 @@ function BoxExample(gens, Bgens, prec)
 		: i in [1..#C_old]];
     C_oldb := [* Basis(c) : c in C_old *];
     C_oldmat := [* Transpose(Matrix([Eltseq(c) : c in b])) : b in C_oldb *];
- 
-    GL2Q := GL(2, Rationals());
-    alpha_K := GL(2, Rationals())![1,0,0,1/K];
-    gmats := [Matrix(GL2Q!g^alpha_K) : g in gens];
-    Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
     
-    // This could be made faster,
-    // but right now I want to follow Box closely
-    gs := [gen_to_mat([g^(-1)],C,C) : g in gmats];
-    Bs := [gen_to_mat([B^(-1)],C,C) : B in Bmats];
-    J := Transpose(StarInvolution(C));
-
-    Cplus := Kernel(Transpose(J-1));
-
     num_coset_reps := [];
     Tr_mats := [];
     Tr_ims := [];
@@ -625,8 +605,47 @@ function BoxExample(gens, Bgens, prec)
 	Append(~B_mats, m_B_mats);
 	Append(~deg_divs, m_deg_divs);
 	Append(~num_coset_reps, num_reps);
-    end for;
+    end for; 
+ 
+    oldspace_bases := [[* Rows(Transpose(tr)) : tr in m *] : m in Tr_mats];
+    oldspaces := [[sub<Universe(bb) | bb> : bb in bases]
+		  : bases in oldspace_bases];
+   
+    oldspaces_full := [&+spaces : spaces in oldspaces];
+    assert &and[Dimension(oldspaces_full[i]) eq
+		&+[Dimension(s) : s in oldspaces[i]] : i in [1..#oldspaces]];
+    
+    return Tr_mats, Tr_ims, B_mats, deg_divs,
+	   num_coset_reps, oldspaces_full, oldspaces, C_old_new;
+end function;
 
+function BoxExample(gens, Bgens, prec)
+    M := 5;
+    K := 7;
+    N := M * K^2;
+    g1 := CRT([8,1], [K^2,M]);
+    g2 := CRT([1,2], [K^2,M]);
+    MS := ModularSymbolsH(N, [g1,g2], 2, 0);
+    C := CuspidalSubspace(MS);
+    dim := Dimension(C);
+    assert dim eq 122;
+
+    GL2Q := GL(2, Rationals());
+    alpha_K := GL(2, Rationals())![1,0,0,1/K];
+    gmats := [Matrix(GL2Q!g^alpha_K) : g in gens];
+    Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
+    
+    // This could be made faster,
+    // but right now I want to follow Box closely
+    gs := [gen_to_mat([g^(-1)],C,C) : g in gmats];
+    Bs := [gen_to_mat([B^(-1)],C,C) : B in Bmats];
+    J := Transpose(StarInvolution(C));
+
+    Cplus := Kernel(Transpose(J-1));
+
+    Tr_mats, Tr_ims, B_mats, deg_divs,
+    num_coset_reps, oldspaces_full, oldspaces, C_old_new := get_old_spaces(MS);
+ 
     T3 := HeckeOperator(C,3);
     T3plus := Restrict(T3, Cplus);
     T2 := HeckeOperator(C,2);
@@ -691,8 +710,6 @@ function BoxExample(gens, Bgens, prec)
     a3s := a3s cat [* a3stw[i] : i in [2..6] *];
     Tpluslist := [T2plus,T3plus];
  
-    N35 := C_old_new[2];
-    N49 := C_old_new[1];
     Nnew := NewSubspace(C);
 
     nfd_old := [NewformDecomposition(s) : s in C_old_new];    
@@ -700,14 +717,7 @@ function BoxExample(gens, Bgens, prec)
     Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
     Nnew := [* qEigenform(d,prec) : d in nfd *];
     NN := (&cat Nold) cat Nnew;
-    oldspace_bases := [[* Rows(Transpose(tr)) : tr in m *] : m in Tr_mats];
-    oldspaces := [[sub<Universe(bb) | bb> : bb in bases]
-		  : bases in oldspace_bases];
    
-    oldspaces_full := [&+spaces : spaces in oldspaces];
-    assert &and[Dimension(oldspaces_full[i]) eq
-		&+[Dimension(s) : s in oldspaces[i]] : i in [1..#oldspaces]];
-
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
 		     : gmat in gs];
