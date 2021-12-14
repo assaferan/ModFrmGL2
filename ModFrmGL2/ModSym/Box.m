@@ -154,7 +154,7 @@ function make_real_twist_orbit(alist, Kf_to_KK,Tpluslist,
 			       K, SKpowersQ3,
 			       B351_mat, B491_mat,
 			       Tr357_mat, Tr495_mat,
-			       CosetReps357, CosetReps495,
+			       NumCosetReps357, NumCosetReps495,
 			       Q3_to_Q21, Q7_to_Q21)
     Kf := Domain(Kf_to_KK);
     dim := Dimension(C);
@@ -205,7 +205,7 @@ function make_real_twist_orbit(alist, Kf_to_KK,Tpluslist,
 	    mutwists cat:= [pi35(mutw, oldspace35, oldspace351,
 				 oldspace357, B351_mat)*
 			    Transpose(ChangeRing(Tr357_mat, Kf))
-			    / #CosetReps357];
+			    / NumCosetReps357];
 	    ftwpr35 := pr35(ftw, #alist, N35, prec);
 	    ftwpr35B7 := &+[gauss_sum(chi^(-2*i),Q21,zeta7,K,Q3_to_Q21,Q7_to_Q21)
 			    *ftwpr35[j]*qKK^(7*j)
@@ -215,7 +215,7 @@ function make_real_twist_orbit(alist, Kf_to_KK,Tpluslist,
 	elif mutw in ChangeRing(oldspace49, Kf) then
 	    mutwists cat:= [mutw * Transpose(ChangeRing(Tr495_mat, Kf)
 					     *ChangeRing(B491_mat, Kf))
-			    / #CosetReps495];
+			    / NumCosetReps495];
 	    ftwB7 := &+[gauss_sum(chi^(-2*i),Q21,zeta7,K,Q3_to_Q21,Q7_to_Q21)
 			*ftw[j]*qKK^(5*j)
 			: j in [1..prec-1]];
@@ -243,7 +243,7 @@ function FixedCuspForms(a2s, a3s, Tpluslist, Kf_to_KKs,
 			C, Cplus, chi, Q21, zeta21, zeta7, K,
 			SKpowersQ3, B351_mat, B491_mat,
 			Tr357_mat, Tr495_mat,
-			CosetReps357, CosetReps495,
+			NumCosetReps357, NumCosetReps495,
 			Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21)
     FCF := [];
     for i in [1..#a2s] do
@@ -262,7 +262,7 @@ function FixedCuspForms(a2s, a3s, Tpluslist, Kf_to_KKs,
 				  SKpowersQ3,
 				  B351_mat, B491_mat,
 				  Tr357_mat, Tr495_mat,
-				  CosetReps357, CosetReps495,
+				  NumCosetReps357, NumCosetReps495,
 				  Q3_to_Q21, Q7_to_Q21);
 	FCF_orbit := [];
 	for GFS in Gamma_fixed_spaces do
@@ -327,7 +327,7 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 			     K, SKpowersQ3,
 			     B351_mat, B491_mat,
 			     Tr357_mat, Tr495_mat,
-			     CosetReps357, CosetReps495, J,
+			     NumCosetReps357, NumCosetReps495, J,
 			     Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21)
     FCF := [];
     twist_orbit_indices := [];
@@ -347,7 +347,7 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 				  K, SKpowersQ3,
 				  B351_mat, B491_mat,
 				  Tr357_mat, Tr495_mat,
-				  CosetReps357, CosetReps495,
+				  NumCosetReps357, NumCosetReps495,
 				  Q3_to_Q21, Q7_to_Q21);
 	twist_orbit_index := [];
 	FCF_orbit := [];
@@ -429,29 +429,59 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 	    : j in [1..#Gamma_fixed_spaces]];
 end function;
 
-function BoxExample()
-    M := 5;
-    K := 7;
-    N := M * K^2;
-    g1 := CRT([8,1], [K^2,M]);
-    g2 := CRT([1,2], [K^2,M]);
-    MS := ModularSymbolsH(N, [g1,g2], 2, 0);
-    C := CuspidalSubspace(MS);
-    assert Dimension(C) eq 122;
-    dim := Dimension(C);
-    M35 := ModularSymbolsH(35, [CRT([2,1],[5,7])], 2, 0);
-    M49 := ModularSymbolsH(49, [8], 2, 0);
-    C35 := CuspidalSubspace(M35);
-    C49 := CuspidalSubspace(M49);
-    Cnew := NewSubspace(C);
-    C35new := NewSubspace(C35);
-    C49new := NewSubspace(C49);
-    assert Dimension(C35) eq Dimension(C35new);
-    assert Dimension(C49) eq Dimension(C49new);
-    C35b := Basis(C35);
-    C49b := Basis(C49);
-    C35mat := Transpose(Matrix([Eltseq(c) : c in C35b]));
-    C49mat := Transpose(Matrix([Eltseq(c) : c in C49b]));
+function IsCompatibleChar(M1, M2)
+    eps1 := DirichletCharacter(M1);
+    eps2 := DirichletCharacter(M2);
+    return
+	IsCoercible(Parent(eps1), eps2) and (Parent(eps1)!eps2 eq eps1); 
+end function;
+
+function NewformDecompositionSubspaceMaps(M)
+    ms := MultiSpaces(M);
+    S := CuspidalSubspace(M);
+    D := NewformDecomposition(S);
+    DD := [* *];
+    ims := [* *];
+    for d in D do
+	M_old := AmbientSpace(AssociatedNewSpace(d));
+	if not IsIdentical(M_old, M) then
+	    assert exists(i){i : i in [1..#ms] |
+			     IsCompatibleChar(ms[i],M_old)};
+	    M_new := ms[i];
+	    multi := MultiQuotientMaps(M)[i];
+	    quo_mat := Matrix([Representation(multi(x))
+			       : x in Basis(M)]);
+	    quo_inv := Matrix([Representation(b@@multi)
+			       : b in Basis(M_new)]);
+	    quo_lev := Level(M_new) div Level(M_old);
+	    divs := Divisors(quo_lev);
+	    betas := [];
+	    for m in divs do
+		dmap := DegeneracyMatrix(M_new, M_old, m);
+		alpha := DegeneracyMatrix(M_old, M_new, m)
+			 * Transpose(quo_mat);
+		beta := Transpose(dmap) * Transpose(quo_mat);
+		im_d := DualVectorSpace(d) * beta;
+		im := VectorSpace(d) * alpha;
+		Append(~ims, [im, im_d]);
+		Append(~betas, <alpha, beta, quo_lev div m>);
+	    end for;
+	    for j in [1..#betas] do
+		Append(~DD, <d, betas[j]>);
+	    end for;
+	else
+	    one := <IdentityMatrix(BaseRing(d), Dimension(M)),
+		    IdentityMatrix(BaseRing(d), Dimension(M)), 1>;
+	    Append(~DD, <d, one >);
+	    Append(~ims, [VectorSpace(d), DualVectorSpace(d)]);
+	end if;
+    end for;
+    dim := &+[Dimension(d[1])*Degree(BaseRing(d[1])) : d in DD];
+    assert dim eq Dimension(S);
+    return DD, ims;
+end function;
+
+function get_Box_gens()
     g0 := [61,-55,10,-9];
     assert Determinant(Matrix(2,2,g0)) eq 1;
     phi7 := [3,1,-10,-3];
@@ -460,28 +490,85 @@ function BoxExample()
     assert Determinant(Matrix(2,2,w5)) eq 5;
     phi7w5 := Eltseq(Matrix(2,2,phi7)*Matrix(2,2,w5));
     gens := [g0,phi7,w5,phi7w5];
-    gmats := [Matrix(2,2,[g[1],g[2]/K,g[3]*K,g[4]]) : g in gens];
-    Bmats := [Matrix(2,2,[6,5/K,-5*K,-4]),IdentityMatrix(Rationals(),2)];
+    Bgens := [[6,5,-5,-4],[1,0,0,1]];
+    return gens, Bgens;
+end function;
+
+function get_degeneracy_map(M_old, M, d)
+    C := CuspidalSubspace(M);
+    C_old := CuspidalSubspace(M_old);
+    Cbmat := BasisMatrix(VectorSpace(C));
+    Cboldmat := BasisMatrix(VectorSpace(C_old));
+    ms := MultiSpaces(M);
+    ms_old := MultiSpaces(M_old);
+    all_alphas := [];
+    for j in [1..#ms_old] do
+	assert exists(i){i : i in [1..#ms]
+			 | IsCompatibleChar(ms[i], ms_old[j])};
+	deg := DegeneracyMatrix(ms_old[j], ms[i], d);
+	multi := MultiQuotientMaps(M)[i];
+	multi_old := MultiQuotientMaps(M_old)[j];
+	tmp := Matrix([Representation(multi_old(Representation(b)))
+		       : b in Basis(M_old)]);
+	deg_eltseq := [&cat[Eltseq(x) : x in Eltseq(row)]
+			: row in Rows(tmp*deg)];
+	quo_inv := Matrix([Representation((z*b)@@multi)
+			   : z in Basis(BaseRing(ms[i])),
+			     b in Basis(ms[i])]);
+	alpha := Matrix(deg_eltseq)*quo_inv;
+	Append(~all_alphas, alpha);
+    end for;
+    big_alpha := &+all_alphas;
+    ims_mat := Cboldmat*big_alpha;
+    sol := Transpose(Solution(Cbmat, ims_mat));
+    return sol, [M!v : v in Rows(ims_mat)];
+end function;
+
+function BoxExample(gens, Bgens, prec)
+    M := 5;
+    K := 7;
+    N := M * K^2;
+    g1 := CRT([8,1], [K^2,M]);
+    g2 := CRT([1,2], [K^2,M]);
+    MS := ModularSymbolsH(N, [g1,g2], 2, 0);
+    C := CuspidalSubspace(MS);
+    dim := Dimension(C);
+    assert dim eq 122;
+    old_levels := [N div p : p in PrimeDivisors(N)];
+    D := NewformDecomposition(C);
+    dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
+    chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
+		Level(d) eq (old_levels[i])] : i in [1..#old_levels]*];
+    M_old := [ModularSymbols(chis, 2) : chis in chars];
+    C_old := [CuspidalSubspace(m) : m in M_old];
+    C_old_new := [NewSubspace(c) : c in C_old];
+    assert &and[Dimension(C_old[i]) eq Dimension(C_old_new[i])
+		: i in [1..#C_old]];
+    C_oldb := [* Basis(c) : c in C_old *];
+    C_oldmat := [* Transpose(Matrix([Eltseq(c) : c in b])) : b in C_oldb *];
+ 
+    GL2Q := GL(2, Rationals());
+    alpha_K := GL(2, Rationals())![1,0,0,1/K];
+    gmats := [Matrix(GL2Q!g^alpha_K) : g in gens];
+    Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
+    
     // This could be made faster,
     // but right now I want to follow Box closely
     gs := [gen_to_mat([g^(-1)],C,C) : g in gmats];
     Bs := [gen_to_mat([B^(-1)],C,C) : B in Bmats];
     J := Transpose(StarInvolution(C));
-//    Qdim := VectorSpace(Rationals(), dim);
-    Cplus := Kernel(Transpose(J-1));
-    CosetReps351 := [Matrix(2,2,g) : g in [[1,0,0,1],[8,-3, 35, -13],[ 29, -21,1\
-05, -76],[ 29,-17, 70, -41],[-13, 3,-35,8],[ -76, 21,-105,29],[-41,  17,-70,  \
-29]]];
-    CosetReps357 := [Matrix(2,2,g) : g in [[1,0,0,7],[1, 1,0, 7],[ 8,-3,245,-91],[ 1,-1,0,7],[-13,3,-245, 56],[1,2,0,7],[ 43,-16,245,-91]]];
-    CosetReps491 := [Matrix(2,2,g) : g in [[1, 0,0, 1],[-13,2,-98,15],[ 50,-11,4\
-41, -97],[ 155,-114,1274,-937],[-41,11,-343,92],[ -83,34,-686,281]]];
-    CosetReps495 := [Matrix(2,2,g) : g in [[1, 0,0, 5],[1, 1,0, 5],[ 1, -1, 0,  \
-5],[1, 2,0, 5],[ 50,-11,2205, -485],[71,-32,2940,-1325]]];
-    Tr357_mat, Tr357_ims := gen_to_mat([gam : gam in CosetReps357],C35,C);
-    Tr351_mat, Tr351_ims := gen_to_mat(CosetReps351,C35,C);
-    Tr491_mat, Tr491_ims := gen_to_mat(CosetReps491,C49,C);
-    Tr495_mat, Tr495_ims := gen_to_mat(CosetReps495,C49,C);
 
+    Cplus := Kernel(Transpose(J-1));
+
+    // Figure out how to calculate these.
+    NumCosetReps357 := 7;
+    NumCosetReps495 := 6;
+    
+    Tr357_mat, Tr357_ims := get_degeneracy_map(M_old[2], MS, 7);
+    Tr351_mat, Tr351_ims := get_degeneracy_map(M_old[2], MS, 1);
+    Tr491_mat, Tr491_ims := get_degeneracy_map(M_old[1], MS, 1);
+    Tr495_mat, Tr495_ims := get_degeneracy_map(M_old[1], MS, 5);
+    
     assert [Rank(m) : m in [*Tr357_mat, Tr351_mat, Tr491_mat, Tr495_mat*]]
 	   eq [14,14,6,6];
 
@@ -491,10 +578,10 @@ function BoxExample()
     I14 := IdentityMatrix(Rationals(), 14);
     I6 := IdentityMatrix(Rationals(), 6);
     
-    B351_mat := Bdmatrix(C35,C35mat,1,C);
-    B357_mat := Bdmatrix(C35,C35mat,7,C);
-    B491_mat := Bdmatrix(C49,C49mat,1,C);
-    B495_mat := Bdmatrix(C49,C49mat,5,C);
+    B351_mat := Bdmatrix(C_old[2],C_oldmat[2],1,C);
+    B357_mat := Bdmatrix(C_old[2],C_oldmat[2],7,C);
+    B491_mat := Bdmatrix(C_old[1],C_oldmat[1],1,C);
+    B495_mat := Bdmatrix(C_old[1],C_oldmat[1],5,C);
     
     assert Transpose(Tr351_mat)*Transpose(B351_mat) eq 7*I14;
     assert Transpose(Tr357_mat)*Transpose(B357_mat) eq 7*I14;
@@ -504,7 +591,6 @@ function BoxExample()
     T3plus := Restrict(T3, Cplus);
     T2 := HeckeOperator(C,2);
     T2plus := Restrict(T2, Cplus);
-    prec := 200;
     Qrt2<rt2> := QuadraticField(2);
     Q21<zeta21> := CyclotomicField(21);
     sigma_Q21 := hom<Q21 -> Q21 | zeta21>;
@@ -564,8 +650,10 @@ function BoxExample()
     a2s := a2s cat [* a2stw[i] : i in [2..6] *];
     a3s := a3s cat [* a3stw[i] : i in [2..6] *];
     Tpluslist := [T2plus,T3plus];
-    N35 := NewSubspace(C35);
-    N49 := NewSubspace(C49);
+    // N35 := NewSubspace(C35);
+    // N49 := NewSubspace(C49);
+    N35 := C_old_new[2];
+    N49 := C_old_new[1];
     Nnew := NewSubspace(C);
     nfd35 := NewformDecomposition(N35);
     nfd49 := NewformDecomposition(N49);
@@ -622,7 +710,7 @@ function BoxExample()
 				  K, SKpowersQ3,
 				  B351_mat, B491_mat,
 				  Tr357_mat, Tr495_mat,
-				  CosetReps357, CosetReps495, J,
+				  NumCosetReps357, NumCosetReps495, J,
 				  Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21);
     return fs, tos;
 end function;
@@ -688,11 +776,15 @@ function FindRationalCurve(qexps, prec, n_rel)
     return X;
 end function;
 
-function testBoxExample()
-    fs, tos := BoxExample();
+procedure testBoxExample()
+    prec := 200;
+    gens, Bgens := get_Box_gens();
+    fs, tos := BoxExample(gens, Bgens, prec);
     assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
+    Q7plus := BaseRing(Universe(fs[1]));
+    _<q7p> := PowerSeriesRing(Q7plus);
     fs_qexps:=[[int_qexp(f,prec,q7p,Q7plus) : f in AA] : AA in fs];
-    curves := [FindCurveSimple(fs, 200, 2) : fs in fs_qexps];
+    curves := [FindCurveSimple(fs, prec, 2) : fs in fs_qexps];
     assert [Genus(X) : X in curves] eq [6,5,8];
-end function;
+end procedure;
 
