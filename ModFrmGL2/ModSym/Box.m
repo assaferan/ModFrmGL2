@@ -38,35 +38,28 @@ function make_Q21_func(a, Q21, f_Q21)
 	      : i in [1..Degree(K)]];
 end function;
 
-function gauss_sum(eps, Q21, zeta7, K, Q3_to_Q21, Q7_to_Q21)
-    if Order(eps) eq 1 then
-	return Q21!1;
+function make_nf_func(a, F, f_F)
+    K := Parent(a);
+    if K eq F then
+	return f_F(a);
     end if;
-    return &+[Q7_to_Q21(zeta7)^i*Q3_to_Q21(eps(i)) : i in [0..K-1]];
+    assert BaseRing(K) eq F;
+    return &+[f_F(Eltseq(a)[i])*Basis(K)[i]
+	      : i in [1..Degree(K)]];
 end function;
 
-function Rop(eps, SKpowersQ3, K)
+function gauss_sum(eps, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
     if Order(eps) eq 1 then
-	return SKpowersQ3[1]^0;
+	return Q_huge!1;
     end if;
-    return &+[(eps^(-1))(i-1)*SKpowersQ3[i] : i in [1..K]];
+    return &+[Q_K_to_Q_huge(zeta_K)^i*Q_L_to_Q_huge(eps(i)) : i in [0..K-1]];
 end function;
 
-function pi35(mu, oldspace35, oldspace351, oldspace357, B351_mat)
-    Kf := BaseRing(Parent(mu));
-    if mu in ChangeRing(oldspace35, Kf) then
-	oldsp1 := ChangeRing(oldspace351, Kf);
-	oldsp7 := ChangeRing(oldspace357, Kf);
-	oldsp := VectorSpaceWithBasis(Basis(oldsp1) cat Basis(oldsp7));
-	bb := Solution(Matrix(Basis(oldsp)), mu);
-    else
-	return mu;
+function Rop(eps, SKpowersQ_L, K)
+    if Order(eps) eq 1 then
+	return SKpowersQ_L[1]^0;
     end if;
-    dd := Dimension(oldsp) div 2;
-    mu1 := &+[bb[i]*Basis(oldsp)[i] : i in [1..dd]];
-    mu7 := &+[bb[i+dd]*Basis(oldsp)[i+dd] : i in [1..dd]];
-    assert mu1 + mu7 eq mu;
-    return mu1*ChangeRing(Transpose(B351_mat), Kf);
+    return &+[(eps^(-1))(i-1)*SKpowersQ_L[i] : i in [1..K]];
 end function;
 
 function pi(mu, oldspace_full, oldspaces, B_mat)
@@ -85,36 +78,6 @@ function pi(mu, oldspace_full, oldspaces, B_mat)
 	       : j in [1..#dd]];
     assert &+mus eq mu;
     return mus[1]*ChangeRing(Transpose(B_mat), Kf);
-end function;
-
-function pr35(flist, check, N35, prec)
-    K := Universe(flist);
-    if IsAbsoluteField(K) then
-	folds := [f : f in N35 |
-		  &and[Coefficients(MinimalPolynomial(flist[i]))
-		       eq Coefficients(MinimalPolynomial(Coefficient(f,i)))
-		       : i in [1..check]]];
-    else
-	folds := [f : f in N35 |
-		  &and[Coefficients(AbsoluteMinimalPolynomial(flist[i]))
-		       eq Coefficients(AbsoluteMinimalPolynomial(Coefficient(f,i)))
-		       : i in [1..check]]];
-    end if;
-    assert #folds eq 1;
-    fold := folds[1];
-    Kf := BaseRing(Parent(fold));
-    if (Type(Kf) eq FldRat) then
-	embs := [hom<Kf->K|>];
-    elif IsAbsoluteField(K) then
-	embs := [hom<Kf->K | r[1]> : r in Roots(DefiningPolynomial(Kf),K)];
-    else
-	embs := [hom<AbsoluteField(Kf)->K | r[1]>
-		 : r in Roots(DefiningPolynomial(AbsoluteField(Kf)),K)];
-    end if;
-    embs := [e : e in embs | &and[e(Coefficient(fold, i)) eq flist[i]
-				  : i in [1..check]]];
-    assert #embs eq 1;
-    return [embs[1](Coefficient(fold, i)) : i in [1..prec-1]];
 end function;
 
 function pr(flist, check, Nold, prec)
@@ -172,13 +135,17 @@ end function;
 function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
 			       prec, cc, sigma, NN, Nold,
 			       oldspaces_full, oldspaces,
-			       C, Cplus, chi, Q21, zeta7,
-			       K, SKpowersQ3,
+			       C, Cplus, chi,
+//			       Q21, zeta7,
+			       Q_huge, zeta_K,
+//			       K, SKpowersQ3,
+			       K, SKpowersQ_L,
 			       B_mats,
 			       Tr_mats,
 			       deg_divs,
 			       num_coset_reps,
-			       Q3_to_Q21, Q7_to_Q21)
+//			       Q3_to_Q21, Q7_to_Q21)
+			       Q_L_to_Q_huge, Q_K_to_Q_huge)
     Kf := Domain(Kf_to_KK);
     dim := Dimension(C);
     fpos :=[g : g in NN |
@@ -221,9 +188,15 @@ function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
     powerlist := [];
     for i in [0..2] do
 	Append(~powerlist, i);
-	ftw := chartwist(flist, 2*i, chi,Q3_to_Q21);
-	ftwists cat:= [[gauss_sum(chi^(-2*i),Q21,zeta7,K,Q3_to_Q21,Q7_to_Q21)*a : a in ftw]];
-	mutw := mu*ChangeRing(Transpose(Rop(chi^(-2*i), SKpowersQ3, K)), Kf);
+	//	ftw := chartwist(flist, 2*i, chi,Q3_to_Q21);
+	ftw := chartwist(flist, 2*i, chi,Q_L_to_Q_huge);
+//	ftwists cat:= [[gauss_sum(chi^(-2*i),Q21,zeta7,K,Q3_to_Q21,Q7_to_Q21)*a : a in ftw]];
+	ftwists cat:=
+	    [[gauss_sum(chi^(-2*i),Q_huge,zeta_K,
+			K,Q_L_to_Q_huge,Q_K_to_Q_huge)*a
+	      : a in ftw]];
+//	mutw := mu*ChangeRing(Transpose(Rop(chi^(-2*i), SKpowersQ3, K)), Kf);
+	mutw := mu*ChangeRing(Transpose(Rop(chi^(-2*i), SKpowersQ_L, K)), Kf);
 	mutwists cat:= [mutw];
 	// TODO !! Check whether this is the right thing to do here!!
 	// What if there are more than 2?
@@ -235,8 +208,8 @@ function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
 			       / num_coset_reps[sp_idx]];
 		ftwpr := pr(ftw, #alist, Nold[sp_idx], prec);
 		d := deg_divs[sp_idx][2];
-		ftwprB := &+[gauss_sum(chi^(-2*i),Q21,zeta7,K,
-				       Q3_to_Q21,Q7_to_Q21)
+		ftwprB := &+[gauss_sum(chi^(-2*i),Q_huge,zeta_K,K,
+				       Q_L_to_Q_huge,Q_K_to_Q_huge)
 			     *ftwpr[j]*qKK^(d*j)
 			     : j in [1..prec-1]];
 		ftwists cat:= [[Coefficient(ftwprB,idx) : idx in [1..prec-1]]];
@@ -316,13 +289,16 @@ function FixedCuspForms(a2s, a3s, Tpluslist, Kf_to_KKs,
     return [&+[FCF[i][j] : i in [1..#FCF]] : j in [1..#Gamma_fixed_spaces]];
 end function;
 
-function Pdmatrix(Pd, d, powerlist, chi, Q3, Q21, zeta7,K, Q3_to_Q21, Q7_to_Q21)
+function Pdmatrix(Pd, d, powerlist, chi,
+		  Q_L, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
     n := #powerlist;
-    gs_ratios := [Pd(gauss_sum(chi^(-2*i),Q21,zeta7,K, Q3_to_Q21, Q7_to_Q21))
-		     /gauss_sum(chi^(-2*i),Q21,zeta7,K, Q3_to_Q21, Q7_to_Q21)
+    gs_ratios := [Pd(gauss_sum(chi^(-2*i),Q_huge,zeta_K, K,
+			       Q_L_to_Q_huge, Q_K_to_Q_huge))
+		  /gauss_sum(chi^(-2*i),Q_huge,zeta_K, K,
+			     Q_L_to_Q_huge, Q_K_to_Q_huge)
 		  : i in powerlist];
-    small_diag := DiagonalMatrix([a@@Q3_to_Q21 : a in gs_ratios]);
-    Zn := ZeroMatrix(Q3, n);
+    small_diag := DiagonalMatrix([a@@Q_L_to_Q_huge : a in gs_ratios]);
+    Zn := ZeroMatrix(Q_L, n);
     list := [];
     for i in [0..EulerPhi(K)-1] do
 	j := (d*i) mod K;
@@ -343,13 +319,16 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 			     oldspaces_full,
 			     oldspaces,
 			     C, Cplus, chi,
-			     Q21, Q3, zeta21, zeta7,
-			     K, SKpowersQ3,
+//			     Q21, Q3, zeta21, zeta7,
+//			     K, SKpowersQ3,
+			     Q_huge, Q_L, zeta_huge, zeta_K,
+			     K, SKpowersQ_L,
 			     B_mats,
 			     Tr_mats,
 			     deg_divs,
 			     num_coset_reps, J,
-			     Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21)
+//			     Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21)
+			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge)
     FCF := [];
     twist_orbit_indices := [];
     for i in [1..#a2s] do
@@ -357,18 +336,23 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 	Kf_to_KK := Kf_to_KKs[i];
 	Kf := Domain(Kf_to_KK);
 	KK := Codomain(Kf_to_KK);
-	Q21_to_KK := hom<Q21->KK| KK!zeta21>;
+//	Q21_to_KK := hom<Q21->KK | KK!zeta21>;
+	Q_huge_to_KK := hom<Q_huge->KK | KK!zeta_huge>;
 	real_twist_orbit_ms, twist_mfs, powerlist :=
 	    make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
 				  prec, cc, sigma, NN, Nold,
 				  oldspaces_full, oldspaces,
-				  C, Cplus, chi, Q21, zeta7,
-				  K, SKpowersQ3,
+				  C, Cplus, chi,
+//				  Q21, zeta7,
+//				  K, SKpowersQ3,
+				  Q_huge, zeta_K,
+				  K, SKpowersQ_L,
 				  B_mats,
 				  Tr_mats,
 				  deg_divs,
 				  num_coset_reps,
-				  Q3_to_Q21, Q7_to_Q21);
+//				  Q3_to_Q21, Q7_to_Q21);
+				  Q_L_to_Q_huge, Q_K_to_Q_huge);
 	twist_orbit_index := [];
 	FCF_orbit := [];
 	for GFS in Gamma_fixed_spaces do
@@ -403,8 +387,12 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 				 B_imgs_block*
 				 ChangeRing(Pdmatrix(Pd,d,
 						     powerlist,
-					  chi, Q3, Q21,
-					  zeta7,K, Q3_to_Q21, Q7_to_Q21),Kf)^(-1))-
+						     chi, Q_L, Q_huge,
+						     zeta_K, K, Q_L_to_Q_huge,
+						     Q_K_to_Q_huge),Kf)^(-1))-
+//						     chi, Q3, Q21,
+//						     zeta7,K, Q3_to_Q21,
+//						     Q7_to_Q21),Kf)^(-1))-
 			       IdentityMatrix(Kf,
 					      EulerPhi(K)));
 		end for;
@@ -415,7 +403,8 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 		fixed_cusp_forms_orbit_raw :=
 		    [&+[clist[i]*Vector(twist_mfs[i]) : i in [1..#clist]]
 		     : clist in fixed_basis_cfs_cc];
-		fcf_ext := &cat[[Vector(Q7_to_Q21(zeta7^(-i))*f)
+//		fcf_ext := &cat[[Vector(Q7_to_Q21(zeta7^(-i))*f)
+		fcf_ext := &cat[[Vector(Q_K_to_Q_huge(zeta_K^(-i))*f)
 				 : f in fixed_cusp_forms_orbit_raw]
 				: i in [0..EulerPhi(K)-1]];
 		fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
@@ -428,13 +417,14 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 		else
 		    fixed_cusp_forms_orbit_ns := fsols;
 		end if;
-		fixed_cusp_forms_orbit_Q7plus :=
-		    [Vector([(a@@Q7_to_Q21)@@Q7plus_to_Q7 :
+		fixed_cusp_forms_orbit_Q_K_plus :=
+//		    [Vector([(a@@Q7_to_Q21)@@Q7plus_to_Q7 :
+		    [Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K :
 			     a in Eltseq(f)])
 		     : f in fixed_cusp_forms_orbit_ns];
-		FCF_orbit cat:= [fixed_cusp_forms_orbit_Q7plus];
+		FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 		twist_orbit_index cat:=
-		    [[i : j in [1..#fixed_cusp_forms_orbit_Q7plus]]];
+		    [[i : j in [1..#fixed_cusp_forms_orbit_Q_K_plus]]];
 	    else
 		FCF_orbit cat:= [[]];
 		twist_orbit_index cat:= [[]];
@@ -455,33 +445,26 @@ function IsCompatibleChar(M1, M2)
 	IsCoercible(Parent(eps1), eps2) and (Parent(eps1)!eps2 eq eps1); 
 end function;
 
+forward get_degeneracy_maps;
+
 function NewformDecompositionSubspaceMaps(M)
     ms := MultiSpaces(M);
     S := CuspidalSubspace(M);
+    Sb := BasisMatrix(VectorSpace(S));
+    Sbd := BasisMatrix(DualVectorSpace(S));
     D := NewformDecomposition(S);
     DD := [* *];
     ims := [* *];
     for d in D do
-	M_old := AmbientSpace(AssociatedNewSpace(d));
+	M_old := RestrictionOfScalarsToQ(AmbientSpace(AssociatedNewSpace(d)));
 	if not IsIdentical(M_old, M) then
-	    assert exists(i){i : i in [1..#ms] |
-			     IsCompatibleChar(ms[i],M_old)};
-	    M_new := ms[i];
-	    multi := MultiQuotientMaps(M)[i];
-	    quo_mat := Matrix([Representation(multi(x))
-			       : x in Basis(M)]);
-	    quo_inv := Matrix([Representation(b@@multi)
-			       : b in Basis(M_new)]);
-	    quo_lev := Level(M_new) div Level(M_old);
+	    quo_lev := Level(M) div Level(M_old);
 	    divs := Divisors(quo_lev);
 	    betas := [];
 	    for m in divs do
-		dmap := DegeneracyMatrix(M_new, M_old, m);
-		alpha := DegeneracyMatrix(M_old, M_new, m)
-			 * Transpose(quo_mat);
-		beta := Transpose(dmap) * Transpose(quo_mat);
-		im_d := DualVectorSpace(d) * beta;
-		im := VectorSpace(d) * alpha;
+		alpha, ims_alpha, beta := get_degeneracy_maps(M_old, M, m);
+		im_d := Image(beta);
+		im := Image(alpha);
 		Append(~ims, [im, im_d]);
 		Append(~betas, <alpha, beta, quo_lev div m>);
 	    end for;
@@ -489,10 +472,14 @@ function NewformDecompositionSubspaceMaps(M)
 		Append(~DD, <d, betas[j]>);
 	    end for;
 	else
-	    one := <IdentityMatrix(BaseRing(d), Dimension(M)),
-		    IdentityMatrix(BaseRing(d), Dimension(M)), 1>;
+	    one := <IdentityMatrix(BaseRing(d), Dimension(S)),
+		    IdentityMatrix(BaseRing(d), Dimension(S)), 1>;
 	    Append(~DD, <d, one >);
-	    Append(~ims, [VectorSpace(d), DualVectorSpace(d)]);
+	    im := VectorSpaceWithBasis(
+			  Solution(Sb,BasisMatrix(VectorSpace(d))));
+	    im_d := VectorSpaceWithBasis(
+			    Solution(Sbd, BasisMatrix(DualVectorSpace(d))));
+	    Append(~ims, [im, im_d]);
 	end if;
     end for;
     dim := &+[Dimension(d[1])*Degree(BaseRing(d[1])) : d in DD];
@@ -619,6 +606,23 @@ function get_old_spaces(MS)
 	   num_coset_reps, oldspaces_full, oldspaces, C_old_new;
 end function;
 
+function get_relevant_components(gs, MS)
+  C := CuspidalSubspace(MS);
+  fixed_spaces := [Kernel(Transpose(gmat)-
+			   IdentityMatrix(Rationals(), Nrows(gmat)))
+		     : gmat in gs];
+  H_inv := &meet fixed_spaces;
+  Cb := Basis(C);
+  Cmat := Transpose(Matrix([Eltseq(c) : c in Cb]));
+  DD, ims := NewformDecompositionSubspaceMaps(MS);
+  //  proj := [*BasisMatrix(DualVectorSpace(dd[1]))*dd[2][2] : dd in DD*];
+  proj := [* im[2] : im in ims *];
+  H_inv_bas := Transpose(BasisMatrix(H_inv));
+  H_components := [i : i in [1..#proj] | proj[i]*H_inv_bas ne 0];
+  S_H := [*DD[h] : h in H_components*];
+  return S_H;
+end function;
+
 function BoxExample(gens, Bgens, prec)
     M := 5;
     K := 7;
@@ -650,64 +654,12 @@ function BoxExample(gens, Bgens, prec)
     Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
     Tpluslist := [Restrict(T, Cplus) : T in Ts];
 
-    Qrt2<rt2> := QuadraticField(2);
     Q21<zeta21> := CyclotomicField(21);
     sigma_Q21 := hom<Q21 -> Q21 | zeta21>;
 
     function sigma_i(a)
 	return sigma(a, Q21, sigma_Q21);
     end function;
-    
-    _<x21> := PolynomialRing(Q21);
-    Q21rt2<r2> := NumberField(x21^2-2);
-    Q21rt17<r17> := NumberField(x21^2-17); 
-    Q7<zeta7> := CyclotomicField(7);
-    Embed(Q7, Q21, zeta21^(3*4));
-    Q7plus<z7plus>, Q7plus_to_Q7 := sub<Q7 | zeta7 + zeta7^(-1)>;
-    Q3<zeta3> := CyclotomicField(3);
-    Embed(Q3, Q21, zeta21^(-7));
-    Q3_to_Q21 := hom<Q3->Q21 | zeta21^(-7)>;
-    Q7_to_Q21 := hom<Q7->Q21 | zeta21^(3*4)>;
-    _<x3> := PolynomialRing(Q3);
-    _<x7> := PolynomialRing(Q7);
-    Q3rt2<rrr2> := NumberField(x3^2-2);
-    Q3rt17<rrr17> := NumberField(x3^2-17);
-    Q7plusq<q7p> := PowerSeriesRing(Q7plus, prec);
-    Q3rt2_to_Q21rt2 := hom<Q3rt2 -> Q21rt2 | r2>;
-    Qrt2_to_Q3rt2 := hom<Qrt2 -> Q3rt2 | rrr2>;
-    Q3rt17_to_Q21rt17 := hom<Q3rt17 -> Q21rt17 | r17>;
-    assert Q21rt2!zeta3 eq Q3rt2_to_Q21rt2(Q3rt2!zeta3);
-    assert Q21rt17!zeta3 eq Q3rt17_to_Q21rt17(Q3rt17!zeta3);
-    cc_Q21 := hom<Q21 -> Q21 | zeta21^(-1)>;
-
-    function cc(a)
-	return make_Q21_func(a, Q21, cc_Q21);
-    end function;
-    
-    assert cc(Q21rt2!zeta21) eq Q21rt2!(zeta21^(-1));
-    assert cc(Q21rt17!zeta21) eq Q21rt17!(zeta21^(-1));
-    P2_Q21 := hom<Q21 -> Q21 | zeta21^(-5)>;
-    Pm1_Q21 := hom<Q21 -> Q21 | zeta21^13>;
-    
-    I := IdentityMatrix(Rationals(), dim);
-    chi := [eps : eps in Elements(DirichletGroup(K, Q3))
-	    | eps(3) eq -zeta3][1];
-    assert Order(chi) eq 6;
-    SK := Matrix(2,2,[1,1/K,0,1]);
-    SK_mat := ChangeRing(gen_to_mat([SK],C,C), Q3);
-    SKpowers := [ChangeRing(I, Q3)];
-    while (#SKpowers lt K) do
-	SKpowers cat:= [SK_mat*SKpowers[#SKpowers]];
-    end while;
-    SKpowersQ3 := [ChangeRing(M, Q3) : M in SKpowers];
-    a2s := [* 1,0,(-1+rrr17)/2,-2,rrr2,1+rrr2 *];
-    a3s := [* 0,1,-(1+rrr17)/2,-3,-(1+rrr2),1-rrr2 *];
-    a2stw := [* chi(2)^3*a : a in a2s *];
-    a3stw := [* chi(3)^3*a : a in a3s *];
-    assert a2s eq a2stw;
-    assert &and[a3s[i] eq -a3stw[i] : i in [1..#a3s]];
-    a2s := a2s cat [* a2stw[i] : i in [2..6] *];
-    a3s := a3s cat [* a3stw[i] : i in [2..6] *];
  
     Nnew := NewSubspace(C);
 
@@ -716,7 +668,92 @@ function BoxExample(gens, Bgens, prec)
     Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
     Nnew := [* qEigenform(d,prec) : d in nfd *];
     NN := (&cat Nold) cat Nnew;
-   
+
+    as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
+
+    X := DirichletGroupFull(K);
+    r,n := DistinguishedRoot(X);
+    X_even := [x : x in Elements(X) | IsEven(x)];
+    L := BaseRing(X);
+    X_gens := Generators(X);
+    A, phi := AbelianGroup(X);
+    ZKstar_gens := UnitGenerators(X);
+    Q_L<zeta_L> := CyclotomicField(EulerPhi(K) div 2);
+    Q_K<zeta_K> := CyclotomicField(K);
+    Q_K_plus<z_K_plus>, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
+    
+    Q_K_q<q> := PowerSeriesRing(Q_K);
+    
+    Q_huge<zeta_huge> := CyclotomicField(LCM(EulerPhi(K) div 2, K));
+
+    _, Q_K_to_Q_huge := IsSubfield(Q_K, Q_huge);
+    _, Q_L_to_Q_huge := IsSubfield(Q_L, Q_huge);
+
+    _<x_L> := PolynomialRing(Q_L);
+    _<x_huge> := PolynomialRing(Q_huge);
+
+    fields := [* BaseRing(Parent(f)) : f in NN *];
+    min_polys := [* DefiningPolynomial(F) : F in fields *];
+    huge_fields := [* *];
+    for poly in min_polys do
+	fac := Factorization(Evaluate(poly, x_huge));
+	nt_facs := [f[1] : f in fac | Degree(f[1]) ne 1];
+	assert #nt_facs le 1;
+	if #nt_facs eq 1 then
+	    KK := NumberField(nt_facs[1]);
+	else
+	    KK := Q_huge;
+	end if;
+	Append(~huge_fields, KK);
+    end for;
+		     
+    field_embs := [* *];
+    for i in [1..#fields] do
+	Kf := fields[i];
+	Kf_base := BaseRing(Kf);
+	if (Type(Kf_base) eq FldRat) and (Kf ne Q_L) then
+	    Kf := NumberField(Evaluate(DefiningPolynomial(Kf), x_L));
+	end if;
+	assert IsSubfield(fields[i], Kf);
+	is_sub, emb := IsSubfield(Kf, huge_fields[i]);
+	assert is_sub;
+	Append(~field_embs, emb);
+    end for;
+    
+    cc_Q_huge := hom<Q_huge -> Q_huge | zeta_huge^(-1)>;
+
+    function cc(a)
+	return make_nf_func(a, Q_huge, cc_Q_huge);
+    end function;
+
+    assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
+
+    elts := [2,-1]; // Should use PrimitiveElement, but want to see that
+    // the same elements that Box took work.
+    powers := [CRT([e,1],[K,EulerPhi(K) div 2]) : e in elts];
+    Ps_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
+    
+    a2s := as[1];
+    a3s := as[2];
+
+    // These are the indices that Box is taking in the eigenvalues
+    a_idxs := [ 1, 3, 4, 6, 10, 16, 8, 9, 7, 13, 15 ];
+
+    a2s := [* a2s[idx] : idx in a_idxs *];
+    a3s := [* a3s[idx] : idx in a_idxs *];
+
+    I := IdentityMatrix(Rationals(), dim);
+    // This assumes a single generator. Update later.
+    chi := X_gens[1];
+    assert Order(chi) eq EulerPhi(K);
+    SK := Matrix(2,2,[1,1/K,0,1]);
+    SK_mat := ChangeRing(gen_to_mat([SK],C,C), Q_L);
+    SKpowers := [ChangeRing(I, Q_L)];
+    while (#SKpowers lt K) do
+	SKpowers cat:= [SK_mat*SKpowers[#SKpowers]];
+    end while;
+    SKpowersQ_L := [ChangeRing(M, Q_L) : M in SKpowers];
+    
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
 		     : gmat in gs];
@@ -725,33 +762,38 @@ function BoxExample(gens, Bgens, prec)
 			   fixed_spaces[1] meet fixed_spaces[4],
 			   fixed_spaces[1] meet fixed_spaces[2]
 				       meet fixed_spaces[3]];
-    Kf_to_KKs := [Q3_to_Q21,Q3_to_Q21,Q3rt17_to_Q21rt17,Q3_to_Q21,
-		  Q3rt2_to_Q21rt2,Q3rt2_to_Q21rt2,Q3_to_Q21,
-		  Q3rt17_to_Q21rt17,Q3_to_Q21,Q3rt2_to_Q21rt2,
-		  Q3rt2_to_Q21rt2];
+
+    Kf_to_KKs := field_embs;
+
+    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
+    
     Gamma_fixed_spaces := [Gamma_fixed_spaces[i]
 			   : i in [1..#Gamma_fixed_spaces - 1]];
-    function P2(a)
-	return make_Q21_func(a, Q21, P2_Q21);
-    end function;
-    function Pm1(a)
-	return make_Q21_func(a, Q21, Pm1_Q21);
-    end function;
+
+    Ps := [];
+    for P_Q_huge in Ps_Q_huge do
+	function P(a)
+	    return make_nf_func(a, Q_huge, P_Q_huge);
+	end function;
+	Append(~Ps, P);
+    end for;
+
     fs,tos := fixed_cusp_forms_QQ(a2s,a3s,Tpluslist,Kf_to_KKs,prec,
 				  Gamma_fixed_spaces,Bs,
-				  [P2,Pm1],
-				  [2,-1], cc, sigma_i,
+				  Ps,elts,
+				  cc, sigma_i,
 				  NN,Nold,
 				  oldspaces_full, oldspaces,
 				  C, Cplus, chi,
-				  Q21, Q3, zeta21, zeta7,
-				  K, SKpowersQ3,
+				  Q_huge, Q_L, zeta_huge, zeta_K,
+				  K, SKpowersQ_L,
 				  B_mats,
 				  Tr_mats,
 				  deg_divs,
 				  num_coset_reps,
 				  J,
-				  Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21);
+				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
+				  Q_L_to_Q_huge);
     return fs, tos;
 end function;
 
