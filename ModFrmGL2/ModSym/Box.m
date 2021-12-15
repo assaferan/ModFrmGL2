@@ -623,6 +623,91 @@ function get_relevant_components(gs, MS)
   return S_H;
 end function;
 
+function createFieldEmbeddings(K, NN, C)
+
+    dim := Dimension(C);
+    
+    Q_L<zeta_L> := CyclotomicField(EulerPhi(K) div 2);
+    Q_K<zeta_K> := CyclotomicField(K);
+    Q_K_plus<z_K_plus>, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
+    
+    Q_K_q<q> := PowerSeriesRing(Q_K);
+    
+    Q_huge<zeta_huge> := CyclotomicField(LCM(EulerPhi(K) div 2, K));
+
+    _, Q_K_to_Q_huge := IsSubfield(Q_K, Q_huge);
+    _, Q_L_to_Q_huge := IsSubfield(Q_L, Q_huge);
+
+    _<x_L> := PolynomialRing(Q_L);
+    _<x_huge> := PolynomialRing(Q_huge);
+    
+    fields := [* BaseRing(Parent(f)) : f in NN *];
+    min_polys := [* DefiningPolynomial(F) : F in fields *];
+    huge_fields := [* *];
+    for poly in min_polys do
+	fac := Factorization(Evaluate(poly, x_huge));
+	nt_facs := [f[1] : f in fac | Degree(f[1]) ne 1];
+	assert #nt_facs le 1;
+	if #nt_facs eq 1 then
+	    KK := NumberField(nt_facs[1]);
+	else
+	    KK := Q_huge;
+	end if;
+	Append(~huge_fields, KK);
+    end for;
+		     
+    field_embs := [* *];
+    for i in [1..#fields] do
+	Kf := fields[i];
+	Kf_base := BaseRing(Kf);
+	if (Type(Kf_base) eq FldRat) and (Kf ne Q_L) then
+	    Kf := NumberField(Evaluate(DefiningPolynomial(Kf), x_L));
+	end if;
+	assert IsSubfield(fields[i], Kf);
+	is_sub, emb := IsSubfield(Kf, huge_fields[i]);
+	assert is_sub;
+	Append(~field_embs, emb);
+    end for;
+
+    cc_Q_huge := hom<Q_huge -> Q_huge | zeta_huge^(-1)>;
+
+    function cc(a)
+	return make_nf_func(a, Q_huge, cc_Q_huge);
+    end function;
+
+    assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
+
+    elts := [2,-1]; // Should use PrimitiveElement, but want to see that
+    // the same elements that Box took work.
+    powers := [CRT([e,1],[K,EulerPhi(K) div 2]) : e in elts];
+    Ps_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
+
+    I := IdentityMatrix(Rationals(), dim);
+
+    X := DirichletGroupFull(K);
+    r,n := DistinguishedRoot(X);
+    X_even := [x : x in Elements(X) | IsEven(x)];
+    L := BaseRing(X);
+    X_gens := Generators(X);
+    A, phi := AbelianGroup(X);
+    ZKstar_gens := UnitGenerators(X);
+    
+    // This assumes a single generator. Update later.
+    chi := X_gens[1];
+    assert Order(chi) eq EulerPhi(K);
+    SK := Matrix(2,2,[1,1/K,0,1]);
+    SK_mat := ChangeRing(gen_to_mat([SK],C,C), Q_L);
+    SKpowers := [ChangeRing(I, Q_L)];
+    while (#SKpowers lt K) do
+	SKpowers cat:= [SK_mat*SKpowers[#SKpowers]];
+    end while;
+    SKpowersQ_L := [ChangeRing(M, Q_L) : M in SKpowers];
+    
+    return field_embs, cc, Ps_Q_huge, SKpowersQ_L, Q_huge,
+	   Q_L, zeta_huge, zeta_K, Q_K_plus_to_Q_K, Q_K_to_Q_huge,
+	   Q_L_to_Q_huge, chi, elts;
+end function;
+
 function BoxExample(gens, Bgens, prec)
     M := 5;
     K := 7;
@@ -671,67 +756,10 @@ function BoxExample(gens, Bgens, prec)
 
     as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
 
-    X := DirichletGroupFull(K);
-    r,n := DistinguishedRoot(X);
-    X_even := [x : x in Elements(X) | IsEven(x)];
-    L := BaseRing(X);
-    X_gens := Generators(X);
-    A, phi := AbelianGroup(X);
-    ZKstar_gens := UnitGenerators(X);
-    Q_L<zeta_L> := CyclotomicField(EulerPhi(K) div 2);
-    Q_K<zeta_K> := CyclotomicField(K);
-    Q_K_plus<z_K_plus>, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
-    
-    Q_K_q<q> := PowerSeriesRing(Q_K);
-    
-    Q_huge<zeta_huge> := CyclotomicField(LCM(EulerPhi(K) div 2, K));
-
-    _, Q_K_to_Q_huge := IsSubfield(Q_K, Q_huge);
-    _, Q_L_to_Q_huge := IsSubfield(Q_L, Q_huge);
-
-    _<x_L> := PolynomialRing(Q_L);
-    _<x_huge> := PolynomialRing(Q_huge);
-
-    fields := [* BaseRing(Parent(f)) : f in NN *];
-    min_polys := [* DefiningPolynomial(F) : F in fields *];
-    huge_fields := [* *];
-    for poly in min_polys do
-	fac := Factorization(Evaluate(poly, x_huge));
-	nt_facs := [f[1] : f in fac | Degree(f[1]) ne 1];
-	assert #nt_facs le 1;
-	if #nt_facs eq 1 then
-	    KK := NumberField(nt_facs[1]);
-	else
-	    KK := Q_huge;
-	end if;
-	Append(~huge_fields, KK);
-    end for;
-		     
-    field_embs := [* *];
-    for i in [1..#fields] do
-	Kf := fields[i];
-	Kf_base := BaseRing(Kf);
-	if (Type(Kf_base) eq FldRat) and (Kf ne Q_L) then
-	    Kf := NumberField(Evaluate(DefiningPolynomial(Kf), x_L));
-	end if;
-	assert IsSubfield(fields[i], Kf);
-	is_sub, emb := IsSubfield(Kf, huge_fields[i]);
-	assert is_sub;
-	Append(~field_embs, emb);
-    end for;
-    
-    cc_Q_huge := hom<Q_huge -> Q_huge | zeta_huge^(-1)>;
-
-    function cc(a)
-	return make_nf_func(a, Q_huge, cc_Q_huge);
-    end function;
-
-    assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
-
-    elts := [2,-1]; // Should use PrimitiveElement, but want to see that
-    // the same elements that Box took work.
-    powers := [CRT([e,1],[K,EulerPhi(K) div 2]) : e in elts];
-    Ps_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
+    field_embs, cc, Ps_Q_huge, SKpowersQ_L,
+    Q_huge, Q_L, zeta_huge, zeta_K,
+    Q_K_plus_to_Q_K, Q_K_to_Q_huge,
+    Q_L_to_Q_huge, chi, elts := createFieldEmbeddings(K, NN, C);
     
     a2s := as[1];
     a3s := as[2];
@@ -741,19 +769,7 @@ function BoxExample(gens, Bgens, prec)
 
     a2s := [* a2s[idx] : idx in a_idxs *];
     a3s := [* a3s[idx] : idx in a_idxs *];
-
-    I := IdentityMatrix(Rationals(), dim);
-    // This assumes a single generator. Update later.
-    chi := X_gens[1];
-    assert Order(chi) eq EulerPhi(K);
-    SK := Matrix(2,2,[1,1/K,0,1]);
-    SK_mat := ChangeRing(gen_to_mat([SK],C,C), Q_L);
-    SKpowers := [ChangeRing(I, Q_L)];
-    while (#SKpowers lt K) do
-	SKpowers cat:= [SK_mat*SKpowers[#SKpowers]];
-    end while;
-    SKpowersQ_L := [ChangeRing(M, Q_L) : M in SKpowers];
-    
+ 
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
 		     : gmat in gs];
