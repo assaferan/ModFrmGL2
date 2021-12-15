@@ -582,12 +582,6 @@ function get_gens(G)
     return gens, Bgens, K, M, ds;
 end function;
 
-function get_gens_SL2(H)
-    real_H := GetRealConjugate(H);
-    G := GetGLModel(real_H);
-    return get_gens(G);
-end function;
-
 function get_degeneracy_maps(M_old, M, d)
     C := CuspidalSubspace(M);
     C_old := CuspidalSubspace(M_old);
@@ -711,7 +705,7 @@ function get_relevant_components(gs, MS)
   return S_H;
 end function;
 
-function createFieldEmbeddings(K, NN, C, M)
+function createFieldEmbeddings(K, NN, C, ds)
 
     dim := Dimension(C);
     
@@ -765,8 +759,7 @@ function createFieldEmbeddings(K, NN, C, M)
 
     assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
 
-    alpha := Integers()!PrimitiveElement(Integers(M));    
-    elts := [alpha,-1];
+    elts := [Integers()!(Integers(K)!d^(-1)) : d in ds];
     powers := [CRT([e,1],[K,EulerPhi(K) div 2]) : e in elts];
     Ps_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
 
@@ -845,10 +838,11 @@ function BoxExample(gens, Bgens, prec)
 
     as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
 
+    ds := [4,-1];
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
     Q_huge, Q_L, zeta_huge, zeta_K,
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-    Q_L_to_Q_huge, chi, elts, sigma_i := createFieldEmbeddings(K, NN, C, M);
+    Q_L_to_Q_huge, chi, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
     
     a2s := as[1];
     a3s := as[2];
@@ -927,6 +921,28 @@ function FindCurveSimple(qexps, prec, n_rel)
     return X;
 end function;
 
+function FindHyperellipticCurve(qexps, prec)
+    R<q> := Universe(qexps);
+    K := BaseRing(R);
+    fs := [f + O(q^prec) : f in qexps];
+    g := #fs;
+    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
+    x := fs[g-1] / fs[g];
+    y := q * Derivative(x) / fs[g];
+    mons := [x^i : i in [0..2*g+2]] cat [-y^2];
+    denom := q^(-(2*g+2)*Valuation(x));
+    f_mons := [denom*m + O(q^AbsolutePrecision(x)) : m in mons];
+    ker := Kernel(Matrix([AbsEltseq(f : FixedLength) : f in f_mons]));
+    assert Dimension(ker) eq 1;
+    ker_b := Basis(ker)[1];
+    ker_b /:= -ker_b[2*g+3];
+    R<x> := PolynomialRing(K);
+    poly := &+[ker_b[i+1]*x^i : i in [0..2*g+2]];
+    X := HyperellipticCurve(poly);
+    return X;
+end function;
+
 // This only works when conjugating one eigenform
 // gives you another eigenform
 function FindRationalCurve(qexps, prec, n_rel)
@@ -958,7 +974,6 @@ end function;
 
 procedure testBoxExample()
     prec := 200;
-    //    gens, Bgens := get_Box_gens();
     fs := [* *];
     for num in [1..3] do
 	gens, Bgens := getBoxGens(num);
@@ -972,3 +987,128 @@ procedure testBoxExample()
     assert [Genus(X) : X in curves] eq [6,5,8];
 end procedure;
 
+function BoxMethod(G, prec)
+    gens, Bgens, K, M, ds := get_gens(G);
+    N := M * K^2;
+    g1 := CRT([1+K,1], [K^2,M]);
+    alpha := Integers()!PrimitiveElement(Integers(M));
+    g2 := CRT([1,alpha], [K^2,M]);
+    MS := ModularSymbolsH(N, [g1,g2], 2, 0);
+
+    // !! TODO !! Set precision by the group
+    // bound := HeckeBound(MS);
+    // prec := K*M*bound;
+    
+    C := CuspidalSubspace(MS);
+    dim := Dimension(C);
+
+    GL2Q := GL(2, Rationals());
+    alpha_K := GL(2, Rationals())![1,0,0,1/K];
+    gmats := [Matrix(GL2Q!g^alpha_K) : g in gens];
+    Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
+    
+    // This could be made faster,
+    // but right now I want to follow Box closely
+    gs := [gen_to_mat([g^(-1)],C,C) : g in gmats];
+    Bs := [gen_to_mat([B^(-1)],C,C) : B in Bmats];
+    J := Transpose(StarInvolution(C));
+
+    Cplus := Kernel(Transpose(J-1));
+
+    Tr_mats, Tr_ims, B_mats, deg_divs,
+    num_coset_reps, oldspaces_full,
+    oldspaces, C_old_new := get_old_spaces(MS);
+
+    // !! TODO !! Change this bound appropriately !!
+    max_hecke := 3;
+    Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
+    Tpluslist := [Restrict(T, Cplus) : T in Ts];
+
+    Nnew := NewSubspace(C);
+
+    nfd_old := [NewformDecomposition(s) : s in C_old_new];    
+    nfd := NewformDecomposition(Nnew);
+    Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
+    Nnew := [* qEigenform(d,prec) : d in nfd *];
+    NN := (&cat Nold) cat Nnew;
+
+    as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
+
+    field_embs, cc, Ps_Q_huge, SKpowersQ_L,
+    Q_huge, Q_L, zeta_huge, zeta_K,
+    Q_K_plus_to_Q_K, Q_K_to_Q_huge,
+    Q_L_to_Q_huge, chi, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
+    
+    a2s := as[1];
+    a3s := as[2];
+
+    // Taking only the forms with trivial Nebentypus character
+
+    nfd_trivial := [i : i in [1..#nfd] |
+		    IsTrivial(DirichletCharacter(nfd[i]))];
+    nfd_old_trivial := [[i : i in [1..#nf] |
+			 IsTrivial(DirichletCharacter(nf[i]))]
+			: nf in nfd_old]; 
+    cumsum := [0] cat [&+[#nf : nf in nfd_old[1..i]] : i in [1..#nfd_old]];
+    a_idxs := &cat[ [idx + cumsum[j] : idx in nfd_old_trivial[j]]
+		    : j in [1..#nfd_old]];
+    a_idxs cat:= [idx + cumsum[#cumsum] : idx in nfd_trivial];
+
+    a2s := [* a2s[idx] : idx in a_idxs *];
+    a3s := [* a3s[idx] : idx in a_idxs *];
+
+    fixed_spaces := [Kernel(Transpose(gmat)-
+			   IdentityMatrix(Rationals(), Nrows(gmat)))
+		     : gmat in gs];
+
+    Gamma_fixed_space := &meet fixed_spaces;
+    
+    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];    
+    
+    Ps := [];
+    for P_Q_huge in Ps_Q_huge do
+	function P(a)
+	    return make_nf_func(a, Q_huge, P_Q_huge);
+	end function;
+	Append(~Ps, P);
+    end for;
+
+    fs,tos := fixed_cusp_forms_QQ(a2s,a3s,Tpluslist,Kf_to_KKs,prec,
+				  Gamma_fixed_space,Bs,
+				  Ps,elts,
+				  cc, sigma_i,
+				  NN,Nold,
+				  oldspaces_full, oldspaces,
+				  C, Cplus, chi,
+				  Q_huge, Q_L, zeta_huge, zeta_K,
+				  K, SKpowersQ_L,
+				  B_mats,
+				  Tr_mats,
+				  deg_divs,
+				  num_coset_reps,
+				  J,
+				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
+				  Q_L_to_Q_huge);
+    return fs, tos;
+end function;
+
+function qExpansionBasis(grp_name, prec, grps)
+    grp := grps[grp_name];
+    N := grp`level;
+    gens := grp`matgens;
+    H := sub<SL(2, Integers(N)) | gens>;
+    real_H := GetRealConjugate(H);
+    G := GetGLModel(real_H);
+    fs := BoxMethod(G, prec);
+    max_deg := Maximum(7-grp`genus, 2);
+    Q_K_plus := BaseRing(Universe(fs));
+    _<qKp> := PowerSeriesRing(Q_K_plus);
+    fs_qexps:=[int_qexp(f,prec,qKp,Q_K_plus) : f in fs];
+    X := FindCurveSimple(fs_qexps, prec, max_deg);
+    g := Genus(X);
+    if g eq 0 then
+	X := FindHyperellipticCurve(fs_qexps, prec);
+    end if;
+    assert Genus(X) eq grp`genus;
+    return fs;
+end function;

@@ -406,6 +406,27 @@ function DegMapToFullSpace(M, M_full)
   return Matrix([Representation(new_x) : new_x in new_xs]);
 end function;
 
+function FindHyperellipticCurve(qexps, prec)
+    R<q> := Universe(qexps);
+    K := BaseRing(R);
+    fs := [f + O(q^prec) : f in qexps];
+    g := #fs;
+    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
+    x := fs[g-1] / fs[g];
+    y := q * Derivative(x) / fs[g];
+    mons := [x^i : i in [0..2*g+2]] cat [-y^2];   
+    f_mons := [denom*m + O(q^AbsolutePrecision(x)) : m in mons];
+    ker := Kernel(Matrix([AbsEltseq(f : FixedLength) : f in f_mons]));
+    assert Dimension(ker) eq 1;
+    ker_b := Basis(ker)[1];
+    ker_b /:= -ker_b[2*g+3];
+    R<x> := PolynomialRing(K);
+    poly := &+[ker_b[i+1]*x^i : i in [0..2*g+2]];
+    X := HyperellipticCurve(poly);
+    return X;
+end function;
+
 function FindCurveSimple(qexps, prec, n_rel)
     R<q> := Universe(qexps);
     K := BaseRing(R);
