@@ -1,4 +1,73 @@
 import "linalg.m" : Restrict;
+import "../GrpPSL2/GrpPSL2/misc.m" : Conjugates,
+       IsConjugate, NormalizerGrpMat;
+
+// These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
+// Helper functions for creation
+function GetRealConjugate(H)
+  GL_N := GL(2, BaseRing(H));
+  N_H := NormalizerGrpMat(GL_N, H);
+  N_H_conjs := Conjugates(GL_N, N_H);
+  eta := GL_N![-1,0,0,1];
+  real := exists(real_N_H){ real_N_H : real_N_H in N_H_conjs
+			    | eta in real_N_H};
+  error if not real, Error("No real type conjugate");
+  dummy, alpha := IsConjugate(GL_N,N_H,real_N_H);
+  real_H := H^alpha;
+  assert real_H^eta eq real_H;
+  return real_H; 
+end function;
+
+function GetGLModel(H : RealType := true)
+  N := Modulus(BaseRing(H));
+  SL_N := SL(2, Integers(N));
+  GL_N := GL(2, BaseRing(H));
+  N_H := NormalizerGrpMat(GL_N, H);
+  Q, pi_Q := N_H / H;
+  subs := SubgroupClasses(N_H/H : OrderEqual := EulerPhi(N));
+  cands := [s`subgroup@@pi_Q : s in subs];
+  cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
+  error if IsEmpty(cands), Error("No model with surjective determinant");
+
+  if RealType then
+      eta := GL_N![-1,0,0,1];
+      cands := [c : c in cands | c^eta eq c];
+      error if IsEmpty(cands), Error("No model with surjective determinant, 
+                 	                        which commutes with eta");
+  end if;
+  // We would perfer a model for which the Hecke operators are standard
+  U, psi := UnitGroup(Integers(N));
+  if exists(c){c : c in cands |
+	       sub<GL(2,Integers(N))
+		  | [[1,0,0,psi(t)] : t in Generators(U)]> subset c} then
+      return c;
+  else
+      return Random(cands);
+  end if;
+end function;
+
+function FindLiftToSL2(g)
+     elt_g := ElementToSequence(g);
+     if #elt_g eq 1 then return PSL2(Integers())!1; end if;
+     a,b,c,d := Explode(elt_g); 
+     N := Modulus(Parent(a));
+     Z := Integers();
+     a_prime := Z!a;
+     b_prime := Z!b;
+     if a_prime eq 0 then
+        a_prime +:= N;
+     end if;
+     gcd_res, x, y := Xgcd(a_prime, b_prime);
+     while gcd_res ne 1 do
+           b_prime +:= N; 
+           gcd_res, x, y := Xgcd(a_prime, b_prime);
+     end while;
+     det := a_prime * Z!d - b_prime*Z!c;
+     c_prime := Z!c - y * (1 - det);
+     d_prime := Z!d + x * (1 - det);       
+     lift_g := PSL2(Integers())![a_prime, b_prime, c_prime, d_prime];
+     return lift_g;
+end function;
 
 function gen_to_mat(gs, C1, C2)
     C1b := Basis(C1);
@@ -314,20 +383,17 @@ function Pdmatrix(Pd, d, powerlist, chi,
 end function;
 
 function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
-			     Gamma_fixed_spaces, Bmats, Pds, ds,
+			     GFS, Bmats, Pds, ds,
 			     cc, sigma, NN, Nold,
 			     oldspaces_full,
 			     oldspaces,
 			     C, Cplus, chi,
-//			     Q21, Q3, zeta21, zeta7,
-//			     K, SKpowersQ3,
 			     Q_huge, Q_L, zeta_huge, zeta_K,
 			     K, SKpowersQ_L,
 			     B_mats,
 			     Tr_mats,
 			     deg_divs,
 			     num_coset_reps, J,
-//			     Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21)
 			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge)
     FCF := [];
     twist_orbit_indices := [];
@@ -336,106 +402,94 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 	Kf_to_KK := Kf_to_KKs[i];
 	Kf := Domain(Kf_to_KK);
 	KK := Codomain(Kf_to_KK);
-//	Q21_to_KK := hom<Q21->KK | KK!zeta21>;
 	Q_huge_to_KK := hom<Q_huge->KK | KK!zeta_huge>;
 	real_twist_orbit_ms, twist_mfs, powerlist :=
 	    make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
 				  prec, cc, sigma, NN, Nold,
 				  oldspaces_full, oldspaces,
 				  C, Cplus, chi,
-//				  Q21, zeta7,
-//				  K, SKpowersQ3,
 				  Q_huge, zeta_K,
 				  K, SKpowersQ_L,
 				  B_mats,
 				  Tr_mats,
 				  deg_divs,
 				  num_coset_reps,
-//				  Q3_to_Q21, Q7_to_Q21);
 				  Q_L_to_Q_huge, Q_K_to_Q_huge);
 	twist_orbit_index := [];
 	FCF_orbit := [];
-	for GFS in Gamma_fixed_spaces do
-	    fixed_space_basis := Basis(ChangeRing(GFS, Kf)
-						 meet real_twist_orbit_ms);
-	    if #fixed_space_basis gt 0 then
-		fixed_basis_cfs :=
-		    [Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
-		     : mu in fixed_space_basis];
-		fixed_basis_block :=
-		    DirectSum([Matrix(fixed_basis_cfs)
-			       : i in [1..EulerPhi(K)]]);
-		fixed_ms_space_QQ :=
-		    VectorSpace(Kf,
-				EulerPhi(K)*#fixed_space_basis);
-		for k in [1..#Bmats] do
-		    Bmat := Bmats[k];
-		    Pd := Pds[k];
-		    d := ds[k];
-		    B_imgs := [mu*ChangeRing(Transpose(Bmat),Kf)
-			       : mu in fixed_space_basis];
-		    assert &and[mu*ChangeRing(Transpose(J),Kf)
-				eq mu : mu in B_imgs];
-		    B_imgs_cfs :=
-			[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms),
-					 ChangeRing(mu,Kf))) : mu in B_imgs];
-		    B_imgs_block :=
-			DirectSum([Matrix(B_imgs_cfs)
-				   : j in [1..EulerPhi(K)]]);
-		    fixed_ms_space_QQ meet:=
-			Kernel(Solution(fixed_basis_block,
-				 B_imgs_block*
-				 ChangeRing(Pdmatrix(Pd,d,
-						     powerlist,
-						     chi, Q_L, Q_huge,
-						     zeta_K, K, Q_L_to_Q_huge,
-						     Q_K_to_Q_huge),Kf)^(-1))-
-//						     chi, Q3, Q21,
-//						     zeta7,K, Q3_to_Q21,
-//						     Q7_to_Q21),Kf)^(-1))-
-			       IdentityMatrix(Kf,
-					      EulerPhi(K)));
-		end for;
-		fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
-			      : v in Basis(fixed_ms_space_QQ)];
-		fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
-				       : mulist in fixed_basis_cfs];
-		fixed_cusp_forms_orbit_raw :=
-		    [&+[clist[i]*Vector(twist_mfs[i]) : i in [1..#clist]]
-		     : clist in fixed_basis_cfs_cc];
-//		fcf_ext := &cat[[Vector(Q7_to_Q21(zeta7^(-i))*f)
-		fcf_ext := &cat[[Vector(Q_K_to_Q_huge(zeta_K^(-i))*f)
-				 : f in fixed_cusp_forms_orbit_raw]
-				: i in [0..EulerPhi(K)-1]];
-		fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
-			  : i in [1..#fmssQQ_cc]];
-		if Degree(KK) eq 2 then
-		    fixed_cusp_forms_orbit_ns :=
-			&cat[[f+Vector([sigma(a) : a in Eltseq(f)]),
-			      (f-Vector([sigma(a) : a in Eltseq(f)]))/KK.1]
-			     : f in fsols];
-		else
-		    fixed_cusp_forms_orbit_ns := fsols;
-		end if;
-		fixed_cusp_forms_orbit_Q_K_plus :=
-//		    [Vector([(a@@Q7_to_Q21)@@Q7plus_to_Q7 :
-		    [Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K :
-			     a in Eltseq(f)])
-		     : f in fixed_cusp_forms_orbit_ns];
-		FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
-		twist_orbit_index cat:=
-		    [[i : j in [1..#fixed_cusp_forms_orbit_Q_K_plus]]];
+	fixed_space_basis := Basis(ChangeRing(GFS, Kf)
+					     meet real_twist_orbit_ms);
+	if #fixed_space_basis gt 0 then
+	    fixed_basis_cfs :=
+		[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
+		 : mu in fixed_space_basis];
+	    fixed_basis_block :=
+		DirectSum([Matrix(fixed_basis_cfs)
+			   : i in [1..EulerPhi(K)]]);
+	    fixed_ms_space_QQ :=
+		VectorSpace(Kf,
+			    EulerPhi(K)*#fixed_space_basis);
+	    for k in [1..#Bmats] do
+		Bmat := Bmats[k];
+		Pd := Pds[k];
+		d := ds[k];
+		B_imgs := [mu*ChangeRing(Transpose(Bmat),Kf)
+			   : mu in fixed_space_basis];
+		assert &and[mu*ChangeRing(Transpose(J),Kf)
+			    eq mu : mu in B_imgs];
+		B_imgs_cfs :=
+		    [Eltseq(Solution(BasisMatrix(real_twist_orbit_ms),
+				     ChangeRing(mu,Kf))) : mu in B_imgs];
+		B_imgs_block :=
+		    DirectSum([Matrix(B_imgs_cfs)
+			       : j in [1..EulerPhi(K)]]);
+		fixed_ms_space_QQ meet:=
+		    Kernel(Solution(fixed_basis_block,
+				    B_imgs_block*
+				    ChangeRing(Pdmatrix(Pd,d,
+							powerlist,
+							chi, Q_L, Q_huge,
+							zeta_K, K, Q_L_to_Q_huge,
+							Q_K_to_Q_huge),Kf)^(-1))-
+			   IdentityMatrix(Kf,
+					  EulerPhi(K)));
+	    end for;
+	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
+			  : v in Basis(fixed_ms_space_QQ)];
+	    fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
+				   : mulist in fixed_basis_cfs];
+	    fixed_cusp_forms_orbit_raw :=
+		[&+[clist[i]*Vector(twist_mfs[i]) : i in [1..#clist]]
+		 : clist in fixed_basis_cfs_cc];
+	    fcf_ext := &cat[[Vector(Q_K_to_Q_huge(zeta_K^(-i))*f)
+			     : f in fixed_cusp_forms_orbit_raw]
+			    : i in [0..EulerPhi(K)-1]];
+	    fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
+		      : i in [1..#fmssQQ_cc]];
+	    if Degree(KK) eq 2 then
+		fixed_cusp_forms_orbit_ns :=
+		    &cat[[f+Vector([sigma(a) : a in Eltseq(f)]),
+			  (f-Vector([sigma(a) : a in Eltseq(f)]))/KK.1]
+			 : f in fsols];
 	    else
-		FCF_orbit cat:= [[]];
-		twist_orbit_index cat:= [[]];
+		fixed_cusp_forms_orbit_ns := fsols;
 	    end if;
-	end for;
+	    fixed_cusp_forms_orbit_Q_K_plus :=
+		[Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K :
+			 a in Eltseq(f)])
+		 : f in fixed_cusp_forms_orbit_ns];
+	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
+	    twist_orbit_index cat:=
+		[[i : j in [1..#fixed_cusp_forms_orbit_Q_K_plus]]];
+	else
+	    FCF_orbit cat:= [[]];
+	    twist_orbit_index cat:= [[]];
+	end if;
 	FCF cat:= [FCF_orbit];
 	twist_orbit_indices cat:= [twist_orbit_index];
     end for;
-    return [&cat[FCF[i][j] : i in [1..#FCF]] : j in [1..#Gamma_fixed_spaces]]
-	 , [&cat[twist_orbit_indices[i][j] : i in [1..#FCF]]
-	    : j in [1..#Gamma_fixed_spaces]];
+    return &cat [FCF[i][1] : i in [1..#FCF]],
+	   &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
 end function;
 
 function IsCompatibleChar(M1, M2)
@@ -498,6 +552,40 @@ function get_Box_gens()
     gens := [g0,phi7,w5,phi7w5];
     Bgens := [[6,5,-5,-4],[1,0,0,1]];
     return gens, Bgens;
+end function;
+
+function getBoxGens(num)
+    g0 := [61,-55,10,-9];
+    assert Determinant(Matrix(2,2,g0)) eq 1;
+    phi7 := [3,1,-10,-3];
+    assert Determinant(Matrix(2,2,phi7)) eq 1;
+    w5 := [2890, 193 , -8685, -580];
+    assert Determinant(Matrix(2,2,w5)) eq 5;
+    phi7w5 := Eltseq(Matrix(2,2,phi7)*Matrix(2,2,w5));
+    gens := [g0,phi7,w5,phi7w5];
+    Bgens := [[6,5,-5,-4],[1,0,0,1]];
+    gens := [gens[1], gens[num+1]];
+    return gens, Bgens;
+end function;
+
+function get_gens(G)
+    N := Modulus(BaseRing(G));
+    M := GCD([N] cat [Integers()!g[2,1] : g in Generators(G)]);
+    K := N div M;
+    Cs := [g : g in Generators(G) | Determinant(g) ne 1];
+    ds := [Determinant(C) : C in Cs];
+    Bgens := [C*GL(2,Integers(N))![Determinant(C),0,0,1]^(-1) : C in Cs];
+    gens := [g : g in Generators(G) | Determinant(g) eq 1];
+    // Check whether this is really necessary
+    Bgens := [Eltseq(FindLiftToSL2(b)) : b in Bgens];
+    gens := [Eltseq(FindLiftToSL2(g)) : g in gens];
+    return gens, Bgens, K, M, ds;
+end function;
+
+function get_gens_SL2(H)
+    real_H := GetRealConjugate(H);
+    G := GetGLModel(real_H);
+    return get_gens(G);
 end function;
 
 function get_degeneracy_maps(M_old, M, d)
@@ -623,7 +711,7 @@ function get_relevant_components(gs, MS)
   return S_H;
 end function;
 
-function createFieldEmbeddings(K, NN, C)
+function createFieldEmbeddings(K, NN, C, M)
 
     dim := Dimension(C);
     
@@ -677,8 +765,8 @@ function createFieldEmbeddings(K, NN, C)
 
     assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
 
-    elts := [2,-1]; // Should use PrimitiveElement, but want to see that
-    // the same elements that Box took work.
+    alpha := Integers()!PrimitiveElement(Integers(M));    
+    elts := [alpha,-1];
     powers := [CRT([e,1],[K,EulerPhi(K) div 2]) : e in elts];
     Ps_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
 
@@ -702,18 +790,25 @@ function createFieldEmbeddings(K, NN, C)
 	SKpowers cat:= [SK_mat*SKpowers[#SKpowers]];
     end while;
     SKpowersQ_L := [ChangeRing(M, Q_L) : M in SKpowers];
+
+    sigma_Q_huge := hom<Q_huge -> Q_huge | zeta_huge>;
+
+    function sigma_i(a)
+	return sigma(a, Q_huge, sigma_Q_huge);
+    end function;
     
     return field_embs, cc, Ps_Q_huge, SKpowersQ_L, Q_huge,
 	   Q_L, zeta_huge, zeta_K, Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-	   Q_L_to_Q_huge, chi, elts;
+	   Q_L_to_Q_huge, chi, elts, sigma_i;
 end function;
 
 function BoxExample(gens, Bgens, prec)
     M := 5;
     K := 7;
     N := M * K^2;
-    g1 := CRT([8,1], [K^2,M]);
-    g2 := CRT([1,2], [K^2,M]);
+    g1 := CRT([1+K,1], [K^2,M]);
+    alpha := Integers()!PrimitiveElement(Integers(M));
+    g2 := CRT([1,alpha], [K^2,M]);
     MS := ModularSymbolsH(N, [g1,g2], 2, 0);
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
@@ -733,19 +828,13 @@ function BoxExample(gens, Bgens, prec)
     Cplus := Kernel(Transpose(J-1));
 
     Tr_mats, Tr_ims, B_mats, deg_divs,
-    num_coset_reps, oldspaces_full, oldspaces, C_old_new := get_old_spaces(MS);
+    num_coset_reps, oldspaces_full,
+    oldspaces, C_old_new := get_old_spaces(MS);
 
     max_hecke := 3;
     Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
     Tpluslist := [Restrict(T, Cplus) : T in Ts];
 
-    Q21<zeta21> := CyclotomicField(21);
-    sigma_Q21 := hom<Q21 -> Q21 | zeta21>;
-
-    function sigma_i(a)
-	return sigma(a, Q21, sigma_Q21);
-    end function;
- 
     Nnew := NewSubspace(C);
 
     nfd_old := [NewformDecomposition(s) : s in C_old_new];    
@@ -759,33 +848,34 @@ function BoxExample(gens, Bgens, prec)
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
     Q_huge, Q_L, zeta_huge, zeta_K,
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-    Q_L_to_Q_huge, chi, elts := createFieldEmbeddings(K, NN, C);
+    Q_L_to_Q_huge, chi, elts, sigma_i := createFieldEmbeddings(K, NN, C, M);
     
     a2s := as[1];
     a3s := as[2];
 
-    // These are the indices that Box is taking in the eigenvalues
-    a_idxs := [ 1, 3, 4, 6, 10, 16, 8, 9, 7, 13, 15 ];
+    // Taking only the forms with trivial Nebentypus character
+
+    nfd_trivial := [i : i in [1..#nfd] |
+		    IsTrivial(DirichletCharacter(nfd[i]))];
+    nfd_old_trivial := [[i : i in [1..#nf] |
+			 IsTrivial(DirichletCharacter(nf[i]))]
+			: nf in nfd_old]; 
+    cumsum := [0] cat [&+[#nf : nf in nfd_old[1..i]] : i in [1..#nfd_old]];
+    a_idxs := &cat[ [idx + cumsum[j] : idx in nfd_old_trivial[j]]
+		    : j in [1..#nfd_old]];
+    a_idxs cat:= [idx + cumsum[#cumsum] : idx in nfd_trivial];
 
     a2s := [* a2s[idx] : idx in a_idxs *];
     a3s := [* a3s[idx] : idx in a_idxs *];
- 
+
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
 		     : gmat in gs];
-    Gamma_fixed_spaces := [fixed_spaces[1] meet fixed_spaces[2],
-			   fixed_spaces[1] meet fixed_spaces[3],
-			   fixed_spaces[1] meet fixed_spaces[4],
-			   fixed_spaces[1] meet fixed_spaces[2]
-				       meet fixed_spaces[3]];
 
-    Kf_to_KKs := field_embs;
-
-    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
+    Gamma_fixed_space := &meet fixed_spaces;
     
-    Gamma_fixed_spaces := [Gamma_fixed_spaces[i]
-			   : i in [1..#Gamma_fixed_spaces - 1]];
-
+    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];    
+    
     Ps := [];
     for P_Q_huge in Ps_Q_huge do
 	function P(a)
@@ -795,7 +885,7 @@ function BoxExample(gens, Bgens, prec)
     end for;
 
     fs,tos := fixed_cusp_forms_QQ(a2s,a3s,Tpluslist,Kf_to_KKs,prec,
-				  Gamma_fixed_spaces,Bs,
+				  Gamma_fixed_space,Bs,
 				  Ps,elts,
 				  cc, sigma_i,
 				  NN,Nold,
@@ -813,10 +903,10 @@ function BoxExample(gens, Bgens, prec)
     return fs, tos;
 end function;
 
-function int_qexp(f, prec, q7p, Q7plus)
+function int_qexp(f, prec, qKp, Q_K_plus)
     den := LCM([Denominator(f[i]) : i in [1..prec-1]]);
-    ff := ChangeRing(f, Q7plus);
-    return den*&+[ff[i]*q7p^i : i in [1..prec-1]];
+    ff := ChangeRing(f, Q_K_plus);
+    return den*&+[ff[i]*qKp^i : i in [1..prec-1]];
 end function;
 
 function FindCurveSimple(qexps, prec, n_rel)
@@ -868,12 +958,16 @@ end function;
 
 procedure testBoxExample()
     prec := 200;
-    gens, Bgens := get_Box_gens();
-    fs, tos := BoxExample(gens, Bgens, prec);
+    //    gens, Bgens := get_Box_gens();
+    fs := [* *];
+    for num in [1..3] do
+	gens, Bgens := getBoxGens(num);
+	Append(~fs, BoxExample(gens, Bgens, prec));
+    end for;
     assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
-    Q7plus := BaseRing(Universe(fs[1]));
-    _<q7p> := PowerSeriesRing(Q7plus);
-    fs_qexps:=[[int_qexp(f,prec,q7p,Q7plus) : f in AA] : AA in fs];
+    Q_K_plus := BaseRing(Universe(fs[1]));
+    _<qKp> := PowerSeriesRing(Q_K_plus);
+    fs_qexps:=[[int_qexp(f,prec,qKp,Q_K_plus) : f in AA] : AA in fs];
     curves := [FindCurveSimple(fs, prec, 2) : fs in fs_qexps];
     assert [Genus(X) : X in curves] eq [6,5,8];
 end procedure;

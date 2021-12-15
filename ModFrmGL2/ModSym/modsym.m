@@ -2284,9 +2284,11 @@ function GetGLModel(H : RealType := true)
                  	                        which commutes with eta");
   end if;
   // We would perfer a model for which the Hecke operators are standard
+  U, psi := UnitGroup(Integers(N));
   if exists(c){c : c in cands |
-      ImageInLevelGL(CongruenceSubgroup(N)) subset c} then
-      return c;
+//      ImageInLevelGL(CongruenceSubgroup(N)) subset c} then
+	       sub<GL(2,Integers(N)) | [[1,0,0,psi(t)] : t in Generators(U)]> subset c} then
+	       return c;
   else
       return Random(cands);
   end if;
