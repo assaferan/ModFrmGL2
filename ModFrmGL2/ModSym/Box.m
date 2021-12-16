@@ -448,8 +448,9 @@ function Pdmatrix(Pd, d, powerlist, chis,
 		    /gauss_sum(chi,Q_huge,zeta_K, K,
 			     Q_L_to_Q_huge, Q_K_to_Q_huge)
 		  : chi in chars];
-    small_diag := DiagonalMatrix([a@@Q_L_to_Q_huge : a in gs_ratios]);
-    Zn := ZeroMatrix(Q_L, n);
+    // small_diag := DiagonalMatrix([a@@Q_L_to_Q_huge : a in gs_ratios]);
+    // Zn := ZeroMatrix(Q_L, n);
+    small_diag := DiagonalMatrix(gs_ratios);
     list := [];
     for i in [0..EulerPhi(K)-1] do
 	j := (d*i) mod K;
@@ -457,6 +458,34 @@ function Pdmatrix(Pd, d, powerlist, chis,
 	Append(~list, [c*small_diag : c in coeffs]);
     end for;
     return BlockMatrix(list);
+end function;
+
+// For some reason magma does not how to invert Kf_to_KK.
+// We fix that problem
+
+function reverse_nf_coercion(a, Kf_to_KK)
+    QQ := Rationals();
+    Kf := Domain(Kf_to_KK);
+    KK := Codomain(Kf_to_KK);
+    assert a in KK;
+    roots := [r[1] : r in Roots(AbsoluteMinimalPolynomial(a),Kf)];
+    assert exists(r){r : r in roots | Kf_to_KK(r) eq a};
+    return r;
+    /*
+    if a in QQ then
+	return Kf!a;
+    end if;
+    KK_a, emb := sub<KK|a>;
+    is_sub, KK_a_to_Kf := IsSubfield(KK_a, Kf);
+    assert is_sub;
+    aut_Kf := Automorphisms(Kf);
+    // magam claims it cannot test equality for these maps, oh well
+    //    assert exists(aut){aut : aut in aut_Kf | KK_a_to_Kf*aut*Kf_to_KK eq emb};
+    assert exists(aut){aut : aut in aut_Kf | Kf_to_KK(aut(KK_a_to_Kf(a))) eq a};
+    Kf_a := aut(KK_a_to_Kf(a));
+    assert Kf_to_KK(Kf_a) eq a;
+    return Kf_a;
+*/
 end function;
 
 function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
@@ -521,6 +550,18 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		B_imgs_block :=
 		    DirectSum([Matrix(B_imgs_cfs)
 			       : j in [1..EulerPhi(K)]]);
+		pd_mat := Pdmatrix(Pd,d,powerlist,chis, Q_L, Q_huge,
+				   zeta_K, K, Q_L_to_Q_huge,Q_K_to_Q_huge);
+		B_pd_mat := ChangeRing(B_imgs_block,KK) * ChangeRing(pd_mat, KK)^(-1);
+		B_pd_Kf := Matrix([[reverse_nf_coercion(B_pd_mat[r,c],Kf_to_KK)
+				    : c in [1..Ncols(B_pd_mat)]]
+				   : r in [1..Nrows(B_pd_mat)] ]);
+		// B_pd_cfs := Solution(fixed_basis_block, ChangeRing(B_pd_mat, Kf));
+		B_pd_cfs := Solution(fixed_basis_block, B_pd_Kf);
+		I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
+		fixed_B_pd := Kernel(B_pd_cfs - I_mat);
+		fixed_ms_space_QQ meet:= fixed_B_pd;
+		/*
 		fixed_ms_space_QQ meet:=
 		    Kernel(Solution(fixed_basis_block,
 				    B_imgs_block*
@@ -531,6 +572,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 							Q_K_to_Q_huge),Kf)^(-1))-
 			   IdentityMatrix(Kf,
 					  EulerPhi(K)*#fixed_space_basis));
+	       */
 	    end for;
 	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
@@ -1062,13 +1104,6 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     A, phi := AbelianGroup(X);
     quo, quo_map := A / (2*A);
     char_reps := [phi(g@@quo_map) : g in quo];
-/*
-    nfd_trivial := [i : i in [1..#nfd] |
-		    IsTrivial(DirichletCharacter(nfd[i]))];
-    nfd_old_trivial := [[i : i in [1..#nf] |
-			 IsTrivial(DirichletCharacter(nf[i]))]
-			: nf in nfd_old]; 
-*/
 
     nfd_trivial := [i : i in [1..#nfd] |
 		    X!DirichletCharacter(nfd[i]) in char_reps];
@@ -1090,7 +1125,6 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     Gamma_fixed_space := &meet fixed_spaces;
     
     Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
-    // Kf_to_KKs := field_embs;
     
     Ps := [];
     for P_Q_huge in Ps_Q_huge do
