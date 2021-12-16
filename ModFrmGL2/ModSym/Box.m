@@ -179,12 +179,6 @@ function pr(flist, check, Nold, prec)
     return [embs[1](Coefficient(fold, i)) : i in [1..prec-1]];
 end function;
 
-/*
-function chartwist(flist, i, chi, Q_L_to_Q_huge)
-    return [Q_L_to_Q_huge(chi(n))^i*flist[n] : n in [1..#flist]];
-end function;
-*/
-
 function chartwist(flist, chi, Q_L_to_Q_huge)
     return [Q_L_to_Q_huge(chi(n))*flist[n] : n in [1..#flist]];
 end function;
@@ -324,6 +318,9 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 
 	    chars := [&*[chis[i]^(-exp[i]) : i in [1..#chis]]
 		      : exp in new_powerlist];
+
+	    chars := [DirichletGroupFull(Conductor(eps))!eps
+		      : eps in chars];
 
 	    new_ftws := [chartwist(flist, eps^(-1), Q_L_to_Q_huge)
 			 : eps in chars];
@@ -902,11 +899,14 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     I := IdentityMatrix(Rationals(), dim);
 
-    X := DirichletGroupFull(K);
-    X_gens := Generators(X);
-    
-    chis := [IsEven(chi) select chi else chi^2 : chi in X_gens];
-    chis := [chi : chi in chis | not IsTrivial(chi)];
+//    X := DirichletGroupFull(K);
+//     X_gens := Generators(X);
+
+    // !!! TODO !!!
+    // That's not really good. We really want generators for the even subgroup
+    // e.g. we want chi1*chi2 when chi1 and chi2 are odd
+    // chis := [IsEven(chi) select chi else chi^2 : chi in X_gens];
+    // chis := [chi : chi in chis | not IsTrivial(chi)];
 
     SK := Matrix(2,2,[1,1/K,0,1]);
     SK_mat := ChangeRing(gen_to_mat([SK],C,C), Q_L);
@@ -924,7 +924,7 @@ function createFieldEmbeddings(K, NN, C, ds)
     
     return field_embs, cc, Ps_Q_huge, SKpowersQ_L, Q_huge,
 	   Q_L, zeta_huge, zeta_K, Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-	   Q_L_to_Q_huge, chis, elts, sigma_i;
+	   Q_L_to_Q_huge, elts, sigma_i;
 end function;
 
 forward BoxMethod;
@@ -1095,7 +1095,7 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
     Q_huge, Q_L, zeta_huge, zeta_K,
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-    Q_L_to_Q_huge, chis, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
+    Q_L_to_Q_huge, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
 
     // Taking only the forms with trivial Nebentypus character is not good enough
     // We need to take represenatives for X / X^2!
@@ -1104,6 +1104,11 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     A, phi := AbelianGroup(X);
     quo, quo_map := A / (2*A);
     char_reps := [phi(g@@quo_map) : g in quo];
+
+    Z2 := AbelianGroup([2]);
+    h := hom< A -> Z2 | a :-> IsEven(phi(a)) select 0 else 1>;
+
+    chis := [phi(g) : g in Generators(Kernel(h))];
 
     nfd_trivial := [i : i in [1..#nfd] |
 		    X!DirichletCharacter(nfd[i]) in char_reps];
@@ -1134,7 +1139,7 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
 	Append(~Ps, P);
     end for;
 
-    fs,tos := fixed_cusp_forms_QQ(as, primes, Tpluslist,Kf_to_KKs,prec,
+    fs,tos := fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  Gamma_fixed_space,Bs,
 				  Ps,elts,
 				  cc, sigma_i,
@@ -1190,3 +1195,11 @@ function ModularCurve(G, genus, prec)
     assert Genus(X) eq genus;
     return X;
 end function;
+
+procedure testBox(grps_by_name)
+    testBoxExample();
+    prec := 200;
+    fs := qExpansionBasis("8A2", prec, grps_by_name);
+    fs := qExpansionBasis("9A2", prec, grps_by_name);
+    fs := qExpansionBasis("11A2", prec, grps_by_name); 
+end procedure;
