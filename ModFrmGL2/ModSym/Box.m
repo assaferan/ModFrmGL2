@@ -240,7 +240,7 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
     return;
 end procedure;
 
-function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
+function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 			       prec, cc, sigma, NN, Nold,
 			       oldspaces_full, oldspaces,
 			       C, Cplus, chis,
@@ -282,7 +282,7 @@ function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
     for i in [1..#Tpluslist] do
 	T := Tpluslist[i];
 	// intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[i+1]);
-	intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[i]);
+	intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[primes[i]]);
     end for;
     Hb := [x*ChangeRing(BasisMatrix(Cplus),Kf) : x in Basis(intsn)];
     H := sub<Universe(Hb)|Hb> meet subsp;
@@ -317,13 +317,12 @@ function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
     for gen_idx in [1..#chis] do
 	chi := chis[gen_idx];
 	n_chi := Order(chi);
-	if IsOdd(chi) then n_chi := n_chi div 2; end if;
 	e_chi := Vector([0 : j in [1..gen_idx-1]] cat [1]
 			cat [0 : j in [gen_idx+1..#chis]]);
 	for i in [1..n_chi-1] do
 	    new_powerlist := [v + e_chi : v in orig_powerlist[#powerlist]];
 
-	    chars := [&*[chis[i]^(-2*exp[i]) : i in [1..#chis]]
+	    chars := [&*[chis[i]^(-exp[i]) : i in [1..#chis]]
 		      : exp in new_powerlist];
 
 	    new_ftws := [chartwist(flist, eps^(-1), Q_L_to_Q_huge)
@@ -441,7 +440,7 @@ end function;
 function Pdmatrix(Pd, d, powerlist, chis,
 		  Q_L, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
     n := #powerlist;
-    chars := [&*[chis[i]^(-2*exp[i]) : i in [1..#chis]]
+    chars := [&*[chis[i]^(-exp[i]) : i in [1..#chis]]
 	      : exp in powerlist];
  
     gs_ratios := [Pd(gauss_sum(chi,Q_huge,zeta_K, K,
@@ -454,18 +453,13 @@ function Pdmatrix(Pd, d, powerlist, chis,
     list := [];
     for i in [0..EulerPhi(K)-1] do
 	j := (d*i) mod K;
-	if j eq K-1 then
-	    Append(~list, [-small_diag : k in [1..EulerPhi(K)]]);
-	else
-	    Zns := [Zn : k in [1..EulerPhi(K)-1]];
-	    Insert(~Zns, j+1, small_diag);
-	    Append(~list, Zns);
-	end if;
+	coeffs := Eltseq(zeta_K^j);
+	Append(~list, [c*small_diag : c in coeffs]);
     end for;
     return BlockMatrix(list);
 end function;
 
-function fixed_cusp_forms_QQ(as, Tpluslist, Kf_to_KKs, prec,
+function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     GFS, Bmats, Pds, ds,
 			     cc, sigma, NN, Nold,
 			     oldspaces_full,
@@ -481,14 +475,13 @@ function fixed_cusp_forms_QQ(as, Tpluslist, Kf_to_KKs, prec,
     FCF := [];
     twist_orbit_indices := [];
     for i in [1..#as[1]] do
-	//	alist := [1,a2s[i], a3s[i]];
 	alist := [aps[i] : aps in as];
 	Kf_to_KK := Kf_to_KKs[i];
 	Kf := Domain(Kf_to_KK);
 	KK := Codomain(Kf_to_KK);
 	Q_huge_to_KK := hom<Q_huge->KK | KK!zeta_huge>;
 	real_twist_orbit_ms, twist_mfs, powerlist :=
-	    make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
+	    make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 				  prec, cc, sigma, NN, Nold,
 				  oldspaces_full, oldspaces,
 				  C, Cplus, chis,
@@ -648,8 +641,14 @@ function getBoxGens(num)
     phi7w5 := Eltseq(Matrix(2,2,phi7)*Matrix(2,2,w5));
     gens := [g0,phi7,w5,phi7w5];
     Bgens := [[6,5,-5,-4],[1,0,0,1]];
-    gens := [gens[1], gens[num+1]];
-    return gens, Bgens;
+    ws := [gens[num+1]];
+    if num eq 1 then
+	gens := gens[1..2];
+	ws := [];
+    else
+	gens := [gens[1]];
+    end if;
+    return gens, ws, Bgens;
 end function;
 
 function get_gens(G)
@@ -855,17 +854,11 @@ function createFieldEmbeddings(K, NN, C, ds)
     I := IdentityMatrix(Rationals(), dim);
 
     X := DirichletGroupFull(K);
-    r,n := DistinguishedRoot(X);
-    X_even := [x : x in Elements(X) | IsEven(x)];
-    L := BaseRing(X);
     X_gens := Generators(X);
-    A, phi := AbelianGroup(X);
-    ZKstar_gens := UnitGenerators(X);
     
-    // This assumes a single generator. Update later.
-    //    chi := X_gens[1];
-    chis := X_gens;
-//    assert Order(chi) eq EulerPhi(K);
+    chis := [IsEven(chi) select chi else chi^2 : chi in X_gens];
+    chis := [chi : chi in chis | not IsTrivial(chi)];
+
     SK := Matrix(2,2,[1,1/K,0,1]);
     SK_mat := ChangeRing(gen_to_mat([SK],C,C), Q_L);
     SKpowers := [ChangeRing(I, Q_L)];
@@ -885,109 +878,14 @@ function createFieldEmbeddings(K, NN, C, ds)
 	   Q_L_to_Q_huge, chis, elts, sigma_i;
 end function;
 
-function BoxExample(gens, Bgens, prec)
-    M := 5;
-    K := 7;
-    N := M * K^2;
-    g1 := CRT([1+K,1], [K^2,M]);
-    alpha := Integers()!PrimitiveElement(Integers(M));
-    g2 := CRT([1,alpha], [K^2,M]);
-    MS := ModularSymbolsH(N, [g1,g2], 2, 0);
-    C := CuspidalSubspace(MS);
-    dim := Dimension(C);
-    assert dim eq 122;
+forward BoxMethod;
 
-    GL2Q := GL(2, Rationals());
-    alpha_K := GL(2, Rationals())![1,0,0,1/K];
-    gmats := [Matrix(GL2Q!g^alpha_K) : g in gens];
-    Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
-    
-    // This could be made faster,
-    // but right now I want to follow Box closely
-    gs := [gen_to_mat([g^(-1)],C,C) : g in gmats];
-    Bs := [gen_to_mat([B^(-1)],C,C) : B in Bmats];
-    J := Transpose(StarInvolution(C));
-
-    Cplus := Kernel(Transpose(J-1));
-
-    Tr_mats, Tr_ims, B_mats, deg_divs,
-    num_coset_reps, oldspaces_full,
-    oldspaces, C_old_new := get_old_spaces(MS);
-
-    max_hecke := 3;
-    // Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
-    Ts := [HeckeOperator(C, n) : n in [1..max_hecke]];
-    Tpluslist := [Restrict(T, Cplus) : T in Ts];
-
-    Nnew := NewSubspace(C);
-
-    nfd_old := [NewformDecomposition(s) : s in C_old_new];    
-    nfd := NewformDecomposition(Nnew);
-    Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
-    Nnew := [* qEigenform(d,prec) : d in nfd *];
-    NN := (&cat Nold) cat Nnew;
-
-    //   as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
-    as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
-
-    ds := [4,-1];
-    field_embs, cc, Ps_Q_huge, SKpowersQ_L,
-    Q_huge, Q_L, zeta_huge, zeta_K,
-    Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-    Q_L_to_Q_huge, chis, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
-    
- //   a2s := as[1];
- //   a3s := as[2];
-
-    // Taking only the forms with trivial Nebentypus character
-
-    nfd_trivial := [i : i in [1..#nfd] |
-		    IsTrivial(DirichletCharacter(nfd[i]))];
-    nfd_old_trivial := [[i : i in [1..#nf] |
-			 IsTrivial(DirichletCharacter(nf[i]))]
-			: nf in nfd_old]; 
-    cumsum := [0] cat [&+[#nf : nf in nfd_old[1..i]] : i in [1..#nfd_old]];
-    a_idxs := &cat[ [idx + cumsum[j] : idx in nfd_old_trivial[j]]
-		    : j in [1..#nfd_old]];
-    a_idxs cat:= [idx + cumsum[#cumsum] : idx in nfd_trivial];
-
-    //   a2s := [* a2s[idx] : idx in a_idxs *];
-    //   a3s := [* a3s[idx] : idx in a_idxs *];
-     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
-
-    fixed_spaces := [Kernel(Transpose(gmat)-
-			   IdentityMatrix(Rationals(), Nrows(gmat)))
-		     : gmat in gs];
-
-    Gamma_fixed_space := &meet fixed_spaces;
-    
-    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];    
-    
-    Ps := [];
-    for P_Q_huge in Ps_Q_huge do
-	function P(a)
-	    return make_nf_func(a, Q_huge, P_Q_huge);
-	end function;
-	Append(~Ps, P);
-    end for;
-
-    fs,tos := fixed_cusp_forms_QQ(as,Tpluslist,Kf_to_KKs,prec,
-				  Gamma_fixed_space,Bs,
-				  Ps,elts,
-				  cc, sigma_i,
-				  NN,Nold,
-				  oldspaces_full, oldspaces,
-				  C, Cplus, chis,
-				  Q_huge, Q_L, zeta_huge, zeta_K,
-				  K, SKpowersQ_L,
-				  B_mats,
-				  Tr_mats,
-				  deg_divs,
-				  num_coset_reps,
-				  J,
-				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-				  Q_L_to_Q_huge);
-    return fs, tos;
+function BoxExample(gens, ws, Bgens, prec)
+    GG := GL(2, Integers(35));
+    Cs := [GG!Bgens[1] * GG![4,0,0,1], GG!Bgens[2] * GG![-1,0,0,1]];
+    Cgens := [Eltseq(c) : c in Cs];
+    G := sub< GG | gens cat Cgens>;
+    return BoxMethod(G, prec : AtkinLehner := ws);
 end function;
 
 function int_qexp(f, prec, qKp, Q_K_plus)
@@ -1069,8 +967,8 @@ procedure testBoxExample()
     prec := 200;
     fs := [* *];
     for num in [1..3] do
-	gens, Bgens := getBoxGens(num);
-	Append(~fs, BoxExample(gens, Bgens, prec));
+	gens, ws, Bgens := getBoxGens(num);
+	Append(~fs, BoxExample(gens, ws, Bgens, prec));
     end for;
     assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
     Q_K_plus := BaseRing(Universe(fs[1]));
@@ -1080,8 +978,9 @@ procedure testBoxExample()
     assert [Genus(X) : X in curves] eq [6,5,8];
 end procedure;
 
-function BoxMethod(G, prec)
+function BoxMethod(G, prec : AtkinLehner := [])
     gens, Bgens, K, M, ds := get_gens(G);
+    gens cat:= AtkinLehner;
     N := M * K^2;
     g1 := CRT([1+K,1], [K^2,M]);
     alpha := Integers()!PrimitiveElement(Integers(M));
@@ -1120,26 +1019,25 @@ function BoxMethod(G, prec)
     Nnew := [* qEigenform(d,prec) : d in nfd *];
     NN := (&cat Nold) cat Nnew;
 
-    // !! TODO !! Change this bound appropriately !!
-    //     max_hecke := 3;
-    
     max_hecke := 1;
     num_distinct := 0;
-    // This could save some work, but right now we will compute all of them
-    // not only the prime ones
-//    primes := [];
+
+    // We want only the Hecke operators prime to p
+    // because the embedding of the oldform is no longer
+    // an eigenform for the other Hecke operators
+    primes := [];
     while (num_distinct lt #NN) do
-	max_hecke := NextPrime(max_hecke);
-//	Append(~primes, max_hecke);
-	num_distinct := #{[Coefficient(f,i) : i in [1..max_hecke]] : f in NN};
+	repeat
+	    max_hecke := NextPrime(max_hecke);
+	until N mod max_hecke ne 0;
+	Append(~primes, max_hecke);
+	num_distinct := 
+	    #{[Coefficients(MinimalPolynomial(Coefficient(f,i)))
+			   : i in [1..max_hecke]] : f in NN};
     end while;
 
-    //    Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
-    // Ts := [HeckeOperator(C, p) : p in primes];
-    Ts := [HeckeOperator(C, n) : n in [1..max_hecke]];
+    Ts := [HeckeOperator(C, p) : p in primes];
     Tpluslist := [Restrict(T, Cplus) : T in Ts];
-    
-    //    as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
 
     as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
 
@@ -1147,24 +1045,33 @@ function BoxMethod(G, prec)
     Q_huge, Q_L, zeta_huge, zeta_K,
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
     Q_L_to_Q_huge, chis, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
-    
- //   a2s := as[1];
- //   a3s := as[2];
 
-    // Taking only the forms with trivial Nebentypus character
+    // Taking only the forms with trivial Nebentypus character is not good enough
+    // We need to take represenatives for X / X^2!
 
+    X := DirichletGroupFull(K);
+    A, phi := AbelianGroup(X);
+    quo, quo_map := A / (2*A);
+    char_reps := [phi(g@@quo_map) : g in quo];
+/*
     nfd_trivial := [i : i in [1..#nfd] |
 		    IsTrivial(DirichletCharacter(nfd[i]))];
     nfd_old_trivial := [[i : i in [1..#nf] |
 			 IsTrivial(DirichletCharacter(nf[i]))]
 			: nf in nfd_old]; 
+*/
+
+    nfd_trivial := [i : i in [1..#nfd] |
+		    X!DirichletCharacter(nfd[i]) in char_reps];
+    nfd_old_trivial := [[i : i in [1..#nf] |
+			 X!DirichletCharacter(nf[i]) in char_reps]
+			: nf in nfd_old]; 
+
     cumsum := [0] cat [&+[#nf : nf in nfd_old[1..i]] : i in [1..#nfd_old]];
     a_idxs := &cat[ [idx + cumsum[j] : idx in nfd_old_trivial[j]]
 		    : j in [1..#nfd_old]];
     a_idxs cat:= [idx + cumsum[#cumsum] : idx in nfd_trivial];
 
-    //   a2s := [* a2s[idx] : idx in a_idxs *];
-    //   a3s := [* a3s[idx] : idx in a_idxs *];
     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
     fixed_spaces := [Kernel(Transpose(gmat)-
@@ -1173,7 +1080,8 @@ function BoxMethod(G, prec)
 
     Gamma_fixed_space := &meet fixed_spaces;
     
-    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];    
+    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
+    // Kf_to_KKs := field_embs;
     
     Ps := [];
     for P_Q_huge in Ps_Q_huge do
@@ -1183,7 +1091,7 @@ function BoxMethod(G, prec)
 	Append(~Ps, P);
     end for;
 
-    fs,tos := fixed_cusp_forms_QQ(as, Tpluslist,Kf_to_KKs,prec,
+    fs,tos := fixed_cusp_forms_QQ(as, primes, Tpluslist,Kf_to_KKs,prec,
 				  Gamma_fixed_space,Bs,
 				  Ps,elts,
 				  cc, sigma_i,
@@ -1222,93 +1130,3 @@ function qExpansionBasis(grp_name, prec, grps)
     assert Genus(X) eq grp`genus;
     return fs;
 end function;
-
-/*
-function make_real_twist_orbit_old(alist, Kf_to_KK, Tpluslist,
-				   prec, cc, sigma, NN, Nold,
-				   oldspaces_full, oldspaces,
-				   C, Cplus, chi,
-				   Q_huge, zeta_K,
-				   K, SKpowersQ_L,
-				   B_mats,
-				   Tr_mats,
-				   deg_divs,
-				   num_coset_reps,
-				   Q_L_to_Q_huge, Q_K_to_Q_huge)
-    Kf := Domain(Kf_to_KK);
-    dim := Dimension(C);
-    fpos :=[g : g in NN |
-	    &and[Coefficients(MinimalPolynomial(alist[i]))
-		 eq Coefficients(MinimalPolynomial(Coefficient(g,i)))
-		 : i in [1..#alist]]];
-    assert #fpos eq 1;
-    f := fpos[1];
-    F := BaseRing(Parent(f));
-    if (Type(F) eq FldRat) then
-	embs := [hom<F->Kf|>];
-    else
-	embs := [hom<F->Kf | r[1]> : r in Roots(DefiningPolynomial(F),Kf)];
-    end if;
-    embs := [e : e in embs | &and[e(Coefficient(f, i)) eq alist[i]
-				  : i in [1..#alist]]];
-    assert #embs eq 1;
-    emb := embs[1];
-    flist := [cc(Kf_to_KK(emb(Coefficient(f,i)))) : i in [1..prec-1]];
-    subsp := VectorSpace(Kf, dim);
-    for i in [1..#Nold] do
-	if exists(g){g : g in Nold[i] | IsEqualPowerSeries(f,g)} then
-	    subsp := ChangeRing(oldspaces[i][1], Kf);
-	    break;
-	end if;
-    end for;
-
-    intsn := VectorSpace(Kf, Dimension(C) div 2);
-    for i in [1..#Tpluslist] do
-	T := Tpluslist[i];
-	intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[i+1]);
-    end for;
-    Hb := [x*ChangeRing(BasisMatrix(Cplus),Kf) : x in Basis(intsn)];
-    H := sub<Universe(Hb)|Hb> meet subsp;
-    assert Dimension(H) eq 1;
-    mu := Basis(H)[1];
-    LKK<qKK> := PowerSeriesRing(Codomain(Kf_to_KK), prec);
-
-    powerlist := [];
-    ftwists := [];
-    mutwists := [];
-    for i in [0..2] do
-	Append(~powerlist, i);
-	ftw := chartwist(flist, chi^(2*i), Q_L_to_Q_huge);
-	ftwists cat:=
-	    [[gauss_sum(chi^(-2*i),Q_huge,zeta_K,
-			K,Q_L_to_Q_huge,Q_K_to_Q_huge)*a
-	      : a in ftw]];
-	   
-	mutw := mu*ChangeRing(Transpose(Rop(chi^(-2*i),
-					    SKpowersQ_L, K)), Kf);
-	mutwists cat:= [mutw];
-	
-	for sp_idx in [1..#oldspaces_full] do
-	    if mutw in ChangeRing(oldspaces_full[sp_idx], Kf) then
-		mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
-				   oldspaces[sp_idx],
-				   B_mats[sp_idx][1]) *
-				Transpose(ChangeRing(Tr_mats[sp_idx][2],
-						     Kf))
-				/ num_coset_reps[sp_idx]];
-		ftwpr := pr(ftw, #alist, Nold[sp_idx], prec);
-		d := deg_divs[sp_idx][2];
-		ftwprB := &+[gauss_sum(chi^(-2*i),Q_huge,zeta_K,K,
-				       Q_L_to_Q_huge,Q_K_to_Q_huge)
-			     *ftwpr[j]*qKK^(d*j)
-			     : j in [1..prec-1]];
-		ftwists cat:= [[Coefficient(ftwprB,idx)
-				    : idx in [1..prec-1]]];
-		Append(~powerlist, i);
-	    end if;
-	end for;
-    end for;
-
-    return VectorSpaceWithBasis(mutwists), ftwists, powerlist;
-end function;
-*/
