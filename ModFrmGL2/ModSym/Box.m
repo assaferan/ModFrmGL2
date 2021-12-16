@@ -471,7 +471,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     Tr_mats,
 			     deg_divs,
 			     num_coset_reps, J,
-			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge)
+			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge :
+			     TotallyReal := false)
     FCF := [];
     twist_orbit_indices := [];
     for i in [1..#as[1]] do
@@ -529,7 +530,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 							zeta_K, K, Q_L_to_Q_huge,
 							Q_K_to_Q_huge),Kf)^(-1))-
 			   IdentityMatrix(Kf,
-					  EulerPhi(K)));
+					  EulerPhi(K)*#fixed_space_basis));
 	    end for;
 	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
@@ -551,10 +552,16 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    else
 		fixed_cusp_forms_orbit_ns := fsols;
 	    end if;
-	    fixed_cusp_forms_orbit_Q_K_plus :=
-		[Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K :
-			 a in Eltseq(f)])
+	    if (TotallyReal) then
+		fixed_cusp_forms_orbit_Q_K_plus :=
+		    [Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K :
+			     a in Eltseq(f)])
+		     : f in fixed_cusp_forms_orbit_ns];
+	    else
+		fixed_cusp_forms_orbit_Q_K_plus :=
+		[Vector([a@@Q_K_to_Q_huge : a in Eltseq(f)])
 		 : f in fixed_cusp_forms_orbit_ns];
+	    end if;
 	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 	    twist_orbit_index cat:=
 		[[i : j in [1..#fixed_cusp_forms_orbit_Q_K_plus]]];
@@ -885,7 +892,7 @@ function BoxExample(gens, ws, Bgens, prec)
     Cs := [GG!Bgens[1] * GG![4,0,0,1], GG!Bgens[2] * GG![-1,0,0,1]];
     Cgens := [Eltseq(c) : c in Cs];
     G := sub< GG | gens cat Cgens>;
-    return BoxMethod(G, prec : AtkinLehner := ws);
+    return BoxMethod(G, prec : AtkinLehner := ws, TotallyReal := true);
 end function;
 
 function int_qexp(f, prec, qKp, Q_K_plus)
@@ -899,8 +906,10 @@ function FindCurveSimple(qexps, prec, n_rel)
     K := BaseRing(R);
     zeta := K.1;
     fs := [f + O(q^prec) : f in qexps];
-    n := #fs;
-    R<[x]> := PolynomialRing(K,n);
+    g := #fs;
+    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
+    R<[x]> := PolynomialRing(K,g);
     degmons := [MonomialsOfDegree(R, d) : d in [1..n_rel]];
     prods := [[Evaluate(m, fs) + O(q^prec) : m in degmons[d]] :
 	      d in [1..n_rel]];
@@ -909,7 +918,7 @@ function FindCurveSimple(qexps, prec, n_rel)
 	      i in [1..Dimension(kers[d])]] : d in [1..n_rel]];
     I := ideal<R | &cat rels>;
     X := Curve(ProjectiveSpace(R),I);
-    return X;
+    return X, fs;
 end function;
 
 function FindHyperellipticCurve(qexps, prec)
@@ -927,11 +936,11 @@ function FindHyperellipticCurve(qexps, prec)
     ker := Kernel(Matrix([AbsEltseq(f : FixedLength) : f in f_mons]));
     assert Dimension(ker) eq 1;
     ker_b := Basis(ker)[1];
-    ker_b /:= -ker_b[2*g+3];
+    ker_b /:= -ker_b[2*g+4];
     R<x> := PolynomialRing(K);
     poly := &+[ker_b[i+1]*x^i : i in [0..2*g+2]];
     X := HyperellipticCurve(poly);
-    return X;
+    return X, fs;
 end function;
 
 // This only works when conjugating one eigenform
@@ -978,7 +987,7 @@ procedure testBoxExample()
     assert [Genus(X) : X in curves] eq [6,5,8];
 end procedure;
 
-function BoxMethod(G, prec : AtkinLehner := [])
+function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     gens, Bgens, K, M, ds := get_gens(G);
     gens cat:= AtkinLehner;
     N := M * K^2;
@@ -1106,7 +1115,8 @@ function BoxMethod(G, prec : AtkinLehner := [])
 				  num_coset_reps,
 				  J,
 				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-				  Q_L_to_Q_huge);
+				  Q_L_to_Q_huge
+				  : TotallyReal := TotallyReal);
     return fs, tos;
 end function;
 
@@ -1122,11 +1132,27 @@ function qExpansionBasis(grp_name, prec, grps)
     Q_K_plus := BaseRing(Universe(fs));
     _<qKp> := PowerSeriesRing(Q_K_plus);
     fs_qexps:=[int_qexp(f,prec,qKp,Q_K_plus) : f in fs];
-    X := FindCurveSimple(fs_qexps, prec, max_deg);
+    X, fs := FindCurveSimple(fs_qexps, prec, max_deg);
     g := Genus(X);
     if g eq 0 then
-	X := FindHyperellipticCurve(fs_qexps, prec);
+	X, fs := FindHyperellipticCurve(fs_qexps, prec);
     end if;
     assert Genus(X) eq grp`genus;
     return fs;
+end function;
+
+function ModularCurve(G, genus, prec)
+    assert genus ge 2;
+    fs := BoxMethod(G, prec);
+    max_deg := Maximum(7-genus, 2);
+    K := BaseRing(Universe(fs));
+    _<q> := PowerSeriesRing(K);
+    fs_qexps:=[int_qexp(f,prec,q,K) : f in fs];
+    X, fs := FindCurveSimple(fs_qexps, prec, max_deg);
+    g := Genus(X);
+    if g eq 0 then
+	X, fs := FindHyperellipticCurve(fs_qexps, prec);
+    end if;
+    assert Genus(X) eq genus;
+    return X;
 end function;
