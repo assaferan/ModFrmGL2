@@ -281,7 +281,8 @@ function make_real_twist_orbit(alist, Kf_to_KK, Tpluslist,
     intsn := VectorSpace(Kf, Dimension(C) div 2);
     for i in [1..#Tpluslist] do
 	T := Tpluslist[i];
-	intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[i+1]);
+	// intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[i+1]);
+	intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[i]);
     end for;
     Hb := [x*ChangeRing(BasisMatrix(Cplus),Kf) : x in Basis(intsn)];
     H := sub<Universe(Hb)|Hb> meet subsp;
@@ -374,6 +375,7 @@ function first_nonzero_cf(a)
     end for;
 end function;
 
+/*
 function FixedCuspForms(a2s, a3s, Tpluslist, Kf_to_KKs,
 			prec, Gamma_fixed_spaces, cc, sigma,
 			NN, N35, N49,
@@ -434,6 +436,7 @@ function FixedCuspForms(a2s, a3s, Tpluslist, Kf_to_KKs,
     end for;
     return [&+[FCF[i][j] : i in [1..#FCF]] : j in [1..#Gamma_fixed_spaces]];
 end function;
+*/
 
 function Pdmatrix(Pd, d, powerlist, chis,
 		  Q_L, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
@@ -462,7 +465,7 @@ function Pdmatrix(Pd, d, powerlist, chis,
     return BlockMatrix(list);
 end function;
 
-function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
+function fixed_cusp_forms_QQ(as, Tpluslist, Kf_to_KKs, prec,
 			     GFS, Bmats, Pds, ds,
 			     cc, sigma, NN, Nold,
 			     oldspaces_full,
@@ -477,8 +480,9 @@ function fixed_cusp_forms_QQ(a2s, a3s, Tpluslist, Kf_to_KKs, prec,
 			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge)
     FCF := [];
     twist_orbit_indices := [];
-    for i in [1..#a2s] do
-	alist := [1,a2s[i], a3s[i]];
+    for i in [1..#as[1]] do
+	//	alist := [1,a2s[i], a3s[i]];
+	alist := [aps[i] : aps in as];
 	Kf_to_KK := Kf_to_KKs[i];
 	Kf := Domain(Kf_to_KK);
 	KK := Codomain(Kf_to_KK);
@@ -911,7 +915,8 @@ function BoxExample(gens, Bgens, prec)
     oldspaces, C_old_new := get_old_spaces(MS);
 
     max_hecke := 3;
-    Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
+    // Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
+    Ts := [HeckeOperator(C, n) : n in [1..max_hecke]];
     Tpluslist := [Restrict(T, Cplus) : T in Ts];
 
     Nnew := NewSubspace(C);
@@ -922,7 +927,8 @@ function BoxExample(gens, Bgens, prec)
     Nnew := [* qEigenform(d,prec) : d in nfd *];
     NN := (&cat Nold) cat Nnew;
 
-    as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
+    //   as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
+    as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
 
     ds := [4,-1];
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
@@ -930,8 +936,8 @@ function BoxExample(gens, Bgens, prec)
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
     Q_L_to_Q_huge, chis, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
     
-    a2s := as[1];
-    a3s := as[2];
+ //   a2s := as[1];
+ //   a3s := as[2];
 
     // Taking only the forms with trivial Nebentypus character
 
@@ -945,8 +951,9 @@ function BoxExample(gens, Bgens, prec)
 		    : j in [1..#nfd_old]];
     a_idxs cat:= [idx + cumsum[#cumsum] : idx in nfd_trivial];
 
-    a2s := [* a2s[idx] : idx in a_idxs *];
-    a3s := [* a3s[idx] : idx in a_idxs *];
+    //   a2s := [* a2s[idx] : idx in a_idxs *];
+    //   a3s := [* a3s[idx] : idx in a_idxs *];
+     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
@@ -964,7 +971,7 @@ function BoxExample(gens, Bgens, prec)
 	Append(~Ps, P);
     end for;
 
-    fs,tos := fixed_cusp_forms_QQ(a2s,a3s,Tpluslist,Kf_to_KKs,prec,
+    fs,tos := fixed_cusp_forms_QQ(as,Tpluslist,Kf_to_KKs,prec,
 				  Gamma_fixed_space,Bs,
 				  Ps,elts,
 				  cc, sigma_i,
@@ -1105,11 +1112,6 @@ function BoxMethod(G, prec)
     num_coset_reps, oldspaces_full,
     oldspaces, C_old_new := get_old_spaces(MS);
 
-    // !! TODO !! Change this bound appropriately !!
-    max_hecke := 3;
-    Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
-    Tpluslist := [Restrict(T, Cplus) : T in Ts];
-
     Nnew := NewSubspace(C);
 
     nfd_old := [NewformDecomposition(s) : s in C_old_new];    
@@ -1118,15 +1120,36 @@ function BoxMethod(G, prec)
     Nnew := [* qEigenform(d,prec) : d in nfd *];
     NN := (&cat Nold) cat Nnew;
 
-    as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
+    // !! TODO !! Change this bound appropriately !!
+    //     max_hecke := 3;
+    
+    max_hecke := 1;
+    num_distinct := 0;
+    // This could save some work, but right now we will compute all of them
+    // not only the prime ones
+//    primes := [];
+    while (num_distinct lt #NN) do
+	max_hecke := NextPrime(max_hecke);
+//	Append(~primes, max_hecke);
+	num_distinct := #{[Coefficient(f,i) : i in [1..max_hecke]] : f in NN};
+    end while;
+
+    //    Ts := [HeckeOperator(C, p) : p in PrimesUpTo(max_hecke)];
+    // Ts := [HeckeOperator(C, p) : p in primes];
+    Ts := [HeckeOperator(C, n) : n in [1..max_hecke]];
+    Tpluslist := [Restrict(T, Cplus) : T in Ts];
+    
+    //    as := [[*Coefficient(f, p) : f in NN *] : p in PrimesUpTo(max_hecke)];
+
+    as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
 
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
     Q_huge, Q_L, zeta_huge, zeta_K,
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
     Q_L_to_Q_huge, chis, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
     
-    a2s := as[1];
-    a3s := as[2];
+ //   a2s := as[1];
+ //   a3s := as[2];
 
     // Taking only the forms with trivial Nebentypus character
 
@@ -1140,8 +1163,9 @@ function BoxMethod(G, prec)
 		    : j in [1..#nfd_old]];
     a_idxs cat:= [idx + cumsum[#cumsum] : idx in nfd_trivial];
 
-    a2s := [* a2s[idx] : idx in a_idxs *];
-    a3s := [* a3s[idx] : idx in a_idxs *];
+    //   a2s := [* a2s[idx] : idx in a_idxs *];
+    //   a3s := [* a3s[idx] : idx in a_idxs *];
+    as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
@@ -1159,7 +1183,7 @@ function BoxMethod(G, prec)
 	Append(~Ps, P);
     end for;
 
-    fs,tos := fixed_cusp_forms_QQ(a2s,a3s,Tpluslist,Kf_to_KKs,prec,
+    fs,tos := fixed_cusp_forms_QQ(as, Tpluslist,Kf_to_KKs,prec,
 				  Gamma_fixed_space,Bs,
 				  Ps,elts,
 				  cc, sigma_i,
@@ -1199,7 +1223,7 @@ function qExpansionBasis(grp_name, prec, grps)
     return fs;
 end function;
 
-
+/*
 function make_real_twist_orbit_old(alist, Kf_to_KK, Tpluslist,
 				   prec, cc, sigma, NN, Nold,
 				   oldspaces_full, oldspaces,
@@ -1287,3 +1311,4 @@ function make_real_twist_orbit_old(alist, Kf_to_KK, Tpluslist,
 
     return VectorSpaceWithBasis(mutwists), ftwists, powerlist;
 end function;
+*/
