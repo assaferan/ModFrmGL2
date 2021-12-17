@@ -81,12 +81,13 @@ end function;
 
 function gauss_sum(eps, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
     cond := Conductor(eps);
+    chi := DirichletGroupFull(cond)!eps;
     if cond eq 1 then
 	return Q_huge!1;
     end if;
     Q_cond<zeta_cond> := CyclotomicField(cond);
     Z_cond_star := [i : i in [0..cond-1] | GCD(i,cond) eq 1];
-    return &+[Q_K_to_Q_huge(zeta_cond)^i*Q_L_to_Q_huge(eps(i)) : i in Z_cond_star];
+    return &+[Q_K_to_Q_huge(zeta_cond)^i*Q_L_to_Q_huge(chi(i)) : i in Z_cond_star];
 end function;
 
 function Rop(eps, SKpowersQ_L)
@@ -285,8 +286,8 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 	    chars := [&*[chis[i]^(-exp[i]) : i in [1..#chis]]
 		      : exp in new_powerlist];
 
-	    chars := [DirichletGroupFull(Conductor(eps))!eps
-		      : eps in chars];
+	    chars := [* DirichletGroupFull(Conductor(eps))!eps
+		      : eps in chars *];
 
 	    new_ftws := [chartwist(flist, eps^(-1), Q_L_to_Q_huge)
 			 : eps in chars];
@@ -405,7 +406,10 @@ function Pdmatrix(Pd, d, powerlist, chis,
     n := #powerlist;
     chars := [&*[chis[i]^(-exp[i]) : i in [1..#chis]]
 	      : exp in powerlist];
- 
+    
+    chars := [* DirichletGroupFull(Conductor(eps))!eps
+	      : eps in chars *];
+    
     gs_ratios := [Pd(gauss_sum(chi,Q_huge,zeta_K, K,
 			       Q_L_to_Q_huge, Q_K_to_Q_huge))
 		    /gauss_sum(chi,Q_huge,zeta_K, K,
