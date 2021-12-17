@@ -1,4 +1,5 @@
-import "linalg.m" : Restrict;
+import "linalg.m" : KernelOn, Restrict;
+import "operators.m" : ActionOnModularSymbolsBasis;
 
 function FindLiftToSL2(g)
      elt_g := ElementToSequence(g);
@@ -32,6 +33,13 @@ function gen_to_mat(gs, C1, C2)
     mat_ret := Transpose(Solution(Transpose(C2mat), Matrix([Vector(Eltseq(im))
 							    : im in ims])));
     return mat_ret, ims;
+end function;
+
+function gen_to_mat2(g, C)
+    MS := AmbientSpace(C);
+    gM := ActionOnModularSymbolsBasis(Eltseq(g), MS);
+    gC := Restrict(gM, VectorSpace(C));
+    return Transpose(gC);
 end function;
 
 function Bdmatrix(CM, CMmat, t, C)
@@ -952,9 +960,7 @@ procedure testBoxExample()
     fs := [* *];
     for num in [1..3] do
 	print "computing for Box's group number ", num;
-	//	gens, ws, Bgens := getBoxGens(num);
 	G, ws := getBoxGandAL(num);
-	//	Append(~fs, BoxExample(gens, ws, Bgens, prec));
 	Append(~fs, BoxExample(G, ws, prec));
     end for;
     assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
@@ -994,8 +1000,10 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     print "Computing action of Gamma on large cusp form space...";
     // This could be made faster,
     // but right now I want to follow Box closely
-    gs := [gen_to_mat([g^(-1)],C,C) : g in gmats];
-    Bs := [gen_to_mat([B^(-1)],C,C) : B in Bmats];
+    // Basically, folowing Cremona - we should only compute the images
+    // of S and T, and use these to obtain the images of all the generators.
+    gs := [gen_to_mat2(g^(-1),C) : g in gmats];
+    Bs := [gen_to_mat2(B^(-1),C) : B in Bmats];
     J := Transpose(StarInvolution(C));
 
     Cplus := Kernel(Transpose(J-1));
@@ -1077,7 +1085,7 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
     print "Computing the Gamma fixed space...";
-    
+
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
 		     : gmat in gs];
