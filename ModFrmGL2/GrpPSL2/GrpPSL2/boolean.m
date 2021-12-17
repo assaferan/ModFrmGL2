@@ -138,8 +138,8 @@ intrinsic IsGammaShimura(G::GrpPSL2) -> BoolElt
    N := Level(G);
    GL_N := GL(2, Integers(N));
    B := ImageInLevelGL(Gamma0(N));
-   subgroups := Subgroups(B);
    im_G := ImageInLevelGL(G);
+   subgroups := Subgroups(B : OrderEqual := Order(im_G));
    conj_idxs := [idx : idx in [1..#subgroups] | IsConjugate(GL_N, im_G, subgroups[idx]`subgroup)];
    for idx in conj_idxs do
        // S_class := subgroups[idx]`subgroup;

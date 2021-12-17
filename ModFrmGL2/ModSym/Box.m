@@ -1,50 +1,4 @@
 import "linalg.m" : Restrict;
-import "../GrpPSL2/GrpPSL2/misc.m" : Conjugates,
-       IsConjugate, NormalizerGrpMat;
-
-// These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
-// Helper functions for creation
-function GetRealConjugate(H)
-  GL_N := GL(2, BaseRing(H));
-  N_H := NormalizerGrpMat(GL_N, H);
-  N_H_conjs := Conjugates(GL_N, N_H);
-  eta := GL_N![-1,0,0,1];
-  real := exists(real_N_H){ real_N_H : real_N_H in N_H_conjs
-			    | eta in real_N_H};
-  error if not real, Error("No real type conjugate");
-  dummy, alpha := IsConjugate(GL_N,N_H,real_N_H);
-  real_H := H^alpha;
-  assert real_H^eta eq real_H;
-  return real_H; 
-end function;
-
-function GetGLModel(H : RealType := true)
-  N := Modulus(BaseRing(H));
-  SL_N := SL(2, Integers(N));
-  GL_N := GL(2, BaseRing(H));
-  N_H := NormalizerGrpMat(GL_N, H);
-  Q, pi_Q := N_H / H;
-  subs := SubgroupClasses(N_H/H : OrderEqual := EulerPhi(N));
-  cands := [s`subgroup@@pi_Q : s in subs];
-  cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
-  error if IsEmpty(cands), Error("No model with surjective determinant");
-
-  if RealType then
-      eta := GL_N![-1,0,0,1];
-      cands := [c : c in cands | c^eta eq c];
-      error if IsEmpty(cands), Error("No model with surjective determinant, 
-                 	                        which commutes with eta");
-  end if;
-  // We would perfer a model for which the Hecke operators are standard
-  U, psi := UnitGroup(Integers(N));
-  if exists(c){c : c in cands |
-	       sub<GL(2,Integers(N))
-		  | [[1,0,0,psi(t)] : t in Generators(U)]> subset c} then
-      return c;
-  else
-      return Random(cands);
-  end if;
-end function;
 
 function FindLiftToSL2(g)
      elt_g := ElementToSequence(g);
@@ -118,29 +72,20 @@ function make_nf_func(a, F, f_F)
 end function;
 
 function gauss_sum(eps, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
-    /*
-    if Order(eps) eq 1 then
-	return Q_huge!1;
-    end if;
-   */
     cond := Conductor(eps);
     if cond eq 1 then
 	return Q_huge!1;
     end if;
     Q_cond<zeta_cond> := CyclotomicField(cond);
     Z_cond_star := [i : i in [0..cond-1] | GCD(i,cond) eq 1];
-    //    return &+[Q_K_to_Q_huge(zeta_K)^i*Q_L_to_Q_huge(eps(i)) : i in [0..K-1]];
     return &+[Q_K_to_Q_huge(zeta_cond)^i*Q_L_to_Q_huge(eps(i)) : i in Z_cond_star];
 end function;
 
-// function Rop(eps, SKpowersQ_L, K)
 function Rop(eps, SKpowersQ_L)
     cond := Conductor(eps);
-    //    if Order(eps) eq 1 then
     if cond eq 1 then
 	return SKpowersQ_L[1][1]^0;
     end if;
-    // return &+[(eps^(-1))(i-1)*SKpowersQ_L[i] : i in [1..K]];
     return &+[(eps^(-1))(i-1)*SKpowersQ_L[cond][i] : i in [1..cond]];
 end function;
 
@@ -458,8 +403,6 @@ function Pdmatrix(Pd, d, powerlist, chis,
 		    /gauss_sum(chi,Q_huge,zeta_K, K,
 			     Q_L_to_Q_huge, Q_K_to_Q_huge)
 		  : chi in chars];
-    // small_diag := DiagonalMatrix([a@@Q_L_to_Q_huge : a in gs_ratios]);
-    // Zn := ZeroMatrix(Q_L, n);
     small_diag := DiagonalMatrix(gs_ratios);
     list := [];
     for i in [0..EulerPhi(K)-1] do
@@ -481,21 +424,6 @@ function reverse_nf_coercion(a, Kf_to_KK)
     roots := [r[1] : r in Roots(AbsoluteMinimalPolynomial(a),Kf)];
     assert exists(r){r : r in roots | Kf_to_KK(r) eq a};
     return r;
-    /*
-    if a in QQ then
-	return Kf!a;
-    end if;
-    KK_a, emb := sub<KK|a>;
-    is_sub, KK_a_to_Kf := IsSubfield(KK_a, Kf);
-    assert is_sub;
-    aut_Kf := Automorphisms(Kf);
-    // magam claims it cannot test equality for these maps, oh well
-    //    assert exists(aut){aut : aut in aut_Kf | KK_a_to_Kf*aut*Kf_to_KK eq emb};
-    assert exists(aut){aut : aut in aut_Kf | Kf_to_KK(aut(KK_a_to_Kf(a))) eq a};
-    Kf_a := aut(KK_a_to_Kf(a));
-    assert Kf_to_KK(Kf_a) eq a;
-    return Kf_a;
-*/
 end function;
 
 function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
@@ -515,6 +443,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
     FCF := [];
     twist_orbit_indices := [];
     for i in [1..#as[1]] do
+	print "Computing twist orbit no. ", i, "out of ", #as[1];
 	alist := [aps[i] : aps in as];
 	Kf_to_KK := Kf_to_KKs[i];
 	Kf := Domain(Kf_to_KK);
@@ -537,6 +466,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	fixed_space_basis := Basis(ChangeRing(GFS, Kf)
 					     meet real_twist_orbit_ms);
 	if #fixed_space_basis gt 0 then
+	    print "Orbit intersect fixed space. Finding G-fixed vectors...";
 	    fixed_basis_cfs :=
 		[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
 		 : mu in fixed_space_basis];
@@ -544,7 +474,6 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		DirectSum([Matrix(fixed_basis_cfs)
 			   : i in [1..EulerPhi(K)]]);
 	    fixed_ms_space_QQ :=
-		//VectorSpace(Kf,EulerPhi(K)*#fixed_space_basis);
 		VectorSpace(KK,EulerPhi(K)*#fixed_space_basis);
 	    for k in [1..#Bmats] do
 		Bmat := Bmats[k];
@@ -563,33 +492,12 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		pd_mat := Pdmatrix(Pd,d,powerlist,chis, Q_L, Q_huge,
 				   zeta_K, K, Q_L_to_Q_huge,Q_K_to_Q_huge);
 		B_pd_mat := ChangeRing(B_imgs_block,KK) * ChangeRing(pd_mat, KK)^(-1);
-		// Unfortuntely, this does not always live in Kf
-		/*
-		B_pd_Kf := Matrix([[reverse_nf_coercion(B_pd_mat[r,c],Kf_to_KK)
-				    : c in [1..Ncols(B_pd_mat)]]
-				   : r in [1..Nrows(B_pd_mat)] ]);
-	       */
-		// B_pd_cfs := Solution(fixed_basis_block, ChangeRing(B_pd_mat, Kf));
-		// B_pd_cfs := Solution(fixed_basis_block, B_pd_Kf);
 		B_pd_cfs := Solution(ChangeRing(fixed_basis_block,KK), B_pd_mat);
-		// I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
 		I_mat := IdentityMatrix(KK,EulerPhi(K)*#fixed_space_basis);
 		fixed_B_pd := Kernel(B_pd_cfs - I_mat);
 		fixed_ms_space_QQ meet:= fixed_B_pd;
-		/*
-		fixed_ms_space_QQ meet:=
-		    Kernel(Solution(fixed_basis_block,
-				    B_imgs_block*
-				    ChangeRing(Pdmatrix(Pd,d,
-							powerlist,
-							chis, Q_L, Q_huge,
-							zeta_K, K, Q_L_to_Q_huge,
-							Q_K_to_Q_huge),Kf)^(-1))-
-			   IdentityMatrix(Kf,
-					  EulerPhi(K)*#fixed_space_basis));
-	       */
+	
 	    end for;
-	    // fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
 	    fmssQQ_cc := [[cc(a) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
 	    fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
@@ -683,55 +591,68 @@ function NewformDecompositionSubspaceMaps(M)
     return DD, ims;
 end function;
 
-function get_Box_gens()
-    g0 := [61,-55,10,-9];
-    assert Determinant(Matrix(2,2,g0)) eq 1;
-    phi7 := [3,1,-10,-3];
-    assert Determinant(Matrix(2,2,phi7)) eq 1;
+function getBoxGandAL(num)
+    PGnsplus7 := GammaNSplus(7,Integers(7)!5);
+    Gnsplus7 := ImageInLevelGL(PGnsplus7);
+    PG := PGnsplus7;
+    if num gt 1 then
+	Ge7 := Subgroups(Gnsplus7 : IndexEqual := 2, IsCyclic)[1]`subgroup;
+	PGe7 := PSL2Subgroup(Ge7);
+	PG := PGe7;
+    end if;
+    PG := PG meet Gamma0(5);
+    G := ImageInLevelGL(PG);
     w5 := [2890, 193 , -8685, -580];
     assert Determinant(Matrix(2,2,w5)) eq 5;
+    phi7 := [3,1,-10,-3];
+    assert Determinant(Matrix(2,2,phi7)) eq 1;
     phi7w5 := Eltseq(Matrix(2,2,phi7)*Matrix(2,2,w5));
-    gens := [g0,phi7,w5,phi7w5];
-    Bgens := [[6,5,-5,-4],[1,0,0,1]];
-    return gens, Bgens;
+    ws := [[],[w5], [phi7w5]];
+    return G, ws[num];
 end function;
 
-function getBoxGens(num)
-    g0 := [61,-55,10,-9];
-    assert Determinant(Matrix(2,2,g0)) eq 1;
-    phi7 := [3,1,-10,-3];
-    assert Determinant(Matrix(2,2,phi7)) eq 1;
-    w5 := [2890, 193 , -8685, -580];
-    assert Determinant(Matrix(2,2,w5)) eq 5;
-    phi7w5 := Eltseq(Matrix(2,2,phi7)*Matrix(2,2,w5));
-    gens := [g0,phi7,w5,phi7w5];
-    Bgens := [[6,5,-5,-4],[1,0,0,1]];
-    ws := [gens[num+1]];
-    if num eq 1 then
-	gens := gens[1..2];
-	ws := [];
-    else
-	gens := [gens[1]];
-    end if;
-    return gens, ws, Bgens;
+function make_Borel(N)
+    gens := [[1,1,0,1]];
+    for t in [1..N-1] do
+	if GCD(t, N) eq 1 then
+	    Append(~gens, [t,0,0,1]);
+	    Append(~gens, [1,0,0,t]);
+	end if;
+    end for;
+    return sub<GL(2, Integers(N)) | gens>;
 end function;
 
 function get_gens(G)
     N := Modulus(BaseRing(G));
+    // First we find M such that G_M is contained in B_0(M)
     M := GCD([N] cat [Integers()!g[2,1] : g in Generators(G)]);
     K := N div M;
-    // assert GCD(K,M) eq 1;
-    // instead we make sure that GCD(K,M) eq 1
+    // we make sure that GCD(K,M) eq 1
     fac := Factorization(N);
     M := &*([1] cat [fa[1]^fa[2] : fa in fac | K mod fa[1] ne 0]);
+    // Now we reduce it until equality holds
+    divs := Reverse(Divisors(M));
+    found := false;
+    // we don't try 1 because GL(2,1) etc.
+    for M in divs[1..#divs-1] do
+	G_M := sub< GL(2, Integers(M)) |
+		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(G)]>;
+	B_M := make_Borel(M);
+	if G_M eq B_M then
+	    found := true;
+	    break;
+	end if;
+    end for;
+    if not found then M := 1; end if;
+    
     K := N div M;
-    Cs := [g : g in Generators(G) | Determinant(g) ne 1];
+    H := G meet SL(2, Integers(N));
+    gens := [Eltseq(FindLiftToSL2(g)) : g in Generators(H)];
+    quo, quo_mat := G/H;
+    Cs := [g@@quo_mat : g in Generators(quo)];
     ds := [Determinant(C) : C in Cs];
     Bgens := [C*GL(2,Integers(N))![Determinant(C),0,0,1]^(-1) : C in Cs];
-    gens := [g : g in Generators(G) | Determinant(g) eq 1];
-    // Check whether this is really necessary
     Bgens := [Eltseq(FindLiftToSL2(b)) : b in Bgens];
-    gens := [Eltseq(FindLiftToSL2(g)) : g in gens];
     return gens, Bgens, K, M, ds;
 end function;
 
@@ -753,7 +674,6 @@ function get_degeneracy_maps(M_old, M, d)
 	multi_old := MultiQuotientMaps(M_old)[j];
 	quo_mat := Matrix([Representation(multi(x))
 			       : x in Basis(M)]);
-	// quo_old := Matrix([Representation(multi_old(Representation(b)))
 	quo_old := Matrix([Representation(multi_old(b))
 			   : b in Basis(M_old)]);
 	deg_eltseq := [&cat[Eltseq(x) : x in Eltseq(row)]
@@ -787,7 +707,7 @@ function get_old_spaces(MS)
     dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
 		Level(d) eq (old_levels[i])] : i in [1..#old_levels]*];
-    M_old := [ModularSymbols(chis, 2) : chis in chars];
+    M_old := [ModularSymbols(chis, 2) : chis in chars | not IsEmpty(chis)];
     C_old := [CuspidalSubspace(m) : m in M_old];
     C_old_new := [NewSubspace(c) : c in C_old];
     assert &and[Dimension(C_old[i]) eq Dimension(C_old_new[i])
@@ -920,15 +840,7 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     X := DirichletGroupFull(K);
     conds := {Conductor(x) : x in Elements(X)};
-    /*
-    SK := Matrix(2,2,[1,1/K,0,1]);
-    SK_mat := ChangeRing(gen_to_mat([SK],C,C), Q_L);
-    SKpowers := [ChangeRing(I, Q_L)];
-    while (#SKpowers lt K) do
-	SKpowers cat:= [SK_mat*SKpowers[#SKpowers]];
-    end while;
-    SKpowersQ_L := [ChangeRing(M, Q_L) : M in SKpowers];
-   */
+ 
     SKpowersQ_L := AssociativeArray(conds);
     for cond in conds do
 	S_cond := Matrix(2,2,[1,1/cond,0,1]);
@@ -940,7 +852,6 @@ function createFieldEmbeddings(K, NN, C, ds)
 	SKpowersQ_L[cond] := [ChangeRing(M, Q_L) : M in S_cond_powers];
     end for;
     
-
     sigma_Q_huge := hom<Q_huge -> Q_huge | zeta_huge>;
 
     function sigma_i(a)
@@ -954,12 +865,8 @@ end function;
 
 forward BoxMethod;
 
-function BoxExample(gens, ws, Bgens, prec)
-    GG := GL(2, Integers(35));
-    Cs := [GG!Bgens[1] * GG![4,0,0,1], GG!Bgens[2] * GG![-1,0,0,1]];
-    Cgens := [Eltseq(c) : c in Cs];
-    G := sub< GG | gens cat Cgens>;
-    return BoxMethod(G, prec : AtkinLehner := ws, TotallyReal := true);
+function BoxExample(G, ws, prec)
+    return BoxMethod(G, prec : AtkinLehner := ws);
 end function;
 
 function int_qexp(f, prec, qKp, Q_K_plus)
@@ -974,8 +881,9 @@ function FindCurveSimple(qexps, prec, n_rel)
     zeta := K.1;
     fs := [f + O(q^prec) : f in qexps];
     g := #fs;
-    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
-    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
+    // Using the original eigenforms yields equations over Q
+ //   T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+//    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
     R<[x]> := PolynomialRing(K,g);
     degmons := [MonomialsOfDegree(R, d) : d in [1..n_rel]];
     prods := [[Evaluate(m, fs) + O(q^prec) : m in degmons[d]] :
@@ -1043,8 +951,11 @@ procedure testBoxExample()
     prec := 200;
     fs := [* *];
     for num in [1..3] do
-	gens, ws, Bgens := getBoxGens(num);
-	Append(~fs, BoxExample(gens, ws, Bgens, prec));
+	print "computing for Box's group number ", num;
+	//	gens, ws, Bgens := getBoxGens(num);
+	G, ws := getBoxGandAL(num);
+	//	Append(~fs, BoxExample(gens, ws, Bgens, prec));
+	Append(~fs, BoxExample(G, ws, prec));
     end for;
     assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
     Q_K_plus := BaseRing(Universe(fs[1]));
@@ -1056,6 +967,9 @@ end procedure;
 
 function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     gens, Bgens, K, M, ds := get_gens(G);
+
+    print "Found generators. K = ", K, " and M = ", M;
+    
     gens cat:= AtkinLehner;
     N := M * K^2;
     g1 := CRT([1+K,1], [K^2,M]);
@@ -1070,11 +984,14 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
 
+    print "Dimension of large cusp form space is ", dim;
+    
     GL2Q := GL(2, Rationals());
     alpha_K := GL(2, Rationals())![1,0,0,1/K];
     gmats := [Matrix(GL2Q!g^alpha_K) : g in gens];
     Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
-    
+
+    print "Computing action of Gamma on large cusp form space...";
     // This could be made faster,
     // but right now I want to follow Box closely
     gs := [gen_to_mat([g^(-1)],C,C) : g in gmats];
@@ -1083,18 +1000,24 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
 
     Cplus := Kernel(Transpose(J-1));
 
+    print "Computing old subspaces...";
+
     Tr_mats, Tr_ims, B_mats, deg_divs,
     num_coset_reps, oldspaces_full,
     oldspaces, C_old_new := get_old_spaces(MS);
 
+    print "Computing newforms...";
+    
     Nnew := NewSubspace(C);
 
     nfd_old := [NewformDecomposition(s) : s in C_old_new];    
     nfd := NewformDecomposition(Nnew);
     Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
     Nnew := [* qEigenform(d,prec) : d in nfd *];
-    NN := (&cat Nold) cat Nnew;
+    NN := (&cat ([[* *]] cat Nold)) cat Nnew;
 
+    print "Computing Hecke operators...";
+    
     max_hecke := 1;
     num_distinct := 0;
 
@@ -1117,6 +1040,8 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
 
     as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
 
+    print "Creating field embeddings...";
+    
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
     Q_huge, Q_L, zeta_huge, zeta_K,
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
@@ -1125,16 +1050,19 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     // Taking only the forms with trivial Nebentypus character is not good enough
     // We need to take represenatives for X / X^2!
 
+    print "Preparing character group...";
+    
     X := DirichletGroupFull(K);
     A, phi := AbelianGroup(X);
-    quo, quo_map := A / (2*A);
-    char_reps := [phi(g@@quo_map) : g in quo];
 
     Z2 := AbelianGroup([2]);
     h := hom< A -> Z2 | a :-> IsEven(phi(a)) select 0 else 1>;
+    A_even := Kernel(h);
+    chis := [phi(g) : g in Generators(A_even)];
 
-    chis := [phi(g) : g in Generators(Kernel(h))];
-
+    quo, quo_map := A / (2*A_even);
+    char_reps := [phi(g@@quo_map) : g in quo];
+    
     nfd_trivial := [i : i in [1..#nfd] |
 		    X!DirichletCharacter(nfd[i]) in char_reps];
     nfd_old_trivial := [[i : i in [1..#nf] |
@@ -1148,11 +1076,15 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
 
     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
+    print "Computing the Gamma fixed space...";
+    
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
 		     : gmat in gs];
 
     Gamma_fixed_space := &meet fixed_spaces;
+
+    print "Dimension of fixed space is", Dimension(Gamma_fixed_space);
     
     Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
     
@@ -1164,6 +1096,8 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
 	Append(~Ps, P);
     end for;
 
+    print "Entering fixed_cusp_forms_QQ...";
+    
     fs,tos := fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  Gamma_fixed_space,Bs,
 				  Ps,elts,
@@ -1184,30 +1118,9 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     return fs, tos;
 end function;
 
-function qExpansionBasis(grp_name, prec, grps)
-    grp := grps[grp_name];
-    N := grp`level;
-    gens := grp`matgens;
-    H := sub<SL(2, Integers(N)) | gens>;
-    real_H := GetRealConjugate(H);
-    G := GetGLModel(real_H);
-    fs := BoxMethod(G, prec);
-    max_deg := Maximum(7-grp`genus, 2);
-    Q_K_plus := BaseRing(Universe(fs));
-    _<qKp> := PowerSeriesRing(Q_K_plus);
-    fs_qexps:=[int_qexp(f,prec,qKp,Q_K_plus) : f in fs];
-    X, fs := FindCurveSimple(fs_qexps, prec, max_deg);
-    g := Genus(X);
-    if g eq 0 then
-	X, fs := FindHyperellipticCurve(fs_qexps, prec);
-    end if;
-    assert Genus(X) eq grp`genus;
-    return fs;
-end function;
-
-function ModularCurve(G, genus, prec)
+function ModularCurve(G, genus, prec : TotallyReal := false)
     assert genus ge 2;
-    fs := BoxMethod(G, prec);
+    fs := BoxMethod(G, prec : TotallyReal := TotallyReal);
     max_deg := Maximum(7-genus, 2);
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
@@ -1218,13 +1131,15 @@ function ModularCurve(G, genus, prec)
 	X, fs := FindHyperellipticCurve(fs_qexps, prec);
     end if;
     assert Genus(X) eq genus;
-    return X;
+    return X, fs;
 end function;
+
+import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
     testBoxExample();
     prec := 200;
-    fs := qExpansionBasis("8A2", prec, grps_by_name);
-    fs := qExpansionBasis("9A2", prec, grps_by_name);
-    fs := qExpansionBasis("11A2", prec, grps_by_name); 
+    for name in ["8A2", "9A2", "10A2", "11A2", "11A6"] do
+	X,fs := qExpansionBasis(name, prec, grps_by_name);
+    end for;
 end procedure;

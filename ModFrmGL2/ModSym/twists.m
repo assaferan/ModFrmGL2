@@ -1336,6 +1336,7 @@ function sameF(F1, F2)
     return &and [F2[i] eq F3[i] : i in [1..#F2]];
 end function;
 
+/*
 intrinsic ModularCurve(G::GrpPSL2) -> Crv, SeqEnum[Pt], SeqEnum[RngSerPowElt]
 {Returns the modular curve X_G, its cusps and the canonical coordinate map.}
   genus := Genus(G);
@@ -1346,6 +1347,7 @@ intrinsic ModularCurve(G::GrpPSL2) -> Crv, SeqEnum[Pt], SeqEnum[RngSerPowElt]
   _<[x]> := CoordinateRing(X);
   return X, X_cusps, fs;
 end intrinsic;
+*/
 
 function constructMSintersect(M,K)
     if M eq 1 then

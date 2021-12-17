@@ -1,3 +1,52 @@
+import "GrpPSL2/GrpPSL2/misc.m" : Conjugates,
+       IsConjugate, NormalizerGrpMat;
+
+import "ModSym/Box.m" : ModularCurve;
+
+// These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
+// Helper functions for creation
+function GetRealConjugate(H)
+  GL_N := GL(2, BaseRing(H));
+  N_H := NormalizerGrpMat(GL_N, H);
+  N_H_conjs := Conjugates(GL_N, N_H);
+  eta := GL_N![-1,0,0,1];
+  real := exists(real_N_H){ real_N_H : real_N_H in N_H_conjs
+			    | eta in real_N_H};
+  error if not real, Error("No real type conjugate");
+  dummy, alpha := IsConjugate(GL_N,N_H,real_N_H);
+  real_H := H^alpha;
+  assert real_H^eta eq real_H;
+  return real_H; 
+end function;
+
+function GetGLModel(H : RealType := true)
+  N := Modulus(BaseRing(H));
+  SL_N := SL(2, Integers(N));
+  GL_N := GL(2, BaseRing(H));
+  N_H := NormalizerGrpMat(GL_N, H);
+  Q, pi_Q := N_H / H;
+  subs := SubgroupClasses(N_H/H : OrderEqual := EulerPhi(N));
+  cands := [s`subgroup@@pi_Q : s in subs];
+  cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
+  error if IsEmpty(cands), Error("No model with surjective determinant");
+
+  if RealType then
+      eta := GL_N![-1,0,0,1];
+      cands := [c : c in cands | c^eta eq c];
+      error if IsEmpty(cands), Error("No model with surjective determinant, 
+                 	                        which commutes with eta");
+  end if;
+  // We would perfer a model for which the Hecke operators are standard
+  U, psi := UnitGroup(Integers(N));
+  if exists(c){c : c in cands |
+	       sub<GL(2,Integers(N))
+		  | [[1,0,0,psi(t)] : t in Generators(U)]> subset c} then
+      return c;
+  else
+      return Random(cands);
+  end if;
+end function;
+
 // This treats the database of congruence subgroups
 
 function get_eigenforms(N, gens : prec := -1)
@@ -162,3 +211,61 @@ function checkShimura(grps)
     end for;
     return shimura_list;
 end function;
+
+function qExpansionBasis(grp_name, prec, grps : TotallyReal := false)
+    grp := grps[grp_name];
+    N := grp`level;
+    gens := grp`matgens;
+    H := sub<SL(2, Integers(N)) | gens>;
+    real_H := GetRealConjugate(H);
+    G := GetGLModel(real_H);
+    X, fs := ModularCurve(G, grp`genus, prec : TotallyReal := TotallyReal);
+    return X, fs;
+end function;
+
+procedure write_qexps(grp_name, fs, X)
+    preamble := Sprintf("
+    /****************************************************
+    Loading this file in magma loads the objects fs_%o 
+    and X_%o. fs_%o is a list of power series which form 
+    a basis for the space of cusp forms. X_%o is a 
+    representation of the corresponding modular curve in 
+    projective space
+    *****************************************************/
+    ",grp_name, grp_name, grp_name, grp_name);
+    fname := grp_name cat ".m";
+    Kq<q> := Parent(fs[1]);
+    K<zeta> := BaseRing(Kq);
+    poly<x> := DefiningPolynomial(K);
+    // This should always be the rationa field, but just in case
+    F := BaseRing(K);
+    // This is just for fun, to have an accurate notation
+    /*
+    cond := Norm(Conductor(AbelianExtension(AbsoluteField(K))));
+    Q_cond<zeta_c> := CyclotomicField(cond);
+    zeta_c_plus := zeta_c + zeta_c^(-1);
+    if MinimalPolynomial(zeta) eq MinimalPolynomial(zeta_c) then
+	suf := Sprintf("%o", cond);
+    elif MinimalPolynomial(zeta) eq MinimalPolynomial(zeta_c_plus) then
+	suf := Sprintf("%o_plus", cond);
+    else
+	suf := "";
+    end if;
+   */
+    suf := "";
+    X_Q := ChangeRing(X, Rationals());
+    Proj<[x]> := AmbientSpace(X_Q);
+    write_str := Sprintf("
+    	      F := %m;	
+	      f<x> := Polynomial(F, %m);
+	      K<zeta%o> := ext<F|f>;
+	      Kq<q> := PowerSeriesRing(K);
+	      fs_%o := [Kq | %m", F, Eltseq(poly), suf, grp_name, fs[1]);
+    write_str cat:= &cat[Sprintf(", %m", f) : f in fs];
+    write_str cat:= "] ;";
+    write_str cat:= Sprintf("
+    	      P_Q<[x]> := ProjectiveSpace(Rationals(), %o);
+    	      X_%o := Curve(P_Q, %m);",
+			    Dimension(Proj), grp_name, DefiningPolynomials(X_Q)); 
+    Write(fname, preamble cat write_str : Overwrite);
+end procedure;
