@@ -1126,10 +1126,13 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     return fs, tos;
 end function;
 
-function ModularCurve(G, genus, prec : TotallyReal := false)
+function ModularCurve(G, genus)
     assert genus ge 2;
-    fs := BoxMethod(G, prec : TotallyReal := TotallyReal);
     max_deg := Maximum(7-genus, 2);
+    prec := max_deg*(2*genus-2)-(max_deg-1) + 1;
+    level := Modulus(BaseRing(G));
+    prec *:= level;
+    fs := BoxMethod(G, prec);
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
     fs_qexps:=[int_qexp(f,prec,q,K) : f in fs];
@@ -1146,8 +1149,8 @@ import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
     testBoxExample();
-    prec := 200;
-    for name in ["8A2", "9A2", "10A2", "11A2", "11A6"] do
-	X,fs := qExpansionBasis(name, prec, grps_by_name);
+    working_examples := ["8A2", "9A2", "10A2", "10B2", "11A2", "11A6"];
+    for name in working_examples do
+	X,fs := qExpansionBasis(name, grps_by_name);
     end for;
 end procedure;

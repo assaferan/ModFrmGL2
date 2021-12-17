@@ -212,14 +212,14 @@ function checkShimura(grps)
     return shimura_list;
 end function;
 
-function qExpansionBasis(grp_name, prec, grps : TotallyReal := false)
+function qExpansionBasis(grp_name, grps)
     grp := grps[grp_name];
     N := grp`level;
     gens := grp`matgens;
     H := sub<SL(2, Integers(N)) | gens>;
     real_H := GetRealConjugate(H);
     G := GetGLModel(real_H);
-    X, fs := ModularCurve(G, grp`genus, prec : TotallyReal := TotallyReal);
+    X, fs := ModularCurve(G, grp`genus);
     return X, fs;
 end function;
 
