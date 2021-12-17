@@ -22,9 +22,6 @@ function GetEigenforms(grp : prec := -1)
   return get_eigenforms(grp`level, grp`matgens : prec := prec);
 end function;
 
-// This method is for comparison of eigenforms.
-// At the moment not being used
-/*
 function IsSameEigenform(f,g)
   K_f := BaseRing(Parent(f));
   K_g := BaseRing(Parent(g));
@@ -51,12 +48,14 @@ function IsSameEigenform(f,g)
   end for;
   return false;
 end function;
-*/
+
 // The load can't be in a function. do that before.
 // Have to change original data files to be able to import them.
 /*
 dir := GetCurrentDirectory();
 ChangeDirectory("/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/");
+ChangeDirectory("/Users/eranassaf/Dropbox\ \(Dartmouth\ College\)\
+/Research/ModularSymbols/csg24.dat/");
 if assigned L then
     delete L;
 end if;
@@ -79,7 +78,7 @@ function GetAllEigenformsLevel(N, grps)
       result[G[1]] := get_eigenforms(N, G[2]);
       are_in_eigs := true;
       for f in result[G[1]] do
-	is_in_eigs := &or [is_same_eigenform(f,eig) : eig in eigs];
+	is_in_eigs := &or [IsSameEigenform(f,eig) : eig in eigs];
         are_in_eigs := are_in_eigs and is_in_eigs;
       end for;
       if not are_in_eigs then
@@ -137,4 +136,29 @@ function LoadGroupsByGenus(L)
      end if;
   end for;
   return grps_by_genus;
+end function;
+
+function createPSL2(grp)
+    N := grp`level;
+    SL_N := SL(2, Integers(N));
+    H := sub<SL_N | grp`matgens>;
+    real_H := GetRealConjugate(H);
+    G := GetGLModel(real_H);
+    return PSL2Subgroup(G);
+end function;
+
+function checkShimura(grps)
+    shimura_list := [];
+    for grp in grps do
+	print "checking group ", grp`name;
+	try
+	    G := createPSL2(grp);
+	catch err
+	    continue;
+	end try;
+	if IsGammaShimura(G) then
+	    Append(~shimura_list, grp`name);
+	end if;
+    end for;
+    return shimura_list;
 end function;

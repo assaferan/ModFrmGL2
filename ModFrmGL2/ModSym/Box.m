@@ -118,17 +118,30 @@ function make_nf_func(a, F, f_F)
 end function;
 
 function gauss_sum(eps, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
+    /*
     if Order(eps) eq 1 then
 	return Q_huge!1;
     end if;
-    return &+[Q_K_to_Q_huge(zeta_K)^i*Q_L_to_Q_huge(eps(i)) : i in [0..K-1]];
+   */
+    cond := Conductor(eps);
+    if cond eq 1 then
+	return Q_huge!1;
+    end if;
+    Q_cond<zeta_cond> := CyclotomicField(cond);
+    Z_cond_star := [i : i in [0..cond-1] | GCD(i,cond) eq 1];
+    //    return &+[Q_K_to_Q_huge(zeta_K)^i*Q_L_to_Q_huge(eps(i)) : i in [0..K-1]];
+    return &+[Q_K_to_Q_huge(zeta_cond)^i*Q_L_to_Q_huge(eps(i)) : i in Z_cond_star];
 end function;
 
-function Rop(eps, SKpowersQ_L, K)
-    if Order(eps) eq 1 then
-	return SKpowersQ_L[1]^0;
+// function Rop(eps, SKpowersQ_L, K)
+function Rop(eps, SKpowersQ_L)
+    cond := Conductor(eps);
+    //    if Order(eps) eq 1 then
+    if cond eq 1 then
+	return SKpowersQ_L[1][1]^0;
     end if;
-    return &+[(eps^(-1))(i-1)*SKpowersQ_L[i] : i in [1..K]];
+    // return &+[(eps^(-1))(i-1)*SKpowersQ_L[i] : i in [1..K]];
+    return &+[(eps^(-1))(i-1)*SKpowersQ_L[cond][i] : i in [1..cond]];
 end function;
 
 function pi(mu, oldspace_full, oldspaces, B_mat)
@@ -287,7 +300,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
     zero_vec := Vector([0 : chi in chis]);
 
     // This is just for coercing issues.
-    mu0 := mu*ChangeRing(Transpose(Rop(Universe(chis)!1,SKpowersQ_L, K)), Kf);
+    mu0 := mu*ChangeRing(Transpose(Rop(Universe(chis)!1,SKpowersQ_L)), Kf);
     
     base_mutwists := [mu0];
     base_ftwists := [flist];
@@ -330,7 +343,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 			     : a in new_ftws[i]] : i in [1..#chars]];
 	    
 	    new_mutwists := [mu*ChangeRing(Transpose(Rop(eps,
-							SKpowersQ_L, K)), Kf)
+							SKpowersQ_L)), Kf)
 			     : eps in chars];
 
 	    Append(~orig_powerlist, new_powerlist);
@@ -531,8 +544,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		DirectSum([Matrix(fixed_basis_cfs)
 			   : i in [1..EulerPhi(K)]]);
 	    fixed_ms_space_QQ :=
-		VectorSpace(Kf,
-			    EulerPhi(K)*#fixed_space_basis);
+		//VectorSpace(Kf,EulerPhi(K)*#fixed_space_basis);
+		VectorSpace(KK,EulerPhi(K)*#fixed_space_basis);
 	    for k in [1..#Bmats] do
 		Bmat := Bmats[k];
 		Pd := Pds[k];
@@ -550,12 +563,17 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		pd_mat := Pdmatrix(Pd,d,powerlist,chis, Q_L, Q_huge,
 				   zeta_K, K, Q_L_to_Q_huge,Q_K_to_Q_huge);
 		B_pd_mat := ChangeRing(B_imgs_block,KK) * ChangeRing(pd_mat, KK)^(-1);
+		// Unfortuntely, this does not always live in Kf
+		/*
 		B_pd_Kf := Matrix([[reverse_nf_coercion(B_pd_mat[r,c],Kf_to_KK)
 				    : c in [1..Ncols(B_pd_mat)]]
 				   : r in [1..Nrows(B_pd_mat)] ]);
+	       */
 		// B_pd_cfs := Solution(fixed_basis_block, ChangeRing(B_pd_mat, Kf));
-		B_pd_cfs := Solution(fixed_basis_block, B_pd_Kf);
-		I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
+		// B_pd_cfs := Solution(fixed_basis_block, B_pd_Kf);
+		B_pd_cfs := Solution(ChangeRing(fixed_basis_block,KK), B_pd_mat);
+		// I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
+		I_mat := IdentityMatrix(KK,EulerPhi(K)*#fixed_space_basis);
 		fixed_B_pd := Kernel(B_pd_cfs - I_mat);
 		fixed_ms_space_QQ meet:= fixed_B_pd;
 		/*
@@ -571,7 +589,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 					  EulerPhi(K)*#fixed_space_basis));
 	       */
 	    end for;
-	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
+	    // fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
+	    fmssQQ_cc := [[cc(a) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
 	    fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
 				   : mulist in fixed_basis_cfs];
@@ -899,15 +918,9 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     I := IdentityMatrix(Rationals(), dim);
 
-//    X := DirichletGroupFull(K);
-//     X_gens := Generators(X);
-
-    // !!! TODO !!!
-    // That's not really good. We really want generators for the even subgroup
-    // e.g. we want chi1*chi2 when chi1 and chi2 are odd
-    // chis := [IsEven(chi) select chi else chi^2 : chi in X_gens];
-    // chis := [chi : chi in chis | not IsTrivial(chi)];
-
+    X := DirichletGroupFull(K);
+    conds := {Conductor(x) : x in Elements(X)};
+    /*
     SK := Matrix(2,2,[1,1/K,0,1]);
     SK_mat := ChangeRing(gen_to_mat([SK],C,C), Q_L);
     SKpowers := [ChangeRing(I, Q_L)];
@@ -915,6 +928,18 @@ function createFieldEmbeddings(K, NN, C, ds)
 	SKpowers cat:= [SK_mat*SKpowers[#SKpowers]];
     end while;
     SKpowersQ_L := [ChangeRing(M, Q_L) : M in SKpowers];
+   */
+    SKpowersQ_L := AssociativeArray(conds);
+    for cond in conds do
+	S_cond := Matrix(2,2,[1,1/cond,0,1]);
+	S_cond_mat := ChangeRing(gen_to_mat([S_cond],C,C), Q_L);
+	S_cond_powers := [ChangeRing(I, Q_L)];
+	while (#S_cond_powers lt K) do
+	    S_cond_powers cat:= [S_cond_mat*S_cond_powers[#S_cond_powers]];
+	end while;
+	SKpowersQ_L[cond] := [ChangeRing(M, Q_L) : M in S_cond_powers];
+    end for;
+    
 
     sigma_Q_huge := hom<Q_huge -> Q_huge | zeta_huge>;
 

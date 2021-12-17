@@ -132,6 +132,40 @@ intrinsic IsGammaNSplus(G::GrpPSL2) -> BoolElt
    return G`IsNSCartanPlus;
 end intrinsic;
 
+intrinsic IsGammaShimura(G::GrpPSL2) -> BoolElt
+{returns true if and only if G is a group of Shimura type, in the sense of GammaShimura.}
+   
+   N := Level(G);
+   GL_N := GL(2, Integers(N));
+   B := ImageInLevelGL(Gamma0(N));
+   subgroups := Subgroups(B);
+   im_G := ImageInLevelGL(G);
+   conj_idxs := [idx : idx in [1..#subgroups] | IsConjugate(GL_N, im_G, subgroups[idx]`subgroup)];
+   for idx in conj_idxs do
+       // S_class := subgroups[idx]`subgroup;
+       S := subgroups[idx]`subgroup;
+       U, phi := UnitGroup(Integers(N));
+       // conj_S := Conjugates(B, S_class);
+       // for S in conj_S do
+       is_d_surj := sub< U | [x[2,2]@@phi : x in Generators(S)]> eq U;
+       //       if not is_d_surj then return false; end if;
+       if not is_d_surj then continue; end if;
+       H := sub< U | [x[1,1]@@phi : x in Generators(S)]>;
+       t := GCD([N] cat [Integers()!x[1,2] : x in Generators(S)]);
+       is_shimura := ImageInLevelGL(GammaShimura(U, phi, H, t)) eq S;
+       if is_shimura then return true; end if;
+   end for;    
+   return false;
+end intrinsic;
 
-
-
+procedure testIsGammaShimura(N)
+    U, phi := UnitGroup(Integers(N));
+    sub_U := Subgroups(U);
+    for subgrp in [1..#sub_U] do
+	for t in Divisors(N) do
+	    H := Subgroups(U)[subgrp]`subgroup;
+	    G := GammaShimura(U, phi, H, t);
+	    assert IsGammaShimura(G);
+	end for;
+    end for;
+end procedure;
