@@ -454,7 +454,14 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     TotallyReal := false)
     FCF := [];
     twist_orbit_indices := [];
-    for i in [1..#as[1]] do
+    already_visited := {};
+    i := 1;
+    KK_aps := [*[Kf_to_KKs[j](aps[j]) : aps in as] : j in [1..#as[1]]*];
+    while #already_visited lt #as[1] do
+	while (i in already_visited) do
+	    i +:= 1;
+	end while;
+//    for i in [1..#as[1]] do
 	print "Computing twist orbit no. ", i, "out of ", #as[1];
 	alist := [aps[i] : aps in as];
 	Kf_to_KK := Kf_to_KKs[i];
@@ -473,6 +480,20 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  deg_divs,
 				  num_coset_reps,
 				  Q_L_to_Q_huge, Q_K_to_Q_huge);
+	for twist_mf in twist_mfs do
+	    nonzero := exists(pivot){pivot : pivot in [1..#as] | twist_mf[pivot] ne 0};
+	    if nonzero then
+		twist_aps := [x/twist_mf[pivot] : x in twist_mf[1..#as]];
+	    else
+		twist_aps := twist_mf[1..#as];
+	    end if;
+	    inlist := exists(j){j : j in [1..#as[1]] |
+				Universe(KK_aps[j]) eq Universe(twist_aps) and
+				 KK_aps[j] eq twist_aps};
+	    if inlist then
+		Include(~already_visited, j);
+	    end if;
+	end for;
 	twist_orbit_index := [];
 	FCF_orbit := [];
 	fixed_space_basis := Basis(ChangeRing(GFS, Kf)
@@ -549,7 +570,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	end if;
 	FCF cat:= [FCF_orbit];
 	twist_orbit_indices cat:= [twist_orbit_index];
-    end for;
+	// end for;
+    end while;
     return &cat [FCF[i][1] : i in [1..#FCF]],
 	   &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
 end function;
@@ -986,10 +1008,6 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     alpha := Integers()!PrimitiveElement(Integers(M));
     g2 := CRT([1,alpha], [K^2,M]);
     MS := ModularSymbolsH(N, [g1,g2], 2, 0);
-
-    // !! TODO !! Set precision by the group
-    // bound := HeckeBound(MS);
-    // prec := K*M*bound;
     
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
