@@ -79,15 +79,19 @@ function make_nf_func(a, F, f_F)
 	      : i in [1..Degree(K)]];
 end function;
 
-function gauss_sum(eps, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
+function gauss_sum(eps, Q_L_to_Q_huge, Q_K_to_Q_huge)
     cond := Conductor(eps);
     chi := DirichletGroupFull(cond)!eps;
+    Q_huge := Codomain(Q_L_to_Q_huge);
     if cond eq 1 then
 	return Q_huge!1;
     end if;
     Q_cond<zeta_cond> := CyclotomicField(cond);
     Z_cond_star := [i : i in [0..cond-1] | GCD(i,cond) eq 1];
-    return &+[Q_K_to_Q_huge(zeta_cond)^i*Q_L_to_Q_huge(chi(i)) : i in Z_cond_star];
+    gs0 := &+[zeta_cond^i*chi(i) : i in Z_cond_star];
+    gs := &+[Q_K_to_Q_huge(zeta_cond)^i*Q_L_to_Q_huge(chi(i)) : i in Z_cond_star];
+    assert gs eq Q_huge!gs0;
+    return gs;
 end function;
 
 function Rop(eps, SKpowersQ_L)
@@ -188,8 +192,7 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 				    / num_coset_reps[sp_idx]];
 		ftwpr := pr(ftw, #alist, Nold[sp_idx], prec);
 		d := deg_divs[sp_idx][2];
-		ftwprB := &+[gauss_sum(chis[mutw_idx],Q_huge,zeta_K,K,
-				       Q_L_to_Q_huge,Q_K_to_Q_huge)
+		ftwprB := &+[gauss_sum(chis[mutw_idx], Q_L_to_Q_huge,Q_K_to_Q_huge)
 			     *ftwpr[j]*qKK^(d*j)
 			     : j in [1..prec-1]];
 		new_ftwists cat:= [[Coefficient(ftwprB,idx)
@@ -292,8 +295,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 	    new_ftws := [chartwist(flist, eps^(-1), Q_L_to_Q_huge)
 			 : eps in chars];
 	    
-	    new_ftwists := [[gauss_sum(chars[i],Q_huge,zeta_K,
-				       K,Q_L_to_Q_huge,Q_K_to_Q_huge)*a
+	    new_ftwists := [[gauss_sum(chars[i], Q_L_to_Q_huge, Q_K_to_Q_huge)*a
 			     : a in new_ftws[i]] : i in [1..#chars]];
 	    
 	    new_mutwists := [mu*ChangeRing(Transpose(Rop(eps,
@@ -419,36 +421,25 @@ function Pdmatrix(Pd, d, powerlist, chis,
     
     chars := [* DirichletGroupFull(Conductor(eps))!eps
 	      : eps in chars *];
-   
-    gs_ratios := [Pd(gauss_sum(chars[i],Q_huge,zeta_K, K,
-			       Q_L_to_Q_huge, Q_K_to_Q_huge))
-		  /gauss_sum(chars[perm_d[i]],Q_huge,zeta_K, K,
-			     Q_L_to_Q_huge, Q_K_to_Q_huge)
+ 
+    gs_ratios := [Pd(gauss_sum(chars[i], Q_L_to_Q_huge, Q_K_to_Q_huge))
+		  /gauss_sum(chars[perm_d[i]], Q_L_to_Q_huge, Q_K_to_Q_huge)
 		  : i in [1..#chars]];
-    
 
     small_diag := DiagonalMatrix(gs_ratios);
-   //  small_mon := MonomialMatrix(n,n,gs_ratios, perm_d);
-//    assert small_diag eq small_mon;
     list := [];
-    list_old := [];
     Q_K := Domain(Q_K_to_Q_huge);
     zeta_L := Q_L.1;
     L := EulerPhi(K) div 2;
     _, u, v := XGCD(K,L);
     for i in [0..EulerPhi(K)-1] do
 	j := (d*i) mod K;
-	coeffs_old := Eltseq(zeta_K^j);
-	// coeffs := [coeffs_by_zeta(zeta_K^j * x, Q_K) : x in gs_ratios];
 	elts := [Eltseq(zeta_K^j * x) : x in gs_ratios];
 	coeffs := [&+[zeta_L^(u*i)*x_elt[i+1]*Vector(Q_L,Eltseq(zeta_K^(v*i)))
 			    : i in [0..Degree(Q_huge)-1]] : x_elt in elts];
 	Append(~list, [MonomialMatrix(n,n,[gr[i] : gr in coeffs], perm_d)
 				     : i in [1..EulerPhi(K)]]);
-	Append(~list_old, [c*small_diag : c in coeffs_old]);
-//	Append(~list, [c*small_mon : c in coeffs]);
     end for;
-  //  assert list_old eq list;
     return BlockMatrix(list);
 end function;
 
