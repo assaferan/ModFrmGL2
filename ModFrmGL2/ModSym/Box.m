@@ -79,19 +79,16 @@ function make_nf_func(a, F, f_F)
 	      : i in [1..Degree(K)]];
 end function;
 
-function gauss_sum(eps, Q_L_to_Q_huge, Q_K_to_Q_huge)
+function gauss_sum(eps, Q_huge)
     cond := Conductor(eps);
     chi := DirichletGroupFull(cond)!eps;
-    Q_huge := Codomain(Q_L_to_Q_huge);
     if cond eq 1 then
 	return Q_huge!1;
     end if;
     Q_cond<zeta_cond> := CyclotomicField(cond);
     Z_cond_star := [i : i in [0..cond-1] | GCD(i,cond) eq 1];
-    gs0 := &+[zeta_cond^i*chi(i) : i in Z_cond_star];
-    gs := &+[Q_K_to_Q_huge(zeta_cond)^i*Q_L_to_Q_huge(chi(i)) : i in Z_cond_star];
-    assert gs eq Q_huge!gs0;
-    return gs;
+    gs := &+[zeta_cond^i*chi(i) : i in Z_cond_star];
+    return Q_huge!gs;
 end function;
 
 function Rop(eps, SKpowersQ_L)
@@ -176,7 +173,6 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 			 ftws, oldspaces_full, oldspaces,
 			 Kf, B_mats, Tr_mats, num_coset_reps,
 			 alist, Nold, prec, deg_divs, Q_huge,
-			 zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge,
 			 qKK, chis)
     
     for mutw_idx in [1..#new_mutwists] do
@@ -187,12 +183,11 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 		new_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
 				       oldspaces[sp_idx],
 				       B_mats[sp_idx][1]) *
-				    Transpose(ChangeRing(Tr_mats[sp_idx][2],
-							 Kf))
+				    Transpose(ChangeRing(Tr_mats[sp_idx][2],Kf))
 				    / num_coset_reps[sp_idx]];
 		ftwpr := pr(ftw, #alist, Nold[sp_idx], prec);
 		d := deg_divs[sp_idx][2];
-		ftwprB := &+[gauss_sum(chis[mutw_idx], Q_L_to_Q_huge,Q_K_to_Q_huge)
+		ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
 			     *ftwpr[j]*qKK^(d*j)
 			     : j in [1..prec-1]];
 		new_ftwists cat:= [[Coefficient(ftwprB,idx)
@@ -214,7 +209,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 			       Tr_mats,
 			       deg_divs,
 			       num_coset_reps,
-			       Q_L_to_Q_huge, Q_K_to_Q_huge)
+			       Q_L_to_Q_huge)
     Kf := Domain(Kf_to_KK);
     dim := Dimension(C);
     fpos :=[g : g in NN |
@@ -245,7 +240,6 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
     intsn := VectorSpace(Kf, Dimension(C) div 2);
     for i in [1..#Tpluslist] do
 	T := Tpluslist[i];
-	// intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[i+1]);
 	intsn := intsn meet Kernel(ChangeRing(T, Kf) - Kf!alist[primes[i]]);
     end for;
     Hb := [x*ChangeRing(BasisMatrix(Cplus),Kf) : x in Basis(intsn)];
@@ -271,7 +265,6 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 		   [flist], oldspaces_full, oldspaces,
 		   Kf, B_mats, Tr_mats, num_coset_reps,
 		   alist, Nold, prec, deg_divs, Q_huge,
-		   zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge,
 		   qKK, [Universe(chis)!1]);
 
     mutwists := [base_mutwists];
@@ -295,7 +288,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 	    new_ftws := [chartwist(flist, eps^(-1), Q_L_to_Q_huge)
 			 : eps in chars];
 	    
-	    new_ftwists := [[gauss_sum(chars[i], Q_L_to_Q_huge, Q_K_to_Q_huge)*a
+	    new_ftwists := [[gauss_sum(chars[i], Q_huge)*a
 			     : a in new_ftws[i]] : i in [1..#chars]];
 	    
 	    new_mutwists := [mu*ChangeRing(Transpose(Rop(eps,
@@ -310,7 +303,6 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 			 new_ftws, oldspaces_full, oldspaces,
 			 Kf, B_mats, Tr_mats, num_coset_reps,
 			 alist, Nold, prec, deg_divs, Q_huge,
-			 zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge,
 			 qKK, chars);
 
 	    Append(~powerlist, new_powerlist);
@@ -340,69 +332,6 @@ function first_nonzero_cf(a)
     end for;
 end function;
 
-/*
-function FixedCuspForms(a2s, a3s, Tpluslist, Kf_to_KKs,
-			prec, Gamma_fixed_spaces, cc, sigma,
-			NN, N35, N49,
-			oldspace35, oldspace351,
-			oldspace357,
-			oldspace49, oldspace491,
-			C, Cplus, chi, Q21, zeta21, zeta7, K,
-			SKpowersQ3, B351_mat, B491_mat,
-			Tr357_mat, Tr495_mat,
-			NumCosetReps357, NumCosetReps495,
-			Q7plus_to_Q7, Q7_to_Q21, Q3_to_Q21)
-    FCF := [];
-    for i in [1..#a2s] do
-	alist := [1,a2s[i],a3s[i]];
-	Kf_to_KK := Kf_to_KKs[i];
-	KK := Codomain(Kf_to_KK);
-	Q21_to_KK := hom<Q21 -> KK | KK!zeta21>;
-	real_twist_orbit_ms, twist_mfs, pl :=
-	    make_real_twist_orbit(alist, Kf_to_KK,
-				  Tpluslist, prec, cc, sigma,
-				  NN, N35, N49,
-				  oldspace35, oldspace351,
-				  oldspace357,
-				  oldspace49, oldspace491,
-				  C, Cplus, chi, Q21, zeta7, K,
-				  SKpowersQ3,
-				  B351_mat, B491_mat,
-				  Tr357_mat, Tr495_mat,
-				  NumCosetReps357, NumCosetReps495,
-				  Q3_to_Q21, Q7_to_Q21);
-	FCF_orbit := [];
-	for GFS in Gamma_fixed_spaces do
-	    fixed_space_basis := Basis(ChangeRing(GFS, Domain(Kf_to_KK)) meet
-						 real_twist_orbit_ms);
-	    fixed_basis_cfs :=
-		[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
-		 : mu in fixed_space_basis];
-	    fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
-				   : mulist in fixed_basis_cfs];
-	    fixed_cusp_forms_orbit_raw :=
-		[&+[clist[i]*Vector(twist_mfs[i]) : i in [1..#clist]]
-		 : clist in fixed_basis_cfs_cc];
-	    if Degree(K) eq 2 then
-		fixed_cusp_forms_orbit_ns :=
-		    &cat[[f+Vector([sigma(a) : a in Eltseq(f)]),
-		       (f-Vector([sigma(a) : a in Eltseq(f)]))/KK.1]
-			 : f in fixed_cusp_forms_orbit_raw];
-	    else
-		fixed_cusp_forms_orbit_ns := fixed_cusp_forms_orbit_raw;
-	    end if;
-	    fixed_cusp_forms_orbit_sc :=
-		[Vector([Q7plus_to_Q7@@(Q7_to_Q21@@(Q21_to_KK@@a))
-			 : a in Eltseq(f/first_nonzero_cf(Eltseq(f)))])
-		 : f in fixed_cusp_forms_orbit_ns];
-	    FCF_orbit cat:= [fixed_cusp_forms_orbit_sc];
-	end for;
-	FCF cat:= [FCF_orbit];
-    end for;
-    return [&+[FCF[i][j] : i in [1..#FCF]] : j in [1..#Gamma_fixed_spaces]];
-end function;
-*/
-
 // When we have an element of a number field over a cyclotomic field
 function coeffs_by_zeta(x, Q_L)
     Kf := Parent(x);
@@ -422,8 +351,8 @@ function Pdmatrix(Pd, d, powerlist, chis,
     chars := [* DirichletGroupFull(Conductor(eps))!eps
 	      : eps in chars *];
  
-    gs_ratios := [Pd(gauss_sum(chars[i], Q_L_to_Q_huge, Q_K_to_Q_huge))
-		  /gauss_sum(chars[perm_d[i]], Q_L_to_Q_huge, Q_K_to_Q_huge)
+    gs_ratios := [Pd(gauss_sum(chars[i], Q_huge))
+		  /gauss_sum(chars[perm_d[i]], Q_huge)
 		  : i in [1..#chars]];
 
     small_diag := DiagonalMatrix(gs_ratios);
@@ -497,7 +426,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  Tr_mats,
 				  deg_divs,
 				  num_coset_reps,
-				  Q_L_to_Q_huge, Q_K_to_Q_huge);
+				  Q_L_to_Q_huge);
 	twist_all_aps := [* *];
 	for twist_mf in twist_mfs do
 	    nonzero := exists(pivot){pivot : pivot in [1..#twist_mf]
