@@ -1,7 +1,7 @@
 import "GrpPSL2/GrpPSL2/misc.m" : Conjugates,
        IsConjugate, NormalizerGrpMat;
 
-import "ModSym/Box.m" : ModularCurve;
+import "ModSym/Box.m" : ModularCurve, get_M_K;
 
 // These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
 // Helper functions for creation
@@ -19,6 +19,7 @@ function GetRealConjugate(H)
   return real_H; 
 end function;
 
+// !! TODO - choose a conjugate contained in B0(M) with M maximal 
 function GetGLModel(H : RealType := true)
   N := Modulus(BaseRing(H));
   SL_N := SL(2, Integers(N));
@@ -219,6 +220,18 @@ function qExpansionBasis(grp_name, grps)
     H := sub<SL(2, Integers(N)) | gens>;
     real_H := GetRealConjugate(H);
     G := GetGLModel(real_H);
+    // We may want to put it in GetGLModel,
+    // but it really is just a requirement for the modular curve algorithm
+    GL_N := GL(2, Integers(N));
+    conjs := [c : c in Conjugates(GL_N, G)];
+    // we want to still have real type
+    eta := GL_N![-1,0,0,1];
+    conjs := [c : c in conjs | c^eta eq c];
+    Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
+    cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
+    max_M, loc := Maximum([get_M_K(c) : c in cands]);
+    print "Best M found among conjugates is ", max_M;
+    G := cands[loc];
     X, fs := ModularCurve(G, grp`genus);
     return X, fs;
 end function;

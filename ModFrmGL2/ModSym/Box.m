@@ -505,6 +505,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 
 		perm_d := [Index(twist_all_aps, [Pd(x) : x in twist_ap])
 			   : twist_ap in twist_all_aps];
+		// Check that the Pd action does permute the basis elements
+		assert Sort(perm_d) eq [1..dim_orbit];
 		pd_mat := Pdmatrix(Pd,d,powerlist,chis, Q_L, Q_huge,
 				   zeta_K, K, Q_L_to_Q_huge,Q_K_to_Q_huge,
 				   perm_d);
@@ -649,7 +651,7 @@ function make_Borel(N)
     return sub<GL(2, Integers(N)) | gens>;
 end function;
 
-function get_gens(G)
+function get_M_K(G)
     N := Modulus(BaseRing(G));
     // First we find M such that G_M is contained in B_0(M)
     M := GCD([N] cat [Integers()!g[2,1] : g in Generators(G)]);
@@ -673,6 +675,37 @@ function get_gens(G)
     if not found then M := 1; end if;
     
     K := N div M;
+
+    return M, K;
+end function;
+
+function get_gens(G)
+    N := Modulus(BaseRing(G));
+    /*
+    // First we find M such that G_M is contained in B_0(M)
+    M := GCD([N] cat [Integers()!g[2,1] : g in Generators(G)]);
+    K := N div M;
+    // we make sure that GCD(K,M) eq 1
+    fac := Factorization(N);
+    M := &*([1] cat [fa[1]^fa[2] : fa in fac | K mod fa[1] ne 0]);
+    // Now we reduce it until equality holds
+    divs := Reverse(Divisors(M));
+    found := false;
+    // we don't try 1 because GL(2,1) etc.
+    for M in divs[1..#divs-1] do
+	G_M := sub< GL(2, Integers(M)) |
+		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(G)]>;
+	B_M := make_Borel(M);
+	if G_M eq B_M then
+	    found := true;
+	    break;
+	end if;
+    end for;
+    if not found then M := 1; end if;
+    
+    K := N div M;
+   */
+    M, K := get_M_K(G);
     H := G meet SL(2, Integers(N));
     gens := [Eltseq(FindLiftToSL2(g)) : g in Generators(H)];
     quo, quo_mat := G/H;
@@ -738,6 +771,11 @@ function get_old_spaces(MS)
     D := NewformDecomposition(C);
     old_levels := Sort([lev : lev in {Level(d) : d in D} | lev ne N]);
     dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
+    // reduce them to minimal base rings
+    conds := [Conductor(BaseRing(grp)) : grp in dirichlet_groups];
+    dirichlet_groups := [DirichletGroup(old_levels[i],
+					CyclotomicField(conds[i]))
+			 : i in [1..#old_levels]];
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
 		Level(d) eq (old_levels[i])] : i in [1..#old_levels]*];
     M_old := [ModularSymbols(chis, 2) : chis in chars | not IsEmpty(chis)];
@@ -762,6 +800,7 @@ function get_old_spaces(MS)
 	m_B_mats := [* *];
 	m_deg_divs := [];
 	m_Tr_mats_new := [* *];
+	// This isn't always right, but it doesnt matter
 	num_reps := GCD(N_old, a) eq 1 select a + 1 else a;
 	for d in Divisors(a) do
 	    tr_mat, tr_ims, b_mat, tr_mat_new := get_degeneracy_maps(m_old, MS, d);
@@ -773,7 +812,9 @@ function get_old_spaces(MS)
 	    m_dim := Dimension(CuspidalSubspace(m_old));
 	    assert Rank(tr_mat) eq m_dim;
 	    I := IdentityMatrix(Rationals(), m_dim);
-	    assert Transpose(tr_mat)*Transpose(b_mat) eq num_reps*I;
+	    id_mat := Transpose(tr_mat)*Transpose(b_mat);
+	    num_reps := id_mat[1,1];
+	    assert id_mat eq num_reps*I;
 	end for;
 	// We will be using the fact that the first degeneracy map
 	// is the inclusion
@@ -821,15 +862,19 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     dim := Dimension(C);
 
-    L := EulerPhi(K) div 2;
+    L := EulerPhi(K);
+    // We will only consider even characters
+    if IsEven(L) then
+	L := L div 2;
+    end if;
     Q_L<zeta_L> := CyclotomicField(L);
     Q_K<zeta_K> := CyclotomicField(K);
     Q_gcd<zeta_gcd> := CyclotomicField(GCD(K,L));
-    Q_K_plus<z_K_plus>, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
+    Q_K_plus, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
     
     Q_K_q<q> := PowerSeriesRing(Q_K);
     
-    Q_huge<zeta_huge> := CyclotomicField(LCM(EulerPhi(K) div 2, K));
+    Q_huge<zeta_huge> := CyclotomicField(LCM(K,L));
 
     _, Q_K_to_Q_huge := IsSubfield(Q_K, Q_huge);
     _, Q_L_to_Q_huge := IsSubfield(Q_L, Q_huge);
@@ -860,6 +905,9 @@ function createFieldEmbeddings(K, NN, C, ds)
 	Kf_base := BaseRing(Kf);
 	if (Type(Kf_base) eq FldRat) and (Kf ne Q_L) then
 	    Kf := NumberField(Evaluate(DefiningPolynomial(Kf), x_L));
+//	    comp := Compositum(Q_L, Kf);
+//	    assert IsSubfield(Q_L, comp);
+//	    Kf := RelativeField(Q_L, comp);
 	end if;
 	assert IsSubfield(fields[i], Kf);
 	is_sub, emb := IsSubfield(Kf, huge_fields[i]);
@@ -1067,14 +1115,23 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     // because the embedding of the oldform is no longer
     // an eigenform for the other Hecke operators
     primes := [];
-    while (num_distinct lt #NN) do
+    sep_all := false;
+    //   while (num_distinct lt #NN) do
+    while (not sep_all) do
 	repeat
 	    max_hecke := NextPrime(max_hecke);
 	until N mod max_hecke ne 0;
 	Append(~primes, max_hecke);
 	num_distinct := 
 	    #{[Coefficients(MinimalPolynomial(Coefficient(f,i)))
-			   : i in [1..max_hecke]] : f in NN};
+	       : i in [1..max_hecke]] : f in NN};
+	// we also want to be able to cut the exact subspace
+	// using only prime to level Hecke operators
+	num_distinct_old := 
+	   [ #{[Coefficients(MinimalPolynomial(Coefficient(f,p)))
+		: p in primes] : f in n_old} : n_old in Nold];
+	sep_old := &and[num_distinct_old[i] eq #Nold[i] : i in [1..#Nold]];
+	sep_all := sep_old and (num_distinct eq #NN);
     end while;
 
     Ts := [HeckeOperator(C, p) : p in primes];
@@ -1185,14 +1242,33 @@ import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
     testBoxExample();
-    working_examples := ["8A2", "9A2", "9B2",
+    working_examples := ["8A2", "8A3", "8B3", "9A2", "9B2",
 			 "10A2", "10B2", "11A2", "11A6",
-			 "12B2"];
+			 "12B2", "12E2"];
+    // Checked all real type conjugates for:
+    // 8A2, 8A3, 8B3, 9A2, 9B2
     // still not working:
     // (1) 10D2, 10E2, 10F2 - obtains two G-invariant forms.
     // The canonical map yields a genus 0 curve,
     // but I fail to find a hyperelliptic relation.
-    // (2) 12B2 - C_old is not completely new!
+    // (2) 12C2 - for some reason getting only a single form.
+    // (2.5) 10D2, 10E2, 10F2, 12D2 - Now that we choose the another conjugate, it fails!
+    // Somehow it does not seem to intersect any orbit !?
+    // (3) 12F2 - there is an orbit in which Pd does not act on the basis
+    // There is a form whose conjugate is not in this orbit.
+    // (4) 13A2 (Gamma1(13)) - something goes wrong when twisting.
+    // We twist the form 13.2.e.a and obtain the aps of 169.2.b.a
+    // but the mu seems to be in the old subspace.
+    // Either we should twist by the inverse in one of them or this is an
+    // issue with field embeddings.
+    // (5) 14B6 - for some reason getting only 5 forms !?
+    // Level 17 - computing the action is nearly killing us
+    // (6) 17A6 - We again have an issue with the field embeddings.
+    // (7) 18A6 - something's wrong with coeffs_by_zeta !?
+    // (8) 35E6 - this is conjugate to Box's example, but for some reason
+    // doesn't seem to work !?
+    // (9) 7A3 - coercion to Q_K is not working??
+    // (10) 9A4 - can't find enough forms
     for name in working_examples do
 	X,fs := qExpansionBasis(name, grps_by_name);
     end for;
