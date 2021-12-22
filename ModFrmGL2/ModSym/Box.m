@@ -401,27 +401,54 @@ function FixedCuspForms(a2s, a3s, Tpluslist, Kf_to_KKs,
 end function;
 */
 
+// When we have an element of a number field over a cyclotomic field
+function coeffs_by_zeta(x, Q_L)
+    Kf := Parent(x);
+    d := Degree(Q_L);
+    Kf_Q_L := RelativeField(Q_L, Kf);
+    return [Kf!Kf_Q_L![y[j] : y in [Eltseq(z) : z in Eltseq(Kf_Q_L!x)]]
+	    : j in [1..d]];
+end function;
+
 function Pdmatrix(Pd, d, powerlist, chis,
-		  Q_L, Q_huge, zeta_K, K, Q_L_to_Q_huge, Q_K_to_Q_huge)
+		  Q_L, Q_huge, zeta_K, K,
+		  Q_L_to_Q_huge, Q_K_to_Q_huge, perm_d)
     n := #powerlist;
     chars := [&*[chis[i]^(-exp[i]) : i in [1..#chis]]
 	      : exp in powerlist];
     
     chars := [* DirichletGroupFull(Conductor(eps))!eps
 	      : eps in chars *];
-    
-    gs_ratios := [Pd(gauss_sum(chi,Q_huge,zeta_K, K,
+   
+    gs_ratios := [Pd(gauss_sum(chars[i],Q_huge,zeta_K, K,
 			       Q_L_to_Q_huge, Q_K_to_Q_huge))
-		    /gauss_sum(chi,Q_huge,zeta_K, K,
+		  /gauss_sum(chars[perm_d[i]],Q_huge,zeta_K, K,
 			     Q_L_to_Q_huge, Q_K_to_Q_huge)
-		  : chi in chars];
+		  : i in [1..#chars]];
+    
+
     small_diag := DiagonalMatrix(gs_ratios);
+   //  small_mon := MonomialMatrix(n,n,gs_ratios, perm_d);
+//    assert small_diag eq small_mon;
     list := [];
+    list_old := [];
+    Q_K := Domain(Q_K_to_Q_huge);
+    zeta_L := Q_L.1;
+    L := EulerPhi(K) div 2;
+    _, u, v := XGCD(K,L);
     for i in [0..EulerPhi(K)-1] do
 	j := (d*i) mod K;
-	coeffs := Eltseq(zeta_K^j);
-	Append(~list, [c*small_diag : c in coeffs]);
+	coeffs_old := Eltseq(zeta_K^j);
+	// coeffs := [coeffs_by_zeta(zeta_K^j * x, Q_K) : x in gs_ratios];
+	elts := [Eltseq(zeta_K^j * x) : x in gs_ratios];
+	coeffs := [&+[zeta_L^(u*i)*x_elt[i+1]*Vector(Q_L,Eltseq(zeta_K^(v*i)))
+			    : i in [0..Degree(Q_huge)-1]] : x_elt in elts];
+	Append(~list, [MonomialMatrix(n,n,[gr[i] : gr in coeffs], perm_d)
+				     : i in [1..EulerPhi(K)]]);
+	Append(~list_old, [c*small_diag : c in coeffs_old]);
+//	Append(~list, [c*small_mon : c in coeffs]);
     end for;
+  //  assert list_old eq list;
     return BlockMatrix(list);
 end function;
 
@@ -450,8 +477,9 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     Tr_mats,
 			     deg_divs,
 			     num_coset_reps, J,
-			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge :
-			     TotallyReal := false)
+			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge,
+			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K
+			     : TotallyReal := false)
     FCF := [];
     twist_orbit_indices := [];
     already_visited := {};
@@ -461,7 +489,6 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	while (i in already_visited) do
 	    i +:= 1;
 	end while;
-//    for i in [1..#as[1]] do
 	print "Computing twist orbit no. ", i, "out of ", #as[1];
 	alist := [aps[i] : aps in as];
 	Kf_to_KK := Kf_to_KKs[i];
@@ -480,16 +507,19 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  deg_divs,
 				  num_coset_reps,
 				  Q_L_to_Q_huge, Q_K_to_Q_huge);
+	twist_all_aps := [* *];
 	for twist_mf in twist_mfs do
-	    nonzero := exists(pivot){pivot : pivot in [1..#as] | twist_mf[pivot] ne 0};
+	    nonzero := exists(pivot){pivot : pivot in [1..#twist_mf]
+				     | twist_mf[pivot] ne 0};
 	    if nonzero then
-		twist_aps := [x/twist_mf[pivot] : x in twist_mf[1..#as]];
+		twist_aps := [x/twist_mf[pivot] : x in twist_mf];
 	    else
-		twist_aps := twist_mf[1..#as];
+		twist_aps := twist_mf;
 	    end if;
+	    Append(~twist_all_aps, twist_aps);
 	    inlist := exists(j){j : j in [1..#as[1]] |
 				Universe(KK_aps[j]) eq Universe(twist_aps) and
-				 KK_aps[j] eq twist_aps};
+				 KK_aps[j] eq twist_aps[1..#as]};
 	    if inlist then
 		Include(~already_visited, j);
 	    end if;
@@ -498,16 +528,30 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	FCF_orbit := [];
 	fixed_space_basis := Basis(ChangeRing(GFS, Kf)
 					     meet real_twist_orbit_ms);
+	dim_orbit := Dimension(real_twist_orbit_ms);
 	if #fixed_space_basis gt 0 then
-	    print "Orbit intersect fixed space. Finding G-fixed vectors...";
+	    print "Orbit intersects fixed space. Finding G-fixed vectors...";
 	    fixed_basis_cfs :=
 		[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
 		 : mu in fixed_space_basis];
-	    fixed_basis_block :=
-		DirectSum([Matrix(fixed_basis_cfs)
-			   : i in [1..EulerPhi(K)]]);
-	    fixed_ms_space_QQ :=
-		VectorSpace(KK,EulerPhi(K)*#fixed_space_basis);
+	    
+	    coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd) : b in b_imgs]
+			    : b_imgs in fixed_basis_cfs];
+	    zeta_to_Q_K := [[Vector(Kf,Eltseq(Q_gcd_to_Q_K(zeta_gcd)^i
+					    *zeta_K^r))
+			   : i in [0..Degree(Q_gcd)-1]]
+			  : r in [0..EulerPhi(K)-1]];
+	    fb_imgs_tr := [[[&+[cz[l][i+1]*zeta_to_Q_K[r+1][i+1]
+			       : i in [0..Degree(Q_gcd)-1]]
+			     : l in [1..dim_orbit]]
+			    : r in [0..EulerPhi(K)-1]]
+			  : cz in coeffs_zeta];
+	    fb_imgs_block := [Matrix([Vector(Eltseq(Transpose(Matrix(fb_img_tr[r+1]))))
+					     : fb_img_tr in fb_imgs_tr])
+				      : r in [0..EulerPhi(K)-1]];
+	    fixed_basis_block := VerticalJoin(fb_imgs_block);
+	    fixed_ms_space_QQ := VectorSpace(Kf,EulerPhi(K)*#fixed_space_basis);
+	
 	    for k in [1..#Bmats] do
 		Bmat := Bmats[k];
 		Pd := Pds[k];
@@ -519,19 +563,31 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		B_imgs_cfs :=
 		    [Eltseq(Solution(BasisMatrix(real_twist_orbit_ms),
 				     ChangeRing(mu,Kf))) : mu in B_imgs];
-		B_imgs_block :=
-		    DirectSum([Matrix(B_imgs_cfs)
-			       : j in [1..EulerPhi(K)]]);
+
+		coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd) : b in b_imgs]
+				: b_imgs in B_imgs_cfs];
+		B_imgs_tr := [[[&+[cz[l][i+1]*zeta_to_Q_K[r+1][i+1]
+				   : i in [0..Degree(Q_gcd)-1]]
+				: l in [1..dim_orbit]]
+			       : r in [0..EulerPhi(K)-1]]
+			      : cz in coeffs_zeta];
+		B_imgs_block := [Matrix([Vector(Eltseq(Transpose(Matrix(b_imgs_tr[r+1]))))
+					        : b_imgs_tr in B_imgs_tr])
+					 : r in [0..EulerPhi(K)-1]];
+		B_imgs_block := VerticalJoin(B_imgs_block);
+
+		perm_d := [Index(twist_all_aps, [Pd(x) : x in twist_ap])
+			   : twist_ap in twist_all_aps];
 		pd_mat := Pdmatrix(Pd,d,powerlist,chis, Q_L, Q_huge,
-				   zeta_K, K, Q_L_to_Q_huge,Q_K_to_Q_huge);
-		B_pd_mat := ChangeRing(B_imgs_block,KK) * ChangeRing(pd_mat, KK)^(-1);
-		B_pd_cfs := Solution(ChangeRing(fixed_basis_block,KK), B_pd_mat);
-		I_mat := IdentityMatrix(KK,EulerPhi(K)*#fixed_space_basis);
+				   zeta_K, K, Q_L_to_Q_huge,Q_K_to_Q_huge,
+				   perm_d);
+		B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf);
+		B_pd_cfs := Solution(fixed_basis_block, B_pd_mat);
+		I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
 		fixed_B_pd := Kernel(B_pd_cfs - I_mat);
 		fixed_ms_space_QQ meet:= fixed_B_pd;
-	
 	    end for;
-	    fmssQQ_cc := [[cc(a) : a in Eltseq(v)]
+	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
 	    fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
 				   : mulist in fixed_basis_cfs];
@@ -570,7 +626,6 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	end if;
 	FCF cat:= [FCF_orbit];
 	twist_orbit_indices cat:= [twist_orbit_index];
-	// end for;
     end while;
     return &cat [FCF[i][1] : i in [1..#FCF]],
 	   &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
@@ -815,9 +870,11 @@ end function;
 function createFieldEmbeddings(K, NN, C, ds)
 
     dim := Dimension(C);
-    
-    Q_L<zeta_L> := CyclotomicField(EulerPhi(K) div 2);
+
+    L := EulerPhi(K) div 2;
+    Q_L<zeta_L> := CyclotomicField(L);
     Q_K<zeta_K> := CyclotomicField(K);
+    Q_gcd<zeta_gcd> := CyclotomicField(GCD(K,L));
     Q_K_plus<z_K_plus>, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
     
     Q_K_q<q> := PowerSeriesRing(Q_K);
@@ -826,6 +883,8 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     _, Q_K_to_Q_huge := IsSubfield(Q_K, Q_huge);
     _, Q_L_to_Q_huge := IsSubfield(Q_L, Q_huge);
+    _, Q_gcd_to_Q_K := IsSubfield(Q_gcd, Q_K);
+    _, Q_gcd_to_Q_L := IsSubfield(Q_gcd, Q_L);
 
     _<x_L> := PolynomialRing(Q_L);
     _<x_huge> := PolynomialRing(Q_huge);
@@ -866,8 +925,10 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
 
-    elts := [Integers()!(Integers(K)!d^(-1)) : d in ds];
-    powers := [CRT([e,1],[K,EulerPhi(K) div 2]) : e in elts];
+    elts := [Integers()!(Integers(K)!d) : d in ds];
+    powers := [CRT([e,1],[K,L div GCD(K,L)]) : e in elts];
+    // Checking that CRT actually worked
+    assert &and[p ne -1 : p in powers];
     Ps_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
 
     I := IdentityMatrix(Rationals(), dim);
@@ -894,7 +955,8 @@ function createFieldEmbeddings(K, NN, C, ds)
     
     return field_embs, cc, Ps_Q_huge, SKpowersQ_L, Q_huge,
 	   Q_L, zeta_huge, zeta_K, Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-	   Q_L_to_Q_huge, elts, sigma_i;
+	   Q_L_to_Q_huge, elts, sigma_i, Q_gcd, zeta_gcd,
+	   Q_gcd_to_Q_K;
 end function;
 
 forward BoxMethod;
@@ -1075,7 +1137,8 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
     Q_huge, Q_L, zeta_huge, zeta_K,
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-    Q_L_to_Q_huge, elts, sigma_i := createFieldEmbeddings(K, NN, C, ds);
+    Q_L_to_Q_huge, elts, sigma_i,
+    Q_gcd, zeta_gcd, Q_gcd_to_Q_K := createFieldEmbeddings(K, NN, C, ds);
 
     // Taking only the forms with trivial Nebentypus character is not good enough
     // We need to take represenatives for X / X^2!
@@ -1143,7 +1206,8 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
 				  num_coset_reps,
 				  J,
 				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-				  Q_L_to_Q_huge
+				  Q_L_to_Q_huge, Q_gcd, zeta_gcd,
+				  Q_gcd_to_Q_K
 				  : TotallyReal := TotallyReal);
     return fs, tos;
 end function;
@@ -1171,7 +1235,7 @@ import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
     testBoxExample();
-    working_examples := ["8A2", "9A2", "10A2", "10B2", "11A2", "11A6"];
+    working_examples := ["8A2", "9A2", "9B2", "10A2", "10B2", "11A2", "11A6"];
     for name in working_examples do
 	X,fs := qExpansionBasis(name, grps_by_name);
     end for;

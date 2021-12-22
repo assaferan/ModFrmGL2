@@ -108,7 +108,7 @@ ChangeDirectory("/Users/eranassaf/Dropbox\ \(Dartmouth\ College\)\
 if assigned L then
     delete L;
 end if;
-load "/Users/eranassaf/Documents/Research/Modular\ Symbols/csg24.dat/csg6-lev120.dat";
+load "csg6-lev120.dat";
 ChangeDirectory(dir);
 */
 
