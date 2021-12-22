@@ -123,12 +123,14 @@ function pr(flist, check, Nold, prec)
 	folds := [f : f in Nold |
 		  &and[Coefficients(MinimalPolynomial(flist[i]))
 		       eq Coefficients(MinimalPolynomial(Coefficient(f,i)))
-		       : i in [1..check]]];
+		       : i in check]];
+//		       : i in [1..check]]];
     else
 	folds := [f : f in Nold |
 		  &and[Coefficients(AbsoluteMinimalPolynomial(flist[i]))
 		       eq Coefficients(AbsoluteMinimalPolynomial(Coefficient(f,i)))
-		       : i in [1..check]]];
+		       : i in check]];
+//		       : i in [1..check]]];
     end if;
     assert #folds eq 1;
     fold := folds[1];
@@ -142,7 +144,8 @@ function pr(flist, check, Nold, prec)
 		 : r in Roots(DefiningPolynomial(AbsoluteField(Kf)),K)];
     end if;
     embs := [e : e in embs | &and[e(Coefficient(fold, i)) eq flist[i]
-				  : i in [1..check]]];
+				  : i in check]];
+//				  : i in [1..check]]];
     assert #embs eq 1;
     return [embs[1](Coefficient(fold, i)) : i in [1..prec-1]];
 end function;
@@ -185,7 +188,10 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 				       B_mats[sp_idx][1]) *
 				    Transpose(ChangeRing(Tr_mats[sp_idx][2],Kf))
 				    / num_coset_reps[sp_idx]];
-		ftwpr := pr(ftw, #alist, Nold[sp_idx], prec);
+		// ftwpr := pr(ftw, #alist, Nold[sp_idx], prec);
+		cond := Conductor(chis[mutw_idx]);
+		check := [i : i in [1..#alist] | GCD(i, cond) eq 1];
+		ftwpr := pr(ftw, check, Nold[sp_idx], prec);
 		d := deg_divs[sp_idx][2];
 		ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
 			     *ftwpr[j]*qKK^(d*j)
@@ -439,7 +445,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    Append(~twist_all_aps, twist_aps);
 	    inlist := exists(j){j : j in [1..#as[1]] |
 				Universe(KK_aps[j]) eq Universe(twist_aps) and
-				 KK_aps[j] eq twist_aps[1..#as]};
+				&and[MinimalPolynomial(KK_aps[j][l]) eq
+				     MinimalPolynomial(twist_aps[l]) : l in [1..#as]]};
 	    if inlist then
 		Include(~already_visited, j);
 	    end if;
@@ -520,10 +527,18 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
 		      : i in [1..#fmssQQ_cc]];
 	    if Degree(KK) eq 2 then
+		fsols_cc := [Vector([sigma(a) : a in Eltseq(f)]) : f in fsols];
+		// We check for the case where f and f_bar are linearly dependent
 		fixed_cusp_forms_orbit_ns :=
+		    &cat[fsols_cc[i][1]*fsols[i] eq fsols[i][1]*fsols_cc[i]
+			 select [fsols[i] + fsols_cc[i]] else
+			 [fsols[i] + fsols_cc[i], (fsols[i]-fsols_cc[i])/KK.1]
+			 : i in [1..#fsols]];
+		/*
 		    &cat[[f+Vector([sigma(a) : a in Eltseq(f)]),
 			  (f-Vector([sigma(a) : a in Eltseq(f)]))/KK.1]
 			 : f in fsols];
+	       */
 	    else
 		fixed_cusp_forms_orbit_ns := fsols;
 	    end if;
@@ -547,8 +562,11 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	FCF cat:= [FCF_orbit];
 	twist_orbit_indices cat:= [twist_orbit_index];
     end while;
-    return &cat [FCF[i][1] : i in [1..#FCF]],
-	   &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
+    fs := &cat [FCF[i][1] : i in [1..#FCF]];
+    tos := &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
+    // make sure we have the right number of forms
+    assert 2*#fs eq Dimension(GFS);
+    return fs, tos;
 end function;
 
 function IsCompatibleChar(M1, M2)
@@ -668,8 +686,10 @@ end function;
 function get_degeneracy_maps(M_old, M, d)
     C := CuspidalSubspace(M);
     C_old := CuspidalSubspace(M_old);
+    C_old_new := NewSubspace(C_old);
     Cbmat := BasisMatrix(VectorSpace(C));
     Cboldmat := BasisMatrix(VectorSpace(C_old));
+    Cboldnewmat := BasisMatrix(VectorSpace(C_old_new));
     ms := MultiSpaces(M);
     ms_old := MultiSpaces(M_old);
     all_alphas := [];
@@ -705,30 +725,35 @@ function get_degeneracy_maps(M_old, M, d)
     ims_mat := Cboldmat*big_alpha;
     alpha_C := Transpose(Solution(Cbmat, ims_mat));
     beta_C := Transpose(Solution(Cboldmat, Cbmat*Transpose(big_beta)));
-    return alpha_C, [M!v : v in Rows(ims_mat)], beta_C;
+    alpha_new_C := Transpose(Solution(Cbmat, Cboldnewmat*big_alpha));
+    return alpha_C, [M!v : v in Rows(ims_mat)], beta_C, alpha_new_C;
 end function;
 
+// !! TODO - right now we treat the newforms in the top level separately.
+// However, this could be done in the same way.
 function get_old_spaces(MS)
     N := Level(MS);
-    old_levels := [N div p : p in PrimeDivisors(N)];
+    // old_levels := [N div p : p in PrimeDivisors(N)];
     C := CuspidalSubspace(MS);
     D := NewformDecomposition(C);
+    old_levels := Sort([lev : lev in {Level(d) : d in D} | lev ne N]);
     dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
 		Level(d) eq (old_levels[i])] : i in [1..#old_levels]*];
     M_old := [ModularSymbols(chis, 2) : chis in chars | not IsEmpty(chis)];
     C_old := [CuspidalSubspace(m) : m in M_old];
     C_old_new := [NewSubspace(c) : c in C_old];
-    assert &and[Dimension(C_old[i]) eq Dimension(C_old_new[i])
-		: i in [1..#C_old]];
-    C_oldb := [* Basis(c) : c in C_old *];
-    C_oldmat := [* Transpose(Matrix([Eltseq(c) : c in b])) : b in C_oldb *];
+ //   assert &and[Dimension(C_old[i]) eq Dimension(C_old_new[i])
+//		: i in [1..#C_old]];
+//    C_oldb := [* Basis(c) : c in C_old *];
+//    C_oldmat := [* Transpose(Matrix([Eltseq(c) : c in b])) : b in C_oldb *];
     
     num_coset_reps := [];
     Tr_mats := [];
     Tr_ims := [];
     B_mats := [];
     deg_divs := [];
+    Tr_mats_new := [];
     for m_old in M_old do
 	N_old := Level(m_old);
 	a := N div N_old;
@@ -736,10 +761,12 @@ function get_old_spaces(MS)
 	m_Tr_ims := [* *];
 	m_B_mats := [* *];
 	m_deg_divs := [];
+	m_Tr_mats_new := [* *];
 	num_reps := GCD(N_old, a) eq 1 select a + 1 else a;
 	for d in Divisors(a) do
-	    tr_mat, tr_ims, b_mat := get_degeneracy_maps(m_old, MS, d);
+	    tr_mat, tr_ims, b_mat, tr_mat_new := get_degeneracy_maps(m_old, MS, d);
 	    Append(~m_Tr_mats, tr_mat/d);
+	    Append(~m_Tr_mats_new, tr_mat_new/d);
 	    Append(~m_Tr_ims, tr_ims);
 	    Append(~m_B_mats, b_mat*d);
 	    Append(~m_deg_divs, d);
@@ -756,13 +783,16 @@ function get_old_spaces(MS)
 	Append(~B_mats, m_B_mats);
 	Append(~deg_divs, m_deg_divs);
 	Append(~num_coset_reps, num_reps);
+	Append(~Tr_mats_new, m_Tr_mats_new);
     end for; 
  
-    oldspace_bases := [[* Rows(Transpose(tr)) : tr in m *] : m in Tr_mats];
+    //   oldspace_bases := [[* Rows(Transpose(tr)) : tr in m *] : m in Tr_mats];
+    oldspace_bases := [[* Rows(Transpose(tr)) : tr in m *] : m in Tr_mats_new];
     oldspaces := [[sub<Universe(bb) | bb> : bb in bases]
 		  : bases in oldspace_bases];
    
     oldspaces_full := [&+spaces : spaces in oldspaces];
+   
     assert &and[Dimension(oldspaces_full[i]) eq
 		&+[Dimension(s) : s in oldspaces[i]] : i in [1..#oldspaces]];
     
@@ -1155,7 +1185,14 @@ import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
     testBoxExample();
-    working_examples := ["8A2", "9A2", "9B2", "10A2", "10B2", "11A2", "11A6"];
+    working_examples := ["8A2", "9A2", "9B2",
+			 "10A2", "10B2", "11A2", "11A6",
+			 "12B2"];
+    // still not working:
+    // (1) 10D2, 10E2, 10F2 - obtains two G-invariant forms.
+    // The canonical map yields a genus 0 curve,
+    // but I fail to find a hyperelliptic relation.
+    // (2) 12B2 - C_old is not completely new!
     for name in working_examples do
 	X,fs := qExpansionBasis(name, grps_by_name);
     end for;
