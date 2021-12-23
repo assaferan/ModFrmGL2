@@ -709,8 +709,20 @@ function get_M_K(G)
 		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(G)]>;
 	B_M := make_Borel(M);
 	if G_M eq B_M then
-	    found := true;
-	    break;
+	    if K eq 1 then
+		G_K := GL(2, Integers(2));
+	    else	    
+		G_K := sub< GL(2, Integers(K)) |
+			  [[Integers(K)!x : x in Eltseq(g)] : g in Generators(G)]>;
+	    end if;
+	    PG_M := PSL2Subgroup(G_M);
+	    PG_K := PSL2Subgroup(G_K);
+	    //if G eq ImageInLevel(PG_K : N := N) meet ImageInLevel(PG_M : N := N) then
+	    PG := PSL2Subgroup(G);
+	    if PG eq PG_M meet PG_K then
+		found := true;
+		break;
+	    end if;
 	end if;
     end for;
     if not found then M := 1; end if;
@@ -1289,8 +1301,11 @@ procedure testBox(grps_by_name)
     testBoxExample();
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
-			 "10A2", "10B2", "11A2", "11A6",
-			 "12B2", "12E2"];
+			 "10A2", "10B2", "10A3", "10A4", 
+			 "11A2", "11A6",
+			 "12B2", "12E2",
+			 "21B6",
+			 "35E6"];
     // Checked all real type conjugates for:
     // 7A3, 8A2, 8A3, 8B3, 9A2, 9B2
     // still not working:
@@ -1298,8 +1313,6 @@ procedure testBox(grps_by_name)
     // The canonical map yields a genus 0 curve,
     // but I fail to find a hyperelliptic relation.
     // (2) 12C2 - for some reason getting only a single form.
-    // (2.5) 10D2, 10E2, 10F2, 12D2 - Now that we choose the another conjugate, it fails!
-    // Somehow it does not seem to intersect any orbit !?
     // (3) 12F2 - there is an orbit in which Pd does not act on the basis
     // There is a form whose conjugate is not in this orbit.
     // (4) 13A2 (Gamma1(13)) - something goes wrong when twisting.
@@ -1311,7 +1324,6 @@ procedure testBox(grps_by_name)
     // Level 17 - computing the action is nearly killing us
     // (6) 17A6 - We again have an issue with the field embeddings.
     // (7) 18A6 - something's wrong with coeffs_by_zeta !?
-    // (8) 35E6 - this is conjugate to Box's example, but for some reason
     // doesn't seem to work !?
     for name in working_examples do
 	X,fs := qExpansionBasis(name, grps_by_name);

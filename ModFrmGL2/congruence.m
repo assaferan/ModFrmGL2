@@ -19,7 +19,6 @@ function GetRealConjugate(H)
   return real_H; 
 end function;
 
-// !! TODO - choose a conjugate contained in B0(M) with M maximal 
 function GetGLModel(H : RealType := true)
   N := Modulus(BaseRing(H));
   SL_N := SL(2, Integers(N));
