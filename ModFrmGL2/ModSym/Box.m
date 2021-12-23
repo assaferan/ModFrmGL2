@@ -343,6 +343,9 @@ function coeffs_by_zeta(x, Q_L)
     Kf := Parent(x);
     d := Degree(Q_L);
     Kf_Q_L := RelativeField(Q_L, Kf);
+    if (Kf_Q_L eq Q_L) then
+	return Eltseq(x);
+    end if;
     return [Kf!Kf_Q_L![y[j] : y in [Eltseq(z) : z in Eltseq(Kf_Q_L!x)]]
 	    : j in [1..d]];
 end function;
@@ -361,7 +364,7 @@ function Pdmatrix(Pd, d, powerlist, chis,
 		  /gauss_sum(chars[perm_d[i]], Q_huge)
 		  : i in [1..#chars]];
 
-    small_diag := DiagonalMatrix(gs_ratios);
+    // small_diag := DiagonalMatrix(gs_ratios);
     list := [];
     Q_K := Domain(Q_K_to_Q_huge);
     zeta_L := Q_L.1;
@@ -404,8 +407,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     deg_divs,
 			     num_coset_reps, J,
 			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge,
-			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K
-			     : TotallyReal := false)
+			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K)
     FCF := [];
     twist_orbit_indices := [];
     already_visited := {};
@@ -528,11 +530,20 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			    : i in [0..EulerPhi(K)-1]];
 	    fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
 		      : i in [1..#fmssQQ_cc]];
+	    // !! TODO : Should also treat the general case (where KK has larger degree)
 	    if Degree(KK) eq 2 then
 		fsols_cc := [Vector([sigma(a) : a in Eltseq(f)]) : f in fsols];
 		// We check for the case where f and f_bar are linearly dependent
+		pivots := [];
+		for fsol in fsols do
+		    assert exists(idx){idx : idx in [1..Degree(fsol)]
+				       | fsol[idx] ne 0};
+		    Append(~pivots, idx);
+		end for;
+		fsols_nrm := [fsols[i] / fsols[i][pivots[i]] : i in [1..#fsols]];
+		fsols_cc_nrm := [fsols_cc[i] / fsols_cc[i][pivots[i]] : i in [1..#fsols]];
 		fixed_cusp_forms_orbit_ns :=
-		    &cat[fsols_cc[i][1]*fsols[i] eq fsols[i][1]*fsols_cc[i]
+		    &cat[fsols_nrm[i] eq fsols_cc_nrm[i]
 			 select [fsols[i] + fsols_cc[i]] else
 			 [fsols[i] + fsols_cc[i], (fsols[i]-fsols_cc[i])/KK.1]
 			 : i in [1..#fsols]];
@@ -544,6 +555,14 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    else
 		fixed_cusp_forms_orbit_ns := fsols;
 	    end if;
+	    // This doesn't necessarily have to happen.
+	    // Some choices of generators yield fixed forms
+	    // with coefficients in Q_huge.
+	    // A way to deal with that could be a choice of generators
+	    // such that the forms will actually be fixed under the Pd's.
+	    // (i.e. all the Bgens will be trivial, and gens will generate
+	    // the intersection with SL2)
+	    /*
 	    if (TotallyReal) then
 		fixed_cusp_forms_orbit_Q_K_plus :=
 		    [Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K :
@@ -553,6 +572,28 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		fixed_cusp_forms_orbit_Q_K_plus :=
 		[Vector([a@@Q_K_to_Q_huge : a in Eltseq(f)])
 		 : f in fixed_cusp_forms_orbit_ns];
+	    end if;
+	   */
+	    Q_K := Domain(Q_K_to_Q_huge);
+	    Q_K_plus := Domain(Q_K_plus_to_Q_K);
+	    in_Q_K := &and &cat[ [IsCoercible(Q_K, a) : a in Eltseq(f)]
+				 : f in fixed_cusp_forms_orbit_ns ];
+	    
+	    if in_Q_K then
+		in_Q_K_plus := &and &cat[ [IsCoercible(Q_K_plus, Q_K!a) : a in Eltseq(f)]
+					  : f in fixed_cusp_forms_orbit_ns ];
+		if in_Q_K_plus then
+		    fixed_cusp_forms_orbit_Q_K_plus :=
+			[Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K : a in Eltseq(f)])
+			 : f in fixed_cusp_forms_orbit_ns];
+		else
+		    fixed_cusp_forms_orbit_Q_K_plus :=
+		    [Vector([a@@Q_K_to_Q_huge : a in Eltseq(f)])
+		     : f in fixed_cusp_forms_orbit_ns];
+		end if;
+	    else
+		fixed_cusp_forms_orbit_Q_K_plus :=
+		[Vector([Q_huge!a  : a in Eltseq(f)]) : f in fixed_cusp_forms_orbit_ns];
 	    end if;
 	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 	    twist_orbit_index cat:=
@@ -987,6 +1028,7 @@ function FindCurveSimple(qexps, prec, n_rel)
 	      i in [1..Dimension(kers[d])]] : d in [1..n_rel]];
     I := ideal<R | &cat rels>;
     X := Curve(ProjectiveSpace(R),I);
+    // Do we want to assert X is coercible to Q?
     return X, fs;
 end function;
 
@@ -1050,14 +1092,17 @@ procedure testBoxExample()
 	Append(~fs, BoxExample(G, ws, prec));
     end for;
     assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
-    Q_K_plus := BaseRing(Universe(fs[1]));
-    _<qKp> := PowerSeriesRing(Q_K_plus);
-    fs_qexps:=[[int_qexp(f,prec,qKp,Q_K_plus) : f in AA] : AA in fs];
-    curves := [FindCurveSimple(fs, prec, 2) : fs in fs_qexps];
+    fs_qexps := [* *];
+    for num in [1..3] do
+	Q_K_plus := BaseRing(Universe(fs[num]));
+	_<qKp> := PowerSeriesRing(Q_K_plus);
+	Append(~fs_qexps, [int_qexp(f,prec,qKp,Q_K_plus) : f in fs[num]]);
+    end for;
+    curves := [* FindCurveSimple(fs, prec, 2) : fs in fs_qexps *];
     assert [Genus(X) : X in curves] eq [6,5,8];
 end procedure;
 
-function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
+function BoxMethod(G, prec : AtkinLehner := [])
     gens, Bgens, K, M, ds := get_gens(G);
 
     print "Found generators. K = ", K, " and M = ", M;
@@ -1086,6 +1131,7 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
     // of S and T, and use these to obtain the images of all the generators.
     gs := [gen_to_mat2(g^(-1),C) : g in gmats];
     Bs := [gen_to_mat2(B^(-1),C) : B in Bmats];
+    // Bs := [gen_to_mat2(B,C) : B in Bmats];
     J := Transpose(StarInvolution(C));
 
     Cplus := Kernel(Transpose(J-1));
@@ -1214,8 +1260,7 @@ function BoxMethod(G, prec : AtkinLehner := [], TotallyReal := false)
 				  J,
 				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
 				  Q_L_to_Q_huge, Q_gcd, zeta_gcd,
-				  Q_gcd_to_Q_K
-				  : TotallyReal := TotallyReal);
+				  Q_gcd_to_Q_K);
     return fs, tos;
 end function;
 
@@ -1242,11 +1287,12 @@ import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
     testBoxExample();
-    working_examples := ["8A2", "8A3", "8B3", "9A2", "9B2",
+    working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
+			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "11A2", "11A6",
 			 "12B2", "12E2"];
     // Checked all real type conjugates for:
-    // 8A2, 8A3, 8B3, 9A2, 9B2
+    // 7A3, 8A2, 8A3, 8B3, 9A2, 9B2
     // still not working:
     // (1) 10D2, 10E2, 10F2 - obtains two G-invariant forms.
     // The canonical map yields a genus 0 curve,
@@ -1267,8 +1313,6 @@ procedure testBox(grps_by_name)
     // (7) 18A6 - something's wrong with coeffs_by_zeta !?
     // (8) 35E6 - this is conjugate to Box's example, but for some reason
     // doesn't seem to work !?
-    // (9) 7A3 - coercion to Q_K is not working??
-    // (10) 9A4 - can't find enough forms
     for name in working_examples do
 	X,fs := qExpansionBasis(name, grps_by_name);
     end for;
