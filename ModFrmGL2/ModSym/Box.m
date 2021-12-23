@@ -1,3 +1,4 @@
+import "../GrpPSL2/GrpPSL2/words_for_matricesSL2.m" : MatrixToWord;
 import "linalg.m" : KernelOn, Restrict;
 import "operators.m" : ActionOnModularSymbolsBasis;
 
@@ -37,7 +38,8 @@ end function;
 
 function gen_to_mat2(g, C)
     MS := AmbientSpace(C);
-    gM := ActionOnModularSymbolsBasis(Eltseq(g), MS);
+    print "computing action of ", g;
+    time gM := ActionOnModularSymbolsBasis(Eltseq(g), MS); 
     gC := Restrict(gM, VectorSpace(C));
     return Transpose(gC);
 end function;
@@ -518,6 +520,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		fixed_B_pd := Kernel(B_pd_cfs - I_mat);
 		fixed_ms_space_QQ meet:= fixed_B_pd;
 	    end for;
+	    assert Dimension(fixed_ms_space_QQ) eq #fixed_space_basis;
 	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
 	    fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
@@ -530,7 +533,48 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			    : i in [0..EulerPhi(K)-1]];
 	    fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
 		      : i in [1..#fmssQQ_cc]];
-	    // !! TODO : Should also treat the general case (where KK has larger degree)
+	    // !! TODO - We seem to assume many things here are Galois
+	    // Can we prove that they are?
+	    if KK ne Q_huge then
+		aut_KK := Automorphisms(KK);
+		xi := KK.1;
+		fsols_conj := [[Vector([sig(a) : a in Eltseq(f)])
+			    : f in fsols] : sig in aut_KK];
+		xi_conj := [sig(xi) : sig in aut_KK];
+		fixed_cusp_forms_orbit_ns :=
+		    &cat[[&+[xi_conj[l]^j * fsols_conj[l][i] : l in [1..#aut_KK]]
+			 : j in [0..Degree(KK)-1]]
+			 : i in [1..#fsols] ];
+	    else
+		fixed_cusp_forms_orbit_ns := fsols;
+	    end if;
+	    /*
+	    gal_KK, aut_KK, psi_KK := AutomorphismGroup(KK);
+	    subgal_gens := [];
+	    for sig in gal_KK do
+		a := psi_KK(sig);
+		if &and[exists(tw1){tw1 : tw1 in twist_all_aps
+				    | [a(x) : x in tw2] eq tw1} : tw2 in twist_all_aps] then
+		    Append(~subgal_gens, sig);
+		end if;
+	    end for;
+	    subgal := sub<gal_KK | subgal_gens>;
+	    
+	    FF := FixedField(KK, [psi_KK(x) : x in subgal]);
+	    if (FF eq BaseRing(KK)) then
+		fixed_cusp_forms_orbit_ns := fsols;
+	    else
+		xi := FF.1;
+		quo, quo_map := gal_KK / subgal;
+		fsols_conj := [[Vector([psi_KK(x@@quo_map)(a) : a in Eltseq(f)])
+				: f in fsols] : x in quo];
+		xi_conj := [psi_KK(x@@quo_map)(xi) : x in quo];
+		fixed_cusp_forms_orbit_ns :=
+		    &cat[&+[xi_conj[i]^j * fsols_conj[i] : j in [0..#quo-1]]
+			 : i in [1..#fsols] ];
+	    end if;
+	   */
+	    /*
 	    if Degree(KK) eq 2 then
 		fsols_cc := [Vector([sigma(a) : a in Eltseq(f)]) : f in fsols];
 		// We check for the case where f and f_bar are linearly dependent
@@ -547,31 +591,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			 select [fsols[i] + fsols_cc[i]] else
 			 [fsols[i] + fsols_cc[i], (fsols[i]-fsols_cc[i])/KK.1]
 			 : i in [1..#fsols]];
-		/*
-		    &cat[[f+Vector([sigma(a) : a in Eltseq(f)]),
-			  (f-Vector([sigma(a) : a in Eltseq(f)]))/KK.1]
-			 : f in fsols];
-	       */
 	    else
 		fixed_cusp_forms_orbit_ns := fsols;
-	    end if;
-	    // This doesn't necessarily have to happen.
-	    // Some choices of generators yield fixed forms
-	    // with coefficients in Q_huge.
-	    // A way to deal with that could be a choice of generators
-	    // such that the forms will actually be fixed under the Pd's.
-	    // (i.e. all the Bgens will be trivial, and gens will generate
-	    // the intersection with SL2)
-	    /*
-	    if (TotallyReal) then
-		fixed_cusp_forms_orbit_Q_K_plus :=
-		    [Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K :
-			     a in Eltseq(f)])
-		     : f in fixed_cusp_forms_orbit_ns];
-	    else
-		fixed_cusp_forms_orbit_Q_K_plus :=
-		[Vector([a@@Q_K_to_Q_huge : a in Eltseq(f)])
-		 : f in fixed_cusp_forms_orbit_ns];
 	    end if;
 	   */
 	    Q_K := Domain(Q_K_to_Q_huge);
@@ -595,6 +616,9 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		fixed_cusp_forms_orbit_Q_K_plus :=
 		[Vector([Q_huge!a  : a in Eltseq(f)]) : f in fixed_cusp_forms_orbit_ns];
 	    end if;
+	    fixed_cusp_forms_orbit_Q_K_plus :=
+		Basis(sub<Universe(fixed_cusp_forms_orbit_Q_K_plus)
+			 | fixed_cusp_forms_orbit_Q_K_plus>);
 	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 	    twist_orbit_index cat:=
 		[[i : j in [1..#fixed_cusp_forms_orbit_Q_K_plus]]];
@@ -1119,7 +1143,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
 
     print "Found generators. K = ", K, " and M = ", M;
     
-    gens cat:= AtkinLehner;
+    // gens cat:= AtkinLehner;
     N := M * K^2;
     g1 := CRT([1+K,1], [K^2,M]);
     alpha := Integers()!PrimitiveElement(Integers(M));
@@ -1135,15 +1159,38 @@ function BoxMethod(G, prec : AtkinLehner := [])
     alpha_K := GL(2, Rationals())![1,0,0,1/K];
     gmats := [Matrix(GL2Q!g^alpha_K) : g in gens];
     Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
-
+    al_mats := [Matrix(GL2Q!g^alpha_K) : g in AtkinLehner];
+    
     print "Computing action of Gamma on large cusp form space...";
-    // This could be made faster,
-    // but right now I want to follow Box closely
-    // Basically, folowing Cremona - we should only compute the images
-    // of S and T, and use these to obtain the images of all the generators.
-    gs := [gen_to_mat2(g^(-1),C) : g in gmats];
-    Bs := [gen_to_mat2(B^(-1),C) : B in Bmats];
+
+    B0M := M eq 1 select PSL2(Integers()) else Gamma0(M);
+    B0M_gens := [Eltseq(x) : x in Generators(B0M)];
+    B0M_mats := [Matrix(GL2Q!g^alpha_K) : g in B0M_gens];
+    
+    gexps := [FindWord(B0M, B0M!g) : g in gens];
+    Bexps := [FindWord(B0M, B0M!g) : g in Bgens];
+
+    assert &and[&*([GL2Q!1]
+		   cat [B0M_mats[Abs(x)]^(Sign(x)) : x in gexps[i]]) in [gmats[i], -gmats[i]]
+		: i in [1..#gmats]];
+
+    assert &and[&*([GL2Q!1]
+		   cat [B0M_mats[Abs(x)]^(Sign(x)) : x in Bexps[i]]) in [Bmats[i], -Bmats[i]]
+		: i in [1..#Bmats]];
+	      
+    B0M_C := [Transpose(gen_to_mat2(g^(-1), C)) : g in B0M_mats];
+    I_mat := Universe(B0M_C)!1;
+    gs := [Transpose(&*([I_mat] cat [B0M_C[Abs(x)]^(Sign(x)) : x in exp]))
+	   : exp in gexps];
+    Bs := [Transpose(&*([I_mat] cat [B0M_C[Abs(x)]^(Sign(x)) : x in exp]))
+		  : exp in Bexps];
+
+    // This is for debugging, in case we need any
+ //   assert gs eq [gen_to_mat2(g^(-1),C) : g in gmats];
+ //   assert Bs eq [gen_to_mat2(B^(-1),C) : B in Bmats];
     // Bs := [gen_to_mat2(B,C) : B in Bmats];
+    gs cat:= [gen_to_mat2(g^(-1),C) : g in al_mats];
+    
     J := Transpose(StarInvolution(C));
 
     Cplus := Kernel(Transpose(J-1));
@@ -1312,6 +1359,7 @@ procedure testBox(grps_by_name)
     // (1) 10D2, 10E2, 10F2 - obtains two G-invariant forms.
     // The canonical map yields a genus 0 curve,
     // but I fail to find a hyperelliptic relation.
+    // (1.5) 10B4 - Finds too many fixed cusp forms (6 instead of 4)!!
     // (2) 12C2 - for some reason getting only a single form.
     // (3) 12F2 - there is an orbit in which Pd does not act on the basis
     // There is a form whose conjugate is not in this orbit.
