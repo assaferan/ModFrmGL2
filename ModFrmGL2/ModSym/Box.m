@@ -185,22 +185,25 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 	ftw := ftws[mutw_idx];
 	for sp_idx in [1..#oldspaces_full] do
 	    if mutw in ChangeRing(oldspaces_full[sp_idx], Kf) then
-		new_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
-				       oldspaces[sp_idx],
-				       B_mats[sp_idx][1]) *
-				    Transpose(ChangeRing(Tr_mats[sp_idx][2],Kf))
-				    / num_coset_reps[sp_idx]];
 		// ftwpr := pr(ftw, #alist, Nold[sp_idx], prec);
 		cond := Conductor(chis[mutw_idx]);
 		check := [i : i in [1..#alist] | GCD(i, cond) eq 1];
 		ftwpr := pr(ftw, check, Nold[sp_idx], prec);
-		d := deg_divs[sp_idx][2];
-		ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
-			     *ftwpr[j]*qKK^(d*j)
-			     : j in [1..prec-1]];
-		new_ftwists cat:= [[Coefficient(ftwprB,idx)
-				    : idx in [1..prec-1]]];
-		Append(~new_powerlist, new_powerlist[mutw_idx]) ;
+		// d := deg_divs[sp_idx][2];
+		for j in [2..#deg_divs[sp_idx]] do
+		    d := deg_divs[sp_idx][j];
+		    new_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
+				       oldspaces[sp_idx],
+				       B_mats[sp_idx][1]) *
+				    Transpose(ChangeRing(Tr_mats[sp_idx][j],Kf))
+				    / num_coset_reps[sp_idx]];
+		    ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
+				 *ftwpr[j]*qKK^(d*j)
+				 : j in [1..prec-1]];
+		    new_ftwists cat:= [[Coefficient(ftwprB,idx)
+					: idx in [1..prec-1]]];
+		    Append(~new_powerlist, new_powerlist[mutw_idx]) ;
+		end for;
 	    end if;
 	end for;
     end for;
@@ -1360,31 +1363,29 @@ end function;
 import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
- //   testBoxExample();
+    testBoxExample();
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "10A3", "10A4", 
 			 "11A2", "11A6",
 			 "12B2", "12E2",
-			 "18B6", 
+			 "14B6",
+			 "18A6", "18B6", "18C6", 
 			 "21B6",
 			 "35E6"];
     // Checked all real type conjugates for:
     // 7A3, 8A2, 8A3, 8B3, 9A2
     // Hyperelliptic (curve finding not implmented yet):
-    // 8A2, 8B3, 9A2, 9B2, 10A2, 10B2, 10D2, 10E2, 10F2, 12E2, 11A2
+    // 8A2, 8B3, 9A2, 9B2, 10A2, 10B2, 10D2, 10E2, 10F2, 12E2, 11A2, 12C2
     // still not working:
-    // (1) 12C2 - for some reason getting only a single form.
-    // (2) 12F2 - there is an orbit in which Pd does not act on the basis
+    // (1) 12F2 - there is an orbit in which Pd does not act on the basis
     // There is a form whose conjugate is not in this orbit.
-    // (3) 13A2 (Gamma1(13)) - something goes wrong when twisting.
+    // (2) 13A2 (Gamma1(13)) - something goes wrong when twisting.
     // We twist the form 13.2.e.a and obtain the aps of 169.2.b.a
     // but the mu seems to be in the old subspace.
     // Either we should twist by the inverse in one of them or this is an
     // issue with field embeddings.
-    // (4) 14B6 - for some reason getting only 5 forms !?
-    // (5) 17A6 - We again have an issue with the field embeddings.
-    // (6) 18A6 - Getting only 4 newforms !?
+    // (4) 17A6 - We again have an issue with the field embeddings.
     for name in working_examples do
 	X,fs := qExpansionBasis(name, grps_by_name);
     end for;
