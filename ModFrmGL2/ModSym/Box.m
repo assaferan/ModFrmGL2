@@ -174,25 +174,36 @@ function IsEqualPowerSeries(f, g)
 			  eq Coefficient(g,i) : i in [0..prec-1]]};
 end function;
 
+// !? Issue - when we have a twist which is an oldform
+// we do not replace it by its projection to the newform space.
+// The same is true for a twist which is a newform
+// Thus we have zeros at the corresopnding aps
+// As long as the mus and the fs correspond to one another,
+// this should not matter. However, identifying forms becomeed more difficult.
+
 procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 			 ftws, oldspaces_full, oldspaces,
 			 Kf, B_mats, Tr_mats, num_coset_reps,
 			 alist, Nold, prec, deg_divs, Q_huge,
-			 qKK, chis)
-    
+			 qKK, chis, Nnew)
+    n_mutwists := [];
+    n_ftwists := [];
+    n_powerlist := [];
     for mutw_idx in [1..#new_mutwists] do
 	mutw := new_mutwists[mutw_idx];
 	ftw := ftws[mutw_idx];
+	cond := Conductor(chis[mutw_idx]);
+	check := [i : i in [1..#alist] | GCD(i, cond) eq 1];
+	is_old := false;
 	for sp_idx in [1..#oldspaces_full] do
 	    if mutw in ChangeRing(oldspaces_full[sp_idx], Kf) then
-		// ftwpr := pr(ftw, #alist, Nold[sp_idx], prec);
-		cond := Conductor(chis[mutw_idx]);
-		check := [i : i in [1..#alist] | GCD(i, cond) eq 1];
+		is_old := true;
 		ftwpr := pr(ftw, check, Nold[sp_idx], prec);
-		// d := deg_divs[sp_idx][2];
-		for j in [2..#deg_divs[sp_idx]] do
+		// for j in [2..#deg_divs[sp_idx]] do
+		for j in [1..#deg_divs[sp_idx]] do
 		    d := deg_divs[sp_idx][j];
-		    new_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
+		    // new_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
+		    n_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
 				       oldspaces[sp_idx],
 				       B_mats[sp_idx][1]) *
 				    Transpose(ChangeRing(Tr_mats[sp_idx][j],Kf))
@@ -200,13 +211,27 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 		    ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
 				 *ftwpr[j]*qKK^(d*j)
 				 : j in [1..prec-1]];
-		    new_ftwists cat:= [[Coefficient(ftwprB,idx)
+		    // new_ftwists cat:= [[Coefficient(ftwprB,idx)
+		    n_ftwists cat:= [[Coefficient(ftwprB,idx)
 					: idx in [1..prec-1]]];
-		    Append(~new_powerlist, new_powerlist[mutw_idx]) ;
+		    // Append(~new_powerlist, new_powerlist[mutw_idx]) ;
+		    Append(~n_powerlist, new_powerlist[mutw_idx]);
 		end for;
 	    end if;
 	end for;
+	if not is_old then
+	    ftwpr := pr(ftw, check, Nnew, prec);
+	    n_mutwists cat:= [mutw];
+	    ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
+			 *ftwpr[j]*qKK^(j) : j in [1..prec-1]];
+	    n_ftwists cat:= [[Coefficient(ftwprB,idx)
+					: idx in [1..prec-1]]];
+	    Append(~n_powerlist, new_powerlist[mutw_idx]);
+	end if;
     end for;
+    new_mutwists := n_mutwists;
+    new_ftwists := n_ftwists;
+    new_powerlist := n_powerlist;
     return;
 end procedure;
 
@@ -220,7 +245,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 			       Tr_mats,
 			       deg_divs,
 			       num_coset_reps,
-			       Q_L_to_Q_huge)
+			       Q_L_to_Q_huge, Nnew)
     Kf := Domain(Kf_to_KK);
     dim := Dimension(C);
     fpos :=[g : g in NN |
@@ -276,7 +301,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 		   [flist], oldspaces_full, oldspaces,
 		   Kf, B_mats, Tr_mats, num_coset_reps,
 		   alist, Nold, prec, deg_divs, Q_huge,
-		   qKK, [Universe(chis)!1]);
+		   qKK, [Universe(chis)!1], Nnew);
 
     mutwists := [base_mutwists];
     ftwists := [base_ftwists];
@@ -314,7 +339,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 			 new_ftws, oldspaces_full, oldspaces,
 			 Kf, B_mats, Tr_mats, num_coset_reps,
 			 alist, Nold, prec, deg_divs, Q_huge,
-			 qKK, chars);
+			 qKK, chars, Nnew);
 
 	    Append(~powerlist, new_powerlist);
 	    Append(~ftwists, new_ftwists);
@@ -412,7 +437,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     deg_divs,
 			     num_coset_reps, J,
 			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge,
-			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K)
+			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K, Nnew)
     FCF := [];
     twist_orbit_indices := [];
     already_visited := {};
@@ -439,7 +464,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  Tr_mats,
 				  deg_divs,
 				  num_coset_reps,
-				  Q_L_to_Q_huge);
+				  Q_L_to_Q_huge, Nnew);
 	twist_all_aps := [* *];
 	for twist_mf in twist_mfs do
 	    nonzero := exists(pivot){pivot : pivot in [1..#twist_mf]
@@ -1330,7 +1355,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
 				  J,
 				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
 				  Q_L_to_Q_huge, Q_gcd, zeta_gcd,
-				  Q_gcd_to_Q_K);
+				  Q_gcd_to_Q_K, Nnew);
     return fs, tos;
 end function;
 
@@ -1375,17 +1400,17 @@ procedure testBox(grps_by_name)
 			 "35E6"];
     // Checked all real type conjugates for:
     // 7A3, 8A2, 8A3, 8B3, 9A2
-    // Hyperelliptic (curve finding not implmented yet):
-    // 8A2, 8B3, 9A2, 9B2, 10A2, 10B2, 10D2, 10E2, 10F2, 12E2, 11A2, 12C2
+    // Hyperelliptic (curve finding not implemented yet):
+    // 8A2, 8B3, 9A2, 9B2, 10A2, 10B2, 10D2, 10E2, 10F2, 11A2,
+    // 12C2, 12E2, 12F2
+    // Idea : we can find a rational cusp and write q-expansions around it
     // still not working:
-    // (1) 12F2 - there is an orbit in which Pd does not act on the basis
-    // There is a form whose conjugate is not in this orbit.
-    // (2) 13A2 (Gamma1(13)) - something goes wrong when twisting.
+    // (1) 13A2 (Gamma1(13)) - something goes wrong when twisting.
     // We twist the form 13.2.e.a and obtain the aps of 169.2.b.a
     // but the mu seems to be in the old subspace.
     // Either we should twist by the inverse in one of them or this is an
     // issue with field embeddings.
-    // (4) 17A6 - We again have an issue with the field embeddings.
+    // (2) 17A6 - We again have an issue with the field embeddings.
     for name in working_examples do
 	X,fs := qExpansionBasis(name, grps_by_name);
     end for;
