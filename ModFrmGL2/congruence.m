@@ -212,7 +212,7 @@ function checkShimura(grps)
     return shimura_list;
 end function;
 
-function qExpansionBasis(grp_name, grps)
+function qExpansionBasis(grp_name, grps : Precision := 0)
     grp := grps[grp_name];
     N := grp`level;
     gens := grp`matgens;
@@ -231,7 +231,7 @@ function qExpansionBasis(grp_name, grps)
     max_M, loc := Maximum([get_M_K(c) : c in cands]);
     print "Best M found among conjugates is ", max_M;
     G := cands[loc];
-    X, fs := ModularCurve(G, grp`genus);
+    X, fs := ModularCurve(G, grp`genus : Precision := Precision);
     return X, fs;
 end function;
 

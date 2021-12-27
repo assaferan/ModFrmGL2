@@ -461,7 +461,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 					     meet real_twist_orbit_ms);
 	dim_orbit := Dimension(real_twist_orbit_ms);
 	if #fixed_space_basis gt 0 then
-	    print "Orbit intersects fixed space. Finding G-fixed vectors...";
+        print "Orbit intersects fixed space with dimension ", #fixed_space_basis, ". Finding G-fixed vectors...";
 	    fixed_basis_cfs :=
 		[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
 		 : mu in fixed_space_basis];
@@ -535,6 +535,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		      : i in [1..#fmssQQ_cc]];
 	    // !! TODO - We seem to assume many things here are Galois
 	    // Can we prove that they are?
+        print "Degree of the field K(f) is ", Degree(Kf), ". Extending the forms.";
 	    if KK ne Q_huge then
 		aut_KK := Automorphisms(KK);
 		xi := KK.1;
@@ -616,9 +617,11 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		fixed_cusp_forms_orbit_Q_K_plus :=
 		[Vector([Q_huge!a  : a in Eltseq(f)]) : f in fixed_cusp_forms_orbit_ns];
 	    end if;
+/*
 	    fixed_cusp_forms_orbit_Q_K_plus :=
 		Basis(sub<Universe(fixed_cusp_forms_orbit_Q_K_plus)
 			 | fixed_cusp_forms_orbit_Q_K_plus>);
+ */
 	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 	    twist_orbit_index cat:=
 		[[i : j in [1..#fixed_cusp_forms_orbit_Q_K_plus]]];
@@ -632,7 +635,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
     fs := &cat [FCF[i][1] : i in [1..#FCF]];
     tos := &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
     // make sure we have the right number of forms
-    assert 2*#fs eq Dimension(GFS);
+  //  assert 2*#fs eq Dimension(GFS);
     return fs, tos;
 end function;
 
@@ -1130,9 +1133,9 @@ procedure testBoxExample()
     assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
     fs_qexps := [* *];
     for num in [1..3] do
-	Q_K_plus := BaseRing(Universe(fs[num]));
-	_<qKp> := PowerSeriesRing(Q_K_plus);
-	Append(~fs_qexps, [int_qexp(f,prec,qKp,Q_K_plus) : f in fs[num]]);
+        Q_K_plus := BaseRing(Universe(fs[num]));
+        _<qKp> := PowerSeriesRing(Q_K_plus);
+        Append(~fs_qexps, [int_qexp(f,prec,qKp,Q_K_plus) : f in fs[num]]);
     end for;
     curves := [* FindCurveSimple(fs, prec, 2) : fs in fs_qexps *];
     assert [Genus(X) : X in curves] eq [6,5,8];
@@ -1323,12 +1326,15 @@ function BoxMethod(G, prec : AtkinLehner := [])
     return fs, tos;
 end function;
 
-function ModularCurve(G, genus)
+function ModularCurve(G, genus : Precision := 0)
     assert genus ge 2;
-    max_deg := Maximum(7-genus, 2);
+    max_deg := Maximum(7-genus, 3);
     prec := max_deg*(2*genus-2)-(max_deg-1) + 1;
     level := Modulus(BaseRing(G));
     prec *:= level;
+    if Precision ne 0 then
+        prec := Precision;
+    end if;
     fs := BoxMethod(G, prec);
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
