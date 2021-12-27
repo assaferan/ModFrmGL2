@@ -460,6 +460,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	fixed_space_basis := Basis(ChangeRing(GFS, Kf)
 					     meet real_twist_orbit_ms);
 	dim_orbit := Dimension(real_twist_orbit_ms);
+	print "Dimension of orbit is ", dim_orbit;
 	if #fixed_space_basis gt 0 then
         print "Orbit intersects fixed space with dimension ", #fixed_space_basis, ". Finding G-fixed vectors...";
 	    fixed_basis_cfs :=
@@ -521,6 +522,20 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		fixed_ms_space_QQ meet:= fixed_B_pd;
 	    end for;
 	    assert Dimension(fixed_ms_space_QQ) eq #fixed_space_basis;
+	    /*
+	    fmssQQ := [[Kf_to_KK(a) : a in Eltseq(v)]
+		       : v in Basis(fixed_ms_space_QQ)];
+	    fixed_basis_cfs := [[Kf_to_KK(a) : a in mulist]
+				: mulist in fixed_basis_cfs];
+	    fixed_cusp_forms_orbit_raw :=
+		[&+[clist[i]*Vector(twist_mfs[i]) : i in [1..#clist]]
+		 : clist in fixed_basis_cfs];
+	    fcf_ext := &cat[[Vector(Q_K_to_Q_huge(zeta_K^i)*f)
+			     : f in fixed_cusp_forms_orbit_raw]
+			    : i in [0..EulerPhi(K)-1]];
+	    fsols := [&+[fmssQQ[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
+		      : i in [1..#fmssQQ]];
+	    */
 	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
 	    fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
@@ -533,70 +548,42 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			    : i in [0..EulerPhi(K)-1]];
 	    fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
 		      : i in [1..#fmssQQ_cc]];
+	    
 	    // !! TODO - We seem to assume many things here are Galois
 	    // Can we prove that they are?
-        print "Degree of the field K(f) is ", Degree(Kf), ". Extending the forms.";
+            print "Degree of the field K(f) is ", Degree(Kf), ". Extending the forms.";
+	    // We look for things fixed by the automorphisms of KK that leave Q_K fixed.
+	    // There are several ways to do this, here we ake a direct one.
+	    Q_K := Domain(Q_K_to_Q_huge);
+
+	    // Step I - summing over automorphisms of KK/Q_huge
 	    if KK ne Q_huge then
 		aut_KK := Automorphisms(KK);
 		xi := KK.1;
 		fsols_conj := [[Vector([sig(a) : a in Eltseq(f)])
 			    : f in fsols] : sig in aut_KK];
 		xi_conj := [sig(xi) : sig in aut_KK];
-		fixed_cusp_forms_orbit_ns :=
+		// fixed_cusp_forms_orbit_ns :=
+		fsols := 
 		    &cat[[&+[xi_conj[l]^j * fsols_conj[l][i] : l in [1..#aut_KK]]
 			 : j in [0..Degree(KK)-1]]
 			 : i in [1..#fsols] ];
-	    else
-		fixed_cusp_forms_orbit_ns := fsols;
 	    end if;
-	    /*
-	    gal_KK, aut_KK, psi_KK := AutomorphismGroup(KK);
-	    subgal_gens := [];
-	    for sig in gal_KK do
-		a := psi_KK(sig);
-		if &and[exists(tw1){tw1 : tw1 in twist_all_aps
-				    | [a(x) : x in tw2] eq tw1} : tw2 in twist_all_aps] then
-		    Append(~subgal_gens, sig);
-		end if;
-	    end for;
-	    subgal := sub<gal_KK | subgal_gens>;
-	    
-	    FF := FixedField(KK, [psi_KK(x) : x in subgal]);
-	    if (FF eq BaseRing(KK)) then
-		fixed_cusp_forms_orbit_ns := fsols;
-	    else
-		xi := FF.1;
-		quo, quo_map := gal_KK / subgal;
-		fsols_conj := [[Vector([psi_KK(x@@quo_map)(a) : a in Eltseq(f)])
-				: f in fsols] : x in quo];
-		xi_conj := [psi_KK(x@@quo_map)(xi) : x in quo];
-		fixed_cusp_forms_orbit_ns :=
-		    &cat[&+[xi_conj[i]^j * fsols_conj[i] : j in [0..#quo-1]]
-			 : i in [1..#fsols] ];
-	    end if;
-	   */
-	    /*
-	    if Degree(KK) eq 2 then
-		fsols_cc := [Vector([sigma(a) : a in Eltseq(f)]) : f in fsols];
-		// We check for the case where f and f_bar are linearly dependent
-		pivots := [];
-		for fsol in fsols do
-		    assert exists(idx){idx : idx in [1..Degree(fsol)]
-				       | fsol[idx] ne 0};
-		    Append(~pivots, idx);
-		end for;
-		fsols_nrm := [fsols[i] / fsols[i][pivots[i]] : i in [1..#fsols]];
-		fsols_cc_nrm := [fsols_cc[i] / fsols_cc[i][pivots[i]] : i in [1..#fsols]];
-		fixed_cusp_forms_orbit_ns :=
-		    &cat[fsols_nrm[i] eq fsols_cc_nrm[i]
-			 select [fsols[i] + fsols_cc[i]] else
-			 [fsols[i] + fsols_cc[i], (fsols[i]-fsols_cc[i])/KK.1]
-			 : i in [1..#fsols]];
-	    else
-		fixed_cusp_forms_orbit_ns := fsols;
-	    end if;
-	   */
-	    Q_K := Domain(Q_K_to_Q_huge);
+
+	    // Step II - summing over automorphisms of Q_huge/Q_K
+	    L := EulerPhi(K) div 2;
+	    L_0 := L div GCD(K,L);
+	    powers := [CRT([1,a],[K,L_0]) : a in [1..L_0] | GCD(a,L_0) eq 1];
+	    aut_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
+	    xi := zeta_huge^K;
+	    fsols_conj := [[Vector([sig(a) : a in Eltseq(f)])
+			    : f in fsols] : sig in aut_Q_huge];
+	    xi_conj := [sig(xi) : sig in aut_Q_huge];
+	    fixed_cusp_forms_orbit_ns :=
+		&cat[[&+[xi_conj[l]^j * fsols_conj[l][i] : l in [1..#aut_Q_huge]]
+		      : j in [0..EulerPhi(L_0)-1]]
+		     : i in [1..#fsols] ];
+
 	    Q_K_plus := Domain(Q_K_plus_to_Q_K);
 	    in_Q_K := &and &cat[ [IsCoercible(Q_K, a) : a in Eltseq(f)]
 				 : f in fixed_cusp_forms_orbit_ns ];
@@ -608,20 +595,36 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		    fixed_cusp_forms_orbit_Q_K_plus :=
 			[Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K : a in Eltseq(f)])
 			 : f in fixed_cusp_forms_orbit_ns];
+		    print "Coefficients are in Q_K_plus.";
 		else
 		    fixed_cusp_forms_orbit_Q_K_plus :=
 		    [Vector([a@@Q_K_to_Q_huge : a in Eltseq(f)])
 		     : f in fixed_cusp_forms_orbit_ns];
+		    print "Coefficients are in Q_K.";
 		end if;
 	    else
-		fixed_cusp_forms_orbit_Q_K_plus :=
-		[Vector([Q_huge!a  : a in Eltseq(f)]) : f in fixed_cusp_forms_orbit_ns];
+		in_Q_huge := &and &cat[ [IsCoercible(Q_huge, a) : a in Eltseq(f)]
+					: f in fixed_cusp_forms_orbit_ns ];
+		if in_Q_huge then
+		    fixed_cusp_forms_orbit_Q_K_plus :=
+			[Vector([Q_huge!a  : a in Eltseq(f)]) : f in fixed_cusp_forms_orbit_ns];
+		    print "Coefficients are in Q_huge.";
+		else
+		    fixed_cusp_forms_orbit_Q_K_plus := fixed_cusp_forms_orbit_ns;
+		    print "Coefficients are not in Q_huge!";
+		end if;
 	    end if;
-/*
-	    fixed_cusp_forms_orbit_Q_K_plus :=
-		Basis(sub<Universe(fixed_cusp_forms_orbit_Q_K_plus)
-			 | fixed_cusp_forms_orbit_Q_K_plus>);
- */
+
+	    FF := BaseRing(fixed_cusp_forms_orbit_Q_K_plus[1]);
+	    deg := Degree(fixed_cusp_forms_orbit_Q_K_plus[1]);
+	    Q_mat := Matrix([&cat[Eltseq(a) : a in Eltseq(f)]
+			     : f in fixed_cusp_forms_orbit_Q_K_plus]);
+	    Q_basis := Basis(RowSpace(Q_mat));
+	    fs := [Vector([FF![b[Degree(FF)*i + j + 1]
+			       : j in [0..Degree(FF)-1]]
+			   : i in [0..deg-1]]) : b in Q_basis];
+	    fixed_cusp_forms_orbit_Q_K_plus := fs;
+	    
 	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 	    twist_orbit_index cat:=
 		[[i : j in [1..#fixed_cusp_forms_orbit_Q_K_plus]]];
@@ -635,7 +638,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
     fs := &cat [FCF[i][1] : i in [1..#FCF]];
     tos := &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
     // make sure we have the right number of forms
-  //  assert 2*#fs eq Dimension(GFS);
+    assert 2*#fs eq Dimension(GFS);
     return fs, tos;
 end function;
 
@@ -1071,13 +1074,15 @@ function FindCurveSimple(qexps, prec, n_rel)
     return X, fs;
 end function;
 
+// This doesn't really work, as it assumes that
+// the q-expansions are rational!
 function FindHyperellipticCurve(qexps, prec)
     R<q> := Universe(qexps);
     K := BaseRing(R);
     fs := [f + O(q^prec) : f in qexps];
     g := #fs;
-    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
-    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
+ //   T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+ //   fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
     x := fs[g-1] / fs[g];
     y := q * Derivative(x) / fs[g];
     mons := [x^i : i in [0..2*g+2]] cat [-y^2];
@@ -1342,43 +1347,44 @@ function ModularCurve(G, genus : Precision := 0)
     X, fs := FindCurveSimple(fs_qexps, prec, max_deg);
     g := Genus(X);
     if g eq 0 then
-	X, fs := FindHyperellipticCurve(fs_qexps, prec);
+	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
+	return X, fs;
+    else
+	assert Genus(X) eq genus;
+	X_Q := ChangeRing(X, Rationals());
+	return X_Q, fs;
     end if;
-    assert Genus(X) eq genus;
-    return X, fs;
 end function;
 
 import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
-    testBoxExample();
+ //   testBoxExample();
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "10A3", "10A4", 
 			 "11A2", "11A6",
 			 "12B2", "12E2",
+			 "18B6", 
 			 "21B6",
 			 "35E6"];
     // Checked all real type conjugates for:
-    // 7A3, 8A2, 8A3, 8B3, 9A2, 9B2
+    // 7A3, 8A2, 8A3, 8B3, 9A2
+    // Hyperelliptic (curve finding not implmented yet):
+    // 8A2, 8B3, 9A2, 9B2, 10A2, 10B2, 10D2, 10E2, 10F2, 12E2, 11A2
     // still not working:
-    // (1) 10D2, 10E2, 10F2 - obtains two G-invariant forms.
-    // The canonical map yields a genus 0 curve,
-    // but I fail to find a hyperelliptic relation.
-    // (1.5) 10B4 - Finds too many fixed cusp forms (6 instead of 4)!!
-    // (2) 12C2 - for some reason getting only a single form.
-    // (3) 12F2 - there is an orbit in which Pd does not act on the basis
+    // (1) 12C2 - for some reason getting only a single form.
+    // (2) 12F2 - there is an orbit in which Pd does not act on the basis
     // There is a form whose conjugate is not in this orbit.
-    // (4) 13A2 (Gamma1(13)) - something goes wrong when twisting.
+    // (3) 13A2 (Gamma1(13)) - something goes wrong when twisting.
     // We twist the form 13.2.e.a and obtain the aps of 169.2.b.a
     // but the mu seems to be in the old subspace.
     // Either we should twist by the inverse in one of them or this is an
     // issue with field embeddings.
-    // (5) 14B6 - for some reason getting only 5 forms !?
-    // Level 17 - computing the action is nearly killing us
-    // (6) 17A6 - We again have an issue with the field embeddings.
-    // (7) 18A6 - something's wrong with coeffs_by_zeta !?
-    // doesn't seem to work !?
+    // (4) 14B6 - for some reason getting only 5 forms !?
+    // (5) 17A6 - We again have an issue with the field embeddings.
+    // (6) 18A6 - Getting only 4 newforms !?
     for name in working_examples do
 	X,fs := qExpansionBasis(name, grps_by_name);
     end for;
