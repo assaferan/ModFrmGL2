@@ -121,33 +121,33 @@ end function;
 
 function pr(flist, check, Nold, prec)
     K := Universe(flist);
+    /*
     if IsAbsoluteField(K) then
 	folds := [f : f in Nold |
 		  &and[Coefficients(MinimalPolynomial(flist[i]))
 		       eq Coefficients(MinimalPolynomial(Coefficient(f,i)))
 		       : i in check]];
-//		       : i in [1..check]]];
     else
+*/
 	folds := [f : f in Nold |
 		  &and[Coefficients(AbsoluteMinimalPolynomial(flist[i]))
 		       eq Coefficients(AbsoluteMinimalPolynomial(Coefficient(f,i)))
 		       : i in check]];
-//		       : i in [1..check]]];
-    end if;
+  //  end if;
     assert #folds eq 1;
     fold := folds[1];
     Kf := BaseRing(Parent(fold));
     if (Type(Kf) eq FldRat) then
 	embs := [hom<Kf->K|>];
-    elif IsAbsoluteField(K) then
-	embs := [hom<Kf->K | r[1]> : r in Roots(DefiningPolynomial(Kf),K)];
+//    elif IsAbsoluteField(K) then
+//	embs := [hom<Kf->K | r[1]> : r in Roots(DefiningPolynomial(Kf),K)];
     else
 	embs := [hom<AbsoluteField(Kf)->K | r[1]>
 		 : r in Roots(DefiningPolynomial(AbsoluteField(Kf)),K)];
     end if;
     embs := [e : e in embs | &and[e(Coefficient(fold, i)) eq flist[i]
 				  : i in check]];
-//				  : i in [1..check]]];
+
     assert #embs eq 1;
     return [embs[1](Coefficient(fold, i)) : i in [1..prec-1]];
 end function;
@@ -199,10 +199,8 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 	    if mutw in ChangeRing(oldspaces_full[sp_idx], Kf) then
 		is_old := true;
 		ftwpr := pr(ftw, check, Nold[sp_idx], prec);
-		// for j in [2..#deg_divs[sp_idx]] do
 		for j in [1..#deg_divs[sp_idx]] do
 		    d := deg_divs[sp_idx][j];
-		    // new_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
 		    n_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
 				       oldspaces[sp_idx],
 				       B_mats[sp_idx][1]) *
@@ -211,10 +209,8 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 		    ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
 				 *ftwpr[j]*qKK^(d*j)
 				 : j in [1..prec-1]];
-		    // new_ftwists cat:= [[Coefficient(ftwprB,idx)
 		    n_ftwists cat:= [[Coefficient(ftwprB,idx)
 					: idx in [1..prec-1]]];
-		    // Append(~new_powerlist, new_powerlist[mutw_idx]) ;
 		    Append(~n_powerlist, new_powerlist[mutw_idx]);
 		end for;
 	    end if;
@@ -264,7 +260,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 				  : i in [1..#alist]]];
     assert #embs eq 1;
     emb := embs[1];
-    flist := [cc(Kf_to_KK(emb(Coefficient(f,i)))) : i in [1..prec-1]];
+    flist := [Kf_to_KK(emb(Coefficient(f,i))) : i in [1..prec-1]];
     subsp := VectorSpace(Kf, dim);
     for i in [1..#Nold] do
 	if exists(g){g : g in Nold[i] | IsEqualPowerSeries(f,g)} then
@@ -550,20 +546,9 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		fixed_ms_space_QQ meet:= fixed_B_pd;
 	    end for;
 	    assert Dimension(fixed_ms_space_QQ) eq #fixed_space_basis;
-	    /*
-	    fmssQQ := [[Kf_to_KK(a) : a in Eltseq(v)]
-		       : v in Basis(fixed_ms_space_QQ)];
-	    fixed_basis_cfs := [[Kf_to_KK(a) : a in mulist]
-				: mulist in fixed_basis_cfs];
-	    fixed_cusp_forms_orbit_raw :=
-		[&+[clist[i]*Vector(twist_mfs[i]) : i in [1..#clist]]
-		 : clist in fixed_basis_cfs];
-	    fcf_ext := &cat[[Vector(Q_K_to_Q_huge(zeta_K^i)*f)
-			     : f in fixed_cusp_forms_orbit_raw]
-			    : i in [0..EulerPhi(K)-1]];
-	    fsols := [&+[fmssQQ[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
-		      : i in [1..#fmssQQ]];
-	    */
+	    
+	    // Here we need to take complex onjugates because of Proposition 4.10 in [Box]
+	    
 	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
 	    fixed_basis_cfs_cc := [[cc(Kf_to_KK(a)) : a in mulist]
@@ -577,15 +562,14 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
 		      : i in [1..#fmssQQ_cc]];
 	    
-	    // !! TODO - We seem to assume many things here are Galois
-	    // Can we prove that they are?
-            print "Degree of the field K(f) is ", Degree(Kf), ". Extending the forms.";
+	   
 	    // We look for things fixed by the automorphisms of KK that leave Q_K fixed.
 	    // There are several ways to do this, here we ake a direct one.
 	    Q_K := Domain(Q_K_to_Q_huge);
 
 	    // Step I - summing over automorphisms of KK/Q_huge
 	    if KK ne Q_huge then
+		print "Degree of the field KK is ", Degree(KK), ". Extending the forms.";
 		aut_KK := Automorphisms(KK);
 		xi := KK.1;
 		fsols_conj := [[Vector([sig(a) : a in Eltseq(f)])
@@ -652,6 +636,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			       : j in [0..Degree(FF)-1]]
 			   : i in [0..deg-1]]) : b in Q_basis];
 	    fixed_cusp_forms_orbit_Q_K_plus := fs;
+
+	    print "Obtained ", #fs, " forms from this orbit.";
 	    
 	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 	    twist_orbit_index cat:=
@@ -792,30 +778,6 @@ end function;
 
 function get_gens(G)
     N := Modulus(BaseRing(G));
-    /*
-    // First we find M such that G_M is contained in B_0(M)
-    M := GCD([N] cat [Integers()!g[2,1] : g in Generators(G)]);
-    K := N div M;
-    // we make sure that GCD(K,M) eq 1
-    fac := Factorization(N);
-    M := &*([1] cat [fa[1]^fa[2] : fa in fac | K mod fa[1] ne 0]);
-    // Now we reduce it until equality holds
-    divs := Reverse(Divisors(M));
-    found := false;
-    // we don't try 1 because GL(2,1) etc.
-    for M in divs[1..#divs-1] do
-	G_M := sub< GL(2, Integers(M)) |
-		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(G)]>;
-	B_M := make_Borel(M);
-	if G_M eq B_M then
-	    found := true;
-	    break;
-	end if;
-    end for;
-    if not found then M := 1; end if;
-    
-    K := N div M;
-   */
     M, K := get_M_K(G);
     H := G meet SL(2, Integers(N));
     gens := [Eltseq(FindLiftToSL2(g)) : g in Generators(H)];
@@ -1015,15 +977,37 @@ function createFieldEmbeddings(K, NN, C, ds)
 	Kf := fields[i];
 	Kf_base := BaseRing(Kf);
 	if (Type(Kf_base) eq FldRat) and (Kf ne Q_L) then
-	    Kf := NumberField(Evaluate(DefiningPolynomial(Kf), x_L));
-//	    comp := Compositum(Q_L, Kf);
-//	    assert IsSubfield(Q_L, comp);
-//	    Kf := RelativeField(Q_L, comp);
+	    poly := Evaluate(DefiningPolynomial(Kf), x_L);
+	    // This is a temporary patch.
+	    // Need to understand how to do it in general.
+	    fac := Factorization(Evaluate(poly, x_L));
+	    nt_facs := [f[1] : f in fac | Degree(f[1]) ne 1];
+	    assert #nt_facs le 1;
+	    if #nt_facs eq 1 then
+		Kf := NumberField(nt_facs[1]);
+	    else
+		Kf := Q_L;
+	    end if;
+	    //	    Kf := NumberField(poly);
+	    /*
+	    comp := Compositum(Q_L, Kf);
+	    assert IsSubfield(Q_L, comp);
+	    Kf := RelativeField(Q_L, comp);
+	   */
 	end if;
-	assert IsSubfield(fields[i], Kf);
-	is_sub, emb := IsSubfield(Kf, huge_fields[i]);
+	is_sub, F_to_Kf := IsSubfield(fields[i], Kf);
 	assert is_sub;
-	Append(~field_embs, emb);
+	is_sub, F_to_KK := IsSubfield(fields[i], huge_fields[i]);
+	assert is_sub;
+	is_sub, Kf_to_KK := IsSubfield(Kf, huge_fields[i]);
+	assert is_sub;
+	_, Q_L_to_Kf := IsSubfield(Q_L, Kf);
+	_, Q_huge_to_KK := IsSubfield(Q_huge, huge_fields[i]);
+	// We check that the different embedding commute as they should
+	assert Q_huge_to_KK(Q_L_to_Q_huge(zeta_L)) eq
+	       Kf_to_KK(Q_L_to_Kf(zeta_L));
+//	assert Kf_to_KK(F_to_Kf(fields[i].1)) eq F_to_KK(fields[i].1);
+	Append(~field_embs, Kf_to_KK);
     end for;
 
     cc_Q_huge := hom<Q_huge -> Q_huge | zeta_huge^(-1)>;
@@ -1402,16 +1386,12 @@ procedure testBox(grps_by_name)
     // 7A3, 8A2, 8A3, 8B3, 9A2
     // Hyperelliptic (curve finding not implemented yet):
     // 8A2, 8B3, 9A2, 9B2, 10A2, 10B2, 10D2, 10E2, 10F2, 11A2,
-    // 12C2, 12E2, 12F2
-    // Idea : we can find a rational cusp and write q-expansions around it
+    // 12B2, 12C2, 12E2, 12F2
     // still not working:
-    // (1) 13A2 (Gamma1(13)) - something goes wrong when twisting.
-    // We twist the form 13.2.e.a and obtain the aps of 169.2.b.a
-    // but the mu seems to be in the old subspace.
-    // Either we should twist by the inverse in one of them or this is an
-    // issue with field embeddings.
-    // (2) 17A6 - We again have an issue with the field embeddings.
+
     for name in working_examples do
-	X,fs := qExpansionBasis(name, grps_by_name);
+	print "Working on group ", name;
+	X<[x]>, fs := qExpansionBasis(name, grps_by_name);
+	print "Canonical curve is ", X;
     end for;
 end procedure;
