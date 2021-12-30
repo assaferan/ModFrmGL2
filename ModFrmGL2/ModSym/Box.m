@@ -54,23 +54,6 @@ function Bdmatrix(CM, CMmat, t, C)
     return mat_ret;
 end function;
 
-function sigma(a, Q21, sigma_Q21)
-    K := Parent(a);
-    if K eq Q21 then
-	return sigma_Q21(a);
-    end if;
-    return (hom< K->K | -K.1>)(a);
-end function;
-
-function make_Q21_func(a, Q21, f_Q21)
-    K := Parent(a);
-    if K eq Q21 then
-	return f_Q21(a);
-    end if;
-    return &+[f_Q21(Eltseq(a)[i])*Basis(K)[i]
-	      : i in [1..Degree(K)]];
-end function;
-
 function make_nf_func(a, F, f_F)
     K := Parent(a);
     if K eq F then
@@ -228,7 +211,7 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 end procedure;
 
 function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
-			       prec, cc, sigma, NN, Nold,
+			       prec, cc, NN, Nold,
 			       oldspaces_full, oldspaces,
 			       C, Cplus, chis,
 			       Q_huge, zeta_K,
@@ -361,16 +344,54 @@ function first_nonzero_cf(a)
 end function;
 
 // When we have an element of a number field over a cyclotomic field
-function coeffs_by_zeta(x, Q_L)
+function coeffs_by_zeta(x, Q_g, Q_L)
     Kf := Parent(x);
-    d := Degree(Q_L);
-    Kf_Q_L := RelativeField(Q_L, Kf);
+    d := Degree(Q_g);
+//    Kf_Q_L := RelativeField(Q_L, Kf);
     //    if (Kf_Q_L eq Q_L) then
-    if IsIsomorphic(Kf_Q_L, Q_L) then
-	return Eltseq(Q_L!x);
+    if IsIsomorphic(Kf, Q_g) then
+	return Eltseq(Q_g!x);
     end if;
-    return [Kf!Kf_Q_L![y[j] : y in [Eltseq(z) : z in Eltseq(Kf_Q_L!x)]]
-	    : j in [1..d]];
+    if Kf eq Q_L then
+	Kf_Q_g := RelativeField(Q_g, Q_L);
+	x_k := [Kf!Kf_Q_g![y[j] : y in [Eltseq(z) : z in Eltseq(Kf_Q_g!x)]]
+		: j in [1..d]];
+    else
+	if Q_L eq Q_g then
+	    // we have x = sum a_i alpha^i, where alpha generates Kf over Q_L
+	    // with a_i in Q_L.
+	    // Then a_i = sum a_{ij} zeta^j, 
+	    // so x = sum a_{ij} alpha^i zeta^j with a_{ij} in Q
+	    // If we write x_j = sum a_{ij} alpha^i, then we want to get the x_j.
+	    // Note that Eltseq(x)_i = a_i = sum a_{ij} zeta^j
+	    a_is := Eltseq(x);
+	    // Eltseq(a_i)_j = a_{ij}
+	    a_ijs := [Eltseq(a_i) : a_i in a_is];
+	    // x_j = sum a_{ij} alpha^i
+	    x_k := [Kf![a_i[j] : a_i in a_ijs] : j in [1..d]];
+	else
+	    Q_L_Q_g := RelativeField(Q_g, Q_L);
+	    // Kf_Q_g := ext<Q_L_Q_g | DefiningPolynomial(Kf)>;
+	    // we have x = sum a_i alpha^i, where alpha generates Kf over Q_L
+	    // with a_i in Q_L.
+	    // Then a_i = sum a_{ij} beta^j, where beta generates Q_L over Q_g
+	    // so x = sum a_{ij} alpha^i beta^j with a_{ij} in Q_g
+	    // Finally, in Q_g we have a_{ij} = sum a_{ijk} zeta^k with a_{ijk} in Q.
+	    // so x = sum a_{ijk} alpha^i beta^j zeta^k.
+	    // If we write x_k = sum a_{ijk} alpha^i beta^j, then we want to get the x_k.
+	    // Note that Eltseq(x)_i = a_i = sum a_{ijk} beta^j zeta^k
+	    a_is := Eltseq(x);
+	    // Eltseq(Q_L_Q_g!a_i)_j = a_{ij} = sum a_{ijk} zeta^k
+	    a_ijs := [Eltseq(Q_L_Q_g!a_i) : a_i in a_is];
+	    // a_{ijk} = Eltseq(a_ij)
+	    a_ijks := [[Eltseq(a_ij) : a_ij in row] : row in a_ijs];
+	    // y_{ki} = sum a_{ijk} beta^j
+	    y_ki := [[Q_L!Q_L_Q_g![a_ij[k] : a_ij in a_i] : a_i in a_ijks] : k in [1..d]];
+	    // x_k = sum y_{ki} alpha^i
+	    x_k := [Kf!y_k : y_k in y_ki];
+	end if;
+    end if;
+    return x_k;
 end function;
 
 function Pdmatrix(Pd, d, powerlist, chis,
@@ -421,7 +442,7 @@ end function;
 
 function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     GFS, Bmats, Pds, ds,
-			     cc, sigma, NN, Nold,
+			     cc, NN, Nold,
 			     oldspaces_full,
 			     oldspaces,
 			     C, Cplus, chis,
@@ -450,7 +471,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	Q_huge_to_KK := hom<Q_huge->KK | KK!zeta_huge>;
 	real_twist_orbit_ms, twist_mfs, powerlist :=
 	    make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
-				  prec, cc, sigma, NN, Nold,
+				  prec, cc, NN, Nold,
 				  oldspaces_full, oldspaces,
 				  C, Cplus, chis,
 				  Q_huge, zeta_K,
@@ -491,7 +512,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
 		 : mu in fixed_space_basis];
 	    
-	    coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd) : b in b_imgs]
+	    coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd, Q_L) : b in b_imgs]
 			    : b_imgs in fixed_basis_cfs];
 	    zeta_to_Q_K := [[Vector(Kf,Eltseq(Q_gcd_to_Q_K(zeta_gcd)^i
 					    *zeta_K^r))
@@ -520,7 +541,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		    [Eltseq(Solution(BasisMatrix(real_twist_orbit_ms),
 				     ChangeRing(mu,Kf))) : mu in B_imgs];
 
-		coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd) : b in b_imgs]
+		coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd, Q_L) : b in b_imgs]
 				: b_imgs in B_imgs_cfs];
 		B_imgs_tr := [[[&+[cz[l][i+1]*zeta_to_Q_K[r+1][i+1]
 				   : i in [0..Degree(Q_gcd)-1]]
@@ -854,6 +875,8 @@ function get_old_spaces(MS)
     N := Level(MS);
     // old_levels := [N div p : p in PrimeDivisors(N)];
     C := CuspidalSubspace(MS);
+    // This takes plenty of time, see if we really need it.
+    // We just need the characters and the levels of these spaces here.
     D := NewformDecomposition(C);
     old_levels := Sort([lev : lev in {Level(d) : d in D} | lev ne N]);
     dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
@@ -1081,15 +1104,9 @@ function createFieldEmbeddings(K, NN, C, ds)
 	SKpowersQ_L[cond] := [ChangeRing(M, Q_L) : M in S_cond_powers];
     end for;
     
-    sigma_Q_huge := hom<Q_huge -> Q_huge | zeta_huge>;
-
-    function sigma_i(a)
-	return sigma(a, Q_huge, sigma_Q_huge);
-    end function;
-    
     return field_embs, cc, Ps_Q_huge, SKpowersQ_L, Q_huge,
 	   Q_L, zeta_huge, zeta_K, Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-	   Q_L_to_Q_huge, elts, sigma_i, Q_gcd, zeta_gcd,
+	   Q_L_to_Q_huge, elts, Q_gcd, zeta_gcd,
 	   Q_gcd_to_Q_K;
 end function;
 
@@ -1210,13 +1227,15 @@ function BoxMethod(G, prec : AtkinLehner := [])
     alpha := Integers()!PrimitiveElement(Integers(M));
     g2 := CRT([1,alpha], [K^2,M]);
     MS := ModularSymbolsH(N, [g1,g2], 2, 0);
-    
+
+    /*
     cond := Conductor(CyclotomicField(EulerPhi(N)));
     dirichlet_group := DirichletGroup(N, CyclotomicField(cond));
     chars := [ dirichlet_group!chi : chi in DirichletCharacter(MS) ];
     MS := ModularSymbols(chars, 2);
     chars := [dirichlet_group!DirichletCharacter(m) : m in MultiSpaces(MS) | Dimension(m) ne 0];
     MS := ModularSymbols(chars, 2);
+   */
     
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
@@ -1245,8 +1264,13 @@ function BoxMethod(G, prec : AtkinLehner := [])
     assert &and[&*([GL2Q!1]
 		   cat [B0M_mats[Abs(x)]^(Sign(x)) : x in Bexps[i]]) in [Bmats[i], -Bmats[i]]
 		: i in [1..#Bmats]];
-	      
-    B0M_C := [Transpose(gen_to_mat2(g^(-1), C)) : g in B0M_mats];
+
+    // We modify the code to make profiling easier
+    //    B0M_C := [Transpose(gen_to_mat2(g^(-1), C)) : g in B0M_mats];
+    B0M_C := [];
+    for g in B0M_mats do
+	Append(~B0M_C, Transpose(gen_to_mat2(g^(-1), C)));
+    end for;
     I_mat := Universe(B0M_C)!1;
     gs := [Transpose(&*([I_mat] cat [B0M_C[Abs(x)]^(Sign(x)) : x in exp]))
 	   : exp in gexps];
@@ -1317,7 +1341,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
     Q_huge, Q_L, zeta_huge, zeta_K,
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-    Q_L_to_Q_huge, elts, sigma_i,
+    Q_L_to_Q_huge, elts,
     Q_gcd, zeta_gcd, Q_gcd_to_Q_K := createFieldEmbeddings(K, NN, C, ds);
 
     // Taking only the forms with trivial Nebentypus character is not good enough
@@ -1374,7 +1398,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
     fs,tos := fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  Gamma_fixed_space,Bs,
 				  Ps,elts,
-				  cc, sigma_i,
+				  cc,
 				  NN,Nold,
 				  oldspaces_full, oldspaces,
 				  C, Cplus, chis,
