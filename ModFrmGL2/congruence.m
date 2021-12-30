@@ -1,7 +1,7 @@
 import "GrpPSL2/GrpPSL2/misc.m" : Conjugates,
        IsConjugate, NormalizerGrpMat;
 
-import "ModSym/Box.m" : ModularCurve, get_M_K;
+import "ModSym/Box.m" : ModularCurve, get_M_K, FindCurveSimple;
 
 // These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
 // Helper functions for creation
@@ -19,8 +19,39 @@ function GetRealConjugate(H)
   return real_H; 
 end function;
 
-function GetGLModel(H : RealType := true)
+function GetGLModels(H)
   N := Modulus(BaseRing(H));
+  SL_N := SL(2, Integers(N));
+  GL_N := GL(2, BaseRing(H));
+  N_H := NormalizerGrpMat(GL_N, H);
+  Q, pi_Q := N_H / H;
+  subs := SubgroupClasses(Q : OrderEqual := EulerPhi(N));
+  cands := [s`subgroup@@pi_Q : s in subs];
+  cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
+  cands := SetToSequence(cands);
+  conj_reps := [];
+  already_rep := {};
+  i := 1;
+  while i le #cands do
+      Append(~conj_reps, cands[i]);
+      Include(~already_rep, i);
+      for j in [i+1..#cands] do
+	  if IsConjugate(GL_N, cands[i], cands[j]) then
+	      Include(~already_rep, j);
+	  end if;
+      end for;
+      while i in already_rep do
+	  i +:= 1;
+      end while;
+  end while;
+  //  return cands;
+  return conj_reps;
+end function;
+
+function GetGLModel(H : RealType := true)
+    N := Modulus(BaseRing(H));
+    GL_N := GL(2, Integers(N));
+    /*
   SL_N := SL(2, Integers(N));
   GL_N := GL(2, BaseRing(H));
   N_H := NormalizerGrpMat(GL_N, H);
@@ -28,6 +59,8 @@ function GetGLModel(H : RealType := true)
   subs := SubgroupClasses(N_H/H : OrderEqual := EulerPhi(N));
   cands := [s`subgroup@@pi_Q : s in subs];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
+   */
+    cands := GetGLModels(H);
   error if IsEmpty(cands), Error("No model with surjective determinant");
 
   if RealType then
@@ -39,8 +72,7 @@ function GetGLModel(H : RealType := true)
   // We would perfer a model for which the Hecke operators are standard
   U, psi := UnitGroup(Integers(N));
   if exists(c){c : c in cands |
-	       sub<GL(2,Integers(N))
-		  | [[1,0,0,psi(t)] : t in Generators(U)]> subset c} then
+	       sub<GL_N | [[1,0,0,psi(t)] : t in Generators(U)]> subset c} then
       return c;
   else
       return Random(cands);
@@ -196,16 +228,25 @@ function createPSL2(grp)
     return PSL2Subgroup(G);
 end function;
 
+function createPSL2Models(grp)
+    N := grp`level;
+    SL_N := SL(2, Integers(N));
+    H := sub<SL_N | grp`matgens>;
+    real_H := GetRealConjugate(H);
+    Gs := GetGLModels(real_H);
+    return [PSL2Subgroup(G) : G in Gs];
+end function;
+
 function checkShimura(grps)
     shimura_list := [];
     for grp in grps do
 	print "checking group ", grp`name;
 	try
-	    G := createPSL2(grp);
+	    Gs := createPSL2Models(grp);
 	catch err
 	    continue;
 	end try;
-	if IsGammaShimura(G) then
+	if exists(G){G : G in Gs | IsGammaShimura(G)} then
 	    Append(~shimura_list, grp`name);
 	end if;
     end for;
@@ -247,7 +288,8 @@ procedure write_qexps(grp_name, fs, X)
     ",grp_name, grp_name, grp_name, grp_name);
     fname := grp_name cat ".m";
     Kq<q> := Parent(fs[1]);
-    K<zeta> := BaseRing(Kq);
+    K := BaseRing(Kq);
+    zeta := K.1;
     poly<x> := DefiningPolynomial(K);
     // This should always be the rationa field, but just in case
     F := BaseRing(K);
@@ -281,3 +323,47 @@ procedure write_qexps(grp_name, fs, X)
 			    Dimension(Proj), grp_name, DefiningPolynomials(X_Q)); 
     Write(fname, preamble cat write_str : Overwrite);
 end procedure;
+
+function qExpansionBasisShimura(grp_name, grps)
+    grp := grps[grp_name];
+    genus := grp`genus;
+    max_deg := Maximum(7-genus, 3);
+    // prec := max_deg*(2*genus-2)-(max_deg-1) + 1;
+    prec := Binomial(max_deg + genus - 1, max_deg);
+    PGs := createPSL2Models(grp);
+    assert exists(PG){PG : PG in PGs | IsGammaShimura(PG)};
+    is_shim, U, phi, H, t := IsGammaShimura(PG);
+    assert is_shim;
+    // getting a better model
+    // This i using ModularSymbolsH
+    N := Level(PG);
+    U_t, phi_t := UnitGroup(Integers(N*t));
+    red_N := hom<Integers(N*t) -> Integers(N)|>;
+    red_U := hom<U_t -> U | [red_N(phi_t(x))@@phi : x in Generators(U_t)]>;
+    H_t := H@@red_U;
+    MS_H := ModularSymbolsH(N*t, [Integers()!phi_t(g) : g in Generators(H_t)], 2, 0);
+    C_H := CuspidalSubspace(MS_H);
+    fs := qIntegralBasis(C_H, prec);
+    // This is using my approach
+    // Right now we have a problem with images of oldforms
+    // leading to an absence of oldforms in the qIntegralBasis
+    /*
+    PShim := GammaShimura(U, phi, H, t);
+    MS := ModularSymbols(PShim);
+    C := CuspidalSubspace(MS);
+    // Do we want qIntegralBasis or qExpansionBasis ?
+    assert fs eq qIntegralBasis(C);
+   */
+    Qq<q> := PowerSeriesRing(Rationals());
+    fs := [Qq!f : f in fs];
+    X := FindCurveSimple(fs, prec, max_deg);
+    g := Genus(X);
+    if g eq 0 then
+	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+	return X, fs;
+    else
+	assert Genus(X) eq genus;
+	X_Q := ChangeRing(X, Rationals());
+	return X_Q, fs;
+    end if;
+end function;

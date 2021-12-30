@@ -1418,9 +1418,12 @@ end function;
 function ModularCurve(G, genus : Precision := 0)
     assert genus ge 2;
     max_deg := Maximum(7-genus, 3);
-    prec := max_deg*(2*genus-2)-(max_deg-1) + 1;
-    level := Modulus(BaseRing(G));
-    prec *:= level;
+    // prec := max_deg*(2*genus-2)-(max_deg-1) + 1;
+    prec := Binomial(max_deg + genus - 1, max_deg);
+    // level := Modulus(BaseRing(G));
+    // prec *:= level;
+    h := CuspWidth(PSL2Subgroup(G), Infinity());
+    prec *:= h;
     if Precision ne 0 then
         prec := Precision;
     end if;
@@ -1453,7 +1456,8 @@ procedure testBox(grps_by_name)
 			 "14B6",
 			 "18A6", "18B6", "18C6",
 			 "20C6",
-			 "21B6",
+			 "21B6", "21C6",
+			 "22A6", "22B6",
 			 "35E6"];
     // Checked all real type conjugates for:
     // 7A3, 8A2, 8A3, 8B3, 9A2

@@ -568,7 +568,8 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
        "The characteristic of the base field must equal 0.  Try qEigenform on an irreducible space instead.";
 
    if IsMultiChar(M) then
-      return qExpansionBasis(AssociatedNewformSpace(M), prec: Al := Al);
+       return &cat[qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M)];
+//      return qExpansionBasis(AssociatedNewformSpace(M), prec: Al := Al);
    end if;
 
    if Dimension(M) eq 0 then
@@ -797,7 +798,7 @@ function SpaceGeneratedByImages(C, N, F, do_saturate, prec : debug:=false)
          I := IdentityMatrix(BaseRing(Parent(C[1])), #ans);  
       end if;
       ans, J := SaturatePolySeq(ans,prec);
-      return ans, J*I;
+      return ans, ChangeRing(J, BaseRing(I))*I;
    end if;  
    ans, I := EchelonPolySeq(ans,prec);
    return ans, I;
@@ -967,7 +968,7 @@ function qExpansionBasisNewform(A, prec, do_saturate)
                                     F, do_saturate, prec : debug:=debug);
      
       I := TensorProduct(I, IdentityMatrix(BaseRing(I), Nrows(J) div Nrows(I)));
-      return ans, J*I;
+      return ans, I*J;
    end if;
 end function;
 
