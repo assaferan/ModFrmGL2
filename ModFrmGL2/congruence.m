@@ -19,7 +19,7 @@ function GetRealConjugate(H)
   return real_H; 
 end function;
 
-function GetGLModels(H)
+function GetGLModels(H : RealType := true)
   N := Modulus(BaseRing(H));
   SL_N := SL(2, Integers(N));
   GL_N := GL(2, BaseRing(H));
@@ -29,6 +29,10 @@ function GetGLModels(H)
   cands := [s`subgroup@@pi_Q : s in subs];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
   cands := SetToSequence(cands);
+  if RealType then
+      eta := GL_N![-1,0,0,1];
+      cands := [c : c in cands | c^eta eq c];
+  end if;
   conj_reps := [];
   already_rep := {};
   i := 1;
@@ -44,31 +48,16 @@ function GetGLModels(H)
 	  i +:= 1;
       end while;
   end while;
-  //  return cands;
   return conj_reps;
 end function;
 
 function GetGLModel(H : RealType := true)
     N := Modulus(BaseRing(H));
     GL_N := GL(2, Integers(N));
-    /*
-  SL_N := SL(2, Integers(N));
-  GL_N := GL(2, BaseRing(H));
-  N_H := NormalizerGrpMat(GL_N, H);
-  Q, pi_Q := N_H / H;
-  subs := SubgroupClasses(N_H/H : OrderEqual := EulerPhi(N));
-  cands := [s`subgroup@@pi_Q : s in subs];
-  cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
-   */
-    cands := GetGLModels(H);
-  error if IsEmpty(cands), Error("No model with surjective determinant");
-
-  if RealType then
-      eta := GL_N![-1,0,0,1];
-      cands := [c : c in cands | c^eta eq c];
-      error if IsEmpty(cands), Error("No model with surjective determinant, 
-                 	                        which commutes with eta");
-  end if;
+    cands := GetGLModels(H : RealType);
+    error if IsEmpty(cands), (RealType) select Error("No model with surjective determinant, 
+                 	                         which commutes with eta")
+							else Error("No model with surjective determinant");
   // We would perfer a model for which the Hecke operators are standard
   U, psi := UnitGroup(Integers(N));
   if exists(c){c : c in cands |
@@ -328,7 +317,6 @@ function qExpansionBasisShimura(grp_name, grps)
     grp := grps[grp_name];
     genus := grp`genus;
     max_deg := Maximum(7-genus, 3);
-    // prec := max_deg*(2*genus-2)-(max_deg-1) + 1;
     prec := Binomial(max_deg + genus - 1, max_deg);
     PGs := createPSL2Models(grp);
     assert exists(PG){PG : PG in PGs | IsGammaShimura(PG)};

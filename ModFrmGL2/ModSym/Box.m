@@ -1,58 +1,42 @@
-import "../GrpPSL2/GrpPSL2/words_for_matricesSL2.m" : MatrixToWord;
+freeze;
+
+/*********************************************************************************
+                                                                          
+                  Modular Symbols in Magma                         
+
+  Author: Eran Assaf
+                                                                         
+  FILE: Box.m (modular curve algorithm based on J. Box's paper)
+
+  exports intrinsics:
+  ModularCurve(G::PSL2Grp);                                 
+                                                                      
+*************************************************************************************
+*/
+
 import "linalg.m" : KernelOn, Restrict;
 import "operators.m" : ActionOnModularSymbolsBasis;
 
-function FindLiftToSL2(g)
-     elt_g := ElementToSequence(g);
-     if #elt_g eq 1 then return PSL2(Integers())!1; end if;
-     a,b,c,d := Explode(elt_g); 
-     N := Modulus(Parent(a));
-     Z := Integers();
-     a_prime := Z!a;
-     b_prime := Z!b;
-     if a_prime eq 0 then
-        a_prime +:= N;
-     end if;
-     gcd_res, x, y := Xgcd(a_prime, b_prime);
-     while gcd_res ne 1 do
-           b_prime +:= N; 
-           gcd_res, x, y := Xgcd(a_prime, b_prime);
-     end while;
-     det := a_prime * Z!d - b_prime*Z!c;
-     c_prime := Z!c - y * (1 - det);
-     d_prime := Z!d + x * (1 - det);       
-     lift_g := PSL2(Integers())![a_prime, b_prime, c_prime, d_prime];
-     return lift_g;
-end function;
+// function : gen_to_mat
+// input: g - a matrix in GL(2,Q)
+//        C - a space of cuspidal modular symbols, closed under the action of g
+// output: the matrix describing the (left) action of g on C
 
-function gen_to_mat(gs, C1, C2)
-    C1b := Basis(C1);
-    C2mat := Transpose(Matrix([Eltseq(c) : c in Basis(C2)]));
-    ims := [C2!(&cat[ModularSymbolApply(C1, Eltseq(g),
-					ModularSymbolRepresentation(c))
-	    : g in gs]) : c in C1b];
-    mat_ret := Transpose(Solution(Transpose(C2mat), Matrix([Vector(Eltseq(im))
-							    : im in ims])));
-    return mat_ret, ims;
-end function;
-
-function gen_to_mat2(g, C)
+function gen_to_mat(g, C)
     MS := AmbientSpace(C);
-    print "computing action of ", g;
-    time gM := ActionOnModularSymbolsBasis(Eltseq(g), MS); 
+    vprintf ModularSymbols, 1 : "computing action of \n%o\n", g;
+    t := Cputime();
+    gM := ActionOnModularSymbolsBasis(Eltseq(g), MS);
+    vprintf ModularSymbols, 1 : "\t\ttime = %o\n", Cputime(t);
     gC := Restrict(gM, VectorSpace(C));
     return Transpose(gC);
 end function;
 
-function Bdmatrix(CM, CMmat, t, C)
-    ims := [CM!ModularSymbolApply(CM, [t,0,0,1],
-				  ModularSymbolRepresentation(c))
-	    : c in Basis(C)];
-    mat_ret := t*Transpose(Solution(Transpose(CMmat),
-				    Matrix([Vector(Eltseq(im)) : 
-					    im in ims])));
-    return mat_ret;
-end function;
+// function : make_nf_func
+// input : a - an element of a number field K/F
+//         F - the base ring (could probably remove this from the arguments)
+//         f_F - a map from F to F.
+// output : f(a), where f is the natural extension of f_F to K.
 
 function make_nf_func(a, F, f_F)
     K := Parent(a);
@@ -63,6 +47,12 @@ function make_nf_func(a, F, f_F)
     return &+[f_F(Eltseq(a)[i])*Basis(K)[i]
 	      : i in [1..Degree(K)]];
 end function;
+
+// function : gauss_sum
+// input: eps - a Dirichlet character
+//        Q_huge - the coefficient field for the result
+// output: g(eps), the Gauss sum of eps, in the field Q_huge.
+// TODO: Q_huge is not really a parameter, only a coercion in the end, could move it outside.
 
 function gauss_sum(eps, Q_huge)
     cond := Conductor(eps);
@@ -76,6 +66,12 @@ function gauss_sum(eps, Q_huge)
     return Q_huge!gs;
 end function;
 
+// function : Rop
+// input: eps - a Dirichlet character
+//        SKpowersQ_L - a sequence [S_cond^i : i in [1..cond]]
+//                     where cond = Cond(eps), and S_cond describes the action of [1, 1/cond, 1, 0]
+// output: matrix describing the action of the twisting operator R_eps
+
 function Rop(eps, SKpowersQ_L)
     cond := Conductor(eps);
     if cond eq 1 then
@@ -83,6 +79,16 @@ function Rop(eps, SKpowersQ_L)
     end if;
     return &+[(eps^(-1))(i-1)*SKpowersQ_L[cond][i] : i in [1..cond]];
 end function;
+
+// function: pi
+// input: mu - a vector in the space of modular symbols
+//        oldspace_full - a subspace of the space of modular symbols which
+//                        is the full image of an old subspace.
+//        oldspaces - a sequence of the different components of oldspace_full,
+//                    according to the different degeneracy maps.
+//        B_mat - a matrix describing the degeneracy map corresponding to inclusion (d = 1)
+// output: If mu is in oldspace_full, pi(mu), the projection of mu to the subspace corresponding to d = 1.
+//         Otherwise, returns mu.
 
 function pi(mu, oldspace_full, oldspaces, B_mat)
     Kf := BaseRing(Parent(mu));
@@ -102,6 +108,15 @@ function pi(mu, oldspace_full, oldspaces, B_mat)
     return mus[1]*ChangeRing(Transpose(B_mat), Kf);
 end function;
 
+// function: pr
+// input: flist - a list of coefficients of the q-expansion f of a twist of a newform
+//        check - a list of indices in which to check equality of coefficients
+//        Nold - a list of eigenforms in a certain old subspace, to test against.
+//        prec - required precision
+//        Kf_to_KK - an embedding of the field Kf (over Q_L) to the field KK (over Q_huge)
+// output: pr(f), the projection of f onto Nold.
+//         (so that f - pr(f) vanishes at all indices in check, which are the ones prime to the level)
+
 function pr(flist, check, Nold, prec, Kf_to_KK)
     folds := [f : f in Nold |
 	      &and[Coefficients(AbsoluteMinimalPolynomial(flist[i]))
@@ -114,27 +129,27 @@ function pr(flist, check, Nold, prec, Kf_to_KK)
     assert KK eq Universe(flist);
     Kfold := BaseRing(Parent(fold));
     _, Kfold_to_Kf := IsSubfield(Kfold, Kf);
-    // aut := Automorphisms(Kfold);
     aut := Automorphisms(AbsoluteField(Kfold));
-    //aut_Q_L := Automorphisms(BaseRing(Kf));
     embs := [a*Kfold_to_Kf*Kf_to_KK : a in aut];
-    /*
-    if (Type(Kf) eq FldRat) then
-	embs := [hom<Kf->K|>];
-    else
-	embs := [hom<AbsoluteField(Kf)->K | r[1]>
-		 : r in Roots(DefiningPolynomial(AbsoluteField(Kf)),K)];
-    end if;
-   */
     embs := [e : e in embs | &and[e(Coefficient(fold, i)) eq flist[i]
 				  : i in check]];
     assert #embs eq 1;
     return [embs[1](Coefficient(fold, i)) : i in [1..prec-1]];
 end function;
 
+// function: chartwist
+// input: flist - a list of coefficients of the q-expansion f of a newform.
+//        chi - a Dirichlet character
+//        Q_L_t_Q_huge - a embedding of Q_L into Q_huge
+// ouptut: a list of the coefficients of f twisted by chi.
+
 function chartwist(flist, chi, Q_L_to_Q_huge)
     return [Q_L_to_Q_huge(chi(n))*flist[n] : n in [1..#flist]];
 end function;
+
+// function: IsEqualPowerSeries
+// input: f,g - two power series
+// output: true if there is an isomorphism between their base fields sending one to the other.
 
 function IsEqualPowerSeries(f, g)
     Kf := BaseRing(Parent(f));
@@ -154,12 +169,30 @@ function IsEqualPowerSeries(f, g)
 			  eq Coefficient(g,i) : i in [0..prec-1]]};
 end function;
 
-// !? Issue - when we have a twist which is an oldform
-// we do not replace it by its projection to the newform space.
-// The same is true for a twist which is a newform
-// Thus we have zeros at the corresopnding aps
-// As long as the mus and the fs correspond to one another,
-// this should not matter. However, identifying forms becomeed more difficult.
+// procedure: add_old_twists
+// input: new_mutwists - a list of twists of a vector mu in the space of modular symbols
+//        new_ftwists - a list of the coefficients of the q-expansions of the forms corresponding to
+//                      the vectors in new_mutwists
+//        new_powerlist - a list of exponents of the characters corresponding to each of the twists
+//        ftws - the same as new_ftwists but without normalizing by the gauss sums
+//        oldspaces_full - the images of the old subspaces
+//        oldspaces - a list of the list of images of each of the degeneracy maps for each old subspace
+//        Kf - the coefficient field of f (over Q_L)
+//        B_mats - the matrices representing the degeneracy maps
+//        Tr_mats - the matrices representing the dual (trace) degeneracy maps
+//        num_coset_reps - the number of coset representatives for each degeneracy map
+//        alist - the original list of coefficients of the q-expansion of f
+//        Nold - the q-expansions of the eigenforms in each of the old subspaces.
+//        prec - required precision
+//        deg_divs - the divisors of the degeneracy maps
+//        Q_huge - the cyclotomic field continaing Q_L and Q_K.
+//        qKK - a variable for the power series ring
+//        chis - the basis of Dirichlet characters
+//        Nnew - the q-expansions of the eigenforms in the new subspace.
+//        Kf_to_KK - the embedding of Kf into KK
+// output: new_mutwists - the projections of each of the vectors in new_mutwists to the relevant old subspace,
+//                        and their images by the corresponding degeneracy maps
+//         new_ftwists ad new_powerlist will contain the corresponsing q-expansions and character exponents.
 
 procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 			 ftws, oldspaces_full, oldspaces,
@@ -209,6 +242,36 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
     new_powerlist := n_powerlist;
     return;
 end procedure;
+
+// function: make_real_twist_orbit
+// input: alist - a list of coefficients of the q-expansion of f
+//        primes - a list of prime numbers
+//        Kf_to_KK - an embedding of Kf into KK
+//        Tpluslist - a list of the Hecke operators on the plus subspace
+//                    Tpluslist[i] is the Hecke operator at the prime primes[i]
+//        prec - required precision
+//        cc - complex conjugation
+//        NN - list of all q-expansions of eigenforms
+//        Nold - list of q-expansions of eigenforms in each of the old subspaces
+//        oldspaces_full - the images of the old subspaces
+//        oldspaces - the images of each degeneracy map from an old subspace
+//        C - the cuspidal modular symbols subspace
+//        Cplus - the plus subspace (fixed under the star involution)
+//        chis - a basis or the Dirichlet characters
+//        Q_huge - the large coefficient field (containing Q_K and Q_L)
+//        zeta_K - K-th root of unity
+//        K - an integer.
+//        SKpowersQ_L - the list of powers of the matrices S_cond for the twisting of characters
+//        B_mats - matrices of degeneracy maps
+//        Tr_mats - matrices of the dual (trace) degeneracy maps
+//        deg_divs - divisors corresponding to the degeneracy maps
+//        num_coset_reps - the number of coset representatives corresponding to each degeneracy map
+//        Q_L_to_Q_huge - an embedding of Q_L into Q_huge
+//        Nnew - the q-expansions of the eigenforms in the new subspace.
+// output: V = V(f) - a vector space spanned by the twists and degeneracy maps applied to f
+//             V is equipped with the twists as a basis.
+//         ftwists - a list of the coefficients of the q-expansions corresponding to each of these twists
+//         powerlists - the exponents of the Dirichlet characters corresponding to each of these twists
 
 function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 			       prec, cc, NN, Nold,
@@ -335,20 +398,16 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
     return VectorSpaceWithBasis(mutwists), ftwists, powerlist;
 end function;
 
-function first_nonzero_cf(a)
-    for b in a do
-	if not IsZero(b) then
-	    return b;
-	end if;
-    end for;
-end function;
+// function: coeffs_by_zeta
+// input: x - an element of a number field K(f) over Q_L
+//        Q_g - a cyclotomic field of order g dividing L
+//        Q_L - a cyclotomic field
+// output: elements x_k such that x = sum x_k zeta_g^k
 
 // When we have an element of a number field over a cyclotomic field
 function coeffs_by_zeta(x, Q_g, Q_L)
     Kf := Parent(x);
     d := Degree(Q_g);
-//    Kf_Q_L := RelativeField(Q_L, Kf);
-    //    if (Kf_Q_L eq Q_L) then
     if IsIsomorphic(Kf, Q_g) then
 	return Eltseq(Q_g!x);
     end if;
@@ -357,7 +416,8 @@ function coeffs_by_zeta(x, Q_g, Q_L)
 	x_k := [Kf!Kf_Q_g![y[j] : y in [Eltseq(z) : z in Eltseq(Kf_Q_g!x)]]
 		: j in [1..d]];
     else
-	if Q_L eq Q_g then
+	//	if Q_L eq Q_g then
+	if IsIsomorphic(Q_L, Q_g) then
 	    // we have x = sum a_i alpha^i, where alpha generates Kf over Q_L
 	    // with a_i in Q_L.
 	    // Then a_i = sum a_{ij} zeta^j, 
@@ -366,7 +426,7 @@ function coeffs_by_zeta(x, Q_g, Q_L)
 	    // Note that Eltseq(x)_i = a_i = sum a_{ij} zeta^j
 	    a_is := Eltseq(x);
 	    // Eltseq(a_i)_j = a_{ij}
-	    a_ijs := [Eltseq(a_i) : a_i in a_is];
+	    a_ijs := [Eltseq(Q_g!a_i) : a_i in a_is];
 	    // x_j = sum a_{ij} alpha^i
 	    x_k := [Kf![a_i[j] : a_i in a_ijs] : j in [1..d]];
 	else
@@ -394,6 +454,24 @@ function coeffs_by_zeta(x, Q_g, Q_L)
     return x_k;
 end function;
 
+// function: Pdmatrix
+// input: Pd - an automorphism of KK extending sigma_d, the automorphism of Q_K given by zeta_K |-> zeta_K^d
+//        d - the integer representing the automorphism sigma_d
+//        powerlist - list of exponents of Dirichlet characters corresponding to the twists used as basis
+//        chis - a basis for the Dirichlet characters
+//        Q_L - cyclotomic field of order L
+//        Q_huge - cyclotomic field containing Q_K and Q_L
+//        zeta_K - K-th order root of unity
+//        K - an integer
+//        Q_L_to_Q_huge - an embedding of Q_L into Q_huge
+//        Q_K_to_Q_huge - an embedding of Q_K into Q_huge
+//        perm_d - a permutation describing the way sigma_d permutes the basis f_j.
+// output: a matrix representing the action of sigma_d on the twist orbit space
+//         in the basis zeta_K^i g(chi_j^(-1)) f_j, where f_j are the unnormalized twists
+//         (on which sigma_d acts via the permutation perm_d), chi_j are the corresponding characters
+//         and g(chi_j^(-1)) are the gauss sums, so that g(chi_j^(-1)) f_j is the basis for the
+//         twist orbit space over Q_K. 
+
 function Pdmatrix(Pd, d, powerlist, chis,
 		  Q_L, Q_huge, zeta_K, K,
 		  Q_L_to_Q_huge, Q_K_to_Q_huge, perm_d)
@@ -408,7 +486,6 @@ function Pdmatrix(Pd, d, powerlist, chis,
 		  /gauss_sum(chars[perm_d[i]], Q_huge)
 		  : i in [1..#chars]];
 
-    // small_diag := DiagonalMatrix(gs_ratios);
     list := [];
     Q_K := Domain(Q_K_to_Q_huge);
     zeta_L := Q_L.1;
@@ -416,6 +493,8 @@ function Pdmatrix(Pd, d, powerlist, chis,
     L0 := L div GCD(K,L);
     zeta_L0 := zeta_L^GCD(K,L);
     _, u, v := XGCD(K,L0);
+    // Here we use the fact that zeta = zeta^(uK+vL0) = zeta_L0^u*zeta_K^v
+    // since zeta = zeta_LCM(K,L)
     for i in [0..EulerPhi(K)-1] do
 	j := (d*i) mod K;
 	elts := [Eltseq(zeta_K^j * x) : x in gs_ratios];
@@ -427,18 +506,45 @@ function Pdmatrix(Pd, d, powerlist, chis,
     return BlockMatrix(list);
 end function;
 
-// For some reason magma does not how to invert Kf_to_KK.
-// We fix that problem
-
-function reverse_nf_coercion(a, Kf_to_KK)
-    QQ := Rationals();
-    Kf := Domain(Kf_to_KK);
-    KK := Codomain(Kf_to_KK);
-    assert a in KK;
-    roots := [r[1] : r in Roots(AbsoluteMinimalPolynomial(a),Kf)];
-    assert exists(r){r : r in roots | Kf_to_KK(r) eq a};
-    return r;
-end function;
+// function: fixed_cusp_forms_QQ
+// input: as - a list of coefficients of q-expansions of eigenforms in the cusp form space.
+//        primes - a list of primes for the Hecke operators
+//        Tpluslist - a list of Hecke operators on the plus subspace at the primes
+//        Kf_to_KKs - a list of field embeddingd from the coefficient fields over Q_L to over Q_huge
+//        prec - required precision
+//        GFS - the subspace of vectors fixed by Gamma (G meet SL2)
+//        Bmats - matrices describing the SL2-part of the action of the generators ith nontrivial determinant
+//        Pds - automorphisms extending the morphisms sigma_d of Q_K
+//        ds - a list of integer corresponding to the automorphisms sigma_d of Q_K, matching the Bmats
+//        cc - complex conjugation
+//        NN - list of all eigenforms
+//        Nold - list of eigenforms sorted by the old subspaces
+//        oldspaces_full - the images of the old subspaces
+//        oldspaces - the images of the degeneracy maps from the old subspaces
+//        C - the cuspidal space of modular symbols
+//        Cplus - the plus subspace (fixed under the star involution) of C.
+//        chis - a basis for the Dirichlet characters
+//        Q_huge - cyclotomic field containing Q_K and Q_L
+//        Q_L - cyclotomic field containing the image of the Dirichlet characters
+//        zeta_huge - a root of unity generating Q_huge
+//        zeta_K - a K-th root of unity
+//        K - an integer
+//        SKpowersQ_L - list of powers of the action of S_cond on C, for all conductors of characters
+//        B_mats - matrices of degeneracy maps
+//        Tr_mats - matrices od degeneracy trace maps
+//        deg_divs - divisors corresponding to degeneracy maps
+//        num_coset_reps - number of coset representatives for each degeneracy map.
+//        J - the star involution.
+//        Q_K_plus_to_Q_K - embedding of the totally real subfield in Q_K
+//        Q_K_to_Q_huge - embedding of Q_K in Q_huge
+//        Q_L_to_Q_huge - embedding of Q_L in Q_huge
+//        Q_gcd - intersection of Q_K and Q_L.
+//        zeta_gcd - a root of unity generating Q_gcd.
+//        Q_gcd_to_Q_K - an embedding of Q_gcd into Q_K.
+//        Nnew - the eigenforms corresponding to the new subspace
+// output: fs - a list of coefficients of q-expansions that are fixed under G.
+//              i.e. they lie in GFS and are fixed by the actions of Bmats[i]*sigma_ds[i]
+//         tos - the indices of the orbit spaces from which the cusp forms originate.
 
 function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     GFS, Bmats, Pds, ds,
@@ -463,7 +569,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	while (i in already_visited) do
 	    i +:= 1;
 	end while;
-	print "Computing twist orbit no. ", i, "out of ", #as[1];
+	vprintf ModularSymbols, 1 : "Computing twist orbit no. %o out of %o\n", i, #as[1];
 	alist := [aps[i] : aps in as];
 	Kf_to_KK := Kf_to_KKs[i];
 	Kf := Domain(Kf_to_KK);
@@ -505,9 +611,11 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	fixed_space_basis := Basis(ChangeRing(GFS, Kf)
 					     meet real_twist_orbit_ms);
 	dim_orbit := Dimension(real_twist_orbit_ms);
-	print "Dimension of orbit is ", dim_orbit;
+	vprintf ModularSymbols, 1 : "Dimension of orbit is %o\n", dim_orbit;
 	if #fixed_space_basis gt 0 then
-        print "Orbit intersects fixed space with dimension ", #fixed_space_basis, ". Finding G-fixed vectors...";
+            vprintf ModularSymbols, 1 :
+		"Orbit intersects fixed space with dimension %o.\n", #fixed_space_basis;
+	    vprintf ModularSymbols, 1 : "Finding G-fixed vectors...\n";
 	    fixed_basis_cfs :=
 		[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
 		 : mu in fixed_space_basis];
@@ -590,7 +698,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 
 	    // Step I - summing over automorphisms of KK/Q_huge
 	    if KK ne Q_huge then
-		print "Degree of the field KK is ", Degree(KK), ". Extending the forms.";
+		vprintf ModularSymbols, 2 : "Degree of the field KK is %o. ", Degree(KK);
+		vprintf ModularSymbols, 2 : "Extending the forms.\n";
 		aut_KK := Automorphisms(KK);
 		xi := KK.1;
 		fsols_conj := [[Vector([sig(a) : a in Eltseq(f)])
@@ -628,12 +737,12 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		    fixed_cusp_forms_orbit_Q_K_plus :=
 			[Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K : a in Eltseq(f)])
 			 : f in fixed_cusp_forms_orbit_ns];
-		    print "Coefficients are in Q_K_plus.";
+		    vprintf ModularSymbols, 1 : "Coefficients are in Q_K_plus.\n";
 		else
 		    fixed_cusp_forms_orbit_Q_K_plus :=
 		    [Vector([a@@Q_K_to_Q_huge : a in Eltseq(f)])
 		     : f in fixed_cusp_forms_orbit_ns];
-		    print "Coefficients are in Q_K.";
+		    vprintf ModularSymbols, 1 : "Coefficients are in Q_K.\n";
 		end if;
 	    else
 		in_Q_huge := &and &cat[ [IsCoercible(Q_huge, a) : a in Eltseq(f)]
@@ -641,10 +750,10 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		if in_Q_huge then
 		    fixed_cusp_forms_orbit_Q_K_plus :=
 			[Vector([Q_huge!a  : a in Eltseq(f)]) : f in fixed_cusp_forms_orbit_ns];
-		    print "Coefficients are in Q_huge.";
+		    vprintf ModularSymbols, 1 : "Coefficients are in Q_huge.\n";
 		else
 		    fixed_cusp_forms_orbit_Q_K_plus := fixed_cusp_forms_orbit_ns;
-		    print "Coefficients are not in Q_huge!";
+		    vprintf ModularSymbols, 1 : "Coefficients are not in Q_huge!\n";
 		end if;
 	    end if;
 
@@ -658,7 +767,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			   : i in [0..deg-1]]) : b in Q_basis];
 	    fixed_cusp_forms_orbit_Q_K_plus := fs;
 
-	    print "Obtained ", #fs, " forms from this orbit.";
+	    vprintf ModularSymbols, 1 : "Obtained %o forms from this orbit.\n", #fs;
 	    
 	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 	    twist_orbit_index cat:=
@@ -677,6 +786,11 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
     return fs, tos;
 end function;
 
+// function: IsCompatibleChar
+// input: M1, M2 - Modular symbols spaces
+// output: true if it is possible to coerce one of the characters to the other,
+//         i.e. if there is a degeneracy map between them.
+
 function IsCompatibleChar(M1, M2)
     eps1 := DirichletCharacter(M1);
     eps2 := DirichletCharacter(M2);
@@ -684,47 +798,12 @@ function IsCompatibleChar(M1, M2)
 	IsCoercible(Parent(eps1), eps2) and (Parent(eps1)!eps2 eq eps1); 
 end function;
 
-forward get_degeneracy_maps;
-
-function NewformDecompositionSubspaceMaps(M)
-    ms := MultiSpaces(M);
-    S := CuspidalSubspace(M);
-    Sb := BasisMatrix(VectorSpace(S));
-    Sbd := BasisMatrix(DualVectorSpace(S));
-    D := NewformDecomposition(S);
-    DD := [* *];
-    ims := [* *];
-    for d in D do
-	M_old := RestrictionOfScalarsToQ(AmbientSpace(AssociatedNewSpace(d)));
-	if not IsIdentical(M_old, M) then
-	    quo_lev := Level(M) div Level(M_old);
-	    divs := Divisors(quo_lev);
-	    betas := [];
-	    for m in divs do
-		alpha, ims_alpha, beta := get_degeneracy_maps(M_old, M, m);
-		im_d := Image(beta);
-		im := Image(alpha);
-		Append(~ims, [im, im_d]);
-		Append(~betas, <alpha, beta, quo_lev div m>);
-	    end for;
-	    for j in [1..#betas] do
-		Append(~DD, <d, betas[j]>);
-	    end for;
-	else
-	    one := <IdentityMatrix(BaseRing(d), Dimension(S)),
-		    IdentityMatrix(BaseRing(d), Dimension(S)), 1>;
-	    Append(~DD, <d, one >);
-	    im := VectorSpaceWithBasis(
-			  Solution(Sb,BasisMatrix(VectorSpace(d))));
-	    im_d := VectorSpaceWithBasis(
-			    Solution(Sbd, BasisMatrix(DualVectorSpace(d))));
-	    Append(~ims, [im, im_d]);
-	end if;
-    end for;
-    dim := &+[Dimension(d[1])*Degree(BaseRing(d[1])) : d in DD];
-    assert dim eq Dimension(S);
-    return DD, ims;
-end function;
+// function: getBoxGandAL
+// input: num - an integer between 1 and 3
+// output: G - a subgroup of GL(2, Integers(35))
+//         ws - a list of Atkin-Lehner elements
+//         G and ws are the group and Atkin-Lehner operators used in the examples
+//         in J. Box's paper. This is a helper function to reproduce them.
 
 function getBoxGandAL(num)
     PGnsplus7 := GammaNSplus(7,Integers(7)!5);
@@ -746,6 +825,11 @@ function getBoxGandAL(num)
     return G, ws[num];
 end function;
 
+// !!TODO!! - isn't this the same as ImageInLevelGL(Gamma0(N)) ?
+// function: make_Borel
+// input: N - an integer
+// output: B_0(N) the standard Borel subgroup of GL(2, Integers(N))
+
 function make_Borel(N)
     gens := [[1,1,0,1]];
     for t in [1..N-1] do
@@ -756,6 +840,13 @@ function make_Borel(N)
     end for;
     return sub<GL(2, Integers(N)) | gens>;
 end function;
+
+// function: get_M_K
+// input: G - a subgroup of GL(2, Integers(N)) for some N
+// output: M, K such that G_M = B_0(M) and G = G_M meet G_K and GCD(K,M) = 1.
+//         Here G_M, G_K are the images of G in GL(2, M), GL(2,K).
+//         Note that M = 1, K = N always works, but sometimes, e.g. in Box's examples,
+//         we can get lucky and have larger M.
 
 function get_M_K(G)
     N := Modulus(BaseRing(G));
@@ -797,6 +888,13 @@ function get_M_K(G)
     return M, K;
 end function;
 
+// function: get_gens
+// input: G - a subgroup of GL(2, Integers(N))
+// output: gens - lifts to SL2(Z) of generators of G with trivial determinant
+//         Bgens - lifts to SL2(Z) of elements B such that B*[d,0,0,1] is a generator of G, with d ne 1.
+//         K, M - relatively prime integers such that G = B_0(M) meet G_K.
+//         ds - a list corresponding to Bgens of the determinants of these generators.
+
 function get_gens(G)
     N := Modulus(BaseRing(G));
     M, K := get_M_K(G);
@@ -809,6 +907,19 @@ function get_gens(G)
     Bgens := [Eltseq(FindLiftToSL2(b)) : b in Bgens];
     return gens, Bgens, K, M, ds;
 end function;
+
+// !! TODO !! - This should be embedded in the modular symbols package
+// in multichar.m for general multicharacter spaces.
+
+// function: get_degeneracy_maps
+// input: M_old - old subspace of modular symbols
+//        M - new subspace of modular symbols
+//        d - the degree of the map.
+// output: alpha - the degeneracy map alpha_d : C(M_old) -> C(M)
+//         where C is the cuspidal subspace
+//         ims_alpha - the images of alpha of the basis vectors as elements in M
+//         beta - the degeneracy map beta_d : C(M) -> C(M_old)
+//         alpha_new - the restriction of alpha_d to the new subspace of C(M_old). 
 
 function get_degeneracy_maps(M_old, M, d)
     C := CuspidalSubspace(M);
@@ -825,18 +936,6 @@ function get_degeneracy_maps(M_old, M, d)
 	assert exists(i){i : i in [1..#ms]
 			 | IsCompatibleChar(ms[i], ms_old[j])};
 	m_old := ms_old[j];
-	/*
-	F_old := BaseRing(m_old);
-	F_new := BaseRing(ms[i]);
-	if F_old ne F_new then
-	    is_isom, psi := IsIsomorphic(F_old, F_new);
-	    assert is_isom;
-	    eps := DirichletCharacter(m_old);
-	    eps0 := DirichletGroup(Level(m_old), F_new)!eps;
-	    m_old := ModularSymbols(eps0, 2);
-	end if;
-	deg := ChangeRing(DegeneracyMatrix(m_old, ms[i], d), F_old);
-       */
 	deg := DegeneracyMatrix(m_old, ms[i], d);
 	deg_d := DegeneracyMatrix(ms[i], m_old, d);
 	multi := MultiQuotientMaps(M)[i];
@@ -869,6 +968,17 @@ function get_degeneracy_maps(M_old, M, d)
     return alpha_C, [M!v : v in Rows(ims_mat)], beta_C, alpha_new_C;
 end function;
 
+// function: get_old_spaces
+// input: MS - a space of modular symbols
+// output: Tr_mats - matrices of the degeneracy trace maps between the cuspidal spaces
+//         Tr_ims - the images of the trace maps as elements of MS
+//         B_mats - matrices of the degeneracy maps
+//         deg_divs - divisors d corresponding to the degeneracy maps
+//         num_coset_reps - the number of coset representatives for each degeneracy maps
+//         oldspaces_full - the images of the old subspaces in MS
+//         oldspaces - the images of each of the degeneracy maps
+//         C_old_new - the new subspace of each of the old subspaces.
+
 // !! TODO - right now we treat the newforms in the top level separately.
 // However, this could be done in the same way.
 function get_old_spaces(MS)
@@ -885,11 +995,6 @@ function get_old_spaces(MS)
     dirichlet_groups := [DirichletGroup(old_levels[i],
 					CyclotomicField(conds[i]))
 			 : i in [1..#old_levels]];
-    /*
-    dirichlet_groups := [DirichletGroup(level,
-					CyclotomicField(EulerPhi(level)))
-			 : level in old_levels];
-   */
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
 		Level(d) eq (old_levels[i])] : i in [1..#old_levels]*];
     M_old := [ModularSymbols(chis, 2) : chis in chars | not IsEmpty(chis)];
@@ -951,22 +1056,27 @@ function get_old_spaces(MS)
 	   num_coset_reps, oldspaces_full, oldspaces, C_old_new;
 end function;
 
-function get_relevant_components(gs, MS)
-  C := CuspidalSubspace(MS);
-  fixed_spaces := [Kernel(Transpose(gmat)-
-			   IdentityMatrix(Rationals(), Nrows(gmat)))
-		     : gmat in gs];
-  H_inv := &meet fixed_spaces;
-  Cb := Basis(C);
-  Cmat := Transpose(Matrix([Eltseq(c) : c in Cb]));
-  DD, ims := NewformDecompositionSubspaceMaps(MS);
-  //  proj := [*BasisMatrix(DualVectorSpace(dd[1]))*dd[2][2] : dd in DD*];
-  proj := [* im[2] : im in ims *];
-  H_inv_bas := Transpose(BasisMatrix(H_inv));
-  H_components := [i : i in [1..#proj] | proj[i]*H_inv_bas ne 0];
-  S_H := [*DD[h] : h in H_components*];
-  return S_H;
-end function;
+// function: createFieldEmbeddings
+// input: K - an integer
+//        NN - a list of eigenforms
+//        C - the cuspidal space of modular symbols
+//        ds - a list of integers corresponsing to automorphisms sigma_d on Q(zeta_K)
+// output: field_embs - a list of embedding of the coefficient fields of the eigenforms
+//                      (from a field over Q_L to a field over Q_huge)
+//         cc - complex conjugation
+//         Ps_Q_huge - automorphisms of Q_huge extending the sigma_d's.
+//         SKpowersQ_L - powers of the S_cond for conductors dividing K in Q_L
+//         Q_huge - a cyclotomic field containing both Q_L and Q_K
+//         Q_L - a cyclotomic field containing the images of the Dirichlet characters
+//         zeta_huge - a root of unity generating Q_huge
+//         zeta_K - a K-th root of unity
+//         Q_K_plus_to_Q_K - an embedding of the totally real subfield of Q_K
+//         Q_K_to_Q_huge - an embedding of Q_K in Q_huge
+//         Q_L_to_Q_huge - an embedding of Q_L in Q_huge
+//         elts - lifts of ds to integers
+//         Q_gcd - intersection of Q_K and Q_L
+//         zeta_gcd - a root of unity generating Q_gcd
+//         Q_gcd_to_Q_K - an embdding of Q_gcd into Q_K
 
 function createFieldEmbeddings(K, NN, C, ds)
 
@@ -998,10 +1108,10 @@ function createFieldEmbeddings(K, NN, C, ds)
     huge_fields := [* *];
     field_embs := [* *];
     for i in [1..#fields] do
-	print "Constructing field embedding no. ", i, " out of ", #fields;
+	vprintf ModularSymbols, 2 : "Constructing field embedding no. %o out of %o.\n", i, #fields;
 	Kf := fields[i];
 	Kf_base := BaseRing(Kf);
-	print "K(f) = ", Kf;
+	vprintf ModularSymbols, 2 : "K(f) = %o\n", Kf;
 	if IsSubfield(Kf_base, Q_L) and (Kf ne Q_L) then
 	    poly := Evaluate(DefiningPolynomial(Kf), x_L);
 	    // Since K(f) is Galois, f(x) should decompose to factors of the same degree,
@@ -1011,10 +1121,10 @@ function createFieldEmbeddings(K, NN, C, ds)
 	    assert #degrees eq 1;
 	    d := SetToSequence(degrees)[1];
 	    if d ne 1 then
-		print "Field is not contained in Q_L, enlarging field.";
+		vprintf ModularSymbols, 2 : "Field is not contained in Q_L, enlarging field.\n";
 		poly := fac[1][1];
 		Kf := NumberField(poly);
-		print "Kf = ", Kf;
+		vprintf ModularSymbols, 2 : "Kf = %o\n", Kf;
 		F_to_Kf := hom<fields[i] -> Kf | Kf.1 >;
 		Embed(fields[i], Kf, Kf.1);
 		fac := Factorization(Evaluate(poly, x_huge));
@@ -1022,9 +1132,9 @@ function createFieldEmbeddings(K, NN, C, ds)
 		assert #degrees eq 1;
 		d := SetToSequence(degrees)[1];
 		if d ne 1 then
-		    print "Field is not contained in Q_huge, enlarging field.";
+		    vprintf ModularSymbols, 2 : "Field is not contained in Q_huge, enlarging field.\n";
 		    KK := NumberField(fac[1][1]);
-		    print "KK = ", KK;
+		    vprintf ModularSymbols, 2 : "KK = %o\n", KK;
 		    Kf_to_KK := hom<Kf -> KK | KK.1 >;
 		else
 		    KK := Q_huge;
@@ -1049,26 +1159,12 @@ function createFieldEmbeddings(K, NN, C, ds)
 	    Kf_to_KK := Q_L_to_Q_huge;
 	end if;
 	
-	/*
-	print "Verifying that original field is a subfield";
-	is_sub, F_to_Kf := IsSubfield(fields[i], Kf);
-	assert is_sub;
-	print "Creating Kf_to_KK";
-	is_sub, Kf_to_KK := IsSubfield(Kf, huge_fields[i]);
-	assert is_sub;
-	F_to_KK := F_to_Kf*Kf_to_KK;
-       */
-	// print "Verifying that original field is a subfield of KK";
-	// is_sub, F_to_KK := IsSubfield(fields[i], huge_fields[i]);
-	// assert is_sub;
-	print "Check that the embeddings commute";
+	vprintf ModularSymbols, 2 : "Check that the embeddings commute...\n";
 	_, Q_L_to_Kf := IsSubfield(Q_L, Kf);
-	//	_, Q_huge_to_KK := IsSubfield(Q_huge, huge_fields[i]);
 	_, Q_huge_to_KK := IsSubfield(Q_huge, KK);
 	// We check that the different embedding commute as they should
 	assert Q_huge_to_KK(Q_L_to_Q_huge(zeta_L)) eq
 	       Kf_to_KK(Q_L_to_Kf(zeta_L));
-//	assert Kf_to_KK(F_to_Kf(fields[i].1)) eq F_to_KK(fields[i].1);
 	Append(~field_embs, Kf_to_KK);
 	Append(~huge_fields, KK);
     end for;
@@ -1095,8 +1191,7 @@ function createFieldEmbeddings(K, NN, C, ds)
     SKpowersQ_L := AssociativeArray(conds);
     for cond in conds do
 	S_cond := Matrix(2,2,[1,1/cond,0,1]);
-	// S_cond_mat := ChangeRing(gen_to_mat([S_cond],C,C), Q_L);
-	S_cond_mat := ChangeRing(gen_to_mat2(S_cond,C), Q_L);
+	S_cond_mat := ChangeRing(gen_to_mat(S_cond,C), Q_L);
 	S_cond_powers := [ChangeRing(I, Q_L)];
 	while (#S_cond_powers lt K) do
 	    S_cond_powers cat:= [S_cond_mat*S_cond_powers[#S_cond_powers]];
@@ -1110,11 +1205,15 @@ function createFieldEmbeddings(K, NN, C, ds)
 	   Q_gcd_to_Q_K;
 end function;
 
-forward BoxMethod;
+// !! TODO !! - this might be wrong as we multiply by a quantity
+// which might not be rational!!
 
-function BoxExample(G, ws, prec)
-    return BoxMethod(G, prec : AtkinLehner := ws);
-end function;
+// function: int_qexp
+// input: f - a vector of coefficients for a q-expansion
+//        prec - required precision
+//        qKp - a target power series variable
+//        Q_K_plus - a target base ring for the power series
+// output: a q-expansion which is a scalar multiple of the vector.
 
 function int_qexp(f, prec, qKp, Q_K_plus)
     den := LCM([Denominator(f[i]) : i in [1..prec-1]]);
@@ -1122,15 +1221,18 @@ function int_qexp(f, prec, qKp, Q_K_plus)
     return den*&+[ff[i]*qKp^i : i in [1..prec-1]];
 end function;
 
+// function: FindCurveSimple
+// input: qexps - a list of q-expansions
+//        prec - precision
+//        n_rel - maximal degree in which we expect to find a relation.
+// output: X - a curve describing the image of the canonical embedding using these q-expansions 
+
 function FindCurveSimple(qexps, prec, n_rel)
     R<q> := Universe(qexps);
     K := BaseRing(R);
     zeta := K.1;
     fs := [f + O(q^prec) : f in qexps];
     g := #fs;
-    // Using the original eigenforms yields equations over Q
- //   T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
-//    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
     R<[x]> := PolynomialRing(K,g);
     degmons := [MonomialsOfDegree(R, d) : d in [1..n_rel]];
     prods := [[Evaluate(m, fs) + O(q^prec) : m in degmons[d]] :
@@ -1141,7 +1243,7 @@ function FindCurveSimple(qexps, prec, n_rel)
     I := ideal<R | &cat rels>;
     X := Curve(ProjectiveSpace(R),I);
     // Do we want to assert X is coercible to Q?
-    return X, fs;
+    return X;
 end function;
 
 // This doesn't really work, as it assumes that
@@ -1149,10 +1251,11 @@ end function;
 function FindHyperellipticCurve(qexps, prec)
     R<q> := Universe(qexps);
     K := BaseRing(R);
+    assert K eq Rationals();
     fs := [f + O(q^prec) : f in qexps];
     g := #fs;
- //   T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
- //   fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
+    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
     x := fs[g-1] / fs[g];
     y := q * Derivative(x) / fs[g];
     mons := [x^i : i in [0..2*g+2]] cat [-y^2];
@@ -1197,50 +1300,28 @@ function FindRationalCurve(qexps, prec, n_rel)
     return X;
 end function;
 
-procedure testBoxExample()
-    prec := 200;
-    fs := [* *];
-    for num in [1..3] do
-	print "computing for Box's group number ", num;
-	G, ws := getBoxGandAL(num);
-	Append(~fs, BoxExample(G, ws, prec));
-    end for;
-    assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
-    fs_qexps := [* *];
-    for num in [1..3] do
-        Q_K_plus := BaseRing(Universe(fs[num]));
-        _<qKp> := PowerSeriesRing(Q_K_plus);
-        Append(~fs_qexps, [int_qexp(f,prec,qKp,Q_K_plus) : f in fs[num]]);
-    end for;
-    curves := [* FindCurveSimple(fs, prec, 2) : fs in fs_qexps *];
-    assert [Genus(X) : X in curves] eq [6,5,8];
-end procedure;
+// function: BoxMethod
+// input: G - a subgroup of GL(2, N) for some N
+//        prec - a required precision for the q-expansions
+//        AtkinLehner - a list of AtkinLehner operators
+// output: fs - a list of coefficients of q-expansions for a basis of cusp forms in S_2(G, Q)
+//         tos - indices indicating from which twist orbit each of them was taken.
 
 function BoxMethod(G, prec : AtkinLehner := [])
     gens, Bgens, K, M, ds := get_gens(G);
 
-    print "Found generators. K = ", K, " and M = ", M;
+    vprintf ModularSymbols, 1 :  "Found generators. K = %o and M = %o.\n", K, M;
     
-    // gens cat:= AtkinLehner;
     N := M * K^2;
     g1 := CRT([1+K,1], [K^2,M]);
     alpha := Integers()!PrimitiveElement(Integers(M));
     g2 := CRT([1,alpha], [K^2,M]);
     MS := ModularSymbolsH(N, [g1,g2], 2, 0);
 
-    /*
-    cond := Conductor(CyclotomicField(EulerPhi(N)));
-    dirichlet_group := DirichletGroup(N, CyclotomicField(cond));
-    chars := [ dirichlet_group!chi : chi in DirichletCharacter(MS) ];
-    MS := ModularSymbols(chars, 2);
-    chars := [dirichlet_group!DirichletCharacter(m) : m in MultiSpaces(MS) | Dimension(m) ne 0];
-    MS := ModularSymbols(chars, 2);
-   */
-    
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
 
-    print "Dimension of large cusp form space is ", dim;
+    vprintf ModularSymbols, 1 : "Dimension of large cusp form space is %o.\n", dim;
     
     GL2Q := GL(2, Rationals());
     alpha_K := GL(2, Rationals())![1,0,0,1/K];
@@ -1248,7 +1329,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
     Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
     al_mats := [Matrix(GL2Q!g^alpha_K) : g in AtkinLehner];
     
-    print "Computing action of Gamma on large cusp form space...";
+    vprintf ModularSymbols, 1 : "Computing action of Gamma on large cusp form space...\n";
 
     B0M := M eq 1 select PSL2(Integers()) else Gamma0(M);
     B0M_gens := [Eltseq(x) : x in Generators(B0M)];
@@ -1266,10 +1347,10 @@ function BoxMethod(G, prec : AtkinLehner := [])
 		: i in [1..#Bmats]];
 
     // We modify the code to make profiling easier
-    //    B0M_C := [Transpose(gen_to_mat2(g^(-1), C)) : g in B0M_mats];
+    //    B0M_C := [Transpose(gen_to_mat(g^(-1), C)) : g in B0M_mats];
     B0M_C := [];
     for g in B0M_mats do
-	Append(~B0M_C, Transpose(gen_to_mat2(g^(-1), C)));
+	Append(~B0M_C, Transpose(gen_to_mat(g^(-1), C)));
     end for;
     I_mat := Universe(B0M_C)!1;
     gs := [Transpose(&*([I_mat] cat [B0M_C[Abs(x)]^(Sign(x)) : x in exp]))
@@ -1278,22 +1359,22 @@ function BoxMethod(G, prec : AtkinLehner := [])
 		  : exp in Bexps];
 
     // This is for debugging, in case we need any
- //   assert gs eq [gen_to_mat2(g^(-1),C) : g in gmats];
- //   assert Bs eq [gen_to_mat2(B^(-1),C) : B in Bmats];
-    // Bs := [gen_to_mat2(B,C) : B in Bmats];
-    gs cat:= [gen_to_mat2(g^(-1),C) : g in al_mats];
+ //   assert gs eq [gen_to_mat(g^(-1),C) : g in gmats];
+ //   assert Bs eq [gen_to_mat(B^(-1),C) : B in Bmats];
+    // Bs := [gen_to_mat(B,C) : B in Bmats];
+    gs cat:= [gen_to_mat(g^(-1),C) : g in al_mats];
     
     J := Transpose(StarInvolution(C));
 
     Cplus := Kernel(Transpose(J-1));
 
-    print "Computing old subspaces...";
+    vprintf ModularSymbols, 1 : "Computing old subspaces...\n";
 
     Tr_mats, Tr_ims, B_mats, deg_divs,
     num_coset_reps, oldspaces_full,
     oldspaces, C_old_new := get_old_spaces(MS);
 
-    print "Computing newforms...";
+    vprintf ModularSymbols, 1 : "Computing newforms...\n";
     
     Nnew := NewSubspace(C);
 
@@ -1303,7 +1384,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
     Nnew := [* qEigenform(d,prec) : d in nfd *];
     NN := (&cat ([[* *]] cat Nold)) cat Nnew;
 
-    print "Computing Hecke operators...";
+    vprintf ModularSymbols, 1 : "Computing Hecke operators...\n";
     
     max_hecke := 1;
     num_distinct := 0;
@@ -1313,7 +1394,6 @@ function BoxMethod(G, prec : AtkinLehner := [])
     // an eigenform for the other Hecke operators
     primes := [];
     sep_all := false;
-    //   while (num_distinct lt #NN) do
     while (not sep_all) do
 	repeat
 	    max_hecke := NextPrime(max_hecke);
@@ -1336,7 +1416,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
 
     as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
 
-    print "Creating field embeddings...";
+    vprintf ModularSymbols, 1 : "Creating field embeddings...\n";
     
     field_embs, cc, Ps_Q_huge, SKpowersQ_L,
     Q_huge, Q_L, zeta_huge, zeta_K,
@@ -1347,7 +1427,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
     // Taking only the forms with trivial Nebentypus character is not good enough
     // We need to take represenatives for X / X^2!
 
-    print "Preparing character group...";
+    vprintf ModularSymbols, 1 : "Preparing character group...\n";
     
     X := DirichletGroupFull(K);
     A, phi := AbelianGroup(X);
@@ -1373,7 +1453,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
 
     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
-    print "Computing the Gamma fixed space...";
+    vprintf ModularSymbols, 1 : "Computing the Gamma fixed space...\n";
 
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
@@ -1381,7 +1461,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
 
     Gamma_fixed_space := &meet fixed_spaces;
 
-    print "Dimension of fixed space is", Dimension(Gamma_fixed_space);
+    vprintf ModularSymbols, 1 : "Dimension of fixed space is %o.\n", Dimension(Gamma_fixed_space);
     
     Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
     
@@ -1393,7 +1473,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
 	Append(~Ps, P);
     end for;
 
-    print "Entering fixed_cusp_forms_QQ...";
+    vprintf ModularSymbols, 1 : "Entering fixed_cusp_forms_QQ...\n";
     
     fs,tos := fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  Gamma_fixed_space,Bs,
@@ -1415,13 +1495,17 @@ function BoxMethod(G, prec : AtkinLehner := [])
     return fs, tos;
 end function;
 
+// function: ModularCurve
+// input: G - a subgroup of GL(2, N) for some N
+//        genus - the genus of PSL2Subgroup(G)
+//        optional - Precision, if we would like to override the precision of the q-expansions
+// output: X - a model for the canonical embdding of the modular curve X_G
+//         fs - the q-expansions of a basis of cusp forms
+
 function ModularCurve(G, genus : Precision := 0)
     assert genus ge 2;
     max_deg := Maximum(7-genus, 3);
-    // prec := max_deg*(2*genus-2)-(max_deg-1) + 1;
     prec := Binomial(max_deg + genus - 1, max_deg);
-    // level := Modulus(BaseRing(G));
-    // prec *:= level;
     h := CuspWidth(PSL2Subgroup(G), Infinity());
     prec *:= h;
     if Precision ne 0 then
@@ -1430,8 +1514,8 @@ function ModularCurve(G, genus : Precision := 0)
     fs := BoxMethod(G, prec);
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
-    fs_qexps:=[int_qexp(f,prec,q,K) : f in fs];
-    X, fs := FindCurveSimple(fs_qexps, prec, max_deg);
+    fs := [int_qexp(f,prec,q,K) : f in fs];
+    X := FindCurveSimple(fs, prec, max_deg);
     g := Genus(X);
     if g eq 0 then
 	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
@@ -1444,6 +1528,35 @@ function ModularCurve(G, genus : Precision := 0)
     end if;
 end function;
 
+intrinsic ModularCurve(G::PSL2Grp) -> Crv[FldRat], SeqEnum[RngSerPowElt]
+{Returns the canonical embedding of the modular curve associated to G,
+ together with the q-expansions of a basis of cusp forms.}
+  return ModularCurve(ImageInLevelGL(G), Genus(G));
+end intrinsic;
+
+// procedure: testBoxExample
+// tests the 3 examples from the paper [Box]
+
+procedure testBoxExample()
+    prec := 200;
+    fs := [* *];
+    for num in [1..3] do
+	vprintf ModularSymbols, 1 : "computing for Box's group number %o.\n", num;
+	G, ws := getBoxGandAL(num);
+	Append(~fs, BoxMethod(G, prec : AtkinLehner := ws));
+    end for;
+    assert &and[#fs[1] eq 6, #fs[2] eq 5, #fs[3] eq 8];
+    fs_qexps := [* *];
+    for num in [1..3] do
+        Q_K_plus := BaseRing(Universe(fs[num]));
+        _<qKp> := PowerSeriesRing(Q_K_plus);
+        Append(~fs_qexps, [int_qexp(f,prec,qKp,Q_K_plus) : f in fs[num]]);
+    end for;
+    curves := [* FindCurveSimple(fs, prec, 2) : fs in fs_qexps *];
+    assert [Genus(X) : X in curves] eq [6,5,8];
+end procedure;
+
+// This tests Box's method using the database of congruence subgroups
 import "../congruence.m" : qExpansionBasis;
 
 procedure testBox(grps_by_name)
@@ -1467,8 +1580,8 @@ procedure testBox(grps_by_name)
     // still not working:
 
     for name in working_examples do
-	print "Working on group ", name;
+	vprintf ModularSymbols, 1 : "Working on group %o\n", name;
 	X<[x]>, fs := qExpansionBasis(name, grps_by_name);
-	print "Canonical curve is ", X;
+	vprintf ModularSymbols, 1 : "Canonical curve is %o\n", X;
     end for;
 end procedure;

@@ -2,6 +2,7 @@
     analytic.m
     arith.m
     boundary.m
+    Box.m
     calc.m
     character.m
     charpolyhecke.m
