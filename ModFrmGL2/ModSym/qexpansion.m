@@ -909,16 +909,22 @@ function qExpansionBasisNewform(A, prec, do_saturate)
                              select Integers() else BaseField(A);
            I := Matrix([[Q!1]]);
         else
-           if ISA( Type(Q), FldNum) then
+            if ISA( Type(Q), FldNum) then
+		if not IsNormal(Q) then
+		    Q := NormalClosure(Q);
+		    Qq := PowerSeriesRing(Q);
+		    f := Qq!f;
+		end if;
               V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
                                                     // because Eltseq(f) omits trailing zeros
               // TO DO: make the next line optimal
               // time 
               coeffs := [ Eltseq(Coefficient(f,i)) : i in [1..prec-1] ];
               B := [V! [coeffs[i][j] : i in [1..#coeffs]] :
-		       j in [1..Degree(Q)]];
-              gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
-					       BaseField(A));
+		    j in [1..Degree(Q)]];
+	      // This fails when K(f) is not Galois !!!
+              // gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
+	      gal, dummy, psi := AutomorphismGroup(Q, BaseField(A));
               T := Matrix([[(g@psi)(Coefficient(f,j)) :
 				      j in [1..prec-1]] : g in gal]);
 	      E, I := EchelonForm(T);
@@ -968,7 +974,7 @@ function qExpansionBasisNewform(A, prec, do_saturate)
                                     F, do_saturate, prec : debug:=debug);
      
       I := TensorProduct(I, IdentityMatrix(BaseRing(I), Nrows(J) div Nrows(I)));
-      return ans, I*J;
+      return ans, I*ChangeRing(J, BaseRing(I));
    end if;
 end function;
 

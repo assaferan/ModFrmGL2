@@ -339,7 +339,8 @@ function qExpansionBasisShimura(grp_name, grps)
     N := Level(PG);
     U_t, phi_t := UnitGroup(Integers(N*t));
     red_N := hom<Integers(N*t) -> Integers(N)|>;
-    red_U := hom<U_t -> U | [red_N(phi_t(x))@@phi : x in Generators(U_t)]>;
+    gens := [U_t.i : i in [1..Ngens(U_t)]];
+    red_U := hom<U_t -> U | [red_N(phi_t(x))@@phi : x in gens]>;
     H_t := H@@red_U;
     MS_H := ModularSymbolsH(N*t, [Integers()!phi_t(g) : g in Generators(H_t)], 2, 0);
     C_H := CuspidalSubspace(MS_H);
