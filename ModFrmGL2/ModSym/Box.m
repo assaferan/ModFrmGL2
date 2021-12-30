@@ -119,35 +119,32 @@ function pi(mu, oldspace_full, oldspaces, B_mat)
     return mus[1]*ChangeRing(Transpose(B_mat), Kf);
 end function;
 
-function pr(flist, check, Nold, prec)
-    K := Universe(flist);
-    /*
-    if IsAbsoluteField(K) then
-	folds := [f : f in Nold |
-		  &and[Coefficients(MinimalPolynomial(flist[i]))
-		       eq Coefficients(MinimalPolynomial(Coefficient(f,i)))
-		       : i in check]];
-    else
-*/
-	folds := [f : f in Nold |
-		  &and[Coefficients(AbsoluteMinimalPolynomial(flist[i]))
-		       eq Coefficients(AbsoluteMinimalPolynomial(Coefficient(f,i)))
-		       : i in check]];
-  //  end if;
+function pr(flist, check, Nold, prec, Kf_to_KK)
+    folds := [f : f in Nold |
+	      &and[Coefficients(AbsoluteMinimalPolynomial(flist[i]))
+		   eq Coefficients(AbsoluteMinimalPolynomial(Coefficient(f,i)))
+		   : i in check]];
     assert #folds eq 1;
     fold := folds[1];
-    Kf := BaseRing(Parent(fold));
+    Kf := Domain(Kf_to_KK);
+    KK := Codomain(Kf_to_KK);
+    assert KK eq Universe(flist);
+    Kfold := BaseRing(Parent(fold));
+    _, Kfold_to_Kf := IsSubfield(Kfold, Kf);
+    // aut := Automorphisms(Kfold);
+    aut := Automorphisms(AbsoluteField(Kfold));
+    //aut_Q_L := Automorphisms(BaseRing(Kf));
+    embs := [a*Kfold_to_Kf*Kf_to_KK : a in aut];
+    /*
     if (Type(Kf) eq FldRat) then
 	embs := [hom<Kf->K|>];
-//    elif IsAbsoluteField(K) then
-//	embs := [hom<Kf->K | r[1]> : r in Roots(DefiningPolynomial(Kf),K)];
     else
 	embs := [hom<AbsoluteField(Kf)->K | r[1]>
 		 : r in Roots(DefiningPolynomial(AbsoluteField(Kf)),K)];
     end if;
+   */
     embs := [e : e in embs | &and[e(Coefficient(fold, i)) eq flist[i]
 				  : i in check]];
-
     assert #embs eq 1;
     return [embs[1](Coefficient(fold, i)) : i in [1..prec-1]];
 end function;
@@ -185,12 +182,13 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 			 ftws, oldspaces_full, oldspaces,
 			 Kf, B_mats, Tr_mats, num_coset_reps,
 			 alist, Nold, prec, deg_divs, Q_huge,
-			 qKK, chis, Nnew)
+			 qKK, chis, Nnew, Kf_to_KK)
     n_mutwists := [];
     n_ftwists := [];
     n_powerlist := [];
     for mutw_idx in [1..#new_mutwists] do
 	mutw := new_mutwists[mutw_idx];
+	gs := gauss_sum(chis[mutw_idx], Q_huge);
 	ftw := ftws[mutw_idx];
 	cond := Conductor(chis[mutw_idx]);
 	check := [i : i in [1..#alist] | GCD(i, cond) eq 1];
@@ -198,7 +196,7 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 	for sp_idx in [1..#oldspaces_full] do
 	    if mutw in ChangeRing(oldspaces_full[sp_idx], Kf) then
 		is_old := true;
-		ftwpr := pr(ftw, check, Nold[sp_idx], prec);
+		ftwpr := pr(ftw, check, Nold[sp_idx], prec, Kf_to_KK);
 		for j in [1..#deg_divs[sp_idx]] do
 		    d := deg_divs[sp_idx][j];
 		    n_mutwists cat:= [pi(mutw, oldspaces_full[sp_idx],
@@ -206,20 +204,18 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 				       B_mats[sp_idx][1]) *
 				    Transpose(ChangeRing(Tr_mats[sp_idx][j],Kf))
 				    / num_coset_reps[sp_idx]];
-		    ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
-				 *ftwpr[j]*qKK^(d*j)
-				 : j in [1..prec-1]];
+		    ftwprB := &+[gs*ftwpr[j]*qKK^(d*j) : j in [1..prec-1]];
 		    n_ftwists cat:= [[Coefficient(ftwprB,idx)
 					: idx in [1..prec-1]]];
 		    Append(~n_powerlist, new_powerlist[mutw_idx]);
 		end for;
+		break;
 	    end if;
 	end for;
 	if not is_old then
-	    ftwpr := pr(ftw, check, Nnew, prec);
+	    ftwpr := pr(ftw, check, Nnew, prec, Kf_to_KK);
 	    n_mutwists cat:= [mutw];
-	    ftwprB := &+[gauss_sum(chis[mutw_idx], Q_huge)
-			 *ftwpr[j]*qKK^(j) : j in [1..prec-1]];
+	    ftwprB := &+[gs*ftwpr[j]*qKK^(j) : j in [1..prec-1]];
 	    n_ftwists cat:= [[Coefficient(ftwprB,idx)
 					: idx in [1..prec-1]]];
 	    Append(~n_powerlist, new_powerlist[mutw_idx]);
@@ -297,7 +293,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 		   [flist], oldspaces_full, oldspaces,
 		   Kf, B_mats, Tr_mats, num_coset_reps,
 		   alist, Nold, prec, deg_divs, Q_huge,
-		   qKK, [Universe(chis)!1], Nnew);
+		   qKK, [Universe(chis)!1], Nnew, Kf_to_KK);
 
     mutwists := [base_mutwists];
     ftwists := [base_ftwists];
@@ -335,7 +331,7 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
 			 new_ftws, oldspaces_full, oldspaces,
 			 Kf, B_mats, Tr_mats, num_coset_reps,
 			 alist, Nold, prec, deg_divs, Q_huge,
-			 qKK, chars, Nnew);
+			 qKK, chars, Nnew, Kf_to_KK);
 
 	    Append(~powerlist, new_powerlist);
 	    Append(~ftwists, new_ftwists);
@@ -369,8 +365,9 @@ function coeffs_by_zeta(x, Q_L)
     Kf := Parent(x);
     d := Degree(Q_L);
     Kf_Q_L := RelativeField(Q_L, Kf);
-    if (Kf_Q_L eq Q_L) then
-	return Eltseq(x);
+    //    if (Kf_Q_L eq Q_L) then
+    if IsIsomorphic(Kf_Q_L, Q_L) then
+	return Eltseq(Q_L!x);
     end if;
     return [Kf!Kf_Q_L![y[j] : y in [Eltseq(z) : z in Eltseq(Kf_Q_L!x)]]
 	    : j in [1..d]];
@@ -395,11 +392,13 @@ function Pdmatrix(Pd, d, powerlist, chis,
     Q_K := Domain(Q_K_to_Q_huge);
     zeta_L := Q_L.1;
     L := EulerPhi(K) div 2;
-    _, u, v := XGCD(K,L);
+    L0 := L div GCD(K,L);
+    zeta_L0 := zeta_L^GCD(K,L);
+    _, u, v := XGCD(K,L0);
     for i in [0..EulerPhi(K)-1] do
 	j := (d*i) mod K;
 	elts := [Eltseq(zeta_K^j * x) : x in gs_ratios];
-	coeffs := [&+[zeta_L^(u*i)*x_elt[i+1]*Vector(Q_L,Eltseq(zeta_K^(v*i)))
+	coeffs := [&+[zeta_L0^(u*i)*x_elt[i+1]*Vector(Q_L,Eltseq(zeta_K^(v*i)))
 			    : i in [0..Degree(Q_huge)-1]] : x_elt in elts];
 	Append(~list, [MonomialMatrix(n,n,[gr[i] : gr in coeffs], perm_d)
 				     : i in [1..EulerPhi(K)]]);
@@ -472,7 +471,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    end if;
 	    Append(~twist_all_aps, twist_aps);
 	    inlist := exists(j){j : j in [1..#as[1]] |
-				Universe(KK_aps[j]) eq Universe(twist_aps) and
+				BaseRing(Universe(KK_aps[j])) eq
+				BaseRing(Universe(twist_aps)) and
 				&and[MinimalPolynomial(KK_aps[j][l]) eq
 				     MinimalPolynomial(twist_aps[l]) : l in [1..#as]]};
 	    if inlist then
@@ -547,7 +547,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    end for;
 	    assert Dimension(fixed_ms_space_QQ) eq #fixed_space_basis;
 	    
-	    // Here we need to take complex onjugates because of Proposition 4.10 in [Box]
+	    // Here we need to take complex conjugates because of Proposition 4.10 in [Box]
 	    
 	    fmssQQ_cc := [[cc(Kf_to_KK(a)) : a in Eltseq(v)]
 			  : v in Basis(fixed_ms_space_QQ)];
@@ -803,8 +803,21 @@ function get_degeneracy_maps(M_old, M, d)
     for j in [1..#ms_old] do
 	assert exists(i){i : i in [1..#ms]
 			 | IsCompatibleChar(ms[i], ms_old[j])};
-	deg := DegeneracyMatrix(ms_old[j], ms[i], d);
-	deg_d := DegeneracyMatrix(ms[i], ms_old[j], d);
+	m_old := ms_old[j];
+	/*
+	F_old := BaseRing(m_old);
+	F_new := BaseRing(ms[i]);
+	if F_old ne F_new then
+	    is_isom, psi := IsIsomorphic(F_old, F_new);
+	    assert is_isom;
+	    eps := DirichletCharacter(m_old);
+	    eps0 := DirichletGroup(Level(m_old), F_new)!eps;
+	    m_old := ModularSymbols(eps0, 2);
+	end if;
+	deg := ChangeRing(DegeneracyMatrix(m_old, ms[i], d), F_old);
+       */
+	deg := DegeneracyMatrix(m_old, ms[i], d);
+	deg_d := DegeneracyMatrix(ms[i], m_old, d);
 	multi := MultiQuotientMaps(M)[i];
 	multi_old := MultiQuotientMaps(M_old)[j];
 	quo_mat := Matrix([Representation(multi(x))
@@ -844,20 +857,21 @@ function get_old_spaces(MS)
     D := NewformDecomposition(C);
     old_levels := Sort([lev : lev in {Level(d) : d in D} | lev ne N]);
     dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
-    // reduce them to minimal base rings
+    // reduce them to minimal base rings 
     conds := [Conductor(BaseRing(grp)) : grp in dirichlet_groups];
     dirichlet_groups := [DirichletGroup(old_levels[i],
 					CyclotomicField(conds[i]))
 			 : i in [1..#old_levels]];
+    /*
+    dirichlet_groups := [DirichletGroup(level,
+					CyclotomicField(EulerPhi(level)))
+			 : level in old_levels];
+   */
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
 		Level(d) eq (old_levels[i])] : i in [1..#old_levels]*];
     M_old := [ModularSymbols(chis, 2) : chis in chars | not IsEmpty(chis)];
     C_old := [CuspidalSubspace(m) : m in M_old];
     C_old_new := [NewSubspace(c) : c in C_old];
- //   assert &and[Dimension(C_old[i]) eq Dimension(C_old_new[i])
-//		: i in [1..#C_old]];
-//    C_oldb := [* Basis(c) : c in C_old *];
-//    C_oldmat := [* Transpose(Matrix([Eltseq(c) : c in b])) : b in C_oldb *];
     
     num_coset_reps := [];
     Tr_mats := [];
@@ -958,56 +972,82 @@ function createFieldEmbeddings(K, NN, C, ds)
     _<x_huge> := PolynomialRing(Q_huge);
     
     fields := [* BaseRing(Parent(f)) : f in NN *];
-    min_polys := [* DefiningPolynomial(F) : F in fields *];
     huge_fields := [* *];
-    for poly in min_polys do
-	fac := Factorization(Evaluate(poly, x_huge));
-	nt_facs := [f[1] : f in fac | Degree(f[1]) ne 1];
-	assert #nt_facs le 1;
-	if #nt_facs eq 1 then
-	    KK := NumberField(nt_facs[1]);
-	else
-	    KK := Q_huge;
-	end if;
-	Append(~huge_fields, KK);
-    end for;
-		     
     field_embs := [* *];
     for i in [1..#fields] do
+	print "Constructing field embedding no. ", i, " out of ", #fields;
 	Kf := fields[i];
 	Kf_base := BaseRing(Kf);
-	if (Type(Kf_base) eq FldRat) and (Kf ne Q_L) then
+	print "K(f) = ", Kf;
+	if IsSubfield(Kf_base, Q_L) and (Kf ne Q_L) then
 	    poly := Evaluate(DefiningPolynomial(Kf), x_L);
-	    // This is a temporary patch.
-	    // Need to understand how to do it in general.
+	    // Since K(f) is Galois, f(x) should decompose to factors of the same degree,
+	    // and using any one of them will give us the compositum.
 	    fac := Factorization(Evaluate(poly, x_L));
-	    nt_facs := [f[1] : f in fac | Degree(f[1]) ne 1];
-	    assert #nt_facs le 1;
-	    if #nt_facs eq 1 then
-		Kf := NumberField(nt_facs[1]);
+	    degrees := {Degree(fa[1]) : fa in fac };
+	    assert #degrees eq 1;
+	    d := SetToSequence(degrees)[1];
+	    if d ne 1 then
+		print "Field is not contained in Q_L, enlarging field.";
+		poly := fac[1][1];
+		Kf := NumberField(poly);
+		print "Kf = ", Kf;
+		F_to_Kf := hom<fields[i] -> Kf | Kf.1 >;
+		Embed(fields[i], Kf, Kf.1);
+		fac := Factorization(Evaluate(poly, x_huge));
+		degrees := {Degree(fa[1]) : fa in fac };
+		assert #degrees eq 1;
+		d := SetToSequence(degrees)[1];
+		if d ne 1 then
+		    print "Field is not contained in Q_huge, enlarging field.";
+		    KK := NumberField(fac[1][1]);
+		    print "KK = ", KK;
+		    Kf_to_KK := hom<Kf -> KK | KK.1 >;
+		else
+		    KK := Q_huge;
+		    root := -Coefficient(fac[1][1],0);
+		    Kf_to_KK := hom<Kf -> KK | root>;
+		end if;
 	    else
 		Kf := Q_L;
+		KK := Q_huge;
+		Kf_to_KK := Q_L_to_Q_huge;
+		root := -Coefficient(fac[1][1],0);
+		if Type(fields[i]) eq FldRat then
+		    F_to_Kf := hom<fields[i] -> Kf | >;
+		else
+		    F_to_Kf := hom<fields[i] -> Kf | root>;
+		    Embed(fields[i], Kf, root);
+		end if;
 	    end if;
-	    //	    Kf := NumberField(poly);
-	    /*
-	    comp := Compositum(Q_L, Kf);
-	    assert IsSubfield(Q_L, comp);
-	    Kf := RelativeField(Q_L, comp);
-	   */
+	else
+	    assert Kf eq Q_L;
+	    KK := Q_huge;
+	    Kf_to_KK := Q_L_to_Q_huge;
 	end if;
+	
+	/*
+	print "Verifying that original field is a subfield";
 	is_sub, F_to_Kf := IsSubfield(fields[i], Kf);
 	assert is_sub;
-	is_sub, F_to_KK := IsSubfield(fields[i], huge_fields[i]);
-	assert is_sub;
+	print "Creating Kf_to_KK";
 	is_sub, Kf_to_KK := IsSubfield(Kf, huge_fields[i]);
 	assert is_sub;
+	F_to_KK := F_to_Kf*Kf_to_KK;
+       */
+	// print "Verifying that original field is a subfield of KK";
+	// is_sub, F_to_KK := IsSubfield(fields[i], huge_fields[i]);
+	// assert is_sub;
+	print "Check that the embeddings commute";
 	_, Q_L_to_Kf := IsSubfield(Q_L, Kf);
-	_, Q_huge_to_KK := IsSubfield(Q_huge, huge_fields[i]);
+	//	_, Q_huge_to_KK := IsSubfield(Q_huge, huge_fields[i]);
+	_, Q_huge_to_KK := IsSubfield(Q_huge, KK);
 	// We check that the different embedding commute as they should
 	assert Q_huge_to_KK(Q_L_to_Q_huge(zeta_L)) eq
 	       Kf_to_KK(Q_L_to_Kf(zeta_L));
 //	assert Kf_to_KK(F_to_Kf(fields[i].1)) eq F_to_KK(fields[i].1);
 	Append(~field_embs, Kf_to_KK);
+	Append(~huge_fields, KK);
     end for;
 
     cc_Q_huge := hom<Q_huge -> Q_huge | zeta_huge^(-1)>;
@@ -1032,7 +1072,8 @@ function createFieldEmbeddings(K, NN, C, ds)
     SKpowersQ_L := AssociativeArray(conds);
     for cond in conds do
 	S_cond := Matrix(2,2,[1,1/cond,0,1]);
-	S_cond_mat := ChangeRing(gen_to_mat([S_cond],C,C), Q_L);
+	// S_cond_mat := ChangeRing(gen_to_mat([S_cond],C,C), Q_L);
+	S_cond_mat := ChangeRing(gen_to_mat2(S_cond,C), Q_L);
 	S_cond_powers := [ChangeRing(I, Q_L)];
 	while (#S_cond_powers lt K) do
 	    S_cond_powers cat:= [S_cond_mat*S_cond_powers[#S_cond_powers]];
@@ -1169,6 +1210,13 @@ function BoxMethod(G, prec : AtkinLehner := [])
     alpha := Integers()!PrimitiveElement(Integers(M));
     g2 := CRT([1,alpha], [K^2,M]);
     MS := ModularSymbolsH(N, [g1,g2], 2, 0);
+    
+    cond := Conductor(CyclotomicField(EulerPhi(N)));
+    dirichlet_group := DirichletGroup(N, CyclotomicField(cond));
+    chars := [ dirichlet_group!chi : chi in DirichletCharacter(MS) ];
+    MS := ModularSymbols(chars, 2);
+    chars := [dirichlet_group!DirichletCharacter(m) : m in MultiSpaces(MS) | Dimension(m) ne 0];
+    MS := ModularSymbols(chars, 2);
     
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
@@ -1379,7 +1427,8 @@ procedure testBox(grps_by_name)
 			 "11A2", "11A6",
 			 "12B2", "12E2",
 			 "14B6",
-			 "18A6", "18B6", "18C6", 
+			 "18A6", "18B6", "18C6",
+			 "20C6",
 			 "21B6",
 			 "35E6"];
     // Checked all real type conjugates for:
