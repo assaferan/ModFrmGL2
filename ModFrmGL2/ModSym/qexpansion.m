@@ -129,6 +129,8 @@ import "arith.m"  :   DotProd,
                       SmallestPrimeNondivisor,
                       ToLowerCaseLetter;
 
+import "Box.m" : BoxMethod, qExpansions;
+
 import "linalg.m" :   EchelonPolySeq,
                       MyCharpoly,
                       Pivots,
@@ -493,7 +495,8 @@ The base field must be either the rationals or a cyclotomic field.}
 end intrinsic;
 
 
-forward qExpansionBasisNewform,
+forward qExpansionBasisBox,
+	qExpansionBasisNewform,
         qExpansionBasisUniversal;
 
 
@@ -538,8 +541,8 @@ is used instead.  This latter algorithm does not require computing
 a newform decomposition of M, but requires computing the action
 of more Hecke operators.}
    require IsCuspidal(M) : "Argument 1 must be cuspidal.";
-   require Al eq "Universal" or Al eq "Newform" :
-       "Al paramater must equal either \"Universal\" or \"Newform\".";
+   require Al eq "Universal" or Al eq "Newform" or Al eq "Box":
+       "Al paramater must equal either \"Universal\" or \"Newform\" or \"Box\".";
 
    prec := assigned M`qexpbasis select M`qexpbasis[1] else 8;
    return qExpansionBasis(M, prec : Al := Al);
@@ -552,8 +555,8 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
 
    require IsCuspidal(M) : "Argument 1 must be cuspidal.";
 
-   require Al eq "Universal" or Al eq "Newform" :
-       "Al paramater must equal either \"Universal\" or \"Newform\".";
+   require Al eq "Universal" or Al eq "Newform" or Al eq "Box":
+       "Al paramater must equal either \"Universal\" or \"Newform\" or \"Box\".";
 
    if assigned M`al_decomp then
       Al := "Universal";
@@ -569,13 +572,21 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
 
    if IsMultiChar(M) then
        return &cat[qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M)];
-//      return qExpansionBasis(AssociatedNewformSpace(M), prec: Al := Al);
    end if;
 
    if Dimension(M) eq 0 then
       return [];
    end if;
 
+   // Before we do that we need to ascertain in which cases the Hecke operators coincide with the
+   // regular ones and use that.
+   /*
+   if not IsOfGammaType(M) then
+       Al := "Box";
+       vprint ModularSymbols, 1: "Since M is not of Gamma type, the classical algorithms wouldn't work";
+   end if;
+  */
+   
    if not assigned M`qexpbasis then
       M`qexpbasis := [* 0,[PowerSeriesRing(BaseField(M))!0] *];
    end if;
@@ -586,7 +597,9 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
       M`qexpbasis[1] := prec;
       M`qexpbasis[2] := Al eq "Universal" select
                         qExpansionBasisUniversal(M,prec, false) else
-                        qExpansionBasisNewform(M,prec, false);
+                        (Al eq "Newform" select
+			 qExpansionBasisNewform(M,prec, false) else
+			 qExpansionBasisBox(M, prec, false));
    end if;
    _<q> := Universe(M`qexpbasis[2]);
    return [f + O(q^prec) : f in M`qexpbasis[2] | not IsWeaklyZero(f+O(q^prec)) ];
@@ -630,7 +643,7 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    /*
    // At the moment, newform decomposition is not supported in general
    if not IsOfGammaType(A) then
-      Al := "Universal";
+      Al := "Box";
    end if;
    */
    
@@ -694,9 +707,12 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
       if Al eq "Universal" then 
          prec_new := Max(prec, HeckeBound(A));
          ans, I := qExpansionBasisUniversal(A, prec_new, true);
-      else
+      elif Al eq "Newform" then 
          prec_new := prec;
 	 ans, I := qExpansionBasisNewform(A, prec_new, true);
+      else
+	  prec_new := prec;
+	  ans, I := qExpansionBasisBox(A, prec_new, true);
       end if;
       A`qintbasis[2] := ans;
       A`qintbasis[1] := prec_new;
@@ -2085,3 +2101,17 @@ intrinsic ActionOnEchelonFormBasis(g::GrpMatElt, M::ModSym) -> AlgMatElt
   E, I := EchelonForm(Z);
   return I^(-1) * s_hol * I;
 end intrinsic;
+
+function qExpansionBasisBox(A, prec, do_saturate)
+    // at the moment we can only do this for the entire space.
+    // Are we able to find forms corresponding to Hecke subspaces?
+    assert A eq CuspidalSubspace(AmbientSpace(A));
+    G := ImageInLevelGL(LevelSubgroup(A));
+    // what about the character?
+    fs := BoxMethod(G, prec : Chars := [DirichletCharacter(A)]);
+    if IsEmpty(fs) then return fs; end if;
+    K := BaseRing(Universe(fs));
+    _<q> := PowerSeriesRing(K);
+    fs := qExpansions(fs,prec,q,K,do_saturate);
+    return fs;
+end function;

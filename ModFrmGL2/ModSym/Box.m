@@ -559,7 +559,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     deg_divs,
 			     num_coset_reps, J,
 			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge,
-			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K, Nnew)
+			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K, Nnew, eps_BPd_gens)
     FCF := [];
     twist_orbit_indices := [];
     already_visited := {};
@@ -671,7 +671,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf);
 		B_pd_cfs := Solution(fixed_basis_block, B_pd_mat);
 		I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
-		fixed_B_pd := Kernel(B_pd_cfs - I_mat);
+		fixed_B_pd := Kernel(B_pd_cfs - eps_BPd_gens[k]*I_mat);
 		fixed_ms_space_QQ meet:= fixed_B_pd;
 	    end for;
 	    assert Dimension(fixed_ms_space_QQ) eq #fixed_space_basis;
@@ -1205,21 +1205,21 @@ function createFieldEmbeddings(K, NN, C, ds)
 	   Q_gcd_to_Q_K;
 end function;
 
-// !! TODO !! - this might be wrong as we multiply by a quantity
-// which might not be rational!!
-
-// function: int_qexp
-// input: f - a vector of coefficients for a q-expansion
+// function: qExpansions
+// input: fs - vectors of coefficients for q-expansions
 //        prec - required precision
 //        qKp - a target power series variable
 //        Q_K_plus - a target base ring for the power series
 // output: a q-expansion which is a scalar multiple of the vector.
 
-function int_qexp(f, prec, qKp, Q_K_plus)
-    den := LCM([Denominator(f[i]) : i in [1..prec-1]]);
-    assert den eq 1;
-    ff := ChangeRing(f, Q_K_plus);
-    return den*&+[ff[i]*qKp^i : i in [1..prec-1]];
+function qExpansions(fs, prec, q, K, integral)
+    if integral then
+	den := LCM([Denominator(f[i]) : i in [1..prec-1], f in fs]);
+    else
+	den := 1;
+    end if;
+    ffs := [ChangeRing(f, K) : f in fs];
+    return [den*&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
 end function;
 
 // function: FindCurveSimple
@@ -1308,10 +1308,26 @@ end function;
 // output: fs - a list of coefficients of q-expansions for a basis of cusp forms in S_2(G, Q)
 //         tos - indices indicating from which twist orbit each of them was taken.
 
-function BoxMethod(G, prec : AtkinLehner := [])
+function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
+    // this is a temporary patch to allow for activation without a character
+    if IsEmpty(Chars) then
+	// we create the trivial character
+	Q, pi_Q := G/G;
+	PG := PSL2Subgroup(G);
+	eps := CharacterGroup(pi_Q, Rationals(), PG, PG)!1;
+    else
+	assert #Chars eq 1;
+	eps := Chars[1];
+    end if;
+    
     gens, Bgens, K, M, ds := get_gens(G);
 
     vprintf ModularSymbols, 1 :  "Found generators. K = %o and M = %o.\n", K, M;
+
+    GL_N := GL(2, BaseRing(G));
+    eps_gens := [eps(G!g) : g in gens];
+    // the value of eps on BP_d
+    eps_BPd_gens := [eps(GL_N!Bgens[i]*GL_N![ds[i],0,0,1]) : i in [1..#Bgens]]; 
     
     N := M * K^2;
     g1 := CRT([1+K,1], [K^2,M]);
@@ -1364,6 +1380,8 @@ function BoxMethod(G, prec : AtkinLehner := [])
  //   assert Bs eq [gen_to_mat(B^(-1),C) : B in Bmats];
     // Bs := [gen_to_mat(B,C) : B in Bmats];
     gs cat:= [gen_to_mat(g^(-1),C) : g in al_mats];
+    // We want the space fixed by the Atkin-Lehner
+    eps_gens cat:= [1 : g in al_mats];
     
     J := Transpose(StarInvolution(C));
 
@@ -1455,10 +1473,14 @@ function BoxMethod(G, prec : AtkinLehner := [])
     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
     vprintf ModularSymbols, 1 : "Computing the Gamma fixed space...\n";
-
+/*
     fixed_spaces := [Kernel(Transpose(gmat)-
 			   IdentityMatrix(Rationals(), Nrows(gmat)))
 		     : gmat in gs];
+*/
+    fixed_spaces := [Kernel(Transpose(gs[i])-
+			    eps_gens[i] * IdentityMatrix(Rationals(), Nrows(gs[i])))
+		     : i in [1..#gs]];
 
     Gamma_fixed_space := &meet fixed_spaces;
 
@@ -1492,7 +1514,7 @@ function BoxMethod(G, prec : AtkinLehner := [])
 				  J,
 				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
 				  Q_L_to_Q_huge, Q_gcd, zeta_gcd,
-				  Q_gcd_to_Q_K, Nnew);
+				  Q_gcd_to_Q_K, Nnew, eps_BPd_gens);
     return fs, tos;
 end function;
 
@@ -1521,7 +1543,7 @@ function ModularCurveBox(G, genus : Precision := 0)
     fs := BoxMethod(G, prec);
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
-    fs := [int_qexp(f,prec,q,K) : f in fs];
+    fs := qExpansions(fs, prec, q, K, true);
     X := FindCurveSimple(fs, prec, max_deg);
     g := Genus(X);
     if g eq 0 then
@@ -1563,7 +1585,7 @@ procedure testBoxExample()
     for num in [1..3] do
         Q_K_plus := BaseRing(Universe(fs[num]));
         _<qKp> := PowerSeriesRing(Q_K_plus);
-        Append(~fs_qexps, [int_qexp(f,prec,qKp,Q_K_plus) : f in fs[num]]);
+        Append(~fs_qexps, qExpansions(fs[num],prec,qKp,Q_K_plus,true));
     end for;
     curves := [* FindCurveSimple(fs, prec, 2) : fs in fs_qexps *];
     assert [Genus(X) : X in curves] eq [6,5,8];
