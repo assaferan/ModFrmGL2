@@ -1313,7 +1313,8 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     if IsEmpty(Chars) then
 	// we create the trivial character
 	Q, pi_Q := G/G;
-	eps := CharacterGroup(pi_Q, Rationals(), G, G)!1;
+	PG := PSL2Subgroup(G);
+	eps := CharacterGroup(pi_Q, Rationals(), PG, PG)!1;
     else
 	assert #Chars eq 1;
 	eps := Chars[1];
@@ -1379,6 +1380,8 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
  //   assert Bs eq [gen_to_mat(B^(-1),C) : B in Bmats];
     // Bs := [gen_to_mat(B,C) : B in Bmats];
     gs cat:= [gen_to_mat(g^(-1),C) : g in al_mats];
+    // We want the space fixed by the Atkin-Lehner
+    eps_gens cat:= [1 : g in al_mats];
     
     J := Transpose(StarInvolution(C));
 
