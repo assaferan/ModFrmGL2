@@ -158,7 +158,8 @@ import "multichar.m": MC_Decomposition,
                       MC_DecompositionOfCuspidalSubspace,
                       MC_DecompositionOfNewCuspidalSubspace,
                       MC_NewformDecompositionOfCuspidalSubspace,
-                      MC_NewformDecompositionOfNewCuspidalSubspace;
+                      MC_NewformDecompositionOfNewCuspidalSubspace,
+                      MC_RestrictDualVectorOfSummandToSummand;
 
 import "operators.m":FastTn;
 
@@ -167,6 +168,8 @@ import "subspace.m":  GetModSymPrimes,
                       PlusSubspaceDual,
 		      MinusSubspace,
                       PlusSubspace;
+
+import "twists.m" : DegMapToFullSpace;
 
 forward             NewformDecompositionOfNewNonzeroSignSpaceOverQ,
                     NewformDecompositionOfNewNonzeroSignSpaceOverCyclo,
@@ -1779,21 +1782,22 @@ function Decomposition_dimension_recurse(M, p, stop,
    // Compute the Decomposition of the subspace V of DualRepresentation(M)
    // starting with Tp.
    if Dimension(M) eq 0 then
-      return [];
+      return [], [];
    end if;
 
    p := SmallestPrimeNondivisor(Level(M),p);
 
    if p gt stop then   // by definition of this function!
-      return [M];
+       return [<Dimension(M), 1>], [false];
    end if;
    
 
    vprintf ModularSymbols, 1 : "Decomposing space of level %o and dimension %o using T_%o.\n",Level(M),Dimension(M), p;
    vprintf ModularSymbols, 2 : "\t\t(will stop at %o)\n", stop;
 
-   T := HeckeOperator(M, p);
+   T := DualHeckeOperator(M, p);
    dims := [];
+   is_verified := [];
 
    if not elliptic_only then
       if GetVerbose("ModularSymbols") ge 2 then
@@ -1824,7 +1828,8 @@ function Decomposition_dimension_recurse(M, p, stop,
       //  checking for irreduciblity
       irred := SimpleIrreducibleTest(M,a,elliptic_only : check_star := proof);
       if irred then
-        Append(~dims, 2*Degree(f));
+        Append(~dims, <Degree(f), a>);
+        Append(~is_verified, true);
         continue;
       end if;
       if Characteristic(BaseField(M)) eq 0 then
@@ -1834,8 +1839,8 @@ function Decomposition_dimension_recurse(M, p, stop,
       end if;
       vprintf ModularSymbols, 2: "Cutting out subspace using f(T_%o), where f=%o.\n",p, f;
       fT  := Evaluate(fa,T);
-      V   := KernelOn(fT,M);
-      W   := ModularSymbolsSub(M,V);
+      V   := KernelOn(fT,DualVectorSpace(M));
+      W   := ModularSymbolsDual(M,V);
       if assigned M`sub_representation then
          W`sub_representation := M`sub_representation;
       end if;    
@@ -1850,29 +1855,121 @@ function Decomposition_dimension_recurse(M, p, stop,
 
       if Characteristic(BaseField(W)) eq 0 and W_is_irreducible(W,a,elliptic_only, random_op select p else 0) then
 	 W`is_irreducible := true;
-         Append(~dims,Dimension(W)); 
+         Append(~dims,<Degree(f), a>);
+         Append(~is_verified, true);
       else
          if not assigned W`is_irreducible then
             if NextPrime(p) le stop then
                q    := Dimension(W) eq Dimension(M) select NextPrime(p) else 2;
-               Sub  := Decomposition_dimension_recurse(W, q, stop, 
+               Sub, is_ver_sub  := Decomposition_dimension_recurse(W, q, stop, 
                                              proof, elliptic_only, random_op); 
-               for WW in Sub do 
-                  Append(~dims, WW);
-               end for;
+               dims cat:= Sub;
+               is_verified cat:= is_ver_sub;
             else
-	        Append(~dims,Dimension(W));
+	      //Append(~dims,<Dimension(W),1>);
+	       Append(~dims,<Degree(f),a>);
+               Append(~is_verified, false);
             end if;
          end if;
       end if;
    end for;
-   return dims;
+   return dims, is_verified;
+end function;
+
+// V is a subspace of the dual vector space of M
+function  NewformDimensionDecomposition(M, V : Proof := true, Sort := true)
+
+   max_dim := Dimension(DualVectorSpace(M) meet V);
+
+   if max_dim eq 0 then
+      return [];
+   end if;
+
+   if HasAssociatedNewSpace(M) then
+      return [<max_dim, 1>];
+   end if;
+
+   if IsNew(M) and assigned M`is_irreducible and M`is_irreducible then
+      M`associated_new_space := true;
+      return [<max_dim,1>];
+   end if;
+
+   
+      vprintf ModularSymbols : "Doing decomposition of %o\n",M;
+
+      if IsNew(M) then
+         DD := complete_decomposition_of_a_new_subspace(M);
+         D := [<Dimension(d), 1> : d in DD];
+         return D;
+      end if;
+
+      D := [ ] ;
+
+      N := Level(M);
+      NN := Reverse([a : a in Divisors(N)]);
+      pnew := &*([1] cat [p : p in PrimeDivisors(N) | IsNew(M,p)]);
+      
+      for i in [1..#NN] do
+	 if &+([0] cat [d[1]*d[2] : d in D]) eq max_dim then 
+            continue;
+         end if;
+
+         if GCD(N div NN[i],pnew) gt 1 or
+	    NN[i] mod Conductor(DirichletCharacter(M)) ne 0 or
+            Characteristic(BaseField(M)) eq 0 and
+                 DimensionCuspForms(
+                    Restrict(DirichletCharacter(M),NN[i]),
+                    Weight(M)
+                 ) eq 0 then
+               continue;
+         end if;
+	 
+         MM := CuspidalSubspace(ModularSymbols(AmbientSpace(M),NN[i]));
+         
+         MMnew := NewSubspace(MM);
+         f := DegeneracyMatrix(AmbientSpace(MMnew),AmbientSpace(M),1);
+         MMnew_V := V*Transpose(f) meet DualVectorSpace(MMnew);
+         if Dimension(MMnew_V) eq 0 then
+            continue;
+         end if;
+      
+         vprintf ModularSymbols, 1: "Now decomposing the new space %o\n", MMnew; 
+         IndentPush();
+         DD := complete_decomposition_of_a_new_subspace(MMnew);
+         IndentPop();
+
+         vprintf ModularSymbols, 1: 
+          " ... new space in level %o of dimension %o decomposes into spaces of dimensions\n%o\n", 
+                             Level(MMnew), Dimension(MMnew), [Dimension(it) : it in DD];
+        
+         // Take all images of DD in M.
+         for A in DD do
+            B, is_factor := image_of_old_newform_factor(M,A);
+	    if B subset M then
+	       B_int_V := DualVectorSpace(B) meet V;
+               if Dimension(B_int_V) eq 0 then continue; end if;
+               divs := Divisors(Level(M) div Level(A));
+               im_AV := sub<DualVectorSpace(A)|>;
+               for d in divs do
+                   f := DegeneracyMatrix(AmbientSpace(A),AmbientSpace(M),d);
+                   im_BV := B_int_V * Transpose(f);
+                   im_AV +:= im_BV;
+               end for;
+               n_AV := Dimension(B_int_V) div Dimension(im_AV);
+               Append(~D,<Dimension(im_AV), n_AV>);
+            end if;
+         end for;
+      end for;
+
+   assert max_dim eq &+([0] cat [d[1]*d[2] : d in D]);
+
+   return D;
 end function;
 
 intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
-  -> SeqEnum[RngIntElt]
+  -> SeqEnum[RngIntElt], BoolElt
 {Return the dimensions of the isotypic components of M.}
-   return Decomposition_dimension_recurse(M, 2,
+   D, verified := Decomposition_dimension_recurse(M, 2,
                                           HeckeBound(M), Proof, false, false);
 /*
    rigor := &and verified;
@@ -1889,6 +1986,7 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
    // any eigenform for Gamma(N)
    // In that case, the method below fails
    // We can try and employ Box's method of twists
+
    N := Level(M);
    M_full := ModularSymbols(CongruenceSubgroup(N));
    phi := DegMapToFullSpace(M, M_full);
@@ -1908,4 +2006,5 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
 
    return D, true;
 */
+
 end intrinsic;

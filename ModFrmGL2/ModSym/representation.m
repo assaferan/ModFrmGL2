@@ -172,6 +172,7 @@ intrinsic VectorSpace(M::ModSym) -> ModTupFld, Map, Map
                continue;
             end if;
 
+
  if do_skipped_small_primes and #skipped_small_primes gt 0 then
      p := skipped_small_primes[#skipped_small_primes];
      Prune(~skipped_small_primes);

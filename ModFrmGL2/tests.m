@@ -923,7 +923,20 @@ procedure Test_IsotypicDecomposition()
   M := ModularSymbols(H, 2, Rationals(), 0);
   S := CuspidalSubspace(M);
   assert IsotypicDimensionDecomposition(S) eq
-    [2, 10, 10, 70, 70, 100, 180, 180, 400 ];
+    [ <1, 2>, <5, 2>, <5, 2>, <35, 2>, <35, 2>, <50, 2>,
+	<90, 2>, <90, 2>, <200, 2> ];
+  H := my_Gamma(22,0);
+  M := ModularSymbols(H, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  assert IsotypicDimensionDecomposition(S) eq [<1,4>];
+  assert IsotypicDimensionDecomposition(S : Proof) eq [<2,2>];
+  printf "Testing issue #5";
+  H_N := sub<GL(2,Integers(25))|[[11,19,9,14],[4,16,7,22]]>;
+  H := PSL2Subgroup(H_N);
+  M := ModularSymbols(H, 2, Rationals(), 0);
+  S := CuspidalSubspace(M);
+  assert IsotypicDimensionDecomposition(S) eq
+     [<2, 2>, <2, 2>, <2, 2>, <2, 2>, <2, 4>, <2, 4>, <4, 2>, <8, 2>, <8, 2>];
 end procedure;
 
 procedure DoTests(numchecks)
@@ -952,7 +965,7 @@ procedure DoTests(numchecks)
    // Test_Rouse();
    // not needed - tests the construction of spaces for ns cartan
    // Test_NSCartan(30);
-   Test_IsotypicDecomposition()
+   Test_IsotypicDecomposition();
 end procedure;
 
 
