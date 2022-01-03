@@ -282,11 +282,13 @@ intrinsic GammaNS(N::RngIntElt) -> GrpPSL2
        v := (1-y) div 4;   
        return GammaNS(N, x^2 + x + v);
    else
-       crt_vals := [3] cat [Integers()!Nonsquare(GF(p)) : p in primes];
+       //       crt_vals := [3] cat [Integers()!Nonsquare(GF(p)) : p in primes];
+       // we take primitive elements for the quadratic order to be maximal,
+       // That way magma can handle it better, even though it is not truly necessary.
+       crt_vals := [3] cat [Integers()!PrimitiveElement(GF(p)) : p in primes];
        u := ChineseRemainderTheorem(crt_vals, [4] cat primes);
        return GammaNS(N, x^2 - u);
    end if;
-//   u := PrimitiveElement(IntegerRing(N));
 end intrinsic;
 
 intrinsic GammaSplus(N::RngIntElt) -> GrpPSL2
