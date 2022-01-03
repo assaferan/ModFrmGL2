@@ -1,7 +1,7 @@
 import "GrpPSL2/GrpPSL2/misc.m" : Conjugates,
        IsConjugate, NormalizerGrpMat;
 
-import "ModSym/Box.m" : ModularCurve, get_M_K, FindCurveSimple;
+import "ModSym/Box.m" : ModularCurveBox, get_M_K, FindCurveSimple;
 
 // These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
 // Helper functions for creation
@@ -261,7 +261,7 @@ function qExpansionBasis(grp_name, grps : Precision := 0)
     max_M, loc := Maximum([get_M_K(c) : c in cands]);
     print "Best M found among conjugates is ", max_M;
     G := cands[loc];
-    X, fs := ModularCurve(G, grp`genus : Precision := Precision);
+    X, fs := ModularCurveBox(G, grp`genus : Precision := Precision);
     return X, fs;
 end function;
 

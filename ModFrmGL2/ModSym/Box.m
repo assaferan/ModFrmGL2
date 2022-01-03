@@ -9,7 +9,7 @@ freeze;
   FILE: Box.m (modular curve algorithm based on J. Box's paper)
 
   exports intrinsics:
-  ModularCurve(G::PSL2Grp);                                 
+  ModularCurve(G::GrpPSL2);                                 
                                                                       
 *************************************************************************************
 */
@@ -1503,7 +1503,7 @@ end function;
 // output: X - a model for the canonical embdding of the modular curve X_G
 //         fs - the q-expansions of a basis of cusp forms
 
-function ModularCurve(G, genus : Precision := 0)
+function ModularCurveBox(G, genus : Precision := 0)
     assert genus ge 2;
     max_deg := Maximum(7-genus, 3);
     prec := Binomial(max_deg + genus - 1, max_deg);
@@ -1535,10 +1535,16 @@ function ModularCurve(G, genus : Precision := 0)
     end if;
 end function;
 
-intrinsic ModularCurve(G::PSL2Grp) -> Crv[FldRat], SeqEnum[RngSerPowElt]
+intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
 {Returns the canonical embedding of the modular curve associated to G,
  together with the q-expansions of a basis of cusp forms.}
-  return ModularCurve(ImageInLevelGL(G), Genus(G));
+  if IsGamma0(G) then
+      db := ModularCurveDatabase("Canonical");
+      return ModularCurve(db, Level(G));
+  end if;
+  genus := Genus(G);
+  require genus ge 2 : "Currenty not implemented for genus < 2";
+  return ModularCurveBox(ImageInLevelGL(G), genus);
 end intrinsic;
 
 // procedure: testBoxExample
