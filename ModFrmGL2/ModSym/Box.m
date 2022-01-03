@@ -1217,6 +1217,7 @@ end function;
 
 function int_qexp(f, prec, qKp, Q_K_plus)
     den := LCM([Denominator(f[i]) : i in [1..prec-1]]);
+    assert den eq 1;
     ff := ChangeRing(f, Q_K_plus);
     return den*&+[ff[i]*qKp^i : i in [1..prec-1]];
 end function;
@@ -1506,8 +1507,14 @@ function ModularCurve(G, genus : Precision := 0)
     assert genus ge 2;
     max_deg := Maximum(7-genus, 3);
     prec := Binomial(max_deg + genus - 1, max_deg);
-    h := CuspWidth(PSL2Subgroup(G), Infinity());
-    prec *:= h;
+    PG := PSL2Subgroup(G);
+//    h := CuspWidth(PG, Infinity());
+    N := Level(PG);
+    //    prec *:= N div h; // This is the amount of non-zero coefficients we need
+    prec *:= N;
+    prec +:= 2; // For a random set of linear equations, his has high probability of giving prec
+    // Problem : our set of equations is not random. Is this a good enough correction?
+    // linearly independent equations.
     if Precision ne 0 then
         prec := Precision;
     end if;
