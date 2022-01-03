@@ -2,3 +2,12 @@
 *.m~
 *.m~
 *.el
+*.m#
+*.m#
+ModFrmGL2/ModSym/.#modsym.m
+ModFrmGL2/ModSym/modsym.m~
+*.m~
+ModFrmGL2/genus6_Q.txt~
+.DS_Store
+data/.DS_Store
+data/modular curves/.DS_Store

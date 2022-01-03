@@ -419,6 +419,7 @@ function Heilbronn(M, n, Merel)
 
 end function;
 
+forward blockify_components;
 
 ///////////////////////////////////////////////////////////////
 //  COMPUTATION of HECKE OPERATORS                           //
@@ -461,14 +462,17 @@ with respect to Basis(M).}
       // Before adjusting Heilbronn to work for our case        
         if (not IsOfGammaType(M))
 	  and ( ( ( not IsGammaNS(M`G) ) and ( not IsGammaNSplus(M`G) ) and
-		( GCD(n, Level(M)) ne 1 ) ) or
-	        ( #Domain(M`G`DetRep) lt EulerPhi(Level(M)) ) ) then
+		( GCD(n, Level(M)) ne 1 ) ) ) then
 	   T := HeckeOperatorDirectlyOnModularSymbols(M,n);
         else      
            use_cremona := BaseField(M) cmpeq RationalField() and Weight(M) eq 2 
                              and IsTrivial(DirichletCharacter(M));
 	   T := HeckeOperatorHeilbronn(M, Heilbronn(M, n, not use_cremona));
         end if;
+
+        if (not IsOfGammaType(M)) then
+	  T := blockify_components(M,T,n);
+	end if;
 
 /*  Using "DirectlyOn" fails in this example!!
     G<a>:=DirichletGroup(109,GF(4));M:=ModularSymbols(a,2);
@@ -485,7 +489,9 @@ with respect to Basis(M).}
             // 0.5*dim(amb) is the right cut off. 
             T := HeckeOperator_OnSubspace_UsingComplement(M,n);
          else
-            T := Restrict(HeckeOperator(AmbientSpace(M),n), VectorSpace(M));
+	    V := DirectSum([VectorSpace(M) : i in [1..NumComponents(M)]]);
+            T := Restrict(HeckeOperator(AmbientSpace(M),n), V);
+//T := Restrict(HeckeOperator(AmbientSpace(M),n), VectorSpace(M));
          end if;
       end if; 
 
@@ -745,6 +751,20 @@ function HeckeNSCartanRepresentatives(G,p,plus)
   return R;
 end function;
 
+// Should fix this when I get the chance.
+// The basic things to notice are:
+// 1. representatives for Gamma(N) are conjugates of the representatives for
+// Gamma0(N^2) by [1,0,0,N] - i.e. we should have
+// _, m, n := XGCD(p, N^2);
+// R := [[1,N*j,0,p] : j in [0..p-1]];
+// if (N mod p ne 0) then
+//    Append(~R, [p*m, -n*N, p*N, p]);
+// end if;
+// In other words, these are the representatives of
+// Gamma(N) meet GammaUpper0(N*p) \ Gamma(N)
+// 2. The only reason I'm not yet doing it is the T_{p^2}
+// This should be resolved by using the diamond operators, eventually.
+
 function HeckeFullCongruenceRepresentatives(N,p : Squared := false)
   GL2Q := GL(2, Rationals());
   if (N mod p ne 0) then
@@ -770,6 +790,7 @@ function HeckeFullCongruenceRepresentatives(N,p : Squared := false)
   R := &cat[[Eltseq(alpha_N^(-1)*c*r*alpha_N) : c in coset_reps] : r in reps];
   return R;
 end function;
+
 
 function GetBadDoubleCosetRepresentatives(G,p)
     GL2Q := GL(2, Rationals());
@@ -975,6 +996,21 @@ intrinsic HeckeAdelicComponents(M::ModSym, w::GrpMatElt[FldRat]) -> AlgMatElt
   mats := [[perm_mat[i,j]*blocks[i] : j in [1..#blocks]] : i in [1..#blocks]];
   return BlockMatrix(mats);
 end intrinsic;
+
+//intrinsic HeckeOperatorComponents(M::ModSym, p:: RngIntElt) -> AlgMatElt
+function HeckeComponents(M,p)
+//{Compute the Hecke operator on the components of the Shimura variety.}
+   N := Level(M);
+   Z_N := Integers(N);
+   Z_N_star, phi := UnitGroup(Z_N);
+   perm := SymmetricGroup(Set(Z_N_star))![(p*phi(i))@(phi^(-1)) :
+						      i in Z_N_star];
+   perm_mat := PermutationMatrix(Rationals(), perm);
+   mats := [[perm_mat[i,j]*HeckeOperator(M,p) : j in [1..#Z_N_star]] :
+						       i in [1..#Z_N_star]];
+   return BlockMatrix(mats);
+end function;
+//end intrinsic;
 
 intrinsic HeckeOperator(M::ModSym , alpha::GrpMatElt[FldRat]) -> AlgMatElt
   {This function computes the Hecke operator corresponding to the double coset
@@ -1379,10 +1415,9 @@ function TnSparse(M, Heil, sparsevec)
    now commented out.  WAS, 09/15/01.
   if Weight(M) gt 2 and Characteristic(BaseField(M)) gt 0 then
 */
-
+/*
   if (not IsOfGammaType(M)) and
-     ((not (IsGammaNS(M`G) or IsGammaNSplus(M`G))) or
-      (#Domain(M`G`DetRep) lt EulerPhi(Level(M))) )  then
+     (not (IsGammaNS(M`G) or IsGammaNSplus(M`G)) )  then
       if Type(Heil) eq RngIntElt then
 	 n := Heil;
       else
@@ -1391,7 +1426,7 @@ function TnSparse(M, Heil, sparsevec)
       N := Level(M);
       // For now we always simply compute the whole Hecke operator,
       // because this seems more efficient, since it is properly cached, etc.
-      if (GCD(N,n) ne 1) or (#Domain(M`G`DetRep) lt EulerPhi(Level(M))) then
+      if GCD(N,n) ne 1 then
         fac := Factorization(n);
         compute_direct := (#fac eq 1) and (fac[1][2] le 2);
         if not compute_direct then   // just compute the whole Hecke operator.
@@ -1415,7 +1450,7 @@ function TnSparse(M, Heil, sparsevec)
         end if;
       end if;
    end if;    
-         
+*/   
 
    // Now consider the characteristic-zero case.
    if Level(M) eq 1 then
@@ -1862,7 +1897,10 @@ function FastTnData(M, V)
 
 
    n := #V;
-   B := Basis(sub<Representation(AmbientSpace(M))|V>);
+   MM := DirectSum([Representation(AmbientSpace(M)) :
+				    i in [1..NumComponents(M)]]);
+// B := Basis(sub<Representation(AmbientSpace(M))|V>);
+   B := Basis(sub<MM | V>);
    assert #B eq n;
    // Find pivot columns.
    e := Pivots(B);
@@ -1889,7 +1927,7 @@ function FastTn(M, V, n)
    F     := BaseField(M);
    V     := FastData`V;
    n     := #V;
-   m     := Dimension(AmbientSpace(M));
+   m     := Dimension(AmbientSpace(M)) * NumComponents(M);
    e     := FastData`e;
    VEinv := FastData`VEinv;
    // The next step is where all of the time is spent. 
@@ -1899,6 +1937,7 @@ function FastTn(M, V, n)
    return  MatrixAlgebra(F,n)!Eltseq(Vmat*Transpose(TEmat)*VEinv);
 end function;
 
+// forward blockify_components;
 
 intrinsic DualHeckeOperator(M::ModSym, n::RngIntElt) -> AlgMatElt
 {Compute a matrix representing the Hecke operator T_n on 
@@ -1926,15 +1965,19 @@ transpose of HeckeOperator(M,n).}
                           n, Dimension(M);
    if n eq 1 then
 
-      T := MatrixAlgebra(BaseField(M),Dimension(M))!1;
+      T := MatrixAlgebra(BaseField(M),Dimension(M)*NumComponents(M))!1;
 
    elif IsMultiChar(M) then
       
-      T := Restrict(MC_DualHeckeOperator(AmbientSpace(M),n), DualVectorSpace(M));
+      T := Restrict(MC_DualHeckeOperator(AmbientSpace(M),n),
+		 DirectSum([DualVectorSpace(M) : i in [1..NumComponents(M)]]));
 
    elif IsPrime(n) then
       T := FastTn(AmbientSpace(M),DualRepresentation(M),n);
-      assert Degree(Parent(T)) eq Dimension(M);
+      if not IsOfGammaType(M) then
+         T := blockify_components(M, T, n);
+      end if;
+      assert Degree(Parent(T)) eq Dimension(M) * NumComponents(M);
    else
       fac := Factorization(n);
       if #fac eq 1 then
@@ -2354,3 +2397,26 @@ function HeckeOperator_OnSubspace_UsingComplement(M,n)
 
 end function;
 
+function get_block_permutation(M, n)
+   N := Level(M);
+   G := LevelSubgroup(M);
+   det_hom := hom<ImageInLevelGL(G) -> GL(1,IntegerRing(N)) |
+	    x :-> [Determinant(x)]>;
+   comp_group, pi_comp := GL(1,Integers(N)) / Image(det_hom);
+   S_G := SymmetricGroup(Set(comp_group));
+   if GCD(n,N) eq 1 then
+     perm := S_G![((GL(1,Integers(N))![n])*(i@@pi_comp))@pi_comp :
+						      i in comp_group];
+   else
+     perm := S_G!1;
+   end if;
+   return perm;
+end function;
+
+function blockify_components(M, T, n)
+   perm := get_block_permutation(M, n);
+   perm_mat := PermutationMatrix(Rationals(), perm);
+   nc := NumComponents(M);
+   mats := [[perm_mat[i,j]*T : j in [1..nc]] : i in [1..nc]];
+   return BlockMatrix(mats);
+end function;

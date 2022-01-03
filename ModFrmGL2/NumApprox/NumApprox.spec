@@ -2,5 +2,8 @@
  CCExtra.m
  Linear.m
  LLL.m
+ polredabs.m
  Recognition.m
+ Relative.m
+ roots.m
 }

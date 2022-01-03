@@ -568,7 +568,8 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
        "The characteristic of the base field must equal 0.  Try qEigenform on an irreducible space instead.";
 
    if IsMultiChar(M) then
-      return qExpansionBasis(AssociatedNewformSpace(M), prec: Al := Al);
+       return &cat[qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M)];
+//      return qExpansionBasis(AssociatedNewformSpace(M), prec: Al := Al);
    end if;
 
    if Dimension(M) eq 0 then
@@ -797,7 +798,7 @@ function SpaceGeneratedByImages(C, N, F, do_saturate, prec : debug:=false)
          I := IdentityMatrix(BaseRing(Parent(C[1])), #ans);  
       end if;
       ans, J := SaturatePolySeq(ans,prec);
-      return ans, J*I;
+      return ans, ChangeRing(J, BaseRing(I))*I;
    end if;  
    ans, I := EchelonPolySeq(ans,prec);
    return ans, I;
@@ -908,17 +909,23 @@ function qExpansionBasisNewform(A, prec, do_saturate)
                              select Integers() else BaseField(A);
            I := Matrix([[Q!1]]);
         else
-           if ISA( Type(Q), FldNum) then
+            if ISA( Type(Q), FldNum) then
+		if not IsNormal(Q) then
+		    Q := NormalClosure(Q);
+		    Qq := PowerSeriesRing(Q);
+		    ff := Qq!f;
+		end if;
               V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
                                                     // because Eltseq(f) omits trailing zeros
               // TO DO: make the next line optimal
               // time 
-              coeffs := [ Eltseq(Coefficient(f,i)) : i in [1..prec-1] ];
+              coeffs := [ Eltseq(Coefficient(ff,i)) : i in [1..prec-1] ];
               B := [V! [coeffs[i][j] : i in [1..#coeffs]] :
-		       j in [1..Degree(Q)]];
-              gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
-					       BaseField(A));
-              T := Matrix([[(g@psi)(Coefficient(f,j)) :
+		    j in [1..Degree(Q)]];
+	      // This fails when K(f) is not Galois !!!
+              // gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
+	      gal, dummy, psi := AutomorphismGroup(Q, BaseField(A));
+              T := Matrix([[(g@psi)(Coefficient(ff,j)) :
 				      j in [1..prec-1]] : g in gal]);
 	      E, I := EchelonForm(T);
               delete coeffs;
@@ -967,7 +974,7 @@ function qExpansionBasisNewform(A, prec, do_saturate)
                                     F, do_saturate, prec : debug:=debug);
      
       I := TensorProduct(I, IdentityMatrix(BaseRing(I), Nrows(J) div Nrows(I)));
-      return ans, J*I;
+      return ans, I*ChangeRing(J, BaseRing(I));
    end if;
 end function;
 
@@ -1037,14 +1044,17 @@ end function;
  *                                                           *
  *************************************************************/
 
-function EigenvectorOfMatrixWithCharpoly(T, f)
+function EigenvectorOfMatrixWithCharpoly(T, f : e := 1)
 /* Let T be an nxn matrix over K with irreducible characteristic
  polynomial f.  This function returns an eigenvector for T
- over the extension field K[x]/(f(x)). */
+ over the extension field K[x]/(f(x)). 
+ assaferan : added e to denot exponent, so that T could have as
+ a characteristic polynomial a power of an irreducible - f^e
+*/
 
    // This is implemented using a quotient of a polynomial ring
    // because this works generically for any field.
-   n  := Degree(f);
+   n  := Degree(f) * e;
    K  := Parent(T[1,1]);
    if n eq 1 then
       return VectorSpace(K,n)![1];
@@ -1247,9 +1257,9 @@ function my_ev_before_lift(A, M)
   return EigenvectorOfMatrixWithCharpoly(T,f);
 end function;
 
-function FindIrreducibleHeckeOperator(A)
+function FindIrreducibleHeckeOperator(A : e := 1)
     // Find a linear combination of Hecke operators whose
-    // charpoly on A is irreducible. 
+    // charpoly on A is irreducible to the e-th power.
 
     vprintf ModularSymbols, 1: 
         "Looking for an irreducible element in the Hecke algebra of %o\n", A;
@@ -1278,6 +1288,13 @@ function FindIrreducibleHeckeOperator(A)
             if IsIrreducible(f) then
                 break;
             end if;
+	    if (e gt 1) then
+	        FAC := Factorization(f);
+	        if #FAC eq 1 and FAC[1][2] eq e then
+		   f := FAC[1][1];
+		   break;
+		end if;
+	    end if;
         end if; 
 
 	if i eq 15 then

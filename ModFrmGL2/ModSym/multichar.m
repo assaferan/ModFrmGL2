@@ -232,6 +232,7 @@ intrinsic DirectSumRestrictionOfScalarsToQ(Spaces::[ModSym]) -> ModSym
    A`sign := Sign(Spaces[1]);
    A`F    := RationalField();
    A`multi := [AmbientSpace(M) : M in Spaces];
+   // A`multi := [ModularSymbols(MinimalBaseRingCharacter(eps),k,sign) : eps in chars];
    A`dimension := &+[Dimension(S)*Degree(BaseRing(S)) : S in MultiSpaces(A)];
    A`sub_representation  := VectorSpace(A`F,A`dimension);
    A`dual_representation  := VectorSpace(A`F,A`dimension);

@@ -895,7 +895,8 @@ function GetModularFunctionAndModel(H)
   fourierlist := [[ &+[seq[m]*qExpansion(fourier_basis[i][j][m], prec)
 		   : m in [1..#eis2basis]] : j in [1..#S2]] : i in [1..#S1]];
 
-  fourierlist := [[Evaluate(f, q^(1/N)) : f in fs] : fs in fourierlist];
+  puiseux<q> := PuiseuxSeriesRing(BaseRing(Parent(fourierlist[1][1])));
+  fourierlist := [[Evaluate(puiseux!f, q^(1/N)) : f in fs] : fs in fourierlist];
 
   vprintf ModularForms, 1: "Symmetrizing.\n";
   wt := 0;
@@ -997,13 +998,14 @@ function GetModularFunctionAndModel(H)
   // the modular function formsused[1]/denomfunc.
 
   degbound := Ceiling((effwt*Index(H))/(12*ind));
+  R := Parent(denomfunc);
   S<xxx> := PolynomialRing(R);
   poly := S!1;
   for i in [1..#S1] do
-    poly := poly*(denomfunc*xxx - formsused[i]);
+    poly := poly*((R!denomfunc)*xxx - R!formsused[i]);
   end for;
-  poly := poly/(denomfunc^Degree(poly));
-  modf := formsused[1]/denomfunc;
+  poly := poly/((R!denomfunc)^Degree(poly));
+  modf := (R!formsused[1])/(R!denomfunc);
 
   inftyratpoints := false;
   noratpoints := false;

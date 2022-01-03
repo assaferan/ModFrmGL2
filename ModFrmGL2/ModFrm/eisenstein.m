@@ -253,8 +253,9 @@ function ActionOnEisensteinSeries(gamma, f)
     M := AmbientSpace(Parent(f));
     k := Weight(M);
     N := Level(M);
+    QN<zeta> := CyclotomicField(N);
     basislist, rel_dict, elt := Explode(EisensteinData(f));
-    new_vec := act(elt,gamma,N,basislist : k := k, dict := rel_dict);
+    new_vec := act(elt,gamma,N,basislist,zeta : k := k, dict := rel_dict);
     return MakeEisensteinSeriesNotGamma(M, basislist, rel_dict, new_vec);
 end function;
 
@@ -294,7 +295,7 @@ function act(elt,g,N,basislist,zeta : k := 2, dict := AssociativeArray())
     // Act on elt by zeta^i -> zeta^(i*det)
     // This is when we change to an algebra
     // coeffs := Eltseq(elt[i]);
-    coeffss := [Eltseq(elt[i][j]) : j in [1..Degree(elt[i])]];
+    coeffss := [Eltseq(elt[i][j]) : j in [1..Degree(Parent(elt[i]))]];
     t := [&+[ coeffs[i]*zeta^((i-1)*det) : i in [1..#coeffs]]
 	      : coeffs in coeffss];
     scalar := coeff* Parent(elt[i])!t;

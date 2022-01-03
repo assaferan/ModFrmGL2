@@ -1,3 +1,15 @@
 *.sig
 */*.sig
 */*/*.sig
+*.m~
+*/*.m~
+*/*/*.m~
+.DS_Store
+*/.DS_Store
+*/*/.DS_Store
+.magma-scan
+.magma-scan/*
+*/.magma_scan
+*/.magma-scan/*
+*/*/.magma-scan
+*/*/.magma-scan/*

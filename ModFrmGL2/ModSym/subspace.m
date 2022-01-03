@@ -159,7 +159,7 @@ intrinsic CuspidalSubspace(M::ModSym) -> ModSym
          if IsMultiChar(M) then
             M`cuspidal_part := MC_CutSubspace(M,CuspidalSubspace); 
          else
-            M`cuspidal_part := ModularSymbolsSub(M,Kernel(BoundaryMap(M)));      
+	    M`cuspidal_part := ModularSymbolsSub(M,Kernel(BoundaryMap(M)));
          end if;
       else
          M`cuspidal_part := M meet CuspidalSubspace(AmbientSpace(M));

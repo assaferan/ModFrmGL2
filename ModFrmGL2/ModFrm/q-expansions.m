@@ -996,6 +996,7 @@ function qExpansion_EisensteinSeriesNotGamma(f, prec)
     assert Type(f) eq ModFrmElt;
     assert Type(prec) eq RngIntElt;
     assert assigned f`eisenstein;
+
     basislist, _, coeffs := Explode(EisensteinData(f));
     N := Level(f);
     k := Weight(f);
