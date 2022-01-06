@@ -1177,7 +1177,11 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
 
-    elts := [Integers()!(Integers(K)!d) : d in ds];
+    if (K eq 1) then
+	elts := [1 : d in ds];
+    else
+	elts := [Integers()!(Integers(K)!d) : d in ds];
+    end if;
     powers := [CRT([e,1],[K,L div GCD(K,L)]) : e in elts];
     // Checking that CRT actually worked
     assert &and[p ne -1 : p in powers];
