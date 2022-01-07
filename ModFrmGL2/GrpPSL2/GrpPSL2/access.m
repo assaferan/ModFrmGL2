@@ -92,14 +92,18 @@ intrinsic ImageInLevelGL(G::GrpPSL2 : N := Level(G)) -> GrpMat
        Z_N := Integers(level);
        U, psi := UnitGroup(Z_N);
        for t in Generators(U) do
-	  Append(~gens, [1,0,0,psi(t)]);
+	   // we change the convention to match Box's
+	   Append(~gens, [psi(t), 0, 0, 1]);
+	  // Append(~gens, [1,0,0,psi(t)]);
        end for;
        if IsGamma1(G) or IsGamma0(G) then
           Append(~gens, [1,1,0,1]);
        end if;
        if IsGamma0(G) then
-          for t in Generators(U) do
-	    Append(~gens, [psi(t),0,0,1]);
+           for t in Generators(U) do
+	       // we change the convention to match Box's
+	       Append(~gens, [1,0,0,psi(t)]);
+	       // Append(~gens, [psi(t),0,0,1]);
           end for;
        elif not (IsGamma1(G) or IsGamma(G)) then
 	 gens := gens cat [Eltseq(x) : x in Generators(G)];
