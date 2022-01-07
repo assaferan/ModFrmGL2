@@ -1646,7 +1646,6 @@ end procedure;
 import "../congruence.m" : qExpansionBasisPSL2;
 
 procedure testBox(grps_by_name)
-    testBoxExample();
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "10A3", "10A4", 
@@ -1684,4 +1683,6 @@ procedure testBox(grps_by_name)
 	end if;
 	vprintf ModularSymbols, 1 : "Canonical curve is %o\n", X;
     end for;
+
+    testBoxExample();
 end procedure;
