@@ -605,7 +605,7 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
                         (Al eq "Newform" select
 			 qExpansionBasisNewform(M,prec, false) else
 			 // we scale by a common denominator
-			 qExpansionBasisBox(M, prec, true));
+			 qExpansionBasisBox(M, prec));
    end if;
    _<q> := Universe(M`qexpbasis[2]);
    return [f + O(q^prec) : f in M`qexpbasis[2] | not IsWeaklyZero(f+O(q^prec)) ];
@@ -717,7 +717,7 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
 	 ans, I := qExpansionBasisNewform(A, prec_new, true);
       else
 	  prec_new := prec;
-	  ans, I := qExpansionBasisBox(A, prec_new, true);
+	  ans, I := qExpansionBasisBox(A, prec_new);
       end if;
       A`qintbasis[2] := ans;
       A`qintbasis[1] := prec_new;
@@ -2107,7 +2107,7 @@ intrinsic ActionOnEchelonFormBasis(g::GrpMatElt, M::ModSym) -> AlgMatElt
   return I^(-1) * s_hol * I;
 end intrinsic;
 
-function qExpansionBasisBox(A, prec, do_saturate)
+function qExpansionBasisBox(A, prec)
     // at the moment we can only do this for the entire space.
     // Are we able to find forms corresponding to Hecke subspaces?
     assert A eq CuspidalSubspace(AmbientSpace(A));
@@ -2117,6 +2117,6 @@ function qExpansionBasisBox(A, prec, do_saturate)
     if IsEmpty(fs) then return fs; end if;
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
-    fs := qExpansions(fs,prec,q,K,do_saturate);
+    fs := qExpansions(fs,prec,q,K);
     return fs;
 end function;

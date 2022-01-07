@@ -1219,18 +1219,9 @@ end function;
 //        Q_K_plus - a target base ring for the power series
 // output: a q-expansion which is a scalar multiple of the vector.
 
-function qExpansions(fs, prec, q, K, integral)
-    if integral then
-	den := LCM([Denominator(f[i]) : i in [1..prec-1], f in fs]);
-	if den eq 1 then
-	    gcd := GCD([Integers(K)!Numerator(f[i]) : i in [1..prec-1], f in fs]);
-	    den := gcd^(-1);
-	end if;
-    else
-	den := 1;
-    end if;
+function qExpansions(fs, prec, q, K)
     ffs := [ChangeRing(f, K) : f in fs];
-    qexps := [den*&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
+    qexps := [&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
     return qexps;
 end function;
 
@@ -1600,7 +1591,7 @@ function ModularCurveBox(G, genus : Precision := 0)
     fs := BoxMethod(G, prec);
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
-    fs := qExpansions(fs, prec, q, K, true);
+    fs := qExpansions(fs, prec, q, K);
     X := FindCurveSimple(fs, prec, max_deg);
     g := Genus(X);
     if g eq 0 then
@@ -1636,7 +1627,7 @@ procedure testBoxExample()
     for num in [1..3] do
         Q_K_plus := BaseRing(Universe(fs[num]));
         _<qKp> := PowerSeriesRing(Q_K_plus);
-        Append(~fs_qexps, qExpansions(fs[num],prec,qKp,Q_K_plus,true));
+        Append(~fs_qexps, qExpansions(fs[num],prec,qKp,Q_K_plus));
     end for;
     curves := [* FindCurveSimple(fs, prec, 2) : fs in fs_qexps *];
     assert [Genus(X) : X in curves] eq [6,5,8];
