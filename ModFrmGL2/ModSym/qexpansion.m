@@ -571,7 +571,12 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
        "The characteristic of the base field must equal 0.  Try qEigenform on an irreducible space instead.";
 
    if IsMultiChar(M) then
-       return &cat[qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M)];
+       S := &cat[qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M)];
+       _<q> := Universe(S);
+       if (Type(BaseRing(Universe(S))) ne FldRat) then
+	   _<zeta> := BaseRing(Universe(S));
+       end if;
+       return S;
    end if;
 
    if Dimension(M) eq 0 then
@@ -599,7 +604,8 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
                         qExpansionBasisUniversal(M,prec, false) else
                         (Al eq "Newform" select
 			 qExpansionBasisNewform(M,prec, false) else
-			 qExpansionBasisBox(M, prec, false));
+			 // we scale by a common denominator
+			 qExpansionBasisBox(M, prec, true));
    end if;
    _<q> := Universe(M`qexpbasis[2]);
    return [f + O(q^prec) : f in M`qexpbasis[2] | not IsWeaklyZero(f+O(q^prec)) ];
@@ -637,9 +643,8 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    require Type(BaseField(A)) in {FldRat, FldCyc} : 
                  "The base field must be either the rationals or a cyclotomic field.";
    require IsCuspidal(A) : "Argument 1 must be cuspidal.";
-   require Al eq "Universal" or Al eq "Newform" :
-         "Al paramater must equal either \"Universal\" or \"Newform\".";
-
+   require Al eq "Universal" or Al eq "Newform" or Al eq "Box":
+         "Al paramater must equal either \"Universal\" or \"Newform\" or \"Box\".";
    /*
    // At the moment, newform decomposition is not supported in general
    if not IsOfGammaType(A) then

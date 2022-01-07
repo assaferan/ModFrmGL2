@@ -1,7 +1,7 @@
 import "GrpPSL2/GrpPSL2/misc.m" : Conjugates,
        IsConjugate, NormalizerGrpMat;
 
-import "ModSym/Box.m" : ModularCurve, get_M_K, FindCurveSimple;
+import "ModSym/Box.m" : ModularCurveBox, get_M_K, FindCurveSimple;
 
 // These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
 // Helper functions for creation
@@ -242,7 +242,7 @@ function checkShimura(grps)
     return shimura_list;
 end function;
 
-function qExpansionBasis(grp_name, grps : Precision := 0)
+function qExpansionBasisPSL2(grp_name, grps : Precision := 0)
     grp := grps[grp_name];
     N := grp`level;
     gens := grp`matgens;
@@ -258,11 +258,19 @@ function qExpansionBasis(grp_name, grps : Precision := 0)
     conjs := [c : c in conjs | c^eta eq c];
     Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
     cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
-    max_M, loc := Maximum([get_M_K(c) : c in cands]);
+    // We try to upgrade to normlizers, to be able to use characters
+    normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
+    max_M, loc := Maximum([get_M_K(ImageInLevelGL(n)) : n in normalizers]);
+//    max_M, loc := Maximum([get_M_K(c) : c in cands]);
     print "Best M found among conjugates is ", max_M;
-    G := cands[loc];
-    X, fs := ModularCurve(G, grp`genus : Precision := Precision);
-    return X, fs;
+    G := PSL2Subgroup(cands[loc]);
+    S := CuspidalSubspace(ModularSymbols(G));
+    fs := qExpansionBasis(S, Precision : Al := "Box");
+    // This is not working yet
+    // fs := qIntegralBasis(S, Precision : Al := "Box");
+    // X, fs := ModularCurveBox(G, grp`genus : Precision := Precision);
+    // return X, fs;
+    return fs;
 end function;
 
 procedure write_qexps(grp_name, fs, X)
