@@ -282,8 +282,8 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := fal
     // fs := qIntegralBasis(S, Precision : Al := "Box");
     G := cands[loc];
     X, fs := ModularCurveBox(G, grp`genus : Precision := Precision);
-    return X, fs;
-    // return fs;
+    // return X, fs;
+    return fs;
 end function;
 
 procedure write_qexps(grp_name, fs, X)

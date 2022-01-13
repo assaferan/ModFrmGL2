@@ -1518,6 +1518,25 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     return fs, tos;
 end function;
 
+function getCurveFromForms(fs, genus, level)
+    assert genus ge 2;
+    max_deg := Maximum(7-genus, 3);
+    prec := Binomial(max_deg + genus - 1, max_deg);
+    prec *:= level; // This is not really needed but I don't know how to botain enough non-zero coefficients otherwise
+    prec +:= 2; 
+    X := FindCurveSimple(fs, prec, max_deg);
+    g := Genus(X);
+    if g eq 0 then
+	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
+	return X, fs;
+    else
+	assert Genus(X) eq genus;
+	X_Q := ChangeRing(X, Rationals());
+	return X_Q, fs;
+    end if;
+end function;
+
 // function: ModularCurve
 // input: G - a subgroup of GL(2, N) for some N
 //        genus - the genus of PSL2Subgroup(G)
@@ -1544,6 +1563,8 @@ function ModularCurveBox(G, genus : Precision := 0)
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
     fs := qExpansions(fs, prec, q, K, true);
+    return getCurveFromForms(fs, genus, N);
+    /*
     X := FindCurveSimple(fs, prec, max_deg);
     g := Genus(X);
     if g eq 0 then
@@ -1555,6 +1576,7 @@ function ModularCurveBox(G, genus : Precision := 0)
 	X_Q := ChangeRing(X, Rationals());
 	return X_Q, fs;
     end if;
+   */
 end function;
 
 intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
@@ -1616,7 +1638,8 @@ procedure testBox(grps_by_name)
 
     for name in working_examples do
 	vprintf ModularSymbols, 1 : "Working on group %o\n", name;
-	X<[x]>, fs := qExpansionBasisPSL2(name, grps_by_name);
+	fs := qExpansionBasisPSL2(name, grps_by_name);
+	X<[x]>, fs := getCurveFromForms(fs, grps_by_name[name]`genus, grps_by_name[name]`level);
 	vprintf ModularSymbols, 1 : "Canonical curve is %o\n", X;
     end for;
 end procedure;
