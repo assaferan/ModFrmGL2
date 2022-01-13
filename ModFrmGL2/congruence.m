@@ -242,7 +242,7 @@ function checkShimura(grps)
     return shimura_list;
 end function;
 
-function qExpansionBasis(grp_name, grps : Precision := 0)
+function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := false)
     grp := grps[grp_name];
     N := grp`level;
     gens := grp`matgens;
@@ -258,11 +258,32 @@ function qExpansionBasis(grp_name, grps : Precision := 0)
     conjs := [c : c in conjs | c^eta eq c];
     Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
     cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
-    max_M, loc := Maximum([get_M_K(c) : c in cands]);
+    // We try to upgrade to normlizers, to be able to use characters
+    if Normalizers then
+	normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
+	max_M, loc := Maximum([get_M_K(ImageInLevelGL(n)) : n in normalizers]);
+    else
+	max_M, loc := Maximum([get_M_K(c) : c in cands]);
+    end if;
     print "Best M found among conjugates is ", max_M;
+    // This is also not working, e.g. 8A5. Why??
+    /*
+    G := PSL2Subgroup(cands[loc]);
+    if Normalizers then
+	M := ModularSymbols(G);
+    else
+	M := ModularSymbols(G, 2, Rationals(), 0);
+    end if;
+    S := CuspidalSubspace(ModularSymbols(G));
+
+    fs := qExpansionBasis(S, Precision : Al := "Box");
+    */
+    // This is not working yet
+    // fs := qIntegralBasis(S, Precision : Al := "Box");
     G := cands[loc];
     X, fs := ModularCurveBox(G, grp`genus : Precision := Precision);
     return X, fs;
+    // return fs;
 end function;
 
 procedure write_qexps(grp_name, fs, X)

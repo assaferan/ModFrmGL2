@@ -1592,7 +1592,7 @@ procedure testBoxExample()
 end procedure;
 
 // This tests Box's method using the database of congruence subgroups
-import "../congruence.m" : qExpansionBasis;
+import "../congruence.m" : qExpansionBasisPSL2;
 
 procedure testBox(grps_by_name)
     testBoxExample();
@@ -1616,7 +1616,7 @@ procedure testBox(grps_by_name)
 
     for name in working_examples do
 	vprintf ModularSymbols, 1 : "Working on group %o\n", name;
-	X<[x]>, fs := qExpansionBasis(name, grps_by_name);
+	X<[x]>, fs := qExpansionBasisPSL2(name, grps_by_name);
 	vprintf ModularSymbols, 1 : "Canonical curve is %o\n", X;
     end for;
 end procedure;
