@@ -265,7 +265,7 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := fal
     else
 	max_M, loc := Maximum([get_M_K(c) : c in cands]);
     end if;
-    print "Best M found among conjugates is ", max_M;
+    vprintf ModularCurves, 1 : "Best M found among conjugates is ", max_M;
     // This is also not working, e.g. 8A5. Why??
     /*
     G := PSL2Subgroup(cands[loc]);
