@@ -592,7 +592,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  num_coset_reps,
 				  Q_L_to_Q_huge, Nnew);
 	// making sure we can identify forms uniquely
-	assert Rank(Matrix(twist_mfs)) eq #twist_mfs;
+//	assert Rank(Matrix(twist_mfs)) eq #twist_mfs;
 	twist_all_aps := [* *];
 	for twist_mf in twist_mfs do
 	    nonzero := exists(pivot){pivot : pivot in [1..#twist_mf]
@@ -874,17 +874,18 @@ function get_M_K(G)
 		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(G)]>;
 	B_M := make_Borel(M);
 	if G_M eq B_M then
+	    PG_M := PSL2Subgroup(G_M);
 	    if K eq 1 then
-		G_K := GL(2, Integers(2));
+		PG_meet := PG_M;
 	    else	    
 		G_K := sub< GL(2, Integers(K)) |
 			  [[Integers(K)!x : x in Eltseq(g)] : g in Generators(G)]>;
+		PG_K := PSL2Subgroup(G_K);
+		PG_meet := PG_M meet PG_K;
 	    end if;
-	    PG_M := PSL2Subgroup(G_M);
-	    PG_K := PSL2Subgroup(G_K);
 	    //if G eq ImageInLevel(PG_K : N := N) meet ImageInLevel(PG_M : N := N) then
 	    PG := PSL2Subgroup(G);
-	    if PG eq PG_M meet PG_K then
+	    if PG eq PG_meet then
 		found := true;
 		break;
 	    end if;
@@ -1460,7 +1461,7 @@ function compute_newforms(C, C_old_new, prec, N)
 	sep_old := [num_distinct_old[i] eq #Nold[i] : i in [1..#Nold]];
 	for i in [1..#Nold] do
 	    if sep_old[i] and (prec_old[i] eq 0) then
-		prec_old[i] := prec;
+		prec_old[i] := max_hecke;
 	    end if;
 	end for;
 	sep_all := &and sep_old and (num_distinct eq #NN);
@@ -1512,7 +1513,7 @@ function get_gamma_fixed_space(eps_gens, gs)
 end function;
 
 function restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K)
-    
+ /*   
     nfd_chars := [* DirichletCharacter(f) : f in nfd *];
     nfd_decomp := [* Decomposition(chi) : chi in nfd_chars *];
     nfd_K_part := [* character_product([* chi : chi in chis | K mod Modulus(chi) eq 0 *], X)
@@ -1524,18 +1525,19 @@ function restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K)
 					     | K mod Modulus(chi) eq 0 *], X)
 
 			: chis in nf_decomp *] : nf_decomp in nfd_old_decomp]; 
-/*   
+*/
+   
     nfd_trivial := [i : i in [1..#nfd] |
 		    X!DirichletCharacter(nfd[i]) in char_reps];
     nfd_old_trivial := [[i : i in [1..#nf] |
 			 X!DirichletCharacter(nf[i]) in char_reps]
 			: nf in nfd_old]; 
-*/
+/*
     
     nfd_trivial := [i : i in [1..#nfd] | X!nfd_K_part[i] in char_reps];
     nfd_old_trivial := [[i : i in [1..#nfd_old[j]] | X!nfd_old_K_part[j][i] in char_reps]
 			: j in [1..#nfd_old]];
-    
+  */  
     cumsum := [0] cat [&+[#nf : nf in nfd_old[1..i]] : i in [1..#nfd_old]];
     a_idxs := &cat[ [idx + cumsum[j] : idx in nfd_old_trivial[j]]
 		    : j in [1..#nfd_old]];
@@ -1643,12 +1645,26 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     return fs, tos;
 end function;
 
-function getCurveFromForms(fs, genus, level)
-    assert genus ge 2;
+function precisionForCurve(PG)
+    // This is the Sturm bound for weight 4 modular forms
+    // we multiply by the level since our q-expansions are in q^{1/N}
+    // maybe we can do better using our K and M ?
+    sturm := ((Index(PG) + 2) div 3) * Level(PG);
+    genus := Genus(PG);
     max_deg := Maximum(7-genus, 3);
     prec := Binomial(max_deg + genus - 1, max_deg);
-    prec *:= level; // This is not really needed but I don't know how to botain enough non-zero coefficients otherwise
-    prec +:= 2; 
+    // This is not really needed but I don't know how to obtain enough non-zero coefficients otherwise
+    // prec *:= level; 
+    prec := Maximum(prec, sturm);
+    prec +:= 2;
+    return prec, max_deg;
+end function;
+
+function getCurveFromForms(fs, prec, max_deg, genus)
+    assert genus ge 2;
+
+    assert Minimum([AbsolutePrecision(f) : f in fs]) ge prec;
+    
     X := FindCurveSimple(fs, prec, max_deg);
     g := Genus(X);
     if g eq 0 then
@@ -1671,24 +1687,17 @@ end function;
 
 function ModularCurveBox(G, genus : Precision := 0)
     assert genus ge 2;
-    max_deg := Maximum(7-genus, 3);
-    prec := Binomial(max_deg + genus - 1, max_deg);
+    N := Modulus(BaseRing(G));
     PG := PSL2Subgroup(G);
-    //    h := CuspWidth(PG, Infinity());
-    N := Level(PG);
-    //    prec *:= N div h; // This is the amount of non-zero coefficients we need
-    prec *:= N;
-    prec +:= 2; // For a random set of linear equations, his has high probability of giving prec
-    // Problem : our set of equations is not random. Is this a good enough correction?
-    // linearly independent equations.
+    prec, max_deg := precisionForCurve(PG);
     if Precision ne 0 then
-        prec := Precision;
+        prec := Max(prec, Precision);
     end if;
     fs := BoxMethod(G, prec);
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
     fs := qExpansions(fs, prec, q, K, true);
-    return getCurveFromForms(fs, genus, N);
+    return getCurveFromForms(fs, prec, max_deg, genus);
 end function;
 
 intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
@@ -1726,7 +1735,7 @@ procedure testBoxExample()
 end procedure;
 
 // This tests Box's method using the database of congruence subgroups
-import "../congruence.m" : qExpansionBasisPSL2;
+import "../congruence.m" : qExpansionBasisPSL2, createPSL2;
 
 procedure testBox(grps_by_name)
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
@@ -1735,24 +1744,30 @@ procedure testBox(grps_by_name)
 			 "11A2", "11A6",
 			 "12B2", "12E2",
 			 "14B6",
+			 "17A6",
 			 "18A6", "18B6", "18C6",
 			 "20C6",
 			 "21B6", "21C6",
 			 // We exclude 22C6 because it takes too much time.
 			 // Once normalizers is running well enough, can add it back.
 			 "22A6", "22B6", // "22C6",
-			 "35E6"];
-    // Checked all real type conjugates for:
-    // 7A3, 8A2, 8A3, 8B3, 9A2
-    // Hyperelliptic (curve finding not implemented yet):
-    // 8A2, 8B3, 9A2, 9B2, 10A2, 10B2, 10D2, 10E2, 10F2, 11A2,
-    // 12B2, 12C2, 12E2, 12F2
-    // still not working:
+			 "24G6",
+			 "30E6",
+			 "35E6",
+			 "58A6",
+			 "66B6",
+			 "66D6",
+			 "69A6",
+			 "87A6",
+			 "121A6"];
 
     for name in working_examples do
 	vprintf ModularCurves, 1 : "Working on group %o\n", name;
-	fs := qExpansionBasisPSL2(name, grps_by_name);
-	X<[x]>, fs := getCurveFromForms(fs, grps_by_name[name]`genus, grps_by_name[name]`level);
+	genus := grps_by_name[name]`genus;
+	PG := createPSL2(grps_by_name[name]);
+	prec, max_deg := precisionForCurve(PG);
+	fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec);
+	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
 	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
     end for;
 

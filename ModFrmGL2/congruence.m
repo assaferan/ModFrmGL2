@@ -292,8 +292,9 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := fal
     K := BaseRing(R);
     assert IsIsomorphic(K, BaseRing(Rms));
     fs_trimmed := [Rms!fs[i] + O(q^AbsolutePrecision(fs_ms[i])) : i in [1..#fs]];
+    fs_ms_trimmed := [fs_ms[i] + O(q^AbsolutePrecision(fs[i])) : i in [1..#fs]];
     
-    assert fs_trimmed eq fs_ms;
+    assert fs_trimmed eq fs_ms_trimmed;
     
     return fs;
 end function;
