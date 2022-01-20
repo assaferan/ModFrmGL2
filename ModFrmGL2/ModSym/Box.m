@@ -1721,7 +1721,9 @@ procedure testBox(grps_by_name)
 			 "18A6", "18B6", "18C6",
 			 "20C6",
 			 "21B6", "21C6",
-			 "22A6", "22B6", "22C6",
+			 // We exclude 22C6 because it takes too much time.
+			 // Once normalizers is running well enough, can add it back.
+			 "22A6", "22B6", // "22C6",
 			 "35E6"];
     // Checked all real type conjugates for:
     // 7A3, 8A2, 8A3, 8B3, 9A2
