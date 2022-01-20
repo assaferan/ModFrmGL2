@@ -2117,6 +2117,6 @@ function qExpansionBasisBox(A, prec)
     if IsEmpty(fs) then return fs; end if;
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
-    fs := qExpansions(fs,prec,q,K);
+    fs := qExpansions(fs,prec,q,K, true);
     return fs;
 end function;

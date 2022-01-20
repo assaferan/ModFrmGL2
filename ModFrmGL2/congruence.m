@@ -266,23 +266,35 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := fal
 	max_M, loc := Maximum([get_M_K(c) : c in cands]);
     end if;
     vprintf ModularCurves, 1 : "Best M found among conjugates is ", max_M;
+    G := cands[loc];
     // This is also not working, e.g. 8A5. Why??
-    /*
-    G := PSL2Subgroup(cands[loc]);
+    
+    PG := PSL2Subgroup(G);
     if Normalizers then
-	M := ModularSymbols(G);
+	M := ModularSymbols(PG);
     else
-	M := ModularSymbols(G, 2, Rationals(), 0);
+	M := ModularSymbols(PG, 2, Rationals(), 0);
     end if;
-    S := CuspidalSubspace(ModularSymbols(G));
+    S := CuspidalSubspace(M);
 
-    fs := qExpansionBasis(S, Precision : Al := "Box");
-    */
+    fs_ms := qExpansionBasis(S, Precision : Al := "Box");
+    
     // This is not working yet
     // fs := qIntegralBasis(S, Precision : Al := "Box");
-    G := cands[loc];
+    
     X, fs := ModularCurveBox(G, grp`genus : Precision := Precision);
-    // return X, fs;
+
+    // debugging
+    assert #fs eq #fs_ms;
+    
+    R<q> := Universe(fs);
+    Rms<q> := Universe(fs_ms);
+    K := BaseRing(R);
+    assert IsIsomorphic(K, BaseRing(Rms));
+    fs_trimmed := [Rms!fs[i] + O(q^AbsolutePrecision(fs_ms[i])) : i in [1..#fs]];
+    
+    assert fs_trimmed eq fs_ms;
+    
     return fs;
 end function;
 
@@ -299,6 +311,9 @@ procedure write_qexps(grp_name, fs, X)
     fname := grp_name cat ".m";
     Kq<q> := Parent(fs[1]);
     K := BaseRing(Kq);
+    if Type(K) ne FldRat then
+	AssignNames(~K, ["zeta"]);
+    end if;
     zeta := K.1;
     poly<x> := DefiningPolynomial(K);
     // This should always be the rationa field, but just in case

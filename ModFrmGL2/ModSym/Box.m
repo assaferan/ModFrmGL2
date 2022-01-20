@@ -207,7 +207,7 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 	gs := gauss_sum(chis[mutw_idx], Q_huge);
 	ftw := ftws[mutw_idx];
 	cond := Conductor(chis[mutw_idx]);
-	check := [i : i in [1..#alist] | GCD(i, cond) eq 1];
+	check := [i : i in [1..Min(#alist, prec - 1)] | GCD(i, cond) eq 1];
 	is_old := false;
 	for sp_idx in [1..#oldspaces_full] do
 	    if mutw in ChangeRing(oldspaces_full[sp_idx], Kf) then
@@ -565,7 +565,9 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
     already_visited := {};
     i := 1;
     KK_aps := [*[Kf_to_KKs[j](aps[j]) : aps in as] : j in [1..#as[1]]*];
-    while #already_visited lt #as[1] do
+    fs := [];
+    // we now stop once we collect enough forms
+    while (#already_visited lt #as[1]) and (2*#fs lt Dimension(GFS)) do
 	while (i in already_visited) do
 	    i +:= 1;
 	end while;
@@ -601,7 +603,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				BaseRing(Universe(KK_aps[j])) eq
 				BaseRing(Universe(twist_aps)) and
 				&and[MinimalPolynomial(KK_aps[j][l]) eq
-				     MinimalPolynomial(twist_aps[l]) : l in [1..#as]]};
+				     MinimalPolynomial(twist_aps[l]) : l in [1..Min(#as, prec-1)]]};
 	    if inlist then
 		Include(~already_visited, j);
 	    end if;
@@ -692,8 +694,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			    : i in [0..EulerPhi(K)-1]];
 	    fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
 		      : i in [1..#fmssQQ_cc]];
-	    
-	   
+
 	    // We look for things fixed by the automorphisms of KK that leave Q_K fixed.
 	    // There are several ways to do this, here we ake a direct one.
 	    Q_K := Domain(Q_K_to_Q_huge);
@@ -781,8 +782,9 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	end if;
 	FCF cat:= [FCF_orbit];
 	twist_orbit_indices cat:= [twist_orbit_index];
+	fs := &cat [FCF[i][1] : i in [1..#FCF]];
     end while;
-    fs := &cat [FCF[i][1] : i in [1..#FCF]];
+    // fs := &cat [FCF[i][1] : i in [1..#FCF]];
     tos := &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
     // make sure we have the right number of forms
     assert 2*#fs eq Dimension(GFS);
@@ -991,9 +993,8 @@ function get_old_spaces(MS)
     // This takes plenty of time, see if we really need it.
     // We just need the characters and the levels of these spaces here.
     D := NewformDecomposition(C);
-    old_levels := Sort([lev : lev in {Level(AssociatedNewSpace(d)) : d in D} | lev ne N]);
-    // debugging last commit
-    assert old_levels eq Sort([lev : lev in {Level(d) : d in D} | lev ne N]);
+    old_levels := Sort([lev : lev in {Level(AssociatedNewSpace(d)) : d in D}
+			| lev ne N]);
     dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
     // reduce them to minimal base rings 
     conds := [Conductor(BaseRing(grp)) : grp in dirichlet_groups];
@@ -1001,10 +1002,8 @@ function get_old_spaces(MS)
 					CyclotomicField(conds[i]))
 			 : i in [1..#old_levels]];
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
-		Level(AssociatedNewSpace(d)) eq (old_levels[i])] : i in [1..#old_levels]*];
-    // debugging old commit
-    assert chars eq  [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
-		Level(d) eq (old_levels[i])] : i in [1..#old_levels]*];
+		Level(AssociatedNewSpace(d)) eq (old_levels[i])]
+	      : i in [1..#old_levels]*];
     M_old := [ModularSymbols(chis, 2) : chis in chars | not IsEmpty(chis)];
     C_old := [CuspidalSubspace(m) : m in M_old];
     C_old_new := [NewSubspace(c) : c in C_old];
@@ -1190,8 +1189,7 @@ function createFieldEmbeddings(K, NN, C, ds)
     else
 	elts := [Integers()!(Integers(K)!d) : d in ds];
     end if;
-    // debugging old commit
-    assert elts eq [Integers()!(Integers(K)!d) : d in ds];
+  
     powers := [CRT([e,1],[K,L div GCD(K,L)]) : e in elts];
     // Checking that CRT actually worked
     assert &and[p ne -1 : p in powers];
@@ -1227,7 +1225,6 @@ end function;
 // output: a q-expansion which is a scalar multiple of the vector.
 
 function qExpansions(fs, prec, q, K, integral)
-    // debugging old commit
     if integral then
 	den := LCM([Denominator(f[i]) : i in [1..prec-1], f in fs]);
     else
@@ -1236,7 +1233,6 @@ function qExpansions(fs, prec, q, K, integral)
     ffs := [ChangeRing(f, K) : f in fs];
     // qexps := [&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
     qexps := [den*&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
-    assert qexps eq [den*&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
     return qexps;
 end function;
 
@@ -1329,15 +1325,8 @@ function character_product(list, X)
     return chi;
 end function;
 
-// function: BoxMethod
-// input: G - a subgroup of GL(2, N) for some N
-//        prec - a required precision for the q-expansions
-//        AtkinLehner - a list of AtkinLehner operators
-// output: fs - a list of coefficients of q-expansions for a basis of cusp forms in S_2(G, Q)
-//         tos - indices indicating from which twist orbit each of them was taken.
-
-function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
-    // this is a temporary patch to allow for activation without a character
+function create_character(G, Chars)
+        // this is a temporary patch to allow for activation without a character
     if IsEmpty(Chars) then
 	// we create the trivial character
 	Q, pi_Q := G/G;
@@ -1347,10 +1336,10 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 	assert #Chars eq 1;
 	eps := Chars[1];
     end if;
-    
-    gens, Bgens, K, M, ds := get_gens(G);
+    return eps;
+end function;
 
-    vprintf ModularCurves, 1 :  "Found generators. K = %o and M = %o.\n", K, M;
+function compute_ms_action(G, eps, gens, Bgens, K, M, ds, AtkinLehner)
 
     GL_N := GL(2, BaseRing(G));
     eps_gens := [eps(G!g) : g in gens];
@@ -1362,9 +1351,6 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     alpha := Integers()!PrimitiveElement(Integers(M));
     g2 := CRT([1,alpha], [K^2,M]);
     MS := ModularSymbolsH(N, [g1,g2], 2, 0, eps);
-
-    // debugging last commit
-    assert Dimension(MS) eq Dimension(ModularSymbolsH(N, [g1,g2], 2,0));
 
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
@@ -1414,19 +1400,15 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     // We want the space fixed by the Atkin-Lehner
     eps_gens cat:= [1 : g in al_mats];
     
-    J := Transpose(StarInvolution(C));
+    return MS, C, gs, Bs, eps_gens, eps_BPd_gens;
+end function;
 
-    Cplus := Kernel(Transpose(J-1));
-
-    vprintf ModularCurves, 1 : "Computing old subspaces...\n";
-
-    Tr_mats, Tr_ims, B_mats, deg_divs,
-    num_coset_reps, oldspaces_full,
-    oldspaces, C_old_new := get_old_spaces(MS);
-
-    vprintf ModularCurves, 1 : "Computing newforms...\n";
+function compute_newforms(C, C_old_new, prec, N)
     
     Nnew := NewSubspace(C);
+    
+    J := Transpose(StarInvolution(C));
+    Cplus := Kernel(Transpose(J-1));
 
     // This would ensure that we can separate all the forms,
     // but it is an overkill. Instead we raise it slowly.
@@ -1434,6 +1416,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     
     nfd_old := [NewformDecomposition(s) : s in C_old_new];    
     nfd := NewformDecomposition(Nnew);
+    
     vprintf ModularCurves, 1 : "Computing Hecke operators...\n";
     
     max_hecke := 1;
@@ -1453,7 +1436,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 	Append(~primes, max_hecke);
 
 	if max_hecke ge prec then
-	    prec := max_hecke;
+	    prec := max_hecke + 1;
 	end if;
 
 	Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
@@ -1478,19 +1461,10 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 
     as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
 
-    vprintf ModularCurves, 1 : "Creating field embeddings...\n";
-    
-    field_embs, cc, Ps_Q_huge, SKpowersQ_L,
-    Q_huge, Q_L, zeta_huge, zeta_K,
-    Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-    Q_L_to_Q_huge, elts,
-    Q_gcd, zeta_gcd, Q_gcd_to_Q_K := createFieldEmbeddings(K, NN, C, ds);
+    return NN, Nold, Nnew, as, nfd, nfd_old, Tpluslist, primes;
+end function;
 
-    // Taking only the forms with trivial Nebentypus character is not good enough
-    // We need to take represenatives for X / X^2!
-
-    vprintf ModularCurves, 1 : "Preparing character group...\n";
-    
+function prepare_character_representatives(K)
     X := DirichletGroupFull(K);
     A, phi := AbelianGroup(X);
 
@@ -1504,7 +1478,23 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 
     quo, quo_map := A / (2*A_even);
     char_reps := [phi(g@@quo_map) : g in quo];
-/*
+    
+    return X, char_reps, chis;
+end function;
+
+function get_gamma_fixed_space(eps_gens, gs)
+    min_polys := [MinimalPolynomial(xi) : xi in eps_gens];
+ 
+    fixed_spaces := [Kernel(Evaluate(min_polys[i], Transpose(gs[i])))
+		     : i in [1..#gs]];
+    
+    Gamma_fixed_space := &meet fixed_spaces;
+    
+    return Gamma_fixed_space;
+end function;
+
+function restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K)
+    
     nfd_chars := [* DirichletCharacter(f) : f in nfd *];
     nfd_decomp := [* Decomposition(chi) : chi in nfd_chars *];
     nfd_K_part := [* character_product([* chi : chi in chis | K mod Modulus(chi) eq 0 *], X)
@@ -1516,26 +1506,17 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 					     | K mod Modulus(chi) eq 0 *], X)
 
 			: chis in nf_decomp *] : nf_decomp in nfd_old_decomp]; 
-*/    
+/*   
     nfd_trivial := [i : i in [1..#nfd] |
 		    X!DirichletCharacter(nfd[i]) in char_reps];
     nfd_old_trivial := [[i : i in [1..#nf] |
 			 X!DirichletCharacter(nf[i]) in char_reps]
 			: nf in nfd_old]; 
-
-    /*
+*/
+    
     nfd_trivial := [i : i in [1..#nfd] | X!nfd_K_part[i] in char_reps];
     nfd_old_trivial := [[i : i in [1..#nfd_old[j]] | X!nfd_old_K_part[j][i] in char_reps]
 			: j in [1..#nfd_old]];
-*/
-    // debugging last commit
-    
-    assert nfd_trivial eq  [i : i in [1..#nfd] |
-			    X!DirichletCharacter(nfd[i]) in char_reps];
-
-    assert nfd_old_trivial eq  [[i : i in [1..#nf] |
-			 X!DirichletCharacter(nf[i]) in char_reps]
-			: nf in nfd_old];
     
     cumsum := [0] cat [&+[#nf : nf in nfd_old[1..i]] : i in [1..#nfd_old]];
     a_idxs := &cat[ [idx + cumsum[j] : idx in nfd_old_trivial[j]]
@@ -1544,33 +1525,10 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 
     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
-    vprintf ModularCurves, 1 : "Computing the Gamma fixed space...\n";
-/*
-    fixed_spaces := [Kernel(Transpose(gmat)-
-			   IdentityMatrix(Rationals(), Nrows(gmat)))
-		     : gmat in gs];
-*/
+    return a_idxs, as;
+end function;
 
-    min_polys := [MinimalPolynomial(xi) : xi in eps_gens];
-    /*
-    fixed_spaces := [Kernel(Transpose(gs[i])-
-			    eps_gens[i] * IdentityMatrix(Rationals(), Nrows(gs[i])))
-		     : i in [1..#gs]];
-   */
-    fixed_spaces := [Kernel(Evaluate(min_polys[i], Transpose(gs[i])))
-		     : i in [1..#gs]];
-
-    // debugging last commit
-    assert fixed_spaces eq [Kernel(Transpose(gmat)-
-			   IdentityMatrix(Rationals(), Nrows(gmat)))
-		     : gmat in gs];
-    
-    Gamma_fixed_space := &meet fixed_spaces;
-
-    vprintf ModularCurves, 1 : "Dimension of fixed space is %o.\n", Dimension(Gamma_fixed_space);
-    
-    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
-    
+function get_aut_extensions(Ps_Q_huge, Q_huge)
     Ps := [];
     for P_Q_huge in Ps_Q_huge do
 	function P(a)
@@ -1578,12 +1536,78 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 	end function;
 	Append(~Ps, P);
     end for;
+    return Ps;
+end function;
+
+// function: BoxMethod
+// input: G - a subgroup of GL(2, N) for some N
+//        prec - a required precision for the q-expansions
+//        AtkinLehner - a list of AtkinLehner operators
+// output: fs - a list of coefficients of q-expansions for a basis of cusp forms in S_2(G, Q)
+//         tos - indices indicating from which twist orbit each of them was taken.
+
+function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
+
+    eps := create_character(G, Chars);
+    
+    gens, Bgens, K, M, ds := get_gens(G);
+    N := M * K^2;
+
+    vprintf ModularCurves, 1 :  "Found generators. K = %o and M = %o.\n", K, M;
+
+    MS, C, gs, Bmats, eps_gens, eps_BPd_gens :=
+	compute_ms_action(G, eps, gens, Bgens, K, M, ds, AtkinLehner);
+
+    J := Transpose(StarInvolution(C));
+    Cplus := Kernel(Transpose(J-1));
+
+    vprintf ModularCurves, 1 : "Computing the Gamma fixed space...\n";
+
+    GFS := get_gamma_fixed_space(eps_gens, gs);
+
+    vprintf ModularCurves, 1 : "Dimension of fixed space is %o.\n",
+			       Dimension(GFS);
+
+    // making sure we will have enough equations. (Maybe, what about zero columns?)
+    numrels := Dimension(GFS) div 2 + 2;
+    prec := Maximum(prec, numrels + 1);
+    
+    vprintf ModularCurves, 1 : "Computing old subspaces...\n";
+
+    Tr_mats, Tr_ims, B_mats, deg_divs,
+    num_coset_reps, oldspaces_full,
+    oldspaces, C_old_new := get_old_spaces(MS);
+
+    vprintf ModularCurves, 1 : "Computing newforms...\n";
+    
+    NN, Nold, Nnew, as, nfd, nfd_old, Tpluslist, primes :=
+	compute_newforms(C, C_old_new, prec, N);
+
+    vprintf ModularCurves, 1 : "Creating field embeddings...\n";
+    
+    field_embs, cc, Ps_Q_huge, SKpowersQ_L,
+    Q_huge, Q_L, zeta_huge, zeta_K,
+    Q_K_plus_to_Q_K, Q_K_to_Q_huge,
+    Q_L_to_Q_huge, ds,
+    Q_gcd, zeta_gcd, Q_gcd_to_Q_K := createFieldEmbeddings(K, NN, C, ds);
+
+    // Taking only the forms with trivial Nebentypus character is not good enough
+    // We need to take represenatives for X / X^2!
+
+    vprintf ModularCurves, 1 : "Preparing character group...\n";
+
+    X, char_reps, chis := prepare_character_representatives(K);
+    a_idxs, as := restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K);
+
+    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
+    
+    Pds := get_aut_extensions(Ps_Q_huge, Q_huge);
 
     vprintf ModularCurves, 1 : "Entering fixed_cusp_forms_QQ...\n";
     
     fs,tos := fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
-				  Gamma_fixed_space,Bs,
-				  Ps,elts,
+				  GFS,Bmats,
+				  Pds,ds,
 				  cc,
 				  NN,Nold,
 				  oldspaces_full, oldspaces,
@@ -1632,7 +1656,7 @@ function ModularCurveBox(G, genus : Precision := 0)
     max_deg := Maximum(7-genus, 3);
     prec := Binomial(max_deg + genus - 1, max_deg);
     PG := PSL2Subgroup(G);
-//    h := CuspWidth(PG, Infinity());
+    //    h := CuspWidth(PG, Infinity());
     N := Level(PG);
     //    prec *:= N div h; // This is the amount of non-zero coefficients we need
     prec *:= N;
@@ -1647,19 +1671,6 @@ function ModularCurveBox(G, genus : Precision := 0)
     _<q> := PowerSeriesRing(K);
     fs := qExpansions(fs, prec, q, K, true);
     return getCurveFromForms(fs, genus, N);
-    /*
-    X := FindCurveSimple(fs, prec, max_deg);
-    g := Genus(X);
-    if g eq 0 then
-	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
-	return X, fs;
-    else
-	assert Genus(X) eq genus;
-	X_Q := ChangeRing(X, Rationals());
-	return X_Q, fs;
-    end if;
-   */
 end function;
 
 intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
@@ -1723,23 +1734,6 @@ procedure testBox(grps_by_name)
 	vprintf ModularCurves, 1 : "Working on group %o\n", name;
 	fs := qExpansionBasisPSL2(name, grps_by_name);
 	X<[x]>, fs := getCurveFromForms(fs, grps_by_name[name]`genus, grps_by_name[name]`level);
-	/*
-	genus := grps_by_name[name]`genus;
-	max_deg := Maximum(7-genus, 3);
-	prec := Binomial(max_deg + genus - 1, max_deg);
-	N := grps_by_name[name]`level;
-	prec *:= N;
-	prec +:= 2; // For a random set of linear equations, this has high probability of giving prec
-	fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec);
-	X<[x]> := FindCurveSimple(fs, prec, max_deg);
-	g := Genus(X);
-	if g eq 0 then
-	    print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-	else
-	    assert Genus(X) eq genus;
-	    X := ChangeRing(X, Rationals());
-	end if;
-*/
 	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
     end for;
 
