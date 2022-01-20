@@ -606,6 +606,7 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
 			 qExpansionBasisNewform(M,prec, false) else
 			 // we scale by a common denominator
 			 qExpansionBasisBox(M, prec));
+      prec := M`qexpbasis[1];
    end if;
    _<q> := Universe(M`qexpbasis[2]);
    return [f + O(q^prec) : f in M`qexpbasis[2] | not IsWeaklyZero(f+O(q^prec)) ];
@@ -2117,6 +2118,9 @@ function qExpansionBasisBox(A, prec)
     if IsEmpty(fs) then return fs; end if;
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
-    fs := qExpansions(fs,prec,q,K, true);
+    new_prec := Minimum([Degree(f)+1 : f in fs]);
+    fs := qExpansions(fs,new_prec,q,K, true);
+    // we update the precision
+    A`qexpbasis[1] := new_prec;
     return fs;
 end function;

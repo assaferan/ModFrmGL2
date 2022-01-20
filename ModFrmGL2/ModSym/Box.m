@@ -560,6 +560,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     num_coset_reps, J,
 			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge,
 			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K, Nnew, eps_BPd_gens)
+    assert prec ge #as + 1;
+    
     FCF := [];
     twist_orbit_indices := [];
     already_visited := {};
@@ -1232,7 +1234,7 @@ function qExpansions(fs, prec, q, K, integral)
     end if;
     ffs := [ChangeRing(f, K) : f in fs];
     // qexps := [&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
-    qexps := [den*&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
+    qexps := [den*&+[ff[i]*q^i : i in [1..prec-1]] +O(q^prec) : ff in ffs];
     return qexps;
 end function;
 
@@ -1461,7 +1463,7 @@ function compute_newforms(C, C_old_new, prec, N)
 
     as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
 
-    return NN, Nold, Nnew, as, nfd, nfd_old, Tpluslist, primes;
+    return NN, Nold, Nnew, as, nfd, nfd_old, Tpluslist, primes, prec;
 end function;
 
 function prepare_character_representatives(K)
@@ -1580,7 +1582,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 
     vprintf ModularCurves, 1 : "Computing newforms...\n";
     
-    NN, Nold, Nnew, as, nfd, nfd_old, Tpluslist, primes :=
+    NN, Nold, Nnew, as, nfd, nfd_old, Tpluslist, primes, prec :=
 	compute_newforms(C, C_old_new, prec, N);
 
     vprintf ModularCurves, 1 : "Creating field embeddings...\n";
@@ -1598,7 +1600,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 
     X, char_reps, chis := prepare_character_representatives(K);
     a_idxs, as := restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K);
-
+    
     Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
     
     Pds := get_aut_extensions(Ps_Q_huge, Q_huge);
