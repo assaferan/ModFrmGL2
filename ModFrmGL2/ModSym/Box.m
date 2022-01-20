@@ -1236,7 +1236,7 @@ function qExpansions(fs, prec, q, K, integral)
     end if;
     ffs := [ChangeRing(f, K) : f in fs];
     // qexps := [&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
-    qexps := [den*&+[ff[i]*q^i : i in [1..prec-1]] +O(q^prec) : ff in ffs];
+    qexps := [den*&+[ff[i]*q^i : i in [1..prec-1]] + O(q^prec) : ff in ffs];
     return qexps;
 end function;
 
@@ -1701,7 +1701,6 @@ intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
   genus := Genus(G);
   require genus ge 2 : "Currenty not implemented for genus < 2";
   return ModularCurveBox(ImageInLevelGL(G), genus);
-  // return ModularCurve(ImageInLevelGL(G), Genus(G));
 end intrinsic;
 
 // procedure: testBoxExample
