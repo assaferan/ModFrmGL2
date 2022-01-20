@@ -591,6 +591,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  deg_divs,
 				  num_coset_reps,
 				  Q_L_to_Q_huge, Nnew);
+	// making sure we can identify forms uniquely
+	assert Rank(Matrix(twist_mfs)) eq #twist_mfs;
 	twist_all_aps := [* *];
 	for twist_mf in twist_mfs do
 	    nonzero := exists(pivot){pivot : pivot in [1..#twist_mf]
@@ -1429,6 +1431,8 @@ function compute_newforms(C, C_old_new, prec, N)
     // an eigenform for the other Hecke operators
     primes := [];
     sep_all := false;
+    prec_old := [0 : d in C_old_new];
+    level_facs := [Level(C) div Level(d) : d in C_old_new];
 
     while (not sep_all) do   
 	repeat
@@ -1453,10 +1457,22 @@ function compute_newforms(C, C_old_new, prec, N)
 	num_distinct_old := 
 	    [ #{[Coefficients(MinimalPolynomial(Coefficient(f,p)))
 		 : p in primes] : f in n_old} : n_old in Nold];
-	sep_old := &and[num_distinct_old[i] eq #Nold[i] : i in [1..#Nold]];
-	sep_all := sep_old and (num_distinct eq #NN);
+	sep_old := [num_distinct_old[i] eq #Nold[i] : i in [1..#Nold]];
+	for i in [1..#Nold] do
+	    if sep_old[i] and (prec_old[i] eq 0) then
+		prec_old[i] := prec;
+	    end if;
+	end for;
+	sep_all := &and sep_old and (num_distinct eq #NN);
 
     end while;
+
+    // we want to be able to separate level-raised oldforms when computing the Pd action
+    prec := Maximum([prec] cat [prec_old[i] * level_facs[i] : i in [1..#Nold]]);
+
+    Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
+    Nnew := [* qEigenform(d,prec) : d in nfd *];
+    NN := (&cat ([[* *]] cat Nold)) cat Nnew;
 
     Ts := [HeckeOperator(C, p) : p in primes];
     Tpluslist := [Restrict(T, Cplus) : T in Ts];
