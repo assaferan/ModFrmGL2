@@ -318,19 +318,6 @@ procedure write_qexps(grp_name, fs, X)
     poly<x> := DefiningPolynomial(K);
     // This should always be the rationa field, but just in case
     F := BaseRing(K);
-    // This is just for fun, to have an accurate notation
-    /*
-    cond := Norm(Conductor(AbelianExtension(AbsoluteField(K))));
-    Q_cond<zeta_c> := CyclotomicField(cond);
-    zeta_c_plus := zeta_c + zeta_c^(-1);
-    if MinimalPolynomial(zeta) eq MinimalPolynomial(zeta_c) then
-	suf := Sprintf("%o", cond);
-    elif MinimalPolynomial(zeta) eq MinimalPolynomial(zeta_c_plus) then
-	suf := Sprintf("%o_plus", cond);
-    else
-	suf := "";
-    end if;
-   */
     suf := "";
     X_Q := ChangeRing(X, Rationals());
     Proj<[x]> := AmbientSpace(X_Q);
@@ -359,7 +346,7 @@ function qExpansionBasisShimura(grp_name, grps)
     is_shim, U, phi, H, t := IsGammaShimura(PG);
     assert is_shim;
     // getting a better model
-    // This i using ModularSymbolsH
+    // This is using ModularSymbolsH
     N := Level(PG);
     U_t, phi_t := UnitGroup(Integers(N*t));
     red_N := hom<Integers(N*t) -> Integers(N)|>;
