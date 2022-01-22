@@ -936,6 +936,8 @@ function qExpansionBasisNewform(A, prec, do_saturate)
 		    Q := NormalClosure(Q);
 		    Qq := PowerSeriesRing(Q);
 		    ff := Qq!f;
+		else
+		    ff := f;
 		end if;
               V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
                                                     // because Eltseq(f) omits trailing zeros
