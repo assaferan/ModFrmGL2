@@ -12,3 +12,5 @@ ModFrmGL2/genus6_Q.txt~
 data/.DS_Store
 data/modular curves/.DS_Store
 *.spec~
+ModFrmGL2/11A6_shim.m
+ModFrmGL2/22C6_shim.m
