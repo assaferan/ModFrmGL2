@@ -242,6 +242,20 @@ function checkShimura(grps)
     return shimura_list;
 end function;
 
+function checkRealTypeSurjective(grps)
+    rtsur := [];
+    for grp in grps do
+	print "checking group ", grp`name;
+	try
+	    G := createPSL2(grp);
+	catch err
+	    continue;
+	end try;
+	Append(~rtsur, grp`name);
+    end for;
+    return rtsur;
+end function;
+
 function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := false)
     grp := grps[grp_name];
     N := grp`level;
