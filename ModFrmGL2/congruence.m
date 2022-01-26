@@ -407,3 +407,42 @@ function qExpansionBasisShimura(grp_name, grps)
 	return X_Q, fs;
     end if;
 end function;
+
+function GetDivisorOfMaximalMultiplicity(X, fs)
+    // Finding a point on X
+    mat := Matrix([AbsEltseq(f) : f in fs]);
+    zero_col := true;
+    col_idx := 0;
+    while zero_col do
+	col_idx +:= 1;
+	col := Column(mat, col_idx);
+	zero_col := IsZero(col);
+    end while;
+    
+    P := X!Eltseq(col);
+    // projecive space
+    Pn<[z]> := AmbientSpace(X);
+    pivot := PivotColumn(col, 1);
+    n := #z;
+    X_aff<[x]> := AffinePatch(X, n+1-pivot);
+    P_aff := [P[i] / P[pivot] : i in [1..n] | i ne pivot];
+    assert P_aff in X_aff;
+    m_P := Ideal([x[i]-P_aff[i] : i in [1..n-1]]);
+    I := Ideal(X_aff);
+    has_linear := true;
+    d := 1;
+    while has_linear do
+	m_P_pow := m_P^d + I;
+	gb := GroebnerBasis(ChangeOrder(m_P_pow,"grevlex"));
+	has_linear := exists(p){p : p in gb | Degree(p) eq 1};
+	if has_linear then
+	    lambda_aff := p;
+	end if;
+	d +:= 1;
+    end while;
+    // we homogenize lambda
+    hom_coords := [z[i] / z[pivot] : i in [1..n] | i ne pivot];
+    lambda := CoordinateRing(Pn)!(z[pivot]*Evaluate(lambda_aff, hom_coords));
+    D := Divisor(X, Scheme(Pn, lambda));
+    return D;
+end function;
