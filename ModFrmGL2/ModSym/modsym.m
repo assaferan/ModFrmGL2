@@ -2263,6 +2263,14 @@ function GetRealConjugate(H)
   return real_H; 
 end function;
 
+// TODO - move this to GrpPSL2
+intrinsic RealTypeConjugate(G::GrpPSL2) -> GrpPSL2
+{R a conjugate group which is of real type, if it exists.}
+  H := ImageInLevelGL(G);
+  real_H := GetRealConjugate(H);
+  return PSL2Subgroup(real_H);
+end intrinsic;
+
 function GetGLModel(H : RealType := true)
   N := Modulus(BaseRing(H));
   SL_N := SL(2, Integers(N));
