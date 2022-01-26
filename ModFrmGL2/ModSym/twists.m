@@ -621,7 +621,7 @@ function MoveRationalPoints(X)
   X_QQ := ChangeRing(ChangeToIntegralEquations(X), QQ);
   pts := RationalPoints(X_QQ);
   d := Dimension(AmbientSpace(X)) + 1;
-  // If there are on rational points, return the curve with the identity map
+  // If there are no rational points, return the curve with the identity map
   if IsEmpty(pts) then
     return X, MatrixAlgebra(QQ, d)!1;
   end if;

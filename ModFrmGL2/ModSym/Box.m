@@ -1260,7 +1260,18 @@ function FindCurveSimple(qexps, prec, n_rel)
     kers := [Kernel(Matrix([AbsEltseq(f) : f in prod])) : prod in prods];
     rels := [[&+[Eltseq(kers[d].i)[j]*degmons[d][j] : j in [1..#degmons[d]]] :
 	      i in [1..Dimension(kers[d])]] : d in [1..n_rel]];
-    I := ideal<R | &cat rels>;
+    // We want to generate the ideal with the lowest possible degree
+    is_all := false;
+    d := 1;
+    not_in_I := rels;
+    I := ideal<R | 0>;
+    while not is_all do
+	I +:= ideal<R | &cat not_in_I[1..d]>;
+	not_in_I := [[x : x in r | x notin I] : r in rels];
+	is_all := &and[IsEmpty(x) : x in not_in_I];
+	d +:= 1;
+    end while;
+    // I := ideal<R | &cat rels>;
     X := Curve(ProjectiveSpace(R),I);
     // Do we want to assert X is coercible to Q?
     return X;
@@ -1666,13 +1677,15 @@ function getCurveFromForms(fs, prec, max_deg, genus)
     assert Minimum([AbsolutePrecision(f) : f in fs]) ge prec;
     
     X := FindCurveSimple(fs, prec, max_deg);
+    vprintf ModularCurves, 1: "Computing genus of curve...\n";
     g := Genus(X);
+    vprintf ModularCurves, 1: "Done.";
     if g eq 0 then
 	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
 	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
 	return X, fs;
     else
-	assert Genus(X) eq genus;
+	assert g eq genus;
 	X_Q := ChangeRing(X, Rationals());
 	return X_Q, fs;
     end if;

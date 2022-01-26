@@ -129,7 +129,7 @@ ChangeDirectory("/Users/eranassaf/Dropbox\ \(Dartmouth\ College\)\
 if assigned L then
     delete L;
 end if;
-load "csg6-lev120.dat";
+load "csg15-lev240.dat";
 ChangeDirectory(dir);
 */
 
@@ -310,7 +310,7 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := fal
     
     assert fs_trimmed eq fs_ms_trimmed;
     
-    return fs;
+    return X, fs;
 end function;
 
 procedure write_qexps(grp_name, fs, X)
@@ -336,12 +336,17 @@ procedure write_qexps(grp_name, fs, X)
     suf := "";
     X_Q := ChangeRing(X, Rationals());
     Proj<[x]> := AmbientSpace(X_Q);
+    if Type(K) ne FldRat then
+	field_def_str := Sprintf("f<x> := Polynomial(F, %m);
+	      K<zeta%o> := ext<F|f>;", Eltseq(poly), suf);
+    else
+	field_def_str := "K := F;";
+    end if;
     write_str := Sprintf("
     	      F := %m;	
-	      f<x> := Polynomial(F, %m);
-	      K<zeta%o> := ext<F|f>;
+	      %o
 	      Kq<q> := PowerSeriesRing(K);
-	      fs_%o := [Kq | %m", F, Eltseq(poly), suf, grp_name, fs[1]);
+	      fs_%o := [Kq | %m", F, field_def_str, grp_name, fs[1]);
     write_str cat:= &cat[Sprintf(", %m", f) : f in fs];
     write_str cat:= "] ;";
     write_str cat:= Sprintf("
@@ -384,12 +389,20 @@ function qExpansionBasisShimura(grp_name, grps)
     Qq<q> := PowerSeriesRing(Rationals());
     fs := [Qq!f : f in fs];
     X := FindCurveSimple(fs, prec, max_deg);
-    g := Genus(X);
-    if g eq 0 then
-	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-	return X, fs;
+    // This takes too long when the genus is 15
+    if genus lt 15 then
+	vprintf ModularCurves, 1: "Computing genus of curve...\n";
+	g := Genus(X);
+	vprintf ModularCurves, 1: "Done.\n";
+	if g eq 0 then
+	    print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+	    return X, fs;
+	else
+	    assert g eq genus;
+	    X_Q := ChangeRing(X, Rationals());
+	    return X_Q, fs;
+	end if;
     else
-	assert Genus(X) eq genus;
 	X_Q := ChangeRing(X, Rationals());
 	return X_Q, fs;
     end if;
