@@ -306,10 +306,8 @@ function Decomposition_recurse(M, p, stop,
          fa := f^a;
       end if;
       vprintf ModularSymbols, 2: "Cutting out subspace using f(T_%o), where f=%o.\n",p, f;
-      V_sum,_,pi := DirectSum([DualRepresentation(M) :
-						 i in [1..NumComponents(M)]]);
       fT  := Evaluate(fa,T);
-      V   := pi[1](KernelOn(fT,V_sum));
+      V   := KernelOn(fT,DualRepresentation(M));
       W   := ModularSymbolsDual(M,V);
       if assigned M`sub_representation then
          W`sub_representation := M`sub_representation;
@@ -1406,8 +1404,7 @@ function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
       for l in ls do 
          TAl := HeckeOperator(AmbientSpace(M), l);
          TAlp := ChangeRing(TAl, GFp);
-         VMp := DirectSum([BMp : i in [1..NumComponents(M)]]);
-         Tlp := restrict(TAlp, VMp);
+         Tlp := restrict(TAlp, BMp);
          heckes[l] := Tlp;
       end for;
    end procedure;
@@ -1474,8 +1471,7 @@ function NewformDecompositionOfNewNonzeroSignSpaceOverQ(M)
       T_amb := &+ [cc[l] * HeckeOperator(AmbientSpace(M), l) : l in primes];
 vprintf ModularSymbols: "restricting: "; 
 vtime ModularSymbols:
-      VM := DirectSum([BM : i in [1..NumComponents(M)]]);
-      T := restrict(T_amb, VM);
+      T := restrict(T_amb, BM);
       T_int, T_denom := ClearDenominatorsAndMakeIntegral(T);
 
       // TO DO: avoid this 'restrict' too, instead pass BM and T_amb to
@@ -1504,8 +1500,7 @@ vtime ModularSymbols:
          end if;
 vprintf ModularSymbols: "restricting: ";
 vtime ModularSymbols:
-         DVM := DirectSum([DBM : i in [1..NumComponents(M)]]);
-         Tdual := restrict(Transpose(T_amb), DVM);
+         Tdual := restrict(Transpose(T_amb), DBM);
          Tdual_int, Tdual_denom := ClearDenominatorsAndMakeIntegral(Tdual);
          // Because the denominators might be different, L might not be
          // the charpoly of Tdual_int.  Thus we have to rescale L.
@@ -1533,15 +1528,11 @@ vtime ModularSymbols:
          end if;
          MV := VectorSpace(M);
          MVdual := DualVectorSpace(M);
-         MV, iota, proj := DirectSum([MV : i in [1..NumComponents(M)]]);
-         MVdual := DirectSum([MVdual : i in [1..NumComponents(M)]]);
          decomp := [ModularSymbolsSub(M,AssociatedSubspace(MV,V)) : V in K];
-	
          for i in [1..#decomp] do
-               decomp[i]`associated_new_space := true;
-               decomp[i]`dual_representation := AssociatedSubspace(MVdual,Kdual[i]);
+            decomp[i]`associated_new_space := true;
+            decomp[i]`dual_representation := AssociatedSubspace(MVdual,Kdual[i]);
          end for;
-
          return decomp;
       else
          vprint ModularSymbols : "Spin Kernels failed; trying again."; 
@@ -1971,7 +1962,6 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
 {Return the dimensions of the isotypic components of M.}
    D, verified := Decomposition_dimension_recurse(M, 2,
                                           HeckeBound(M), Proof, false, false);
-/*
    rigor := &and verified;
    if rigor or (not Proof) then
      combined := [<D[i][1], D[i][2], verified[i]> : i in [1..#D]];
@@ -1985,8 +1975,8 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
    // See issue #5 - we might have that S(H) does not contain
    // any eigenform for Gamma(N)
    // In that case, the method below fails
-   // We can try and employ Box's method of twists
-
+   // We can try and employ Box's method of twists, or decompose using
+   // NewformDecomposition
    N := Level(M);
    M_full := ModularSymbols(CongruenceSubgroup(N));
    phi := DegMapToFullSpace(M, M_full);
@@ -2005,6 +1995,5 @@ intrinsic IsotypicDimensionDecomposition(M::ModSym : Proof := false)
    end for;
 
    return D, true;
-*/
-
+   
 end intrinsic;

@@ -1408,22 +1408,12 @@ intrinsic MinimalBaseRingCharacter(eps::GrpDrchElt) -> GrpDrchElt
             return DirichletGroup(N)!1;
          end if;
          if n gt 2 and EulerPhi(n) eq Degree(F) then
-	     if IsEven(n) and IsOdd(n div 2) then
-		 K := CyclotomicField(n div 2);
-		 G := DirichletGroup(N,K);
-		 return G!eps;
-	     else
-		 return eps;
-	     end if;
+            return eps;
          else
             if n eq 2 then
                K := RationalField();
             else
-		if IsEven(n) and IsOdd(n div 2) then
-		    K := CyclotomicField(n div 2);
-		else
-		    K := CyclotomicField(n);
-		end if;
+               K := CyclotomicField(n);
             end if;
             G := DirichletGroup(N,K);
             return G!eps;
