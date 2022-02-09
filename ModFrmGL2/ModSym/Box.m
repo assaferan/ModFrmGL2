@@ -1791,6 +1791,7 @@ procedure testBox(grps_by_name : Proof := false)
 	fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec);
 	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
 	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
+	write_qexps(name, fs, X);
     end for;
 
     testBoxExample();
