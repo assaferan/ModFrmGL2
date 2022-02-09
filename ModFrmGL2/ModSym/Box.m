@@ -1697,9 +1697,15 @@ function getCurveFromForms(fs, prec, max_deg, genus)
 	return X, fs;
     else
 	g := Genus(X);
-	assert g eq genus;
-	X_Q := ChangeRing(X, Rationals());
-	return X_Q, fs;
+	if g eq 0 then
+	    print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+	    //	X, fs := FindHyperellipticCurve(fs_qexps, prec);
+	    return X, fs;
+	else
+	    assert g eq genus;
+	    X_Q := ChangeRing(X, Rationals());
+	    return X_Q, fs;
+	end if;
     end if;
 end function;
 
