@@ -1686,13 +1686,17 @@ function getCurveFromForms(fs, prec, max_deg, genus)
     
     X := FindCurveSimple(fs, prec, max_deg);
     vprintf ModularCurves, 1: "Computing genus of curve...\n";
-    g := Genus(X);
+    // If could not find equations, magma now spits an error
+    // when trying to compute the genus
+    // g := Genus(X);
     vprintf ModularCurves, 1: "Done.";
-    if g eq 0 then
+    // if g eq 0 then
+    if DefiningPolynomials(X) eq [0] then
 	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
 	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
 	return X, fs;
     else
+	g := Genus(X);
 	assert g eq genus;
 	X_Q := ChangeRing(X, Rationals());
 	return X_Q, fs;
