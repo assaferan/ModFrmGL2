@@ -114,11 +114,11 @@ grps_M := [ <"11A6", 1>, <"14B6", 1>, <"17A6", 1>, <"18A6", 1>, <"18B6", 1>, <"1
 
 SetDebugOnError(true);
 
-procedure computeShimuraModularCurves(shim, grps)
+procedure computeShimuraModularCurves(shim, grps : Proof := false)
 
     for g in [3, 6,10,15] do
 	for name in shim[g] do
-	    X, fs := qExpansionBasisShimura(name, grps);
+	    X, fs := qExpansionBasisShimura(name, grps : Proof := Proof);
 	    write_qexps(name cat "_shim", fs, X);
 	    print "Group ", name, " - done!";
 	end for;

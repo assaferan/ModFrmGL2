@@ -256,7 +256,8 @@ function checkRealTypeSurjective(grps)
     return rtsur;
 end function;
 
-function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := false)
+function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
+					      Normalizers := false)
     grp := grps[grp_name];
     N := grp`level;
     gens := grp`matgens;
@@ -296,9 +297,10 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := fal
     // This is not working yet
     // fs := qIntegralBasis(S, Precision : Al := "Box");
     
+    // debugging
+    /*
     X, fs := ModularCurveBox(G, grp`genus : Precision := Precision);
 
-    // debugging
     assert #fs eq #fs_ms;
     
     R<q> := Universe(fs);
@@ -309,8 +311,9 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0, Normalizers := fal
     fs_ms_trimmed := [fs_ms[i] + O(q^AbsolutePrecision(fs[i])) : i in [1..#fs]];
     
     assert fs_trimmed eq fs_ms_trimmed;
-    
-    return X, fs;
+    */
+    // return X, fs;
+    return fs;
 end function;
 
 procedure write_qexps(grp_name, fs, X)
@@ -364,6 +367,7 @@ function qExpansionBasisShimura(grp_name, grps : Proof := false)
     assert exists(PG){PG : PG in PGs | IsGammaShimura(PG)};
     is_shim, U, phi, H, t := IsGammaShimura(PG);
     assert is_shim;
+    prec := Binomial(max_deg + genus - 1, max_deg);
     if Proof then
 	k := 2*max_deg; // we multiply forms of weight 2, so degree k
 	                // monomials are of weight 2*k
@@ -373,9 +377,7 @@ function qExpansionBasisShimura(grp_name, grps : Proof := false)
 	sturm := Ceiling(k*m/12 - (m-1)/N);
 	// We have to multiply by the cusp width at infinity,
 	// since our expansions are in q_h = q^(1/h)
-	prec := sturm * t;
-    else
-	prec := Binomial(max_deg + genus - 1, max_deg);
+	prec := Maximum(prec, sturm * t);
     end if;
     // getting a better model
     // This is using ModularSymbolsH

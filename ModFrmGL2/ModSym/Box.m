@@ -1656,18 +1656,26 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     return fs, tos;
 end function;
 
-function precisionForCurve(PG)
-    // This is the Sturm bound for weight 4 modular forms
-    // we multiply by the level since our q-expansions are in q^{1/N}
-    // maybe we can do better using our K and M ?
-    sturm := ((Index(PG) + 2) div 3) * Level(PG);
+function precisionForCurve(PG : Proof := false)
+    
     genus := Genus(PG);
     max_deg := Maximum(7-genus, 3);
+    // This is the precision needed for linearly independent equations
     prec := Binomial(max_deg + genus - 1, max_deg);
-    // This is not really needed but I don't know how to obtain enough non-zero coefficients otherwise
-    // prec *:= level; 
-    prec := Maximum(prec, sturm);
     prec +:= 2;
+    if Proof then
+	k := 2*max_deg;
+	m := Index(PG);
+	N := Level(PG);
+	// This is the Sturm bound for weight k modular forms
+	sturm := Ceiling(k*m/12 - (m-1)/N);
+	// we multiply by the level since our q-expansions are in q^{1/N}
+	// should replace that by the K that we are using
+	// In general, should be the cusp width, but only if this is the
+	// uniformizer we are actually using.
+	prec := Maximum(prec, sturm * N);
+    end if;
+   
     return prec, max_deg;
 end function;
 
@@ -1698,11 +1706,11 @@ end function;
 // output: X - a model for the canonical embdding of the modular curve X_G
 //         fs - the q-expansions of a basis of cusp forms
 
-function ModularCurveBox(G, genus : Precision := 0)
+function ModularCurveBox(G, genus : Precision := 0, Proof := false)
     assert genus ge 2;
     N := Modulus(BaseRing(G));
     PG := PSL2Subgroup(G);
-    prec, max_deg := precisionForCurve(PG);
+    prec, max_deg := precisionForCurve(PG : Proof := Proof);
     if Precision ne 0 then
         prec := Max(prec, Precision);
     end if;
@@ -1713,7 +1721,8 @@ function ModularCurveBox(G, genus : Precision := 0)
     return getCurveFromForms(fs, prec, max_deg, genus);
 end function;
 
-intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
+intrinsic ModularCurve(G::GrpPSL2 : Proof := false) -> Crv[FldRat],
+                                                       SeqEnum[RngSerPowElt]
 {Returns the canonical embedding of the modular curve associated to G,
  together with the q-expansions of a basis of cusp forms.}
   if IsGamma0(G) then
@@ -1722,7 +1731,7 @@ intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
   end if;
   genus := Genus(G);
   require genus ge 2 : "Currenty not implemented for genus < 2";
-  return ModularCurveBox(ImageInLevelGL(G), genus);
+  return ModularCurveBox(ImageInLevelGL(G), genus : Proof := Proof);
 end intrinsic;
 
 // procedure: testBoxExample
@@ -1750,7 +1759,7 @@ end procedure;
 // This tests Box's method using the database of congruence subgroups
 import "../congruence.m" : qExpansionBasisPSL2, createPSL2;
 
-procedure testBox(grps_by_name)
+procedure testBox(grps_by_name : Proof := false)
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "10A3", "10A4", 
@@ -1778,7 +1787,7 @@ procedure testBox(grps_by_name)
 	vprintf ModularCurves, 1 : "Working on group %o\n", name;
 	genus := grps_by_name[name]`genus;
 	PG := createPSL2(grps_by_name[name]);
-	prec, max_deg := precisionForCurve(PG);
+	prec, max_deg := precisionForCurve(PG : Proof := Proof);
 	fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec);
 	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
 	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
