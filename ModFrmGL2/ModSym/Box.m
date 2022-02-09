@@ -1662,6 +1662,7 @@ function precisionForCurve(PG : Proof := false)
     max_deg := Maximum(7-genus, 3);
     // This is the precision needed for linearly independent equations
     prec := Binomial(max_deg + genus - 1, max_deg);
+    prec *:= Level(PG);
     prec +:= 2;
     if Proof then
 	k := 2*max_deg;
@@ -1770,6 +1771,10 @@ end procedure;
 
 // This tests Box's method using the database of congruence subgroups
 import "../congruence.m" : qExpansionBasisPSL2, createPSL2, write_qexps;
+
+// status:
+// now failing 21C6 (error in DegeneracyMatrix)
+// 
 
 procedure testBox(grps_by_name : Proof := false,
 				 Normalizers := false,

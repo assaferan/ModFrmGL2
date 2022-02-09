@@ -353,7 +353,7 @@ procedure write_qexps(grp_name, fs, X)
 	      %o
 	      Kq<q> := PowerSeriesRing(K);
 	      fs_%o := [Kq | %m", F, field_def_str, grp_name, fs[1]);
-    write_str cat:= &cat[Sprintf(", %m", f) : f in fs];
+    write_str cat:= &cat[Sprintf(", %m", f) : f in fs[2..#fs]];
     write_str cat:= "] ;";
     write_str cat:= Sprintf("
     	      P_Q<[x]> := ProjectiveSpace(Rationals(), %o);
