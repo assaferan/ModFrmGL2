@@ -292,14 +292,14 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
     end if;
     S := CuspidalSubspace(M);
 
-    fs_ms := qExpansionBasis(S, Precision : Al := "Box");
+    fs := qExpansionBasis(S, Precision : Al := "Box");
     
     // This is not working yet
     // fs := qIntegralBasis(S, Precision : Al := "Box");
     
     // debugging
     /*
-    X, fs := ModularCurveBox(G, grp`genus : Precision := Precision);
+    X, fs_ms := ModularCurveBox(G, grp`genus : Precision := Precision);
 
     assert #fs eq #fs_ms;
     
