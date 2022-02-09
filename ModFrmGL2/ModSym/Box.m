@@ -1757,7 +1757,7 @@ procedure testBoxExample()
 end procedure;
 
 // This tests Box's method using the database of congruence subgroups
-import "../congruence.m" : qExpansionBasisPSL2, createPSL2;
+import "../congruence.m" : qExpansionBasisPSL2, createPSL2, write_qexps;
 
 procedure testBox(grps_by_name : Proof := false)
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
