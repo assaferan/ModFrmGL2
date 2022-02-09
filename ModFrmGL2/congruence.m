@@ -337,8 +337,11 @@ procedure write_qexps(grp_name, fs, X)
     // This should always be the rationa field, but just in case
     F := BaseRing(K);
     suf := "";
-    X_Q := ChangeRing(X, Rationals());
-    Proj<[x]> := AmbientSpace(X_Q);
+    // This is no longer needed, we already get the
+    // curve over the rationals (if it is not hyperelliptic)
+    //    X_Q := ChangeRing(X, Rationals());
+    //    Proj<[x]> := AmbientSpace(X_Q);
+    Proj<[x]> := AmbientSpace(X);
     if Type(K) ne FldRat then
 	field_def_str := Sprintf("f<x> := Polynomial(F, %m);
 	      K<zeta%o> := ext<F|f>;", Eltseq(poly), suf);
@@ -355,7 +358,8 @@ procedure write_qexps(grp_name, fs, X)
     write_str cat:= Sprintf("
     	      P_Q<[x]> := ProjectiveSpace(Rationals(), %o);
     	      X_%o := Curve(P_Q, %m);",
-			    Dimension(Proj), grp_name, DefiningPolynomials(X_Q)); 
+			    //Dimension(Proj), grp_name, DefiningPolynomials(X_Q));
+			    Dimension(Proj), grp_name, DefiningPolynomials(X));
     Write(fname, preamble cat write_str : Overwrite);
 end procedure;
 
