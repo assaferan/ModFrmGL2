@@ -1685,18 +1685,20 @@ function getCurveFromForms(fs, prec, max_deg, genus)
     assert Minimum([AbsolutePrecision(f) : f in fs]) ge prec;
     
     X := FindCurveSimple(fs, prec, max_deg);
-    vprintf ModularCurves, 1: "Computing genus of curve...\n";
+    
     // If could not find equations, magma now spits an error
     // when trying to compute the genus
     // g := Genus(X);
-    vprintf ModularCurves, 1: "Done.";
+    
     // if g eq 0 then
     if DefiningPolynomials(X) eq [0] then
 	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
 	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
 	return X, fs;
     else
+	vprintf ModularCurves, 1: "Computing genus of curve...\n";
 	g := Genus(X);
+	vprintf ModularCurves, 1: "Done.";
 	if g eq 0 then
 	    print "Curve is Hyperelliptic. Finding equations not implemented yet.";
 	    //	X, fs := FindHyperellipticCurve(fs_qexps, prec);
@@ -1769,7 +1771,7 @@ end procedure;
 // This tests Box's method using the database of congruence subgroups
 import "../congruence.m" : qExpansionBasisPSL2, createPSL2, write_qexps;
 
-procedure testBox(grps_by_name : Proof := false)
+procedure testBox(grps_by_name : Proof := false, Normalizers := false)
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "10A3", "10A4", 
@@ -1798,7 +1800,8 @@ procedure testBox(grps_by_name : Proof := false)
 	genus := grps_by_name[name]`genus;
 	PG := createPSL2(grps_by_name[name]);
 	prec, max_deg := precisionForCurve(PG : Proof := Proof);
-	fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec);
+	fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec,
+						       Normalizers := Normalizers);
 	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
 	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
 	write_qexps(name, fs, X);
