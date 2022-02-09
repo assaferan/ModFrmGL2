@@ -22,6 +22,9 @@ grps_g[15] := [grps[name] : name in grps_by_genus[15]];
 
 // groups of Shimura type for these genera
 shim := AssociativeArray();
+shim[3] := [ Strings() | "7A3", "8A3", "12O3", "12K3", "15E3", "20J3", "20S3", 
+"21D3", "24V3", "24X3", "24Y3", "30K3", "33C3", "34C3", "35A3", "36K3", "39A3", 
+"40F3", "41A3", "43A3", "45D3", "49A3" ];
 shim[6] :=  [ "11A6", "22C6", "31A6", "31B6",
             "58A6", "71A6", "79A6", "121A6" ];
 shim[10] :=  [ "9A10", "18E10", "18M10", "26D10", "27B10", "28D10", "36Q10",
@@ -113,7 +116,7 @@ SetDebugOnError(true);
 
 procedure computeShimuraModularCurves(shim, grps)
 
-    for g in [6,10,15] do
+    for g in [3, 6,10,15] do
 	for name in shim[g] do
 	    X, fs := qExpansionBasisShimura(name, grps);
 	    write_qexps(name cat "_shim", fs, X);

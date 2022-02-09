@@ -356,15 +356,27 @@ procedure write_qexps(grp_name, fs, X)
     Write(fname, preamble cat write_str : Overwrite);
 end procedure;
 
-function qExpansionBasisShimura(grp_name, grps)
+function qExpansionBasisShimura(grp_name, grps : Proof := false)
     grp := grps[grp_name];
     genus := grp`genus;
     max_deg := Maximum(7-genus, 3);
-    prec := Binomial(max_deg + genus - 1, max_deg);
     PGs := createPSL2Models(grp);
     assert exists(PG){PG : PG in PGs | IsGammaShimura(PG)};
     is_shim, U, phi, H, t := IsGammaShimura(PG);
     assert is_shim;
+    if Proof then
+	k := 2*max_deg; // we multiply forms of weight 2, so degree k
+	                // monomials are of weight 2*k
+	m := grp`index;
+	N := grp`level;
+	// This is the Sturm bound for cusp forms
+	sturm := Ceiling(k*m/12 - (m-1)/N);
+	// We have to multiply by the cusp width at infinity,
+	// since our expansions are in q_h = q^(1/h)
+	prec := sturm * t;
+    else
+	prec := Binomial(max_deg + genus - 1, max_deg);
+    end if;
     // getting a better model
     // This is using ModularSymbolsH
     N := Level(PG);
