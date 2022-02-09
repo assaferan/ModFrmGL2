@@ -1771,7 +1771,9 @@ end procedure;
 // This tests Box's method using the database of congruence subgroups
 import "../congruence.m" : qExpansionBasisPSL2, createPSL2, write_qexps;
 
-procedure testBox(grps_by_name : Proof := false, Normalizers := false)
+procedure testBox(grps_by_name : Proof := false,
+				 Normalizers := false,
+				 WriteFiles := false)
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "10A3", "10A4", 
@@ -1804,7 +1806,9 @@ procedure testBox(grps_by_name : Proof := false, Normalizers := false)
 						       Normalizers := Normalizers);
 	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
 	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
-	write_qexps(name, fs, X);
+	if WriteFiles then
+	    write_qexps(name, fs, X);
+	end if;
     end for;
 
     testBoxExample();
