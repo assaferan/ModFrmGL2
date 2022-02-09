@@ -700,7 +700,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		      : i in [1..#fmssQQ_cc]];
 
 	    // We look for things fixed by the automorphisms of KK that leave Q_K fixed.
-	    // There are several ways to do this, here we ake a direct one.
+	    // There are several ways to do this, here we take a direct one.
 	    Q_K := Domain(Q_K_to_Q_huge);
 
 	    // Step I - summing over automorphisms of KK/Q_huge

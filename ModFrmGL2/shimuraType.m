@@ -3,8 +3,10 @@ AttachSpec("ModFrmGL2.spec");
 dir := GetCurrentDirectory();
 ChangeDirectory("/Users/eranassaf/Dropbox\ \(Dartmouth\ College\)\
 /Research/ModularSymbols/csg24.dat/");
-// load "csg10-lev168.dat";
-load "csg15-lev240.dat";
+load "csg10-lev168.dat";
+// This doesn't work at the college - too many open files.
+// TODO - change these terrible loads to an import...
+// load "csg15-lev240.dat";
 ChangeDirectory(dir);
 
 import "congruence.m" : LoadGroups, qExpansionBasisShimura;
@@ -18,10 +20,14 @@ grps_g := AssociativeArray();
 grps_g[3] := [grps[name] : name in grps_by_genus[3]];
 grps_g[6] := [grps[name] : name in grps_by_genus[6]];
 grps_g[10] := [grps[name] : name in grps_by_genus[10]];
-grps_g[15] := [grps[name] : name in grps_by_genus[15]];
+// grps_g[15] := [grps[name] : name in grps_by_genus[15]];
 
 // groups of Shimura type for these genera
 shim := AssociativeArray();
+shim[1] := [ Strings() | "6F1", "7B1", "9C1", "9H1", "10G1", "10K1", "11A1", 
+"11D1", "12P1", "12S1", "12V1", "14C1", "14H1", "15C1", "15G1", "15I1", "17A1", 
+"17B1", "17C1", "18J1", "19A1", "19B1", "20D1", "20H1", "21B1", "21F1", "24G1", 
+"24J1", "27A1", "27C1", "32E1", "36C1", "49A1" ];
 shim[3] := [ Strings() | "7A3", "8A3", "12O3", "12K3", "15E3", "20J3", "20S3", 
 "21D3", "24V3", "24X3", "24Y3", "30K3", "33C3", "34C3", "35A3", "36K3", "39A3", 
 "40F3", "41A3", "43A3", "45D3", "49A3" ];
@@ -116,7 +122,7 @@ SetDebugOnError(true);
 
 procedure computeShimuraModularCurves(shim, grps : Proof := false)
 
-    for g in [3, 6,10,15] do
+    for g in [3,6,10,15] do
 	for name in shim[g] do
 	    X, fs := qExpansionBasisShimura(name, grps : Proof := Proof);
 	    write_qexps(name cat "_shim", fs, X);
