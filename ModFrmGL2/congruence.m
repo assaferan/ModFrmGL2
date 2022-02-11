@@ -25,7 +25,7 @@ function GetGLModels(H : RealType := true)
   GL_N := GL(2, BaseRing(H));
   N_H := NormalizerGrpMat(GL_N, H);
   Q, pi_Q := N_H / H;
-  subs := SubgroupClasses(Q : OrderEqual := EulerPhi(N));
+  subs := SubgroupClasses(Q : OrderDividing := EulerPhi(N));
   cands := [s`subgroup@@pi_Q : s in subs];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
   cands := SetToSequence(cands);
@@ -54,7 +54,7 @@ end function;
 function GetGLModel(H : RealType := true)
     N := Modulus(BaseRing(H));
     GL_N := GL(2, Integers(N));
-    cands := GetGLModels(H : RealType);
+    cands := GetGLModels(H : RealType := RealType);
     error if IsEmpty(cands), (RealType) select Error("No model with surjective determinant, 
                  	                         which commutes with eta")
 							else Error("No model with surjective determinant");

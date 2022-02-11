@@ -720,6 +720,9 @@ function GetModularFunctionAndModel(H)
 // indbound := 8;
   indbound := radN^3;
   covergp := CoveringGroup(H);
+  done := true;
+  repeat
+  try
   ind := Index(ImageInLevelGL(covergp : N := N), ImageInLevelGL(H));
   gencover := Genus(covergp);
   gen := Genus(H);
@@ -1567,5 +1570,16 @@ end if;
     end if;
     return X, [xcoord, ycoord], covering_map, _;
   end if;
-  
+
+  catch e
+      done := false;
+      covergp := CoveringGroup(covergp);
+      if Index(covergp) eq 1 then
+	  done := true;
+      end if;
+  end try;
+ 
+  until done;
+
+  return false,_;
 end function;
