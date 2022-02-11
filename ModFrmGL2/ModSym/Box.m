@@ -619,6 +619,19 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	dim_orbit := Dimension(real_twist_orbit_ms);
 	vprintf ModularCurves, 1 : "Dimension of orbit is %o\n", dim_orbit;
 	if #fixed_space_basis gt 0 then
+	    // latest addition - let us see if it works
+	    // idea - sometimes Kf intersects Q_K in more than Q_L
+	    // e.g. 8A5 (multichar, first component)
+	    if Degree(Kf) eq 1 then
+		cond_Kf := 1;
+	    else
+		cond_Kf := Norm(Conductor(AbelianExtension(AbsoluteField(Kf))));
+	    end if;
+	    // Q_L<zeta_L> := CyclotomicField(cond_Kf);
+	    Q_gcd<zeta_gcd> := CyclotomicField(GCD(cond_Kf, K));
+	    Q_K<zeta_K> := Domain(Q_K_to_Q_huge);
+	    _, Q_gcd_to_Q_K := IsSubfield(Q_gcd, Q_K);
+	    // ends here
             vprintf ModularCurves, 1 :
 		"Orbit intersects fixed space with dimension %o.\n", #fixed_space_basis;
 	    vprintf ModularCurves, 1 : "Finding G-fixed vectors...\n";
@@ -701,7 +714,6 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 
 	    // We look for things fixed by the automorphisms of KK that leave Q_K fixed.
 	    // There are several ways to do this, here we take a direct one.
-	    Q_K := Domain(Q_K_to_Q_huge);
 
 	    // Step I - summing over automorphisms of KK/Q_huge
 	    if KK ne Q_huge then

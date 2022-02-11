@@ -575,10 +575,21 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
        "The characteristic of the base field must equal 0.  Try qEigenform on an irreducible space instead.";
 
    if IsMultiChar(M) then
-       S := &cat[qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M)];
-       _<q> := Universe(S);
-       if (Type(BaseRing(Universe(S))) ne FldRat) then
-	   _<zeta> := BaseRing(Universe(S));
+       S := [* qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M) *];
+       S := [* s : s in S | not IsEmpty(s) *];
+       fields := [* BaseRing(Universe(s)) : s in S *];
+       // if compositum fails, we can do this
+//       conds := [* Conductor(AbsoluteField(F)) : F in fields *];
+       if not IsEmpty(S) then
+	   F := fields[1];
+	   for idx in [2..#S] do
+	       F := Compositum(F, fields[idx]);
+	   end for;
+	   R<q> := PowerSeriesRing(F);
+	   if (Type(F) ne FldRat) then
+	       F<zeta> := F;
+	   end if;
+	   S := &cat[[R!f : f in s] : s in S];
        end if;
        return S;
    end if;
@@ -2180,7 +2191,9 @@ function qExpansionBasisBox(A, prec)
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
     new_prec := Minimum([Degree(f)+1 : f in fs]);
-    fs := qExpansions(fs,new_prec,q,K, true);
+    // we don't want to normalize until the end, because of multichar
+    //    fs := qExpansions(fs,new_prec,q,K, true);
+    fs := qExpansions(fs,new_prec,q,K, false);
     // we update the precision
     A`qexpbasis[1] := new_prec;
     return fs;
