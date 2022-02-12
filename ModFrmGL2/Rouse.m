@@ -386,7 +386,7 @@ end function;
 function JMap(G)
   curgp := G;
   _, _, mp := GetModularFunctionAndModel(curgp);
-  polyRing := CoordinateRing(Domain(mp));
+  polyRing := CoordinateRing(Codomain(mp));
   curpt := GeneratorsSequence(polyRing);
   while (curgp ne PSL2(Integers())) do
     covergp := CoveringGroup(curgp);
@@ -395,7 +395,7 @@ function JMap(G)
     curpt := [Evaluate(p, curpt) : p in polys];
     curgp := covergp;
     _, _, mp := GetModularFunctionAndModel(covergp);
-   polyRing := CoordinateRing(Domain(mp));
+   polyRing := CoordinateRing(Codomain(mp));
   end while;
   return curpt;
 end function;

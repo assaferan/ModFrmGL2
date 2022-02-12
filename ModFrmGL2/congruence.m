@@ -25,7 +25,7 @@ function GetGLModels(H : RealType := true)
   GL_N := GL(2, BaseRing(H));
   N_H := NormalizerGrpMat(GL_N, H);
   Q, pi_Q := N_H / H;
-  subs := SubgroupClasses(Q : OrderDividing := EulerPhi(N));
+  subs := SubgroupClasses(Q : OrderEqual := EulerPhi(N));
   cands := [s`subgroup@@pi_Q : s in subs];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
   cands := SetToSequence(cands);
@@ -316,7 +316,7 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
     return fs;
 end function;
 
-procedure write_qexps(grp_name, fs, X)
+procedure write_qexps(grp_name, fs, X : J := [])
     preamble := Sprintf("
     /****************************************************
     Loading this file in magma loads the objects fs_%o 
@@ -352,14 +352,26 @@ procedure write_qexps(grp_name, fs, X)
     	      F := %m;	
 	      %o
 	      Kq<q> := PowerSeriesRing(K);
-	      fs_%o := [Kq | %m", F, field_def_str, grp_name, fs[1]);
-    write_str cat:= &cat[Sprintf(", %m", f) : f in fs[2..#fs]];
+	      fs_%o := [Kq | ", F, field_def_str, grp_name, fs[1]);
+    if #fs gt 1 then
+      write_str cat:= &cat[Sprintf(", %m", f) : f in fs[2..#fs]];
+    end if;
     write_str cat:= "] ;";
+
     write_str cat:= Sprintf("
     	      P_Q<[x]> := ProjectiveSpace(Rationals(), %o);
     	      X_%o := Curve(P_Q, %m);",
 			    //Dimension(Proj), grp_name, DefiningPolynomials(X_Q));
 			    Dimension(Proj), grp_name, DefiningPolynomials(X));
+    if not IsEmpty(J) then
+      jmap := J[1];
+      P1<a,b> := Codomain(jmap);
+      write_str cat:= "\nP1<a,b> := ProjectiveSpace(Rationals(),1);\n";
+      write_str cat:= Sprintf("images := %m;\n",
+			      [AlgebraMap(jmap)(P1.i) : i in [1..2]]);
+      write_str cat:= Sprintf("Jmap_%o := map<X_%o -> P1 | images>;",
+			grp_name, grp_name);
+    end if;
     Write(fname, preamble cat write_str : Overwrite);
 end procedure;
 
@@ -464,3 +476,4 @@ function GetDivisorOfMaximalMultiplicity(X, fs)
     D := Divisor(X, Scheme(Pn, lambda));
     return D;
 end function;
+
