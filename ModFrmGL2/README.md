@@ -9,6 +9,7 @@ Here are some usage examples:
 > N := 16;
 > H_N := sub<GL(2,Integers(N)) | gens>;
 > H := PSL2Subgroup(H_N);
+> H := RealTypeConjugate(H);
 > M := ModularSymbols(H, 2, Rationals(), 0);
 > S := CuspidalSubspace(M);
 > D := Decomposition(S, HeckeBound(S));
@@ -42,6 +43,7 @@ over the Rational  Field
 >  cat [mp(1-s) : s in [i,j,k]] cat [-1]>;
 > H_S4 := sub<GL(2,Integers(p)) | Generators(S4tp)>;
 > G_S4 := PSL2Subgroup(H_S4);
+> G_S4 := RealTypeConjugate(G_S4);
 > M := ModularSymbols(G_S4, 2, Rationals(), 0);
 > S := CuspidalSubspace(M);
 > D := Decomposition(S, HeckeBound(S));
