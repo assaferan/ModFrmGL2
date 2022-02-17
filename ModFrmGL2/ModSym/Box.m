@@ -470,7 +470,9 @@ end function;
 //         in the basis zeta_K^i g(chi_j^(-1)) f_j, where f_j are the unnormalized twists
 //         (on which sigma_d acts via the permutation perm_d), chi_j are the corresponding characters
 //         and g(chi_j^(-1)) are the gauss sums, so that g(chi_j^(-1)) f_j is the basis for the
-//         twist orbit space over Q_K. 
+//         twist orbit space over Q_K.
+// The basis here is first f_1, f_2, \ldots, f_n,
+// zeta f_1, \ldots zeta f_n, and so forth
 
 function Pdmatrix(Pd, d, powerlist, chis,
 		  Q_L, Q_huge, zeta_K, K,
@@ -687,7 +689,9 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		pd_mat := Pdmatrix(Pd,d,powerlist,chis, Q_L, Q_huge,
 				   zeta_K, K, Q_L_to_Q_huge,Q_K_to_Q_huge,
 				   perm_d);
-		B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf);
+		// The inverse is for action on the symbols,
+		// which is complex conjugated.
+		B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf)^(-1);
 		B_pd_cfs := Solution(fixed_basis_block, B_pd_mat);
 		I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
 		fixed_B_pd := Kernel(B_pd_cfs - eps_BPd_gens[k]^(-1)*I_mat);
@@ -925,7 +929,8 @@ function get_gens(G)
     quo, quo_mat := G/H;
     Cs := [g@@quo_mat : g in Generators(quo)];
     ds := [Determinant(C) : C in Cs];
-    Bgens := [C*GL(2,Integers(N))![Determinant(C),0,0,1]^(-1) : C in Cs];
+//    Bgens := [C*GL(2,Integers(N))![Determinant(C),0,0,1]^(-1) : C in Cs];
+    Bgens := [C*GL(2,Integers(N))![1,0,0,Determinant(C)]^(-1) : C in Cs];
     Bgens := [Eltseq(FindLiftToSL2(b)) : b in Bgens];
     return gens, Bgens, K, M, ds;
 end function;
@@ -1372,7 +1377,8 @@ function compute_ms_action(G, eps, gens, Bgens, K, M, ds, AtkinLehner)
     GL_N := GL(2, BaseRing(G));
     eps_gens := [eps(G!g) : g in gens];
     // the value of eps on BP_d
-    eps_BPd_gens := [eps(GL_N!Bgens[i]*GL_N![ds[i],0,0,1]) : i in [1..#Bgens]]; 
+    eps_BPd_gens := [eps(GL_N!Bgens[i]*GL_N![1,0,0,ds[i]]) : i in [1..#Bgens]]; 
+    // eps_BPd_gens := [eps(GL_N!Bgens[i]*GL_N![ds[i],0,0,1]) : i in [1..#Bgens]]; 
     
     N := M * K^2;
     g1 := CRT([1+K,1], [K^2,M]);
