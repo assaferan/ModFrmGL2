@@ -26,6 +26,7 @@ function GetGLModels(H : RealType := true)
   N_H := NormalizerGrpMat(GL_N, H);
   Q, pi_Q := N_H / H;
   subs := SubgroupClasses(Q : OrderEqual := EulerPhi(N));
+
   cands := [s`subgroup@@pi_Q : s in subs];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
   cands := SetToSequence(cands);
