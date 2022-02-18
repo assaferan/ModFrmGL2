@@ -1,36 +1,49 @@
 AttachSpec("ModFrmGL2.spec");
 
-dir := GetCurrentDirectory();
-ChangeDirectory("/Users/eranassaf/Dropbox\ \(Dartmouth\ College\)\
-/Research/ModularSymbols/csg24.dat/");
-load "csg10-lev168.dat";
+// dir := GetCurrentDirectory();
+// ChangeDirectory("/Users/eranassaf/Dropbox\ \(Dartmouth\ College\)\
+// /Research/ModularSymbols/csg24.dat/");
+// load "csg10-lev168.dat";
 // This doesn't work at the college - too many open files.
 // TODO - change these terrible loads to an import...
 // load "csg15-lev240.dat";
-ChangeDirectory(dir);
+// ChangeDirectory(dir);
+
+import "/Users/eranassaf/Dropbox\ \(Dartmouth\ College\)/Research/ModularSymbols/csg24.dat/csg15-lev240.dat" : L15_240;
 
 import "congruence.m" : LoadGroups, qExpansionBasisShimura;
 import "congruence.m" : LoadGroupsByGenus;
 import "congruence.m" : write_qexps;
 
-grps := LoadGroups(L);
-grps_by_genus := LoadGroupsByGenus(L);
+grps := LoadGroups(L15_240);
+grps_by_genus := LoadGroupsByGenus(L15_240);
+
+degs := [1..5];
+
+genera := [d*(d+1) div 2 : d in degs];
 
 grps_g := AssociativeArray();
+
+for g in genera do
+    grps_g[g] := [grps[name] : name in grps_by_genus[g]];
+end for;
+/*
 grps_g[3] := [grps[name] : name in grps_by_genus[3]];
 grps_g[6] := [grps[name] : name in grps_by_genus[6]];
 grps_g[10] := [grps[name] : name in grps_by_genus[10]];
-// grps_g[15] := [grps[name] : name in grps_by_genus[15]];
+grps_g[15] := [grps[name] : name in grps_by_genus[15]];
+*/
 
 // groups of Shimura type for these genera
 shim := AssociativeArray();
-shim[1] := [ Strings() | "6F1", "7B1", "9C1", "9H1", "10G1", "10K1", "11A1", 
-"11D1", "12P1", "12S1", "12V1", "14C1", "14H1", "15C1", "15G1", "15I1", "17A1", 
-"17B1", "17C1", "18J1", "19A1", "19B1", "20D1", "20H1", "21B1", "21F1", "24G1", 
-"24J1", "27A1", "27C1", "32E1", "36C1", "49A1" ];
-shim[3] := [ Strings() | "7A3", "8A3", "12O3", "12K3", "15E3", "20J3", "20S3", 
-"21D3", "24V3", "24X3", "24Y3", "30K3", "33C3", "34C3", "35A3", "36K3", "39A3", 
-"40F3", "41A3", "43A3", "45D3", "49A3" ];
+
+shim[1] := [ Strings() | "6F1", "7B1", "8F1", "8K1", "9C1", "9H1", "10G1", "10K1", "11A1", 
+"11D1", "12P1", "12S1", "12V1", "14C1", "14H1", "15C1", "15G1", "15I1", "16E1", 
+"16M1", "17A1", "17B1", "17C1", "18J1", "19A1", "19B1", "20D1", "20H1", "21B1", 
+"21F1", "24G1", "24J1", "27A1", "27C1", "32A1", "32E1", "36C1", "49A1" ];
+shim[3] := [ Strings() | "7A3", "8A3", "12O3", "12K3", "15E3", "16H3", "20J3", "20S3", 
+"21D3", "24V3", "24X3", "24Y3", "30K3", "32J3", "33C3", "34C3", "35A3", "36K3", "39A3", 
+"40F3", "41A3", "43A3", "45D3", "48J3", "49A3", "64B3" ];
 shim[6] :=  [ "11A6", "22C6", "31A6", "31B6",
             "58A6", "71A6", "79A6", "121A6" ];
 shim[10] :=  [ "9A10", "18E10", "18M10", "26D10", "27B10", "28D10", "36Q10",
@@ -42,6 +55,18 @@ shim[15] := [  "35C15", "40W15", "40X15", "43A15", "51A15", "60AC15", "60AD15",
 	     "193A15" ];
 
 filtered := AssociativeArray();
+
+filtered[1] := [ "6A1", "6B1", "6C1", "6D1", "6E1", "6F1", "7A1", "7B1", "7C1", 
+"8A1", "8B1", "8C1", "8F1", "8G1", "8I1", "8K1", "9A1", "9C1", "9D1", "9E1", 
+"9G1", "9H1", "10A1", "10B1", "10C1", "10D1", "10E1", "10F1", "10G1", "10H1", 
+"10I1", "10K1", "11A1", "11B1", "11C1", "11D1", "12B1", "12C1", "12F1", "12J1", 
+"12K1", "12L1", "12M1", "12P1", "12S1", "12T1", "12V1", "14C1", "14E1", "14G1", 
+"14H1", "15A1", "15B1", "15C1", "15D1", "15E1", "15F1", "15G1", "15H1", "15I1", 
+"16A1", "16B1", "16C1", "16D1", "16E1", "16F1", "16G1", "16H1", "16I1", "16J1", 
+"16M1", "17A1", "17B1", "17C1", "18A1", "18C1", "18E1", "18F1", "18G1", "18H1", 
+"18I1", "18J1", "19A1", "19B1", "20D1", "20E1", "20H1", "20I1", "21B1", "21E1", 
+"21F1", "24C1", "24D1", "24E1", "24G1", "24H1", "24J1", "26A1", "26B1", "27A1", 
+"27B1", "27C1", "30C1", "30D1", "32A1", "32E1", "36C1", "49A1" ];
 
 filtered[3] := ["7A3", "8B3", "8A3", "9A3", "10B3", "10C3", "10A3", "12P3", 
 "12F3", "12G3", "12D3", "12E3", "12A3", "12N3", "12O3", "12L3", "12J3", "12K3", 
@@ -122,7 +147,8 @@ SetDebugOnError(true);
 
 procedure computeShimuraModularCurves(shim, grps : Proof := false)
 
-    for g in [3,6,10,15] do
+    //    for g in [1,3,6,10,15] do
+    for g in genera do
 	for name in shim[g] do
 	    X, fs := qExpansionBasisShimura(name, grps : Proof := Proof);
 	    write_qexps(name cat "_shim", fs, X);

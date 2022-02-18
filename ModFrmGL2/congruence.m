@@ -1,7 +1,7 @@
 import "GrpPSL2/GrpPSL2/misc.m" : Conjugates,
        IsConjugate, NormalizerGrpMat;
 
-import "ModSym/Box.m" : ModularCurveBox, get_M_K, FindCurveSimple;
+import "ModSym/Box.m" : ModularCurveBox, get_M_K, FindCurveSimple, FindHyperellipticCurve;
 
 // These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
 // Helper functions for creation
@@ -30,10 +30,6 @@ function GetGLModels(H : RealType := true)
   cands := [s`subgroup@@pi_Q : s in subs];
   cands := &join[Conjugates(N_H, c) : c in cands | c meet SL_N eq H];
   cands := SetToSequence(cands);
-  if RealType then
-      eta := GL_N![-1,0,0,1];
-      cands := [c : c in cands | c^eta eq c];
-  end if;
   conj_reps := [];
   already_rep := {};
   i := 1;
@@ -49,6 +45,21 @@ function GetGLModels(H : RealType := true)
 	  i +:= 1;
       end while;
   end while;
+  if RealType then
+      real_reps := {};
+      eta := GL_N![-1,0,0,1];
+      for grp in conj_reps do
+	   N_grp := NormalizerGrpMat(GL_N, grp);
+	   N_grp_conjs := Conjugates(GL_N, N_grp);
+	   real := exists(real_N_grp){ real_N_grp : real_N_grp in N_grp_conjs
+				       | eta in real_N_grp};
+	   if real then
+	       _, alpha := IsConjugate(GL_N,N_grp,real_N_grp);
+	       Include(~real_reps, grp^alpha);
+	   end if;
+      end for;
+      conj_reps := real_reps;
+  end if;
   return conj_reps;
 end function;
 
@@ -335,7 +346,7 @@ procedure write_qexps(grp_name, fs, X : J := [])
     end if;
     zeta := K.1;
     poly<x> := DefiningPolynomial(K);
-    // This should always be the rationa field, but just in case
+    // This should always be the rational field, but just in case
     F := BaseRing(K);
     suf := "";
     // This is no longer needed, we already get the
@@ -353,17 +364,24 @@ procedure write_qexps(grp_name, fs, X : J := [])
     	      F := %m;	
 	      %o
 	      Kq<q> := PowerSeriesRing(K);
-	      fs_%o := [Kq | ", F, field_def_str, grp_name, fs[1]);
+	      fs_%o := [Kq | %m", F, field_def_str, grp_name, fs[1]);
     if #fs gt 1 then
       write_str cat:= &cat[Sprintf(", %m", f) : f in fs[2..#fs]];
     end if;
     write_str cat:= "] ;";
 
+    wts := Gradings(X)[1];
+    is_weighted := Set(wts) ne {1};
+    if is_weighted then
+	proj_string := Sprintf("P_Q<[x]> := WeightedProjectiveSpace(Rationals(), %o);", wts);
+    else
+	proj_string := Sprintf("P_Q<[x]> := ProjectiveSpace(Rationals(), %o);", Dimension(Proj));
+    end if;
+    
     write_str cat:= Sprintf("
-    	      P_Q<[x]> := ProjectiveSpace(Rationals(), %o);
+    	      %o
     	      X_%o := Curve(P_Q, %m);",
-			    //Dimension(Proj), grp_name, DefiningPolynomials(X_Q));
-			    Dimension(Proj), grp_name, DefiningPolynomials(X));
+			    proj_string, grp_name, DefiningPolynomials(X));
     if not IsEmpty(J) then
       jmap := J[1];
       P1<a,b> := Codomain(jmap);
@@ -419,23 +437,31 @@ function qExpansionBasisShimura(grp_name, grps : Proof := false)
    */
     Qq<q> := PowerSeriesRing(Rationals());
     fs := [Qq!f : f in fs];
-    X := FindCurveSimple(fs, prec, max_deg);
-    // This takes too long when the genus is 15
-    if genus lt 15 then
-	vprintf ModularCurves, 1: "Computing genus of curve...\n";
-	g := Genus(X);
-	vprintf ModularCurves, 1: "Done.\n";
-	if g eq 0 then
-	    print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-	    return X, fs;
+    if genus eq 1 then
+	A := NewformDecomposition(C_H)[1];
+	X := EllipticCurve(A : Database := false);
+	X_Q := ChangeRing(X, Rationals());
+	return X_Q, fs;
+    else
+	X := FindCurveSimple(fs, prec, max_deg);
+	// This takes too long when the genus is 15
+	if genus lt 15 then
+	    vprintf ModularCurves, 1: "Computing genus of curve...\n";
+	    g := Genus(X);
+	    vprintf ModularCurves, 1: "Done.\n";
+	    if g eq 0 then
+		// print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+		X, fs := FindHyperellipticCurve(fs, prec);
+		return X, fs;
+	    else
+		assert g eq genus;
+		X_Q := ChangeRing(X, Rationals());
+		return X_Q, fs;
+	    end if;
 	else
-	    assert g eq genus;
 	    X_Q := ChangeRing(X, Rationals());
 	    return X_Q, fs;
 	end if;
-    else
-	X_Q := ChangeRing(X, Rationals());
-	return X_Q, fs;
     end if;
 end function;
 

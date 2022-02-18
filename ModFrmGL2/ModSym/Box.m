@@ -1356,7 +1356,7 @@ function FindHyperellipticCurve(qexps, prec)
     ker_b /:= -ker_b[2*g+4];
     R<x> := PolynomialRing(K);
     poly := &+[ker_b[i+1]*x^i : i in [0..2*g+2]];
-    X := HyperellipticCurve(poly);
+    X := HyperellipticCurve(-poly);
     return X, fs;
 end function;
 
