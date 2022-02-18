@@ -54,7 +54,7 @@ end function;
 function GetGLModel(H : RealType := true)
     N := Modulus(BaseRing(H));
     GL_N := GL(2, Integers(N));
-    cands := GetGLModels(H : RealType);
+    cands := GetGLModels(H : RealType := RealType);
     error if IsEmpty(cands), (RealType) select Error("No model with surjective determinant, 
                  	                         which commutes with eta")
 							else Error("No model with surjective determinant");
@@ -129,7 +129,7 @@ ChangeDirectory("/Users/eranassaf/Dropbox\ \(Dartmouth\ College\)\
 if assigned L then
     delete L;
 end if;
-load "csg6-lev120.dat";
+load "csg15-lev240.dat";
 ChangeDirectory(dir);
 */
 
@@ -242,7 +242,22 @@ function checkShimura(grps)
     return shimura_list;
 end function;
 
-function qExpansionBasis(grp_name, grps : Precision := 0)
+function checkRealTypeSurjective(grps)
+    rtsur := [];
+    for grp in grps do
+	print "checking group ", grp`name;
+	try
+	    G := createPSL2(grp);
+	catch err
+	    continue;
+	end try;
+	Append(~rtsur, grp`name);
+    end for;
+    return rtsur;
+end function;
+
+function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
+					      Normalizers := false)
     grp := grps[grp_name];
     N := grp`level;
     gens := grp`matgens;
@@ -258,14 +273,50 @@ function qExpansionBasis(grp_name, grps : Precision := 0)
     conjs := [c : c in conjs | c^eta eq c];
     Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
     cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
-    max_M, loc := Maximum([get_M_K(c) : c in cands]);
-    print "Best M found among conjugates is ", max_M;
+    // We try to upgrade to normlizers, to be able to use characters
+    if Normalizers then
+	normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
+	max_M, loc := Maximum([get_M_K(ImageInLevelGL(n)) : n in normalizers]);
+    else
+	max_M, loc := Maximum([get_M_K(c) : c in cands]);
+    end if;
+    vprintf ModularCurves, 1 : "Best M found among conjugates is ", max_M;
     G := cands[loc];
-    X, fs := ModularCurveBox(G, grp`genus : Precision := Precision);
-    return X, fs;
+    // This is also not working, e.g. 8A5. Why??
+    
+    PG := PSL2Subgroup(G);
+    if Normalizers then
+	M := ModularSymbols(PG);
+    else
+	M := ModularSymbols(PG, 2, Rationals(), 0);
+    end if;
+    S := CuspidalSubspace(M);
+
+    fs := qExpansionBasis(S, Precision : Al := "Box");
+    
+    // This is not working yet
+    // fs := qIntegralBasis(S, Precision : Al := "Box");
+    
+    // debugging
+    /*
+    X, fs_ms := ModularCurveBox(G, grp`genus : Precision := Precision);
+
+    assert #fs eq #fs_ms;
+    
+    R<q> := Universe(fs);
+    Rms<q> := Universe(fs_ms);
+    K := BaseRing(R);
+    assert IsIsomorphic(K, BaseRing(Rms));
+    fs_trimmed := [Rms!fs[i] + O(q^AbsolutePrecision(fs_ms[i])) : i in [1..#fs]];
+    fs_ms_trimmed := [fs_ms[i] + O(q^AbsolutePrecision(fs[i])) : i in [1..#fs]];
+    
+    assert fs_trimmed eq fs_ms_trimmed;
+    */
+    // return X, fs;
+    return fs;
 end function;
 
-procedure write_qexps(grp_name, fs, X)
+procedure write_qexps(grp_name, fs, X : J := [])
     preamble := Sprintf("
     /****************************************************
     Loading this file in magma loads the objects fs_%o 
@@ -278,52 +329,74 @@ procedure write_qexps(grp_name, fs, X)
     fname := grp_name cat ".m";
     Kq<q> := Parent(fs[1]);
     K := BaseRing(Kq);
+    if Type(K) ne FldRat then
+	AssignNames(~K, ["zeta"]);
+    end if;
     zeta := K.1;
     poly<x> := DefiningPolynomial(K);
     // This should always be the rationa field, but just in case
     F := BaseRing(K);
-    // This is just for fun, to have an accurate notation
-    /*
-    cond := Norm(Conductor(AbelianExtension(AbsoluteField(K))));
-    Q_cond<zeta_c> := CyclotomicField(cond);
-    zeta_c_plus := zeta_c + zeta_c^(-1);
-    if MinimalPolynomial(zeta) eq MinimalPolynomial(zeta_c) then
-	suf := Sprintf("%o", cond);
-    elif MinimalPolynomial(zeta) eq MinimalPolynomial(zeta_c_plus) then
-	suf := Sprintf("%o_plus", cond);
-    else
-	suf := "";
-    end if;
-   */
     suf := "";
-    X_Q := ChangeRing(X, Rationals());
-    Proj<[x]> := AmbientSpace(X_Q);
+    // This is no longer needed, we already get the
+    // curve over the rationals (if it is not hyperelliptic)
+    //    X_Q := ChangeRing(X, Rationals());
+    //    Proj<[x]> := AmbientSpace(X_Q);
+    Proj<[x]> := AmbientSpace(X);
+    if Type(K) ne FldRat then
+	field_def_str := Sprintf("f<x> := Polynomial(F, %m);
+	      K<zeta%o> := ext<F|f>;", Eltseq(poly), suf);
+    else
+	field_def_str := "K := F;";
+    end if;
     write_str := Sprintf("
     	      F := %m;	
-	      f<x> := Polynomial(F, %m);
-	      K<zeta%o> := ext<F|f>;
+	      %o
 	      Kq<q> := PowerSeriesRing(K);
-	      fs_%o := [Kq | %m", F, Eltseq(poly), suf, grp_name, fs[1]);
-    write_str cat:= &cat[Sprintf(", %m", f) : f in fs];
+	      fs_%o := [Kq | ", F, field_def_str, grp_name, fs[1]);
+    if #fs gt 1 then
+      write_str cat:= &cat[Sprintf(", %m", f) : f in fs[2..#fs]];
+    end if;
     write_str cat:= "] ;";
+
     write_str cat:= Sprintf("
     	      P_Q<[x]> := ProjectiveSpace(Rationals(), %o);
     	      X_%o := Curve(P_Q, %m);",
-			    Dimension(Proj), grp_name, DefiningPolynomials(X_Q)); 
+			    //Dimension(Proj), grp_name, DefiningPolynomials(X_Q));
+			    Dimension(Proj), grp_name, DefiningPolynomials(X));
+    if not IsEmpty(J) then
+      jmap := J[1];
+      P1<a,b> := Codomain(jmap);
+      write_str cat:= "\nP1<a,b> := ProjectiveSpace(Rationals(),1);\n";
+      write_str cat:= Sprintf("images := %m;\n",
+			      [AlgebraMap(jmap)(P1.i) : i in [1..2]]);
+      write_str cat:= Sprintf("Jmap_%o := map<X_%o -> P1 | images>;",
+			grp_name, grp_name);
+    end if;
     Write(fname, preamble cat write_str : Overwrite);
 end procedure;
 
-function qExpansionBasisShimura(grp_name, grps)
+function qExpansionBasisShimura(grp_name, grps : Proof := false)
     grp := grps[grp_name];
     genus := grp`genus;
     max_deg := Maximum(7-genus, 3);
-    prec := Binomial(max_deg + genus - 1, max_deg);
     PGs := createPSL2Models(grp);
     assert exists(PG){PG : PG in PGs | IsGammaShimura(PG)};
     is_shim, U, phi, H, t := IsGammaShimura(PG);
     assert is_shim;
+    prec := Binomial(max_deg + genus - 1, max_deg);
+    if Proof then
+	k := 2*max_deg; // we multiply forms of weight 2, so degree k
+	                // monomials are of weight 2*k
+	m := grp`index;
+	N := grp`level;
+	// This is the Sturm bound for cusp forms
+	sturm := Ceiling(k*m/12 - (m-1)/N);
+	// We have to multiply by the cusp width at infinity,
+	// since our expansions are in q_h = q^(1/h)
+	prec := Maximum(prec, sturm * t);
+    end if;
     // getting a better model
-    // This i using ModularSymbolsH
+    // This is using ModularSymbolsH
     N := Level(PG);
     U_t, phi_t := UnitGroup(Integers(N*t));
     red_N := hom<Integers(N*t) -> Integers(N)|>;
@@ -346,13 +419,61 @@ function qExpansionBasisShimura(grp_name, grps)
     Qq<q> := PowerSeriesRing(Rationals());
     fs := [Qq!f : f in fs];
     X := FindCurveSimple(fs, prec, max_deg);
-    g := Genus(X);
-    if g eq 0 then
-	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-	return X, fs;
+    // This takes too long when the genus is 15
+    if genus lt 15 then
+	vprintf ModularCurves, 1: "Computing genus of curve...\n";
+	g := Genus(X);
+	vprintf ModularCurves, 1: "Done.\n";
+	if g eq 0 then
+	    print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+	    return X, fs;
+	else
+	    assert g eq genus;
+	    X_Q := ChangeRing(X, Rationals());
+	    return X_Q, fs;
+	end if;
     else
-	assert Genus(X) eq genus;
 	X_Q := ChangeRing(X, Rationals());
 	return X_Q, fs;
     end if;
 end function;
+
+function GetDivisorOfMaximalMultiplicity(X, fs)
+    // Finding a point on X
+    mat := Matrix([AbsEltseq(f) : f in fs]);
+    zero_col := true;
+    col_idx := 0;
+    while zero_col do
+	col_idx +:= 1;
+	col := Column(mat, col_idx);
+	zero_col := IsZero(col);
+    end while;
+    
+    P := X!Eltseq(col);
+    // projecive space
+    Pn<[z]> := AmbientSpace(X);
+    pivot := PivotColumn(col, 1);
+    n := #z;
+    X_aff<[x]> := AffinePatch(X, n+1-pivot);
+    P_aff := [P[i] / P[pivot] : i in [1..n] | i ne pivot];
+    assert P_aff in X_aff;
+    m_P := Ideal([x[i]-P_aff[i] : i in [1..n-1]]);
+    I := Ideal(X_aff);
+    has_linear := true;
+    d := 1;
+    while has_linear do
+	m_P_pow := m_P^d + I;
+	gb := GroebnerBasis(ChangeOrder(m_P_pow,"grevlex"));
+	has_linear := exists(p){p : p in gb | Degree(p) eq 1};
+	if has_linear then
+	    lambda_aff := p;
+	end if;
+	d +:= 1;
+    end while;
+    // we homogenize lambda
+    hom_coords := [z[i] / z[pivot] : i in [1..n] | i ne pivot];
+    lambda := CoordinateRing(Pn)!(z[pivot]*Evaluate(lambda_aff, hom_coords));
+    D := Divisor(X, Scheme(Pn, lambda));
+    return D;
+end function;
+
