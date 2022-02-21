@@ -631,18 +631,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	if #fixed_space_basis gt 0 then
 	    // latest addition - let us see if it works
 	    // idea - sometimes Kf intersects Q_K in more than Q_L
-	    // e.g. 8A5 (multichar, first component)
-	    /*
-	    if Degree(Kf) eq 1 then
-		cond_Kf := 1;
-	    else
-		cond_Kf := Norm(Conductor(AbelianExtension(AbsoluteField(Kf))));
-	    end if;
-	    // Q_L<zeta_L> := CyclotomicField(cond_Kf);
-	    Q_gcd<zeta_gcd> := CyclotomicField(GCD(cond_Kf, K));
-	    Q_K<zeta_K> := Domain(Q_K_to_Q_huge);
-	    _, Q_gcd_to_Q_K := IsSubfield(Q_gcd, Q_K);
-	   */
+	  
 	    Q_gcd<zeta_gcd> := gcd_fields[i];
 	    Q_gcd_to_Kf := gcd_field_embs[i][1];
 	    Q_gcd_to_Q_K := gcd_field_embs[i][2];
@@ -707,7 +696,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				   perm_d);
 		// The inverse is for action on the symbols,
 		// which is complex conjugated.
-		B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf)^(-1);
+//		B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf)^(-1);
+                B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf);
 		B_pd_cfs := Solution(fixed_basis_block, B_pd_mat);
 		I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
 		fixed_B_pd := Kernel(B_pd_cfs - eps_BPd_gens[k]^(-1)*I_mat);
