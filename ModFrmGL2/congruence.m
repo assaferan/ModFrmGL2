@@ -297,6 +297,7 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
     // This is also not working, e.g. 9B2. Why??
     
     PG := PSL2Subgroup(G);
+    vprintf ModularCurves, 2 : "G = ", G;
     if Normalizers then
 	M := ModularSymbols(PG);
     else

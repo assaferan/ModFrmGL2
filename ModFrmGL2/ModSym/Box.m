@@ -1838,11 +1838,6 @@ procedure testBox(grps_by_name : Proof := false,
 				 Normalizers := false,
 				 WriteFiles := false)
     // not working with character -
-    // 8A3 is working, but some assertion fails, needs to figure out why.
-    // now didn't even get the right dimension.
-    // 9B2 fails (can't find a solution)
-    // 9A3 fails "
-    // now also 9A4 fails "
     // 9C4 fails (doesn't get the correct dimension even!!)
     // 10A3 and 10A4 fail for a weird reason - something is not defined. Check it out.
     // 11A6 fails (can't find a solution)

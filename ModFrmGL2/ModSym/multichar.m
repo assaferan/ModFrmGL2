@@ -278,7 +278,7 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt, sign::RngIntElt) -> ModSym
       M`isgamma := true;
       return M;
     else 
-      G_prime := MaximalNormalizingWithAbelianQuotient(G);
+      G_prime := MaximalNormalizingWithAbelianQuotient(G : RealType);
       // Q, pi_Q := ImageInLevel(G_prime) / ImageInLevel(G);
       Q, pi_Q := G_prime / G;
       D := FullCharacterGroup(pi_Q, G_prime, G);
