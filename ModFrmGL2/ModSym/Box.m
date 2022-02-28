@@ -1733,7 +1733,7 @@ function precisionForCurve(PG : Proof := false)
     return prec, max_deg;
 end function;
 
-function getCurveFromForms(fs, prec, max_deg, genus)
+function getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := true)
     assert genus ge 2;
 
     assert Minimum([AbsolutePrecision(f) : f in fs]) ge prec;
@@ -1750,15 +1750,20 @@ function getCurveFromForms(fs, prec, max_deg, genus)
 	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
 	return X, fs;
     else
-	vprintf ModularCurves, 1: "Computing genus of curve...\n";
-	g := Genus(X);
-	vprintf ModularCurves, 1: "Done.";
-	if g eq 0 then
-	    print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-	    //	X, fs := FindHyperellipticCurve(fs_qexps, prec);
-	    return X, fs;
+	if CheckGenus then
+	    vprintf ModularCurves, 1: "Computing genus of curve...\n";
+	    g := Genus(X);
+	    vprintf ModularCurves, 1: "Done.";
+	    if g eq 0 then
+		print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+		//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
+		return X, fs;
+	    else
+		assert g eq genus;
+		X_Q := ChangeRing(X, Rationals());
+		return X_Q, fs;
+	    end if;
 	else
-	    assert g eq genus;
 	    X_Q := ChangeRing(X, Rationals());
 	    return X_Q, fs;
 	end if;
