@@ -382,13 +382,7 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
 						G::GrpMat,
 						H::GrpMat : RealType := true) -> GrpMat
 {}
-    if RealType then
-	eta := G_prime![1,0,0,-1];
-	G_eta := sub<G_prime | G, eta>;
-	N_G := NormalizerGrpMat(G_prime, G_eta);
-    else
-	N_G := NormalizerGrpMat(G_prime, G);
-    end if;
+    N_G := NormalizerGrpMat(G_prime, G);
     require H subset N_G : "H must normalize G";
     Q, pi_Q := N_G / G;
     H_im := H@pi_Q;
@@ -420,7 +414,12 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
       end while;
     end if;
     A_pre := A @@ pi_Q;
-    assert A_pre^eta eq A_pre;
+    if RealType then
+	// We force the normalizing group to be of real type.
+	eta := G_prime![-1,0,0,1];
+	A_pre := A_pre meet A_pre^eta;
+	assert A_pre^eta eq A_pre;
+    end if;
     return A_pre;
 end intrinsic;
 
