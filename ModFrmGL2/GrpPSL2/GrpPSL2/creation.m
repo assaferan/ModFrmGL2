@@ -419,8 +419,9 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
         C := Centralizer(Q,A);
       end while;
     end if;
-    assert A^eta eq A;
-    return A @@ pi_Q;
+    A_pre := A @@ pi_Q;
+    assert A_pre^eta eq A_pre;
+    return A_pre;
 end intrinsic;
 
 intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
