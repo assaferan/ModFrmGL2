@@ -357,7 +357,8 @@ intrinsic ModularSymbolsH(N::RngIntElt, gens::[RngIntElt],
     GL_N := GL(2, Integers(N));
     chars := [eps : eps in Elements(D) | 
               #[d : d in gens | Evaluate(eps,d) ne
- 			       Evaluate(chi, GL_N![d^(-1),0,0,d])] eq 0];
+ 				Evaluate(chi, GL_N![d^(-1),0,0,d])] eq 0];
+				// Evaluate(chi, GL_N![d,0,0,d^(-1)])] eq 0];
     if #chars eq 1 and chars[1] eq D!1 then
        return ModularSymbols(N,k,sign);
     end if;

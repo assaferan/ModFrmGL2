@@ -1,7 +1,9 @@
 import "GrpPSL2/GrpPSL2/misc.m" : Conjugates,
        IsConjugate, NormalizerGrpMat;
 
-import "ModSym/Box.m" : ModularCurveBox, get_M_K, FindCurveSimple, FindHyperellipticCurve;
+import "ModSym/Box.m" : ModularCurveBox, get_M_K,
+       get_M_K_normalizer,
+       FindCurveSimple, FindHyperellipticCurve;
 
 // These two functions are to get a GL2 model from a subgroup of PSL(2,Z)
 // Helper functions for creation
@@ -288,7 +290,7 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
     // We try to upgrade to normlizers, to be able to use characters
     if Normalizers then
 	normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
-	max_M, loc := Maximum([get_M_K(ImageInLevelGL(n)) : n in normalizers]);
+	max_M, loc := Maximum([get_M_K_normalizer(ImageInLevelGL(normalizers[i]), cands[i]) : i in [1..#cands]]);
     else
 	max_M, loc := Maximum([get_M_K(c) : c in cands]);
     end if;

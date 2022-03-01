@@ -920,6 +920,52 @@ function get_M_K(G)
     return M, K;
 end function;
 
+// find M, K such that G = B0(M) meet G_K and H contains B1(M)
+function get_M_K_normalizer(G, H)
+    N := Modulus(BaseRing(G));
+    // First we find M such that G_M is contained in B_0(M)
+    M := GCD([N] cat [Integers()!g[2,1] : g in Generators(G)]);
+    K := N div M;
+    // we make sure that GCD(K,M) eq 1
+    fac := Factorization(N);
+    M := &*([1] cat [fa[1]^fa[2] : fa in fac | K mod fa[1] ne 0]);
+    // Now we reduce it until equality holds
+    divs := Reverse(Divisors(M));
+    found := false;
+    // we don't try 1 because GL(2,1) etc.
+    for M in divs[1..#divs-1] do
+	G_M := sub< GL(2, Integers(M)) |
+		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(G)]>;
+	H_M := sub< GL(2, Integers(M)) |
+		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(H)]>;
+	B_M := make_Borel(M);
+	B1M := sub<B_M | [1,1,0,1]>;
+	small := PSL2Subgroup(B1M) meet CongruenceSubgroup(K);
+	if (G_M eq B_M) and (small subset PSL2Subgroup(H)) then
+	    PG_M := PSL2Subgroup(G_M);
+	    if K eq 1 then
+		PG_meet := PG_M;
+	    else	    
+		G_K := sub< GL(2, Integers(K)) |
+			  [[Integers(K)!x : x in Eltseq(g)] : g in Generators(G)]>;
+		PG_K := PSL2Subgroup(G_K);
+		PG_meet := PG_M meet PG_K;
+	    end if;
+	    //if G eq ImageInLevel(PG_K : N := N) meet ImageInLevel(PG_M : N := N) then
+	    PG := PSL2Subgroup(G);
+	    if PG eq PG_meet then
+		found := true;
+		break;
+	    end if;
+	end if;
+    end for;
+    if not found then M := 1; end if;
+    
+    K := N div M;
+
+    return M, K;
+end function;
+
 // function: get_gens
 // input: G - a subgroup of GL(2, Integers(N))
 // output: gens - lifts to SL2(Z) of generators of G with trivial determinant
@@ -927,9 +973,9 @@ end function;
 //         K, M - relatively prime integers such that G = B_0(M) meet G_K.
 //         ds - a list corresponding to Bgens of the determinants of these generators.
 
-function get_gens(G)
+function get_gens(G, eps)
     N := Modulus(BaseRing(G));
-    M, K := get_M_K(G);
+    M, K := get_M_K_normalizer(G, Kernel(eps));
     H := G meet SL(2, Integers(N));
     gens := [Eltseq(FindLiftToSL2(g)) : g in Generators(H)];
     quo, quo_mat := G/H;
@@ -1631,7 +1677,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 
     eps := create_character(G, Chars);
     
-    gens, Bgens, K, M, ds := get_gens(G);
+    gens, Bgens, K, M, ds := get_gens(G, eps);
     N := M * K^2;
 
     vprintf ModularCurves, 1 :  "Found generators. K = %o and M = %o.\n", K, M;
