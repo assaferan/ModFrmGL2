@@ -1585,8 +1585,9 @@ function restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K)
 					     | K mod Modulus(chi) eq 0 *], X)
 
 			: chis in nf_decomp *] : nf_decomp in nfd_old_decomp]; 
-/*
-   
+
+
+/*   
     nfd_trivial := [i : i in [1..#nfd] |
 		    X!DirichletCharacter(nfd[i]) in char_reps];
     nfd_old_trivial := [[i : i in [1..#nf] |
@@ -1832,13 +1833,14 @@ import "../congruence.m" : qExpansionBasisPSL2, createPSL2, write_qexps;
 
 procedure testBoxSingle(grps_by_name, name : Proof := false,
 					     Normalizers := false,
-					     WriteFile := false)
+					     WriteFile := false,
+					     CheckGenus := true)
     genus := grps_by_name[name]`genus;
     PG := createPSL2(grps_by_name[name]);
     prec, max_deg := precisionForCurve(PG : Proof := Proof);
     fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec,
 						   Normalizers := Normalizers);
-    X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
+    X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := CheckGenus);
     vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
     if WriteFile then
 	write_qexps(name, fs, X);
