@@ -1573,7 +1573,7 @@ function get_gamma_fixed_space(eps_gens, gs)
 end function;
 
 function restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K)
- /*   
+   
     nfd_chars := [* DirichletCharacter(f) : f in nfd *];
     nfd_decomp := [* Decomposition(chi) : chi in nfd_chars *];
     nfd_K_part := [* character_product([* chi : chi in chis | K mod Modulus(chi) eq 0 *], X)
@@ -1585,19 +1585,19 @@ function restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K)
 					     | K mod Modulus(chi) eq 0 *], X)
 
 			: chis in nf_decomp *] : nf_decomp in nfd_old_decomp]; 
-*/
+/*
    
     nfd_trivial := [i : i in [1..#nfd] |
 		    X!DirichletCharacter(nfd[i]) in char_reps];
     nfd_old_trivial := [[i : i in [1..#nf] |
 			 X!DirichletCharacter(nf[i]) in char_reps]
 			: nf in nfd_old]; 
-/*
+*/
     
     nfd_trivial := [i : i in [1..#nfd] | X!nfd_K_part[i] in char_reps];
     nfd_old_trivial := [[i : i in [1..#nfd_old[j]] | X!nfd_old_K_part[j][i] in char_reps]
 			: j in [1..#nfd_old]];
-  */  
+    
     cumsum := [0] cat [&+[#nf : nf in nfd_old[1..i]] : i in [1..#nfd_old]];
     a_idxs := &cat[ [idx + cumsum[j] : idx in nfd_old_trivial[j]]
 		    : j in [1..#nfd_old]];
@@ -1830,22 +1830,25 @@ end procedure;
 // This tests Box's method using the database of congruence subgroups
 import "../congruence.m" : qExpansionBasisPSL2, createPSL2, write_qexps;
 
-// status:
-// now failing 21C6 (error in DegeneracyMatrix)
-// 
+procedure testBoxSingle(grps_by_name, name : Proof := false,
+					     Normalizers := false,
+					     WriteFile := false)
+    genus := grps_by_name[name]`genus;
+    PG := createPSL2(grps_by_name[name]);
+    prec, max_deg := precisionForCurve(PG : Proof := Proof);
+    fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec,
+						   Normalizers := Normalizers);
+    X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
+    vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
+    if WriteFile then
+	write_qexps(name, fs, X);
+    end if;
+end procedure;
 
 procedure testBox(grps_by_name : Proof := false,
 				 Normalizers := false,
 				 WriteFiles := false)
-    // not working with character -
-    // 9C4 fails (doesn't get the correct dimension even!!)
-    // 10A3 and 10A4 fail for a weird reason - something is not defined. Check it out.
-    // 11A6 fails (can't find a solution)
-    // 14B6 also fails "
-    // 17A6 also fails
-    // 18A6 - dimension(H) ne 1
-    // 18B6 - no solution
-    // 22C6 - problem in coercion of characters
+    
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "10A3", "10A4", 
@@ -1871,6 +1874,7 @@ procedure testBox(grps_by_name : Proof := false,
 
     for name in working_examples do
 	vprintf ModularCurves, 1 : "Working on group %o\n", name;
+	/*
 	genus := grps_by_name[name]`genus;
 	PG := createPSL2(grps_by_name[name]);
 	prec, max_deg := precisionForCurve(PG : Proof := Proof);
@@ -1881,6 +1885,10 @@ procedure testBox(grps_by_name : Proof := false,
 	if WriteFiles then
 	    write_qexps(name, fs, X);
 	end if;
+       */
+	testBoxSingle(grps_by_name, name : Proof := Proof,
+					   Normalizers := Normalizers,
+					   WriteFile := WriteFiles);
     end for;
 
     testBoxExample();
