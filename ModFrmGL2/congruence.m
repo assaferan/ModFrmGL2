@@ -468,21 +468,29 @@ function qExpansionBasisShimura(grp_name, grps : Proof := false)
     end if;
 end function;
 
-function GetDivisorOfMaximalMultiplicity(X, fs)
-    // Finding a point on X
+function GetRationalPoint(X, fs)
+     // Finding a point on X
     mat := Matrix([AbsEltseq(f) : f in fs]);
     zero_col := true;
     col_idx := 0;
     while zero_col do
 	col_idx +:= 1;
-	col := Column(mat, col_idx);
+	// col := Column(mat, col_idx);
+	col := Transpose(mat)[col_idx];
 	zero_col := IsZero(col);
     end while;
     
     P := X!Eltseq(col);
+    pivot := PivotColumn(col, 1);
+    
+    return P, pivot;
+end function;
+
+function GetDivisorOfMaximalMultiplicity(X, fs)
+    P, pivot := GetRationalPoint(X, fs);
     // projecive space
     Pn<[z]> := AmbientSpace(X);
-    pivot := PivotColumn(col, 1);
+    
     n := #z;
     X_aff<[x]> := AffinePatch(X, n+1-pivot);
     P_aff := [P[i] / P[pivot] : i in [1..n] | i ne pivot];
@@ -507,3 +515,21 @@ function GetDivisorOfMaximalMultiplicity(X, fs)
     return D;
 end function;
 
+function GetP2Image(X, fs)
+    P, pivot := GetRationalPoint(X, fs);
+    Pn<[z]> := AmbientSpace(X);
+    // This takes too long. We try to replace it by something faster
+    // divs := [Divisor(X, Scheme(Pn, zz)) : zz in z];
+    // mults := [Valuation(D, P) : D in divs];
+
+    n := #z;
+    X_aff<[x]> := AffinePatch(X, n+1-pivot);
+    mults_aff := [Valuation(xx, P) : xx in x];
+    mults := mults_aff[1..pivot-1] cat [0] cat mults_aff[pivot..n-1];
+    
+    // all multiplicities are distinct
+    assert #Set(mults) eq #mults;
+    sorted_mults := Reverse(Sort([<mults[i], i> : i in [1..#mults]]));
+    P2<[y]> := ProjectiveSpace(Rationals(),2);
+    return Image(map<X -> P2 | [z[m[2]] : m in sorted_mults[1..3]] >);
+end function;

@@ -1366,6 +1366,7 @@ function FindCurveSimple(qexps, prec, n_rel)
 	d +:= 1;
     end while;
     // I := ideal<R | &cat rels>;
+    // This might throw an error in the hyperelliptic case. 
     X := Curve(ProjectiveSpace(R),I);
     // Do we want to assert X is coercible to Q?
     return X;
@@ -1892,6 +1893,12 @@ procedure testBoxSingle(grps_by_name, name : Proof := false,
 	write_qexps(name, fs, X);
     end if;
 end procedure;
+
+// Not working -
+// 10C3 - arguments do not define a curve
+
+// Not working with character -
+// 10A3 - arguments do not define a curve
 
 procedure testBox(grps_by_name : Proof := false,
 				 Normalizers := false,
