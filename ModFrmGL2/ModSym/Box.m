@@ -1459,10 +1459,12 @@ function compute_ms_action(G, eps, gens, Bgens, K, M, ds, AtkinLehner)
     eps_BPd_gens := [eps(GL_N!Bgens[i]*GL_N![ds[i],0,0,1]) : i in [1..#Bgens]]; 
     
     N := M * K^2;
-    g1 := CRT([1+K,1], [K^2,M]);
-    alpha := Integers()!PrimitiveElement(Integers(M));
-    g2 := CRT([1,alpha], [K^2,M]);
-    MS := ModularSymbolsH(N, [g1,g2], 2, 0, eps);
+
+    g0 := CRT([1+K,1], [K^2,M]);
+    U, mU := UnitGroup(Integers(M));
+    alphas := [Integers()!mU(x) : x in Generators(U)];
+    gs := [g0] cat [CRT([1,alpha], [K^2,M]) : alpha in alphas];
+    MS := ModularSymbolsH(N, gs, 2, 0, eps);
 
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
@@ -1887,8 +1889,17 @@ procedure testBoxSingle(grps_by_name, name : Proof := false,
     prec, max_deg := precisionForCurve(PG : Proof := Proof);
     fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec,
 						   Normalizers := Normalizers);
-    X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := CheckGenus);
-    vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
+    if (genus gt 1) then
+	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := CheckGenus);
+	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
+    else
+	vprintf ModularCurves, 1 : "Curve is of genus 1. Right now not implemented in general. Writing a dummy P1.\n";
+	R<q> := Universe(fs);
+	K := BaseRing(R);
+	// we return a dummy P1 for now
+	R<x,y> := PolynomialRing(K,2);
+	X := Curve(ProjectiveSpace(R));
+    end if;
     if WriteFile then
 	write_qexps(name, fs, X);
     end if;

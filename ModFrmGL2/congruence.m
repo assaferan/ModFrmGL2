@@ -270,6 +270,37 @@ function checkRealTypeSurjective(grps)
     return rtsur;
 end function;
 
+function get_best_M(grps, grp_names : Normalizers := false)
+    grps_M := [];
+    for grp_name in grp_names do
+	grp := grps[grp_name];
+	N := grp`level;
+	gens := grp`matgens;
+	H := sub<SL(2, Integers(N)) | gens>;
+	real_H := GetRealConjugate(H);
+	G := GetGLModel(real_H);
+	// We may want to put it in GetGLModel,
+	// but it really is just a requirement for the modular curve algorithm
+	GL_N := GL(2, Integers(N));
+	conjs := [c : c in Conjugates(GL_N, G)];
+	// we want to still have real type
+	eta := GL_N![-1,0,0,1];
+	conjs := [c : c in conjs | c^eta eq c];
+	Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
+	cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
+	if Normalizers then
+	    normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
+	    max_M, loc := Maximum([get_M_K_normalizer(ImageInLevelGL(normalizers[i]), 
+						      cands[i]) : i in [1..#cands]]);
+	else
+	    max_M, loc := Maximum([get_M_K(c) : c in cands]);
+	end if;
+	Append(~grps_M, <N^2 div max_M, grp_name, max_M>);
+	print "Done with ", grp_name;
+    end for;
+    return Sort(grps_M);
+end function;
+
 function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
 					      Normalizers := false)
     grp := grps[grp_name];
@@ -294,7 +325,7 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
     else
 	max_M, loc := Maximum([get_M_K(c) : c in cands]);
     end if;
-    vprintf ModularCurves, 1 : "Best M found among conjugates is ", max_M;
+    vprintf ModularCurves, 1 : "Best M found among conjugates is %o.\n", max_M;
     G := cands[loc];
     // This is also not working, e.g. 9B2. Why??
     
