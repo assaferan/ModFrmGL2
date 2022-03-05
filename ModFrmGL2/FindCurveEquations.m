@@ -1,6 +1,6 @@
 load "shimuraType.m";
 
-SetVerbose("ModularCurves", verbose);
-FindEquationsGenus(genus);
+SetVerbose("ModularCurves", eval verbose);
+FindEquationsGenus(eval genus);
 
 exit;
