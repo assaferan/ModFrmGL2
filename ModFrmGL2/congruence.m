@@ -564,3 +564,116 @@ function GetP2Image(X, fs)
     P2<[y]> := ProjectiveSpace(Rationals(),2);
     return Image(map<X -> P2 | [z[m[2]] : m in sorted_mults[1..3]] >);
 end function;
+
+function NumSubgroupsTotalZNStar(N)
+    U := UnitGroup(Integers(N));
+    ps := PrimeDivisors(#U);
+    elem_by_p := [[d : d in ElementaryDivisors(U) | d mod p eq 0] : p in ps];
+    num_sub := &*([1] cat [1 + &+NumberOfSubgroupsAbelianPGroup(elem_p) : elem_p in elem_by_p]);
+    return num_sub;
+end function;
+
+function NumSubgroupsZNStarOfOrder(N,h)
+    U := UnitGroup(Integers(N));
+    ps := PrimeDivisors(#U);
+    assert #U eq EulerPhi(N);
+    assert #U mod h eq 0;
+    vals := [Valuation(h,p) : p in ps];
+    elem_by_p := [[d : d in ElementaryDivisors(U) | d mod p eq 0] : p in ps];
+    num_sub := &*([1] cat [vals[i] eq 0 select 1 else NumberOfSubgroupsAbelianPGroup(elem_by_p[i])[vals[i]] : i in [1..#ps]]);
+    return num_sub;
+end function;
+
+function NumShimuraSubgroupsOfLevel(N)
+    return #Divisors(N)*NumSubgroupsTotalZNStar(N);
+end function;
+
+function NumShimuraSubgroupsOfIndex(h)
+    // Note that a group of Shimura type in level N is contained in Gamma0(N)
+    // hence its index is at least [Gamma(1) : Gamma0(N)] = P1(Z/NZ) > N
+    count := 0;
+    for N in [1..h] do
+	ps := PrimeDivisors(N);
+	gamma_0_index := Integers()!(&*([N] cat [1 + 1/p : p in ps]));
+	if h mod gamma_0_index eq 0 then
+	    quo := h div gamma_0_index;
+	    for t in Divisors(quo) do
+		H_index := quo div t;
+		if EulerPhi(N) mod H_index eq 0 then
+		    count +:= NumSubgroupsZNStarOfOrder(N,EulerPhi(N) div H_index);
+		end if;
+	    end for;
+	end if;
+    end for;
+    return count;
+end function;
+
+function UpperBoundNumShimuraSubgroupsOfGenus(g)
+    // Note that a group of Shimura type in level N is contained in Gamma0(N)
+    // hence its index is at least [Gamma(1) : Gamma0(N)] = P1(Z/NZ) > N
+    count := 0;
+    N_bound := Floor(12*g+1/2*(13*Sqrt(48*g+121)+145));
+    for N in [1..N_bound] do
+	ps := PrimeDivisors(N);
+	max_e2 := (N mod 4 eq 0) select 0 else 2^(#[p : p in ps | p mod 4 eq 1]);
+	max_e3 := (N mod 9 eq 0) select 0 else 2^(#[p : p in ps | p mod 3 eq 1]);
+	gamma_0_index := Integers()!(&*([N] cat [1 + 1/p : p in ps]));
+	h_bound := 128*(g+1);
+	for quo in [1..h_bound div gamma_0_index] do
+	    h := gamma_0_index * quo;
+	    for t in Divisors(quo) do
+		max_num_cusps := h div t;
+		g_min := 1 + h/12 - max_e2/4-max_e3/3-max_num_cusps/2;
+		if (g ge g_min) then
+		    H_index := quo div t;
+		    if EulerPhi(N) mod H_index eq 0 then
+			count +:= NumSubgroupsZNStarOfOrder(N,EulerPhi(N) div H_index);
+		    end if;
+		end if;
+	    end for;
+	end for;
+    end for;
+    return count;
+end function;
+
+function NumShimuraSubgroupsOfGenus(g)
+    // Note that a group of Shimura type in level N is contained in Gamma0(N)
+    // hence its index is at least [Gamma(1) : Gamma0(N)] = P1(Z/NZ) > N
+    count := 0;
+    N_bound := Floor(12*g+1/2*(13*Sqrt(48*g+121)+145));
+    for N in [1..N_bound] do
+	if (N eq 1) then
+	    if (g eq 0) then
+		count +:= 1;
+	    end if;
+	    continue;
+	end if;
+	ps := PrimeDivisors(N);
+	max_e2 := (N mod 4 eq 0) select 0 else 2^(#[p : p in ps | p mod 4 eq 1]);
+	max_e3 := (N mod 9 eq 0) select 0 else 2^(#[p : p in ps | p mod 3 eq 1]);
+	gamma_0_index := Integers()!(&*([N] cat [1 + 1/p : p in ps]));
+	h_bound := 128*(g+1);
+	for quo in [1..h_bound div gamma_0_index] do
+	    h := gamma_0_index * quo;
+	    for t in Divisors(quo) do
+		max_num_cusps := h div t;
+		g_min := 1 + h/12 - max_e2/4-max_e3/3-max_num_cusps/2;
+		if (g ge g_min) then
+		    H_index := quo div t;
+		    if EulerPhi(N) mod H_index eq 0 then
+			U, phi := UnitGroup(Integers(N));
+			subs := [H`subgroup : H in Subgroups(U) | #H`subgroup * H_index eq EulerPhi(N)];
+			for H in subs do
+			    G := GammaShimura(U, phi, H, t);
+			    if Genus(G) eq g then
+				count +:= 1;
+			    end if;
+			end for;
+		    end if;
+		end if;
+	    end for;
+	end for;
+    end for;
+    return count;
+end function;
+

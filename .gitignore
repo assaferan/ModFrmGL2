@@ -40,3 +40,6 @@ ModFrmGL2/81A10_shim.m
 ModFrmGL2/86A10_shim.m
 ModFrmGL2/92A10_shim.m
 ModFrmGL2/9A10_shim.m
+*.dat#
+*.dat~
+*.sig
