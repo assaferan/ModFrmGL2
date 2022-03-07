@@ -608,18 +608,29 @@ function NumShimuraSubgroupsOfIndex(h)
     return count;
 end function;
 
-function UpperBoundNumShimuraSubgroupsOfGenus(g)
+function UpperBoundNumShimuraSubgroupsOfGenus(d)
     // Note that a group of Shimura type in level N is contained in Gamma0(N)
     // hence its index is at least [Gamma(1) : Gamma0(N)] = P1(Z/NZ) > N
     count := 0;
+    g := (d-1)*(d-2) div 2;
+    alpha := 32768/325;
     N_bound := Floor(12*g+1/2*(13*Sqrt(48*g+121)+145));
     for N in [1..N_bound] do
+	if (N eq 1) then
+	    if (g eq 0) then
+		count +:= 1;
+	    end if;
+	    continue;
+	end if;
 	ps := PrimeDivisors(N);
 	max_e2 := (N mod 4 eq 0) select 0 else 2^(#[p : p in ps | p mod 4 eq 1]);
 	max_e3 := (N mod 9 eq 0) select 0 else 2^(#[p : p in ps | p mod 3 eq 1]);
 	gamma_0_index := Integers()!(&*([N] cat [1 + 1/p : p in ps]));
-	h_bound := 128*(g+1);
-	for quo in [1..h_bound div gamma_0_index] do
+	gamma_N_index := Integers()!(&*([N^3] cat [1 - 1/p^2 : p in ps]));
+	// h_bound := Maximum(128*(g+1), gamma_N_index);
+	h_bound := Maximum(Floor(alpha*(d-1)), gamma_N_index);
+	quos := [quo : quo in [1..h_bound div gamma_0_index] | N mod quo eq 0];
+	for quo in quos do
 	    h := gamma_0_index * quo;
 	    for t in Divisors(quo) do
 		max_num_cusps := h div t;
