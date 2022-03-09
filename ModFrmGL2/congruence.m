@@ -352,7 +352,7 @@ procedure write_qexps(grp_name, fs, X : J := [])
     	      F := %m;	
 	      %o
 	      Kq<q> := PowerSeriesRing(K);
-	      fs_%o := [Kq | ", F, field_def_str, grp_name, fs[1]);
+	      fs_%o := [Kq | %o", F, field_def_str, grp_name, fs[1]);
     if #fs gt 1 then
       write_str cat:= &cat[Sprintf(", %m", f) : f in fs[2..#fs]];
     end if;
