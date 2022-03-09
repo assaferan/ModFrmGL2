@@ -302,7 +302,8 @@ function get_best_M(grps, grp_names : Normalizers := false)
 end function;
 
 function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
-					      Normalizers := false)
+					      Normalizers := false,
+					      M := 0)
     grp := grps[grp_name];
     N := grp`level;
     gens := grp`matgens;
@@ -311,34 +312,35 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
     G := GetGLModel(real_H);
     // We may want to put it in GetGLModel,
     // but it really is just a requirement for the modular curve algorithm
-    GL_N := GL(2, Integers(N));
-    conjs := [c : c in Conjugates(GL_N, G)];
-    // we want to still have real type
-    eta := GL_N![-1,0,0,1];
-    conjs := [c : c in conjs | c^eta eq c];
-    Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
-    cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
-    // We try to upgrade to normlizers, to be able to use characters
-    if Normalizers then
-	normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
-	max_M, loc := Maximum([get_M_K_normalizer(ImageInLevelGL(normalizers[i]), cands[i]) : i in [1..#cands]]);
-    else
-	max_M, loc := Maximum([get_M_K(c) : c in cands]);
+    if M eq 0 then
+	GL_N := GL(2, Integers(N));
+	conjs := [c : c in Conjugates(GL_N, G)];
+	// we want to still have real type
+	eta := GL_N![-1,0,0,1];
+	conjs := [c : c in conjs | c^eta eq c];
+	Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
+	cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
+	// We try to upgrade to normalizers, to be able to use characters
+	if Normalizers then
+	    normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
+	    M, loc := Maximum([get_M_K_normalizer(ImageInLevelGL(normalizers[i]), cands[i]) : i in [1..#cands]]);
+	else
+	    M, loc := Maximum([get_M_K(c) : c in cands]);
+	end if;
+	vprintf ModularCurves, 1 : "Best M found among conjugates is %o.\n", M;
+	G := cands[loc];
     end if;
-    vprintf ModularCurves, 1 : "Best M found among conjugates is %o.\n", max_M;
-    G := cands[loc];
-    // This is also not working, e.g. 9B2. Why??
     
     PG := PSL2Subgroup(G);
     vprintf ModularCurves, 2 : "G = ", G;
     if Normalizers then
-	M := ModularSymbols(PG);
+	MS := ModularSymbols(PG);
     else
-	M := ModularSymbols(PG, 2, Rationals(), 0);
+	MS := ModularSymbols(PG, 2, Rationals(), 0);
     end if;
-    S := CuspidalSubspace(M);
+    S := CuspidalSubspace(MS);
 
-    fs := qExpansionBasis(S, Precision : Al := "Box");
+    fs := qExpansionBasis(S, Precision : Al := "Box", M_val := M);
     
     // This is not working yet
     // fs := qIntegralBasis(S, Precision : Al := "Box");
@@ -608,14 +610,17 @@ function NumShimuraSubgroupsOfIndex(h)
     return count;
 end function;
 
-function UpperBoundNumShimuraSubgroupsOfGenus(d)
+function UpperBoundNumShimuraSubgroupsOfGonality(d)
     // Note that a group of Shimura type in level N is contained in Gamma0(N)
     // hence its index is at least [Gamma(1) : Gamma0(N)] = P1(Z/NZ) > N
     count := 0;
     g := (d-1)*(d-2) div 2;
     alpha := 32768/325;
     N_bound := Floor(12*g+1/2*(13*Sqrt(48*g+121)+145));
-    for N in [1..N_bound] do
+    genera := [Genus(Gamma0(N)) : N in [1..N_bound]];
+    possible_N := [i : i in [1..N_bound] | genera[i] le g];
+    // for N in [1..N_bound] do
+    for N in possible_N do
 	if (N eq 1) then
 	    if (g eq 0) then
 		count +:= 1;
@@ -647,12 +652,21 @@ function UpperBoundNumShimuraSubgroupsOfGenus(d)
     return count;
 end function;
 
+function genus(PG)
+    // G := sub<ModLevel(PG) | ImageInLevel(PG), [-1,0,0,-1]>;
+    // PG := PSL2Subgroup(G);
+    return Dimension(CuspidalSubspace(ModularSymbols(PG, 2, Rationals(), 0))) div 2;
+end function;
+
 function ShimuraSubgroupsOfGenus(g)
     // Note that a group of Shimura type in level N is contained in Gamma0(N)
     // hence its index is at least [Gamma(1) : Gamma0(N)] = P1(Z/NZ) > N
     ret := [];
     N_bound := Floor(12*g+1/2*(13*Sqrt(48*g+121)+145));
-    for N in [1..N_bound] do
+    genera := [Genus(Gamma0(N)) : N in [1..N_bound]];
+    possible_N := [i : i in [1..N_bound] | genera[i] le g];
+    // for N in [1..N_bound] do
+    for N in possible_N do
 	if (N eq 1) then
 	    if (g eq 0) then
 		Append(~ret, PSL2(Integers()));
@@ -682,7 +696,7 @@ function ShimuraSubgroupsOfGenus(g)
 			for H in subs do
 			    G := GammaShimura(U, phi, H, t);
 			    assert Index(G) eq h;
-			    if Genus(G) eq g then
+			    if genus(G) eq g then
 				Append(~ret, G);
 			    end if;
 			end for;

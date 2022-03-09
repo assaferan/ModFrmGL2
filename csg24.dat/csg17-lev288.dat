@@ -2,8 +2,9 @@
 // with  288 <= level < 296
 //
 // by c cummins and s pauli
-load "csg17-lev256.dat";
-L cat:=
+// load "csg17-lev256.dat";
+import "csg17-lev256.dat" : L17_256;
+L17_288 := L17_256 cat
 [ PowerStructure(Rec) |
     rec<recformat<generators: SeqEnum, level: IntegerRing(), genus: 
     IntegerRing(), index: IntegerRing(), contains_minus_one: BoolElt, subgroups:

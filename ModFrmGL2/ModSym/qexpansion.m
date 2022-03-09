@@ -553,7 +553,7 @@ of more Hecke operators.}
 end intrinsic;
 
 intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
-                          Al := "Newform") -> SeqEnum
+                          Al := "Newform", M_val := 0) -> SeqEnum
 {"} // "
    prec := Max(2,prec);
 
@@ -620,7 +620,7 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
                         (Al eq "Newform" select
 			 qExpansionBasisNewform(M,prec, false) else
 			 // we scale by a common denominator
-			 qExpansionBasisBox(M, prec));
+			 qExpansionBasisBox(M, prec : M_val := M_val));
       prec := M`qexpbasis[1];
    end if;
    _<q> := Universe(M`qexpbasis[2]);
@@ -2180,13 +2180,13 @@ intrinsic ActionOnEchelonFormBasis(g::GrpMatElt, M::ModSym) -> AlgMatElt
   return I^(-1) * s_hol * I;
 end intrinsic;
 
-function qExpansionBasisBox(A, prec)
+function qExpansionBasisBox(A, prec : M_val := 0)
     // at the moment we can only do this for the entire space.
     // Are we able to find forms corresponding to Hecke subspaces?
     assert A eq CuspidalSubspace(AmbientSpace(A));
     G := ImageInLevelGL(LevelSubgroup(A));
     // what about the character?
-    fs := BoxMethod(G, prec : Chars := [DirichletCharacter(A)]);
+    fs := BoxMethod(G, prec : Chars := [DirichletCharacter(A)], M := M_val);
     if IsEmpty(fs) then return fs; end if;
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);

@@ -662,7 +662,7 @@ import "../../ModSym/core.m" : CosetReduce, ManinSymbolGenList;
 // This is not good enough -
 // we want level as a GL2 subgroup
 
-intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
+intrinsic CalcLevel(G::GrpPSL2) -> RngIntElt
 {calculates the level of a subgroup of PSL2}
   if Degree(ModLevel(G)) eq 1 then return 1; end if;
   mlist := ManinSymbolGenList(2,G,G`BaseRing);
@@ -720,10 +720,9 @@ intrinsic SubgroupFromGens(G::GrpPSL2, gens::SeqEnum, N::RngIntElt,
         H`ModLevel := MatrixAlgebra(quo<H`BaseRing | N>,2);
      end if;
      H`ImageInLevel := sub< H`ModLevel | [H`ModLevel!Matrix(g) : g in gens]>;
-     if IsExactLevel then
-       H`Level := N;
-     else
-       H`Level := calcLevel(H);
+     H`Level := N;
+     if not IsExactLevel then
+       H`Level := CalcLevel(H);
      end if;
      return H;
 end intrinsic;
@@ -847,7 +846,7 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
      if IsExactLevel then
         H`Level := N;
      else
-        H`Level := calcLevel(H);
+        H`Level := CalcLevel(H);
         H`ModLevel, H`ModLevelGL := get_mod_level(H, H`Level);
         if H`Level eq 1 then
 	  H0bar := H`ModLevelGL;

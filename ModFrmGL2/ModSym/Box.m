@@ -1676,11 +1676,18 @@ end function;
 // output: fs - a list of coefficients of q-expansions for a basis of cusp forms in S_2(G, Q)
 //         tos - indices indicating from which twist orbit each of them was taken.
 
-function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
+function BoxMethod(G, prec : AtkinLehner := [], Chars := [], M := 0)
 
     eps := create_character(G, Chars);
     
-    gens, Bgens, K, M, ds := get_gens(G, eps);
+    gens, Bgens, best_K, best_M, ds := get_gens(G, eps);
+    if M eq 0 then
+	M := best_M;
+	K := best_K;
+    else
+	N := Modulus(BaseRing(G));
+	K := N div M;
+    end if;
     N := M * K^2;
 
     vprintf ModularCurves, 1 :  "Found generators. K = %o and M = %o.\n", K, M;
@@ -1883,12 +1890,14 @@ import "../congruence.m" : qExpansionBasisPSL2, createPSL2, write_qexps;
 procedure testBoxSingle(grps_by_name, name : Proof := false,
 					     Normalizers := false,
 					     WriteFile := false,
-					     CheckGenus := true)
+					     CheckGenus := true,
+					     M := 0)
     genus := grps_by_name[name]`genus;
     PG := createPSL2(grps_by_name[name]);
     prec, max_deg := precisionForCurve(PG : Proof := Proof);
     fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec,
-						   Normalizers := Normalizers);
+						   Normalizers := Normalizers,
+						   M := M);
     if (genus gt 1) then
 	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := CheckGenus);
 	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;

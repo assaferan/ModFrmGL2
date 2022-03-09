@@ -36,7 +36,9 @@ intrinsic Level(G::GrpPSL2) -> RngIntElt
    if assigned G`ShimLevel then
       return G`ShimLevel;
    else
-     return G`Level;
+       // We do not calculate the level, since CalcLevel needs some level assigned
+       assert assigned G`Level;
+       return G`Level;
    end if;
 end intrinsic;
 
