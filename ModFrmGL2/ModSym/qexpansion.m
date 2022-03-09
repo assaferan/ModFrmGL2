@@ -575,7 +575,7 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
        "The characteristic of the base field must equal 0.  Try qEigenform on an irreducible space instead.";
 
    if IsMultiChar(M) then
-       S := [* qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M) *];
+       S := [* qExpansionBasis(CuspidalSubspace(m), prec : Al := Al, M_val := M_val) : m in MultiSpaces(M) *];
        S := [* s : s in S | not IsEmpty(s) *];
        fields := [* BaseRing(Universe(s)) : s in S *];
        // if compositum fails, we can do this

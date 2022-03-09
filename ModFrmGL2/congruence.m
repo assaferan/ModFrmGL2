@@ -312,23 +312,24 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
     G := GetGLModel(real_H);
     // We may want to put it in GetGLModel,
     // but it really is just a requirement for the modular curve algorithm
+    GL_N := GL(2, Integers(N));
+    conjs := [c : c in Conjugates(GL_N, G)];
+    // we want to still have real type
+    eta := GL_N![-1,0,0,1];
+    conjs := [c : c in conjs | c^eta eq c];
+    Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
+    cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
+    // We try to upgrade to normalizers, to be able to use characters
+    if Normalizers then
+	normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
+	max_M, loc := Maximum([get_M_K_normalizer(ImageInLevelGL(normalizers[i]), cands[i]) : i in [1..#cands]]);
+    else
+	max_M, loc := Maximum([get_M_K(c) : c in cands]);
+    end if;
+    vprintf ModularCurves, 1 : "Best M found among conjugates is %o.\n", max_M;
+    G := cands[loc];
     if M eq 0 then
-	GL_N := GL(2, Integers(N));
-	conjs := [c : c in Conjugates(GL_N, G)];
-	// we want to still have real type
-	eta := GL_N![-1,0,0,1];
-	conjs := [c : c in conjs | c^eta eq c];
-	Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
-	cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
-	// We try to upgrade to normalizers, to be able to use characters
-	if Normalizers then
-	    normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
-	    M, loc := Maximum([get_M_K_normalizer(ImageInLevelGL(normalizers[i]), cands[i]) : i in [1..#cands]]);
-	else
-	    M, loc := Maximum([get_M_K(c) : c in cands]);
-	end if;
-	vprintf ModularCurves, 1 : "Best M found among conjugates is %o.\n", M;
-	G := cands[loc];
+	M := max_M;
     end if;
     
     PG := PSL2Subgroup(G);
