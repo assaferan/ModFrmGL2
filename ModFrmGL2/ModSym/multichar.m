@@ -456,15 +456,13 @@ intrinsic MultiQuotientMaps(M::ModSym) -> List
       stop := start + d - 1;
 
       function f(x) // M -> N
-          // e := Eltseq(x);
-	  e := MC_Eltseq(M, N, x);
+          e := Eltseq(x);
           v := Vector(e[start..stop]);
           return N! UnRestrictionOfScalars(v, K);
       end function;
 
       function g(x) // N -> M
-          // eK := Eltseq(x);
-	  eK := MC_Eltseq(M, N, x);
+          eK := Eltseq(x);
           e := RestrictionOfScalars(eK);
           v := V!0;
           InsertBlock(~v, Vector(e), 1, start);
