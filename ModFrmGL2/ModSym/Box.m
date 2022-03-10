@@ -725,10 +725,25 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    // We look for things fixed by the automorphisms of KK that leave Q_K fixed.
 	    // There are several ways to do this, here we take a direct one.
 
+	    // !! TODO - Here we have a problem if KK is not Galois over Q_huge
+	    // Taking the normal closure is very expensive,
+	    // see e.g. 71A6, 79A6
+	    
 	    // Step I - summing over automorphisms of KK/Q_huge
 	    if KK ne Q_huge then
 		vprintf ModularCurves, 2 : "Degree of the field KK is %o. ", Degree(KK);
 		vprintf ModularCurves, 2 : "Extending the forms.\n";
+		xi := KK.1;
+		basis := [xi^i : i in [0..Degree(KK)-1]];
+		fsols := &cat[[[Trace(b*v[i]) : i in [1..Degree(v)]]
+				  : b in basis] : v in fsols];
+		// we leave out the first term, since it corresponds to F
+		// and we just want to zero out all the other coefficients
+		// vecs_Q_huge := [&cat[Eltseq(v[j])[2..Degree(KK)] :
+		//		     j in [1..Degree(v)]] : v in all_vecs];
+		// ker := Kernel(Matrix(vecs_Q_huge));
+		// fsols := [&+[b[i]*all_vecs[i] : i in [1..#all_vecs]] : b in Basis(ker)];
+		/*
 		aut_KK := Automorphisms(KK);
 		xi := KK.1;
 		fsols_conj := [[Vector([sig(a) : a in Eltseq(f)])
@@ -739,6 +754,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		    &cat[[&+[xi_conj[l]^j * fsols_conj[l][i] : l in [1..#aut_KK]]
 			 : j in [0..Degree(KK)-1]]
 			 : i in [1..#fsols] ];
+	       */
 	    end if;
 
 	    // Step II - summing over automorphisms of Q_huge/Q_K
@@ -1251,14 +1267,47 @@ function createFieldEmbeddings(K, NN, C, ds)
 		    Embed(fields[i], Kf, root);
 		end if;
 	    end if;
-	else
-	    assert Kf eq Q_L;
+	elif Kf eq Q_L then
 	    KK := Q_huge;
 	    Kf_to_KK := Q_L_to_Q_huge;
 	    Q_gcd_f := Q_gcd;
 	    zeta_gcd_f := zeta_gcd;
 	    Q_gcd_f_to_Kf := Q_gcd_to_Q_L;
 	    Q_gcd_f_to_Q_K := Q_gcd_to_Q_K;
+	else
+	    // This might not be the case, but we start by treating this one
+	    assert IsSubfield(Q_L, Kf);
+	    Kf := RelativeField(Q_L, Kf);
+	    _, F_to_Kf := IsSubfield(fields[i], Kf);
+	    _, Q_L_to_Kf := IsSubfield(Q_L, Kf);
+	    cyc_Kf := Order(UnitGroup(AbsoluteField(Kf)).1);
+	    assert IsSubfield(CyclotomicField(cyc_Kf), Kf);
+	    Q_gcd_f<zeta_gcd_f> := CyclotomicField(GCD(cyc_Kf, K));
+	    Q_gcd_f_L := CyclotomicField(LCM(GCD(cyc_Kf, K), L));
+	    _, Q_gcd_f_to_Q_gcd_f_L := IsSubfield(Q_gcd_f, Q_gcd_f_L);
+	    _, Q_L_to_Q_gcd_f_L := IsSubfield(Q_L, Q_gcd_f_L);
+	    _, Q_gcd_f_to_Q_K := IsSubfield(Q_gcd_f, Q_K);
+	    _, Q_gcd_f_L_to_Kf := IsSubfield(Q_gcd_f_L, Kf);
+	    Q_gcd_f_to_Kf := Q_gcd_f_to_Q_gcd_f_L*Q_gcd_f_L_to_Kf;
+	    poly := DefiningPolynomial(Kf);
+	    KK := ext< Q_huge | Evaluate(poly, x_huge)>;
+	    Kf_to_KK := hom<Kf -> KK | KK.1>;
+	    Embed(Kf, KK, KK.1);
+	    
+	    /*
+	    assert IsSubfield(Q_L, Kf_base);	
+	    Kf_base_over_Q_L := RelativeField(Q_L, Kf_base);
+	    poly_base := DefiningPolynomial(Kf_base_over_Q_L);
+	    KK_base := ext< Q_huge | Evaluate(poly_base, x_huge)>;
+	    poly := DefiningPolynomial(Kf);
+	    Kf_base_to_KK_base := hom<Kf_base_over_Q_L -> KK_base | KK_base.1>;
+	    Embed(Kf_base, KK_base, KK_base.1);
+	    _<x_base> := PolynomialRing(KK_base);
+	    KK := ext< KK_base | Evaluate(poly, x_base)>;
+	    Kf_to_KK := hom<Kf -> KK | KK.1>;
+	    Embed(Kf, KK, KK.1);
+	   */
+	  
 	end if;
 	
 	vprintf ModularCurves, 2 : "Check that the embeddings commute...\n";
