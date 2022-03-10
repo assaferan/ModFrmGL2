@@ -837,7 +837,8 @@ of traces is sorted in increasing dictionary order.}
       return D;
    end if;
 
-   require Type(BaseField(D[1])) eq FldRat : "The elements of argument 1 must be defined over Q.";
+// We relax this requirement
+//   require Type(BaseField(D[1])) eq FldRat : "The elements of argument 1 must be defined over Q.";
 
    for A in D do
       require HasAssociatedNewSpace(A) : "The elements of argument 1 must each correspond to a newform (and be created using NewformDecomposition).";

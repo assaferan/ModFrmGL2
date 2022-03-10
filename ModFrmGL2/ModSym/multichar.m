@@ -120,7 +120,7 @@ modulus.}
 end intrinsic;
 
 intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt, 
-                          sign::RngIntElt) -> ModSym
+                          sign::RngIntElt : F := RationalField()) -> ModSym
 {"} // "
    requirege k,2;   
    require sign in {-1,0,1} : "Argument 3 must be either -1, 0, or 1.";
@@ -138,9 +138,10 @@ intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt,
    end for;
    M`eps  := chars;
    M`sign := sign;
-   M`F    := RationalField();
+   //   M`F    := RationalField();
+   M`F := F;
    M`G := Gamma1(M`N);
-   M`dimension := &+[Dimension(S)*Degree(BaseRing(S)) : S in MultiSpaces(M)];
+   M`dimension := &+[Dimension(S)*Degree(BaseRing(S)) div Degree(F) : S in MultiSpaces(M)];
    M`sub_representation  := VectorSpace(M`F,M`dimension);
    M`dual_representation  := VectorSpace(M`F,M`dimension);
    M`mlist := ManinSymbolList(M`k, M`N, M`F);
@@ -362,7 +363,7 @@ intrinsic ModularSymbolsH(N::RngIntElt, gens::[RngIntElt],
     if #chars eq 1 and chars[1] eq D!1 then
        return ModularSymbols(N,k,sign);
     end if;
-    return ModularSymbols(chars, k, sign);
+    return ModularSymbols(chars, k, sign : F := BaseRing(chi));
  end intrinsic;
 
 /************************************************************************
@@ -413,11 +414,14 @@ intrinsic MultiSpaces(M::ModSym) -> SeqEnum
    return M`multi;
 end intrinsic;
 
+forward MC_Eltseq;
+
 intrinsic MultiQuotientMaps(M::ModSym) -> List
 {List of quotient maps (with inverse) from M to each of the spaces 
  that define the multi-character space M.}
 
-   require Type(BaseField(M)) eq FldRat : "Argument 1 must be over Q";
+   // We relax this because we now allow for restriction of scalars also over other fields
+   // require Type(BaseField(M)) eq FldRat : "Argument 1 must be over Q";
    // because RestrictionOfScalars is only for Q
  
    if not IsAmbientSpace(M) then
@@ -447,21 +451,24 @@ intrinsic MultiQuotientMaps(M::ModSym) -> List
       N := MS[i];
       assert IsAmbientSpace(N);
       K := BaseField(N);
-      d := Dimension(N)*Degree(K);
+      d := Dimension(N)*Degree(K) div Degree(BaseField(M));
+//      d := Dimension(N)*Degree(K);
       stop := start + d - 1;
 
       function f(x) // M -> N
-         e := Eltseq(x);
-         v := Vector(e[start..stop]);
-         return N! UnRestrictionOfScalars(v, K);
+          // e := Eltseq(x);
+	  e := MC_Eltseq(M, N, x);
+          v := Vector(e[start..stop]);
+          return N! UnRestrictionOfScalars(v, K);
       end function;
 
       function g(x) // N -> M
-         eK := Eltseq(x);
-         e := RestrictionOfScalars(eK);
-         v := V!0;
-         InsertBlock(~v, Vector(e), 1, start);
-         return v@mV;
+          // eK := Eltseq(x);
+	  eK := MC_Eltseq(M, N, x);
+          e := RestrictionOfScalars(eK);
+          v := V!0;
+          InsertBlock(~v, Vector(e), 1, start);
+          return v@mV;
       end function;
 
       Append(~maps, map< M -> N | x:->f(x), x:->g(x) >);
@@ -501,10 +508,11 @@ function MC_Operator(M, f)
    assert Type(M) eq ModSym;
    assert IsMultiChar(M);
    assert IsAmbientSpace(M);
-   S := MatrixAlgebra(RationalField(),Dimension(M))!0;
+   // S := MatrixAlgebra(RationalField(),Dimension(M))!0;
+   S := MatrixAlgebra(BaseRing(M),Dimension(M))!0;
    offset := 0;
    for MS in MultiSpaces(M) do 
-      T := RestrictionOfScalars(f(MS));
+      T := RestrictionOfScalars(f(MS) : Base := BaseRing(M));
       for r in [1..Nrows(T)] do 
          for c in [1..Ncols(T)] do
             S[offset+r, offset+c] := T[r,c];
@@ -555,6 +563,36 @@ function MC_DualAtkinLehnerOperator(M, q)
     return Transpose(AtkinLehnerOperator(M,q));
 end function;
 
+function MC_Basis(M, MS)
+    K := BaseField(MS);
+    Base := BaseRing(M);
+    if (Type(BaseRing(K)) ne Type(Base)) or (BaseRing(K) ne Base) then
+	K := RelativeField(Base, K);
+	basis := Basis(K);
+	if IsIsomorphic(K, Base) then
+	    basis := [K | 1];
+	end if;
+    else
+	basis := Basis(K);
+    end if;
+    return basis;
+end function;
+
+function MC_Eltseq(M, MS, a)
+    Base := BaseField(M);
+    K := BaseField(MS);
+    if (Type(BaseField(K)) ne Type(Base)) or (BaseField(K) ne Base) then
+	K := RelativeField(Base, K);
+	x := Eltseq(K!a);
+	if IsIsomorphic(K, Base) then
+	    x := [Base!a];
+	end if;
+    else
+	x := Eltseq(K!a);
+    end if;
+    return x;
+end function;
+
 function MC_ModSymToBasis(M, sym)
    // Given a modular symbols (more precisely, something that can be 
    // coerced into each modular symbols space that defines M), returns 
@@ -569,13 +607,16 @@ function MC_ModSymToBasis(M, sym)
    v := VectorSpace(M)!0;
    offset := 1;
    for MS in MultiSpaces(M) do
-      x := [Eltseq(a) : a in Eltseq(MS!sym)];
-      for i in [1..Degree(BaseField(MS))] do
-         for j in [1..Dimension(MS)] do
-            v[offset] := x[j][i];
-            offset +:= 1;
-         end for;
-      end for;
+       // x := [Eltseq(a) : a in Eltseq(MS!sym)];
+       x := [MC_Eltseq(M, MS, a) : a in Eltseq(MS!sym)];
+       deg := Degree(BaseField(MS)) div Degree(BaseField(M));
+       // for i in [1..Degree(BaseField(MS))] do
+       for i in [1..deg] do
+           for j in [1..Dimension(MS)] do
+               v[offset] := x[j][i];
+               offset +:= 1;
+           end for;
+       end for;
    end for;
    return v;   
 end function;
@@ -591,13 +632,16 @@ function MC_ManinSymToBasis(M, sym)
    v := VectorSpace(M)!0;
    offset := 1;
    for MS in MultiSpaces(M) do
-      x := [Eltseq(a) : a in Eltseq(ConvertFromManinSymbol(MS,sym))];
-      for i in [1..Degree(BaseField(MS))] do
-         for j in [1..Dimension(MS)] do
-            v[offset] := x[j][i];
-            offset := offset + 1;
-         end for;
-      end for;
+       // x := [Eltseq(a) : a in Eltseq(ConvertFromManinSymbol(MS,sym))];
+       x := [MC_Eltseq(M, MS, a) : a in Eltseq(ConvertFromManinSymbol(MS,sym))];
+       deg := Degree(BaseField(MS)) div Degree(BaseField(M));
+       // for i in [1..Degree(BaseField(MS))] do
+       for i in [1..deg] do
+           for j in [1..Dimension(MS)] do
+               v[offset] := x[j][i];
+               offset := offset + 1;
+           end for;
+       end for;
    end for;
    return v;   
 end function;
@@ -615,13 +659,15 @@ function MC_ModSymBasis(M : cache_raw_basis:=false )
       cache_raw_basis and not assigned M`MC_ModSymBasis_raw 
    then
       G := [* *]; 
-      R<X,Y> := PolynomialRing(RationalField(),2);
+      // R<X,Y> := PolynomialRing(RationalField(),2);
+      R<X,Y> := PolynomialRing(BaseRing(M),2);
       N := Level(M);
       k := Weight(M);
       V := VectorSpace(M);
       dim := Dimension(V);
       W := sub<V| >;
-      mat := MatrixAlgebra(Rationals(),dim)!0;
+      // mat := MatrixAlgebra(Rationals(),dim)!0;
+      mat := MatrixAlgebra(BaseRing(M),dim)!0;
       monomials := [X^i*Y^(k-2-i) : i in [0..k-2]];
 
       if IsOfGammaType(M) then
@@ -830,21 +876,24 @@ function MC_CutSubspace(M, cut_function)
    offset := 0;
 
    for MS in MultiSpaces(M) do
-      K := BaseField(MS);
-      basis := Basis(K);
-      for x in Basis(cut_function(MS)) do 
-         for alpha in basis do
-            y := Eltseq(alpha*x);
-            v := V!0;
-            for i in [1..#basis] do 
-               for j in [1..Dimension(MS)] do
-                  v[offset + (i-1)*Dimension(MS) + j] := Eltseq(y[j])[i];
+       //       basis := Basis(K);
+       basis := MC_Basis(M, MS);
+       for x in Basis(cut_function(MS)) do 
+           for alpha in basis do
+	       y := Eltseq(alpha*x);
+               v := V!0;
+               for i in [1..#basis] do
+		   for j in [1..Dimension(MS)] do
+		       v[offset + (i-1)*Dimension(MS) + j] := MC_Eltseq(M, MS, y[j])[i];
+//                       v[offset + (i-1)*Dimension(MS) + j] := Eltseq(y[j])[i];
+		   end for;
                end for;
-            end for;
-            Append(~B, v);
-         end for;
-      end for;
-      offset := offset + Degree(BaseField(MS))*Dimension(MS);
+               Append(~B, v);
+           end for;
+       end for;
+       deg := Degree(BaseField(MS)) div Degree(BaseField(M));
+       //       offset := offset + Degree(BaseField(MS))*Dimension(MS);
+       offset := offset + deg*Dimension(MS);
    end for;
    return ModularSymbolsSub(M,sub<V|B>);
 end function;
@@ -870,24 +919,27 @@ function MC_SubspaceOfSummandToSubspace(M, S)
    B := [V| ];
    offset := 0;
    for MS in MultiSpaces(M) do
-      K := BaseField(MS);
-      basis := Basis(K);
-      if MS eq AmbientSpace(S) then
-         for x in Basis(VectorSpace(S)) do 
-            for alpha in basis do
-               y := Eltseq(alpha*x);
-               v := V!0;
-               for i in [1..#basis] do 
-                  for j in [1..Dimension(MS)] do
-                     v[offset + (i-1)*Dimension(MS) + j] := Eltseq(y[j])[i];
-                  end for;
+      // K := BaseField(MS);
+       // basis := Basis(K);
+       basis := MC_Basis(M, MS);
+       if MS eq AmbientSpace(S) then
+           for x in Basis(VectorSpace(S)) do 
+               for alpha in basis do
+		   y := Eltseq(alpha*x);
+		   v := V!0;
+		   for i in [1..#basis] do 
+                       for j in [1..Dimension(MS)] do
+			   v[offset + (i-1)*Dimension(MS) + j] := MC_Eltseq(M, MS, y[j])[i];
+                       end for;
+		   end for;
+		   Append(~B, v);
                end for;
-               Append(~B, v);
-            end for;
-         end for;
-         break;
-      end if;
-      offset := offset + Degree(BaseField(MS))*Dimension(MS);
+           end for;
+           break;
+       end if;
+       deg := Degree(BaseField(MS)) div Degree(BaseField(M));
+       offset +:= deg*Dimension(MS);
+       // offset := offset + Degree(BaseField(MS))*Dimension(MS);
    end for;
    return ModularSymbolsSub(M,sub<V|B>);
 end function;

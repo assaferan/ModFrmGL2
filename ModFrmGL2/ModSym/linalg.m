@@ -457,7 +457,7 @@ end function;
 
 QQ := RationalField();
 
-function RestrictionOfScalars_AlgMatElt(A) 
+function RestrictionOfScalars_AlgMatElt(A : Base := RationalField()) 
 /* The restriction of scalars to the rational field 
    of the matrix A over a number field.
    If alpha1,...,alphad is the basis for the number field F,
@@ -474,11 +474,19 @@ function RestrictionOfScalars_AlgMatElt(A)
       return A;
    end if;
    n := Degree(Parent(A));
+   if (Type(BaseRing(K)) ne Type(Base)) or (BaseRing(K) ne Base) then
+       K := RelativeField(Base, K);
+       if IsIsomorphic(K, Base) then
+	  return MatrixAlgebra(Base, n)!A;
+       end if;
+   end if;
    d := Degree(K);
    if d eq 1 then
-      return MatrixAlgebra(RationalField(),n)!A;
+       // return MatrixAlgebra(RationalField(),n)!A;
+       return MatrixAlgebra(Base, n)!A;
    end if;
-   B := MatrixAlgebra(RationalField(),d*n)!0;
+   // B := MatrixAlgebra(RationalField(),d*n)!0;
+   B := MatrixAlgebra(Base, d*n)!0;
    basis := Basis(K);
    for i in [1..n] do
       v := A[i];
@@ -565,14 +573,14 @@ function RestrictionOfScalars_SeqEnum(v)
 
 end function;
 
-function RestrictionOfScalars(x)
+function RestrictionOfScalars(x : Base := RationalField())
 //   if (Type(x) eq SeqEnum and (#x eq 0 or Type(x[1]) eq FldRat)) or
 //      (Type(x) ne SeqEnum and (Type(BaseRing(Parent(x))) eq FldRat)) then
 //      return x;
 //   end if;
    case Type(x):
       when AlgMatElt:
-         return RestrictionOfScalars_AlgMatElt(x);
+         return RestrictionOfScalars_AlgMatElt(x : Base := Base);
       when ModMatFldElt:
          return RestrictionOfScalars_ModMatFldElt(x);
       when ModTupFldElt:

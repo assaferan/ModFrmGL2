@@ -133,7 +133,9 @@ function pr(flist, check, Nold, prec, Kf_to_KK)
     embs := [a*Kfold_to_Kf*Kf_to_KK : a in aut];
     embs := [e : e in embs | &and[e(Coefficient(fold, i)) eq flist[i]
 				  : i in check]];
-    assert #embs eq 1;
+    // Again - no longer true with character
+    // assert #embs eq 1;
+    assert #embs ge 1;
     return [embs[1](Coefficient(fold, i)) : i in [1..prec-1]];
 end function;
 
@@ -318,7 +320,11 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
     end for;
     Hb := [x*ChangeRing(BasisMatrix(Cplus),Kf) : x in Basis(intsn)];
     H := sub<Universe(Hb)|Hb> meet subsp;
+    // This is no longer true with character
+    // This space will consist of both f and its conjugate.
+    // !! Take care - maybe have to choose consistently
     assert Dimension(H) eq 1;
+    // assert Dimension(H) ge 1;
     mu := Basis(H)[1];
     LKK<qKK> := PowerSeriesRing(Codomain(Kf_to_KK), prec);
     
@@ -1179,15 +1185,25 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     dim := Dimension(C);
 
+    base_field := BaseField(C);
+    assert (Type(base_field) eq FldCyc) or (Type(base_field) eq FldRat);
+    cyc_base := Order(UnitGroup(AbsoluteField(base_field)).1);
     L := EulerPhi(K);
     // We will only consider even characters
     if IsEven(L) then
 	L := L div 2;
     end if;
+    ds := [CRT([Integers()!d, 1],[K, cyc_base div GCD(K, cyc_base)]) : d in ds];
+    K := LCM(K, cyc_base);
+    L := LCM(L, cyc_base);
     Q_L<zeta_L> := CyclotomicField(L);
     Q_K<zeta_K> := CyclotomicField(K);
     Q_gcd<zeta_gcd> := CyclotomicField(GCD(K,L));
     Q_K_plus, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
+
+    assert IsSubfield(base_field, Q_gcd);
+    assert IsSubfield(base_field, Q_K);
+     assert IsSubfield(base_field, Q_L);
     
     Q_K_q<q> := PowerSeriesRing(Q_K);
     
@@ -1345,7 +1361,7 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     I := IdentityMatrix(Rationals(), dim);
 
-    X := DirichletGroupFull(K);
+    X := DirichletGroupFull(K div GCD(K, cyc_base));
     conds := {Conductor(x) : x in Elements(X)};
  
     SKpowersQ_L := AssociativeArray(conds);
@@ -1362,7 +1378,7 @@ function createFieldEmbeddings(K, NN, C, ds)
     return field_embs, cc, Ps_Q_huge, SKpowersQ_L, Q_huge,
 	   Q_L, zeta_huge, zeta_K, Q_K_plus_to_Q_K, Q_K_to_Q_huge,
 	   Q_L_to_Q_huge, elts, Q_gcd, zeta_gcd,
-	   Q_gcd_to_Q_K, gcd_fields, gcd_field_embs;
+	   Q_gcd_to_Q_K, gcd_fields, gcd_field_embs, K;
 end function;
 
 // function: qExpansions
@@ -1776,7 +1792,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [], M := 0)
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
     Q_L_to_Q_huge, ds,
     Q_gcd, zeta_gcd, Q_gcd_to_Q_K,
-    gcd_fields, gcd_field_embs := createFieldEmbeddings(K, NN, C, ds);
+    gcd_fields, gcd_field_embs, K := createFieldEmbeddings(K, NN, C, ds);
 
     // Taking only the forms with trivial Nebentypus character is not good enough
     // We need to take represenatives for X / X^2!
@@ -1812,6 +1828,23 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [], M := 0)
 				  Q_L_to_Q_huge, Q_gcd, zeta_gcd,
 				  Q_gcd_to_Q_K, Nnew, eps_BPd_gens,
 				  gcd_fields, gcd_field_embs);
+    
+    // We now have the forms over BaseField(eps)
+    // and we still need to get restriction of scalars to Q.
+    // (summing over the Galois orbit of the character)
+
+    F := BaseField(C);
+    auts := Automorphisms(F);
+    xi := F.1;
+    fs_conj := [[Vector([sig(a) : a in Eltseq(f)])
+		 : f in fs] : sig in auts];
+    //    fs := &cat fs_conj;
+    
+    xi_conj := [sig(xi) : sig in auts];
+    fs := &cat[[&+[xi_conj[l]^j * fs_conj[l][i] : l in [1..#auts]]
+		: j in [0..Degree(F)-1]]
+	       : i in [1..#fs] ];
+   
     return fs, tos;
 end function;
 
