@@ -14,7 +14,7 @@ freeze;
 *************************************************************************************
 */
 
-import "linalg.m" : KernelOn, Restrict;
+import "linalg.m" : KernelOn, Restrict, RelativeBasis, RelativeEltseq;
 import "operators.m" : ActionOnModularSymbolsBasis;
 
 // function : gen_to_mat
@@ -302,7 +302,8 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
     end if;
     embs := [e : e in embs | &and[e(Coefficient(f, i)) eq alist[i]
 				  : i in [1..#alist]]];
-    assert #embs eq 1;
+    // assert #embs eq 1;
+    assert #embs ge 1;
     emb := embs[1];
     flist := [Kf_to_KK(emb(Coefficient(f,i))) : i in [1..prec-1]];
     subsp := VectorSpace(Kf, dim);
@@ -568,7 +569,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     oldspaces,
 			     C, Cplus, chis,
 			     Q_huge, Q_L, zeta_huge, zeta_K,
-			     K, SKpowersQ_L,
+			     SKpowersQ_L,
 			     B_mats,
 			     Tr_mats,
 			     deg_divs,
@@ -577,7 +578,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K, Nnew, eps_BPd_gens,
 			     gcd_fields, gcd_field_embs)
     assert prec ge #as + 1;
-    
+    Q_K := Parent(zeta_K);
+    K := CyclotomicOrder(Q_K);
     FCF := [];
     twist_orbit_indices := [];
     already_visited := {};
@@ -711,7 +713,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	    end for;
 	    // With characters this is no longer true as GFS
 	    // is the restriction of scalars to QQ
-	    // assert Dimension(fixed_ms_space_QQ) eq #fixed_space_basis;
+	    assert Dimension(fixed_ms_space_QQ) eq #fixed_space_basis;
 	    
 	    // Here we need to take complex conjugates because of Proposition 4.10 in [Box]
 	    
@@ -1045,15 +1047,15 @@ function get_degeneracy_maps(M_old, M, d)
 			       : x in Basis(M)]);
 	quo_old := Matrix([Representation(multi_old(b))
 			   : b in Basis(M_old)]);
-	deg_eltseq := [&cat[Eltseq(x) : x in Eltseq(row)]
+	deg_eltseq := [&cat[RelativeEltseq(x, BaseRing(M)) : x in Eltseq(row)]
 		       : row in Rows(quo_old*deg)];
-	deg_d_eltseq := [&cat[Eltseq(x) : x in Eltseq(row)]
+	deg_d_eltseq := [&cat[RelativeEltseq(x, BaseRing(M_old)) : x in Eltseq(row)]
 			 : row in Rows(quo_mat*deg_d)];
 	quo_inv := Matrix([Representation((z*b)@@multi)
-			   : z in Basis(BaseRing(ms[i])),
+			   : z in RelativeBasis(BaseRing(ms[i]), BaseRing(M)),
 			     b in Basis(ms[i])]);
 	quo_old_inv := Matrix([Representation((z*b)@@multi_old)
-			       : z in Basis(BaseRing(ms_old[j])),
+			       : z in RelativeBasis(BaseRing(ms_old[j]), BaseRing(M_old)),
 				 b in Basis(ms_old[j])]);
 	alpha := Matrix(deg_eltseq)*quo_inv;
 	beta := Transpose(quo_old_inv)*Transpose(Matrix(deg_d_eltseq));
@@ -1062,6 +1064,10 @@ function get_degeneracy_maps(M_old, M, d)
     end for;
     big_alpha := &+all_alphas;
     big_beta := &+all_betas;
+//    Cboldmat := ChangeRing(Cboldmat, BaseRing(M));
+//    Cboldnewmat := ChangeRing(Cboldnewmat, BaseRing(M));
+//    big_beta := ChangeRing(big_beta, BaseRing(M));
+
     ims_mat := Cboldmat*big_alpha;
     alpha_C := Transpose(Solution(Cbmat, ims_mat));
     beta_C := Transpose(Solution(Cboldmat, Cbmat*Transpose(big_beta)));
@@ -1100,7 +1106,8 @@ function get_old_spaces(MS)
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
 		Level(AssociatedNewSpace(d)) eq (old_levels[i])]
 	      : i in [1..#old_levels]*];
-    M_old := [ModularSymbols(chis, 2) : chis in chars | not IsEmpty(chis)];
+    M_old := [ModularSymbols(chis, 2, 0 : F := BaseRing(MS))
+	      : chis in chars | not IsEmpty(chis)];
     C_old := [CuspidalSubspace(m) : m in M_old];
     C_old_new := [NewSubspace(c) : c in C_old];
     
@@ -1203,7 +1210,7 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     assert IsSubfield(base_field, Q_gcd);
     assert IsSubfield(base_field, Q_K);
-     assert IsSubfield(base_field, Q_L);
+    assert IsSubfield(base_field, Q_L);
     
     Q_K_q<q> := PowerSeriesRing(Q_K);
     
@@ -1378,7 +1385,7 @@ function createFieldEmbeddings(K, NN, C, ds)
     return field_embs, cc, Ps_Q_huge, SKpowersQ_L, Q_huge,
 	   Q_L, zeta_huge, zeta_K, Q_K_plus_to_Q_K, Q_K_to_Q_huge,
 	   Q_L_to_Q_huge, elts, Q_gcd, zeta_gcd,
-	   Q_gcd_to_Q_K, gcd_fields, gcd_field_embs, K;
+	   Q_gcd_to_Q_K, gcd_fields, gcd_field_embs;
 end function;
 
 // function: qExpansions
@@ -1792,7 +1799,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [], M := 0)
     Q_K_plus_to_Q_K, Q_K_to_Q_huge,
     Q_L_to_Q_huge, ds,
     Q_gcd, zeta_gcd, Q_gcd_to_Q_K,
-    gcd_fields, gcd_field_embs, K := createFieldEmbeddings(K, NN, C, ds);
+    gcd_fields, gcd_field_embs := createFieldEmbeddings(K, NN, C, ds);
 
     // Taking only the forms with trivial Nebentypus character is not good enough
     // We need to take represenatives for X / X^2!
@@ -1818,7 +1825,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [], M := 0)
 				  oldspaces_full, oldspaces,
 				  C, Cplus, chis,
 				  Q_huge, Q_L, zeta_huge, zeta_K,
-				  K, SKpowersQ_L,
+				  SKpowersQ_L,
 				  B_mats,
 				  Tr_mats,
 				  deg_divs,
@@ -1834,7 +1841,15 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [], M := 0)
     // (summing over the Galois orbit of the character)
 
     F := BaseField(C);
-    auts := Automorphisms(F);
+    cyc_base := Order(UnitGroup(F).1);
+    
+    powers := [CRT([1,a],[K div GCD(K, cyc_base),cyc_base]) : a in [1..cyc_base] |
+	       GCD(a,cyc_base) eq 1];
+    Q_K := Parent(zeta_K);
+    aut_Q_K := [hom<Q_K -> Q_K | zeta_K^pow> : pow in powers];
+    
+    // auts := Automorphisms(F);
+    auts := aut_Q_K;
     xi := F.1;
     fs_conj := [[Vector([sig(a) : a in Eltseq(f)])
 		 : f in fs] : sig in auts];

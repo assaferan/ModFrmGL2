@@ -388,6 +388,7 @@ grps_M := [ <"11A6", 1>, <"14B6", 1>, <"17A6", 1>, <"18A6", 1>, <"18B6", 1>, <"1
 
 
 SetDebugOnError(true);
+SetVerbose("ModularCurves", 1);
 
 procedure computeShimuraModularCurves(shim, grps : Proof := false)
 

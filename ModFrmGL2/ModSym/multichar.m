@@ -21,6 +21,9 @@ import "core.m"   : LiftToCosetRep,
                     ManinSymbolGenList;
 
 import "linalg.m" : MakeLattice,
+                    RelativeBasis,
+		    RelativeDegree,
+		    RelativeEltseq,
                     RestrictionOfScalars, 
                     RestrictionOfScalars_Nonsquare,
                     UnRestrictionOfScalars;
@@ -141,7 +144,7 @@ intrinsic ModularSymbols(chars::[GrpDrchElt], k::RngIntElt,
    //   M`F    := RationalField();
    M`F := F;
    M`G := Gamma1(M`N);
-   M`dimension := &+[Dimension(S)*Degree(BaseRing(S)) div Degree(F) : S in MultiSpaces(M)];
+   M`dimension := &+[Dimension(S)*RelativeDegree(BaseRing(S), F) : S in MultiSpaces(M)];
    M`sub_representation  := VectorSpace(M`F,M`dimension);
    M`dual_representation  := VectorSpace(M`F,M`dimension);
    M`mlist := ManinSymbolList(M`k, M`N, M`F);
@@ -312,7 +315,12 @@ on H.}
    require sign in {-1,0,1} : "Argument 4 must be either -1, 0, or 1.";
    require #[d : d in gens | GCD(N,d) ne 1] eq 0 : 
                    "Arguments 1 and 2 must be coprime.";
-   F := CyclotomicField(EulerPhi(N));
+   //	   F := CyclotomicField(EulerPhi(N));
+    phi_N := EulerPhi(N);		 
+    F := CyclotomicField(phi_N);
+    if IsEven(phi_N) and IsOdd(phi_N div 2) then
+	F := CyclotomicField(phi_N div 2);
+    end if;
    D := DirichletGroup(N,F);
    chars := [eps : eps in GaloisConjugacyRepresentatives(D) | 
                    #[d : d in gens | Evaluate(eps,d) ne 1] eq 0];
@@ -352,8 +360,12 @@ intrinsic ModularSymbolsH(N::RngIntElt, gens::[RngIntElt],
     requirege k,2;
     require sign in {-1,0,1} : "Argument 4 must be either -1, 0, or 1.";
     require #[d : d in gens | GCD(N,d) ne 1] eq 0 : 
-                    "Arguments 1 and 2 must be coprime.";
-    F := CyclotomicField(EulerPhi(N));
+                 "Arguments 1 and 2 must be coprime.";
+    phi_N := EulerPhi(N);		 
+    F := CyclotomicField(phi_N);
+    if IsEven(phi_N) and IsOdd(phi_N div 2) then
+	F := CyclotomicField(phi_N div 2);
+    end if;
     D := DirichletGroup(N,F);
     GL_N := GL(2, Integers(N));
     chars := [eps : eps in Elements(D) | 
@@ -363,7 +375,14 @@ intrinsic ModularSymbolsH(N::RngIntElt, gens::[RngIntElt],
     if #chars eq 1 and chars[1] eq D!1 then
        return ModularSymbols(N,k,sign);
     end if;
-    return ModularSymbols(chars, k, sign : F := BaseRing(chi));
+    K := BaseRing(MinimalBaseRingCharacter(chi));
+    for i in [1..#chars] do
+	if not IsSubfield(K, BaseRing(chars[i])) then
+	    L := CyclotomicField(LCM(CyclotomicOrder(K), CyclotomicOrder(BaseRing(chars[i]))));
+	    chars[i] := ChangeRing(chars[i], L);
+	end if;
+    end for;
+    return ModularSymbols(chars, k, sign : F := K);
  end intrinsic;
 
 /************************************************************************
@@ -451,19 +470,19 @@ intrinsic MultiQuotientMaps(M::ModSym) -> List
       N := MS[i];
       assert IsAmbientSpace(N);
       K := BaseField(N);
-      d := Dimension(N)*Degree(K) div Degree(BaseField(M));
+      d := Dimension(N)*RelativeDegree(K, BaseField(M));
 //      d := Dimension(N)*Degree(K);
       stop := start + d - 1;
 
       function f(x) // M -> N
           e := Eltseq(x);
           v := Vector(e[start..stop]);
-          return N! UnRestrictionOfScalars(v, K);
+          return N! UnRestrictionOfScalars(v, K : Base := BaseField(M));
       end function;
 
       function g(x) // N -> M
           eK := Eltseq(x);
-          e := RestrictionOfScalars(eK);
+          e := RestrictionOfScalars(eK : Base := BaseField(M));
           v := V!0;
           InsertBlock(~v, Vector(e), 1, start);
           return v@mV;
@@ -564,31 +583,13 @@ end function;
 function MC_Basis(M, MS)
     K := BaseField(MS);
     Base := BaseRing(M);
-    if (Type(BaseRing(K)) ne Type(Base)) or (BaseRing(K) ne Base) then
-	K := RelativeField(Base, K);
-	basis := Basis(K);
-	if IsIsomorphic(K, Base) then
-	    basis := [K | 1];
-	end if;
-    else
-	basis := Basis(K);
-    end if;
-    return basis;
+    return RelativeBasis(K, Base);
 end function;
 
 function MC_Eltseq(M, MS, a)
     Base := BaseField(M);
     K := BaseField(MS);
-    if (Type(BaseField(K)) ne Type(Base)) or (BaseField(K) ne Base) then
-	K := RelativeField(Base, K);
-	x := Eltseq(K!a);
-	if IsIsomorphic(K, Base) then
-	    x := [Base!a];
-	end if;
-    else
-	x := Eltseq(K!a);
-    end if;
-    return x;
+    return RelativeEltseq(a, Base);
 end function;
 
 function MC_ModSymToBasis(M, sym)
@@ -607,7 +608,7 @@ function MC_ModSymToBasis(M, sym)
    for MS in MultiSpaces(M) do
        // x := [Eltseq(a) : a in Eltseq(MS!sym)];
        x := [MC_Eltseq(M, MS, a) : a in Eltseq(MS!sym)];
-       deg := Degree(BaseField(MS)) div Degree(BaseField(M));
+       deg := RelativeDegree(BaseField(MS), BaseField(M));
        // for i in [1..Degree(BaseField(MS))] do
        for i in [1..deg] do
            for j in [1..Dimension(MS)] do
@@ -632,7 +633,7 @@ function MC_ManinSymToBasis(M, sym)
    for MS in MultiSpaces(M) do
        // x := [Eltseq(a) : a in Eltseq(ConvertFromManinSymbol(MS,sym))];
        x := [MC_Eltseq(M, MS, a) : a in Eltseq(ConvertFromManinSymbol(MS,sym))];
-       deg := Degree(BaseField(MS)) div Degree(BaseField(M));
+       deg := RelativeDegree(BaseField(MS), BaseField(M));
        // for i in [1..Degree(BaseField(MS))] do
        for i in [1..deg] do
            for j in [1..Dimension(MS)] do
@@ -889,7 +890,7 @@ function MC_CutSubspace(M, cut_function)
                Append(~B, v);
            end for;
        end for;
-       deg := Degree(BaseField(MS)) div Degree(BaseField(M));
+       deg := RelativeDegree(BaseField(MS), BaseField(M));
        //       offset := offset + Degree(BaseField(MS))*Dimension(MS);
        offset := offset + deg*Dimension(MS);
    end for;
@@ -935,7 +936,7 @@ function MC_SubspaceOfSummandToSubspace(M, S)
            end for;
            break;
        end if;
-       deg := Degree(BaseField(MS)) div Degree(BaseField(M));
+       deg := RelativeDegree(BaseField(MS), BaseField(M));
        offset +:= deg*Dimension(MS);
        // offset := offset + Degree(BaseField(MS))*Dimension(MS);
    end for;
