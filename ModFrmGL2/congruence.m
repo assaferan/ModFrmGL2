@@ -520,6 +520,30 @@ function GetRationalPoint(X, fs)
     return P, pivot;
 end function;
 
+function myValuation(f, X_aff, x, P_aff)
+    n := #x;
+    m_P := Ideal([x[i]-P_aff[i] : i in [1..n]]);
+    I := Ideal(X_aff);
+    d := 0;
+    while f in m_P^(d+1) + I do
+	d +:= 1;
+    end while;
+    return d;
+end function;
+
+function FindMaximalValuation(X,P, pivot)
+    Pn<[z]> := AmbientSpace(X);
+    n := #z;
+    X_aff<[x]> := AffinePatch(X, n+1-pivot);
+    P_aff := [P[i] / P[pivot] : i in [1..n] | i ne pivot];
+    assert P_aff in X_aff;
+    vals := [myValuation(f, X_aff, x, P_aff) : f in x];
+    //sorted_vals := Sort([<vals[i],i> : i in [1..#vals]]);
+    //min_vals := [e[2] : e in sorted_vals | e[1] eq sorted_vals[1][1]];
+    min_vals := [i : i in [1..vals] | vals[i] eq Minimum(vals)];
+    ker := Kernel(Transpose(Matrix([Evaluate(x[i], P_aff) : i in [1..#x]])));
+end function;
+
 function GetDivisorOfMaximalMultiplicity(X, fs)
     P, pivot := GetRationalPoint(X, fs);
     // projecive space
