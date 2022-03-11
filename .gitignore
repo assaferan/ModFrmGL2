@@ -50,3 +50,6 @@ data/modular curves/Genus 6/58A6_shim.m
 data/modular curves/Genus 6/71A6_shim.m
 data/modular curves/Genus 6/79A6_shim.m
 
+*.sig
+*.dat~
+*.dat#
