@@ -520,10 +520,7 @@ function GetRationalPoint(X, fs)
     return P, pivot;
 end function;
 
-function myValuation(f, X_aff, x, P_aff)
-    n := #x;
-    m_P := Ideal([x[i]-P_aff[i] : i in [1..n]]);
-    I := Ideal(X_aff);
+function myValuation(f, m_P, I)
     d := 0;
     while f in m_P^(d+1) + I do
 	d +:= 1;
@@ -531,22 +528,55 @@ function myValuation(f, X_aff, x, P_aff)
     return d;
 end function;
 
-function FindMaximalValuation(X,P, pivot)
+function FindMaximalValuation(X,P,pivot : num := 1)
     Pn<[z]> := AmbientSpace(X);
     n := #z;
     X_aff<[x]> := AffinePatch(X, n+1-pivot);
     P_aff := [P[i] / P[pivot] : i in [1..n] | i ne pivot];
     assert P_aff in X_aff;
-    vals := [myValuation(f, X_aff, x, P_aff) : f in x];
+    m_P := Ideal([x[i]-P_aff[i] : i in [1..n-1]]);
+    I := Ideal(X_aff);
+    vals := [myValuation(f, m_P, I) : f in x];
     //sorted_vals := Sort([<vals[i],i> : i in [1..#vals]]);
     //min_vals := [e[2] : e in sorted_vals | e[1] eq sorted_vals[1][1]];
-    min_vals := [i : i in [1..vals] | vals[i] eq Minimum(vals)];
-    ker := Kernel(Transpose(Matrix([Evaluate(x[i], P_aff) : i in [1..#x]])));
+    new_min := Minimum(vals);
+    basis_min_val := [];
+    other_vals := [];
+    new_vals := [];
+    all_divs_by_val := [];
+    // start loop
+    while new_min lt Infinity() do
+	print "new_min = ", new_min;
+	min_vals := [i : i in [1..#vals] | vals[i] eq new_min];
+	other_vals := [i : i in other_vals | i notin min_vals];
+	min_val_divs := [x[i] : i in min_vals];
+	min_val_divs cat:= [basis_min_val[j] : j in [1..#basis_min_val]
+			    | new_vals[j] eq new_min];
+	all_divs_by_val cat:= min_val_divs;
+	print "The linear subspace with this valuation is of dimension ", #min_val_divs;
+	reductions := [NormalForm(f, m_P^(new_min+1)+I) : f in min_val_divs];
+	quotients := [nf div reductions[1] : nf in reductions];
+	// ker := Kernel(Transpose(Matrix([[Evaluate(f, P_aff) : f in min_val_divs]])));
+	ker := Kernel(Transpose(Matrix([quotients])));
+	basis_min_val := [&+[b[j]*min_val_divs[j] : j in [1..#min_val_divs]] : b in Basis(ker)];
+	new_vals := [myValuation(b, m_P, I) : b in basis_min_val];
+	old_min := new_min;
+	new_min := Minimum([vals[i] : i in other_vals] cat new_vals cat [Infinity()]);
+    end while;
+
+    //    lambda_aff := min_val_divs[1];
+    lambda_affs := Reverse(all_divs_by_val)[1..num];
+    hom_coords := [z[i] / z[pivot] : i in [1..n] | i ne pivot];
+    lambdas := [CoordinateRing(Pn)!(z[pivot]*Evaluate(lambda_aff, hom_coords))
+		: lambda_aff in lambda_affs];
+    // Creating the divisor takes too long
+    // D := Divisor(X, Scheme(Pn, lambda));
+    return lambdas, old_min;
 end function;
 
 function GetDivisorOfMaximalMultiplicity(X, fs)
     P, pivot := GetRationalPoint(X, fs);
-    // projecive space
+    // projective space
     Pn<[z]> := AmbientSpace(X);
     
     n := #z;
@@ -575,6 +605,16 @@ end function;
 
 function GetP2Image(X, fs)
     P, pivot := GetRationalPoint(X, fs);
+    Ds, v := FindMaximalValuation(X,P,pivot : num := 3);
+    // We assume for now that P is a flex
+    assert v ge 3;
+    P2<[y]> := ProjectiveSpace(Rationals(),2);
+    return Image(map<X -> P2 | Ds >);
+end function;
+
+/*
+function GetP2Image(X, fs)
+    P, pivot := GetRationalPoint(X, fs);
     Pn<[z]> := AmbientSpace(X);
     // This takes too long. We try to replace it by something faster
     // divs := [Divisor(X, Scheme(Pn, zz)) : zz in z];
@@ -591,6 +631,7 @@ function GetP2Image(X, fs)
     P2<[y]> := ProjectiveSpace(Rationals(),2);
     return Image(map<X -> P2 | [z[m[2]] : m in sorted_mults[1..3]] >);
 end function;
+*/
 
 function NumSubgroupsTotalZNStar(N)
     U := UnitGroup(Integers(N));

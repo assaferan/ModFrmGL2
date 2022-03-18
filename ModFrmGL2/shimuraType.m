@@ -1,5 +1,5 @@
 AttachSpec("ModFrmGL2.spec");
-import "../csg24.dat/csg15-lev240.dat" : L15_240;
+import "../csg24.dat/csg21-lev304.dat" : L21_304;
 
 import "congruence.m" : LoadGroups, qExpansionBasisShimura;
 import "congruence.m" : LoadGroupsByGenus;
@@ -7,10 +7,10 @@ import "congruence.m" : write_qexps;
 
 import "ModSym/Box.m" : testBoxSingle;
 
-grps := LoadGroups(L15_240);
-grps_by_genus := LoadGroupsByGenus(L15_240);
+grps := LoadGroups(L21_304);
+grps_by_genus := LoadGroupsByGenus(L21_304);
 
-degs := [1..5];
+degs := [1..7];
 
 genera := [d*(d+1) div 2 : d in degs];
 
@@ -45,6 +45,14 @@ shim[15] := [  "35C15", "40W15", "40X15", "43A15", "51A15", "60AC15", "60AD15",
 	     "67A15", "68D15", "80R15", "80T15", "85A15", "85B15", "102C15", "110A15", 
 	     "136D15", "141A15", "153A15", "155A15", "161A15", "175A15", "179A15",
 	     "193A15" ];
+shim[21] := [ Strings() | "16C21", "21C21", "24A21", "28M21", "30G21", "32F21", 
+			  "33C21", "34A21", "35B21", "36F21", "39B21", "41A21", "42H21", "45F21", 
+			  "48CE21", "52C21", "55B21", "56L21", "56M21", "64F21", "65A21", "69A21", 
+			  "72AC21", "78C21", "84Q21", "90O21", "91A21", "91B21", "92A21", "96BA21", 
+			  "97A21", "104B21", "111A21", "112E21", "115A21", "117A21", "119A21", "128F21", 
+			  "133B21", "137A21", "138A21", "147B21", "154B21", "165B21", "178A21", "184A21", 
+			  "192P21", "201A21", "207A21", "215A21", "245A21", "247A21", "251A21", "256A21", 
+			  "257A21" ];
 
 filtered := AssociativeArray();
 
