@@ -1201,11 +1201,11 @@ function createFieldEmbeddings(K, NN, C, ds)
 	L := L div 2;
     end if;
     ds := [CRT([Integers()!d, 1],[K, cyc_base div GCD(K, cyc_base)]) : d in ds];
-    K := LCM(K, cyc_base);
+    Knew := LCM(K, cyc_base);
     L := LCM(L, cyc_base);
     Q_L<zeta_L> := CyclotomicField(L);
-    Q_K<zeta_K> := CyclotomicField(K);
-    Q_gcd<zeta_gcd> := CyclotomicField(GCD(K,L));
+    Q_K<zeta_K> := CyclotomicField(Knew);
+    Q_gcd<zeta_gcd> := CyclotomicField(GCD(Knew,L));
     Q_K_plus, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
 
     assert IsSubfield(base_field, Q_gcd);
@@ -1214,7 +1214,7 @@ function createFieldEmbeddings(K, NN, C, ds)
     
     Q_K_q<q> := PowerSeriesRing(Q_K);
     
-    Q_huge<zeta_huge> := CyclotomicField(LCM(K,L));
+    Q_huge<zeta_huge> := CyclotomicField(LCM(Knew,L));
 
     _, Q_K_to_Q_huge := IsSubfield(Q_K, Q_huge);
     _, Q_L_to_Q_huge := IsSubfield(Q_L, Q_huge);
@@ -1257,8 +1257,8 @@ function createFieldEmbeddings(K, NN, C, ds)
 		// cond_Kf := Norm(Conductor(AbelianExtension(AbsoluteField(Kf))));
 		cyc_Kf := Order(UnitGroup(AbsoluteField(Kf)).1);
 		assert IsSubfield(CyclotomicField(cyc_Kf), Kf);
-		Q_gcd_f<zeta_gcd_f> := CyclotomicField(GCD(cyc_Kf, K));
-		Q_gcd_f_L := CyclotomicField(LCM(GCD(cyc_Kf, K), L));
+		Q_gcd_f<zeta_gcd_f> := CyclotomicField(GCD(cyc_Kf, Knew));
+		Q_gcd_f_L := CyclotomicField(LCM(GCD(cyc_Kf, Knew), L));
 		_, Q_gcd_f_to_Q_gcd_f_L := IsSubfield(Q_gcd_f, Q_gcd_f_L);
 		_, Q_L_to_Q_gcd_f_L := IsSubfield(Q_L, Q_gcd_f_L);
 		_, Q_gcd_f_to_Q_K := IsSubfield(Q_gcd_f, Q_K);
@@ -1305,8 +1305,8 @@ function createFieldEmbeddings(K, NN, C, ds)
 	    _, Q_L_to_Kf := IsSubfield(Q_L, Kf);
 	    cyc_Kf := Order(UnitGroup(AbsoluteField(Kf)).1);
 	    assert IsSubfield(CyclotomicField(cyc_Kf), Kf);
-	    Q_gcd_f<zeta_gcd_f> := CyclotomicField(GCD(cyc_Kf, K));
-	    Q_gcd_f_L := CyclotomicField(LCM(GCD(cyc_Kf, K), L));
+	    Q_gcd_f<zeta_gcd_f> := CyclotomicField(GCD(cyc_Kf, Knew));
+	    Q_gcd_f_L := CyclotomicField(LCM(GCD(cyc_Kf, Knew), L));
 	    _, Q_gcd_f_to_Q_gcd_f_L := IsSubfield(Q_gcd_f, Q_gcd_f_L);
 	    _, Q_L_to_Q_gcd_f_L := IsSubfield(Q_L, Q_gcd_f_L);
 	    _, Q_gcd_f_to_Q_K := IsSubfield(Q_gcd_f, Q_K);
@@ -1355,20 +1355,20 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
 
-    if (K eq 1) then
+    if (Knew eq 1) then
 	elts := [1 : d in ds];
     else
-	elts := [Integers()!(Integers(K)!d) : d in ds];
+	elts := [Integers()!(Integers(Knew)!d) : d in ds];
     end if;
   
-    powers := [CRT([e,1],[K,L div GCD(K,L)]) : e in elts];
+    powers := [CRT([e,1],[Knew,L div GCD(Knew,L)]) : e in elts];
     // Checking that CRT actually worked
     assert &and[p ne -1 : p in powers];
     Ps_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
 
     I := IdentityMatrix(Rationals(), dim);
 
-    X := DirichletGroupFull(K div GCD(K, cyc_base));
+    X := DirichletGroupFull(K);
     conds := {Conductor(x) : x in Elements(X)};
  
     SKpowersQ_L := AssociativeArray(conds);
@@ -1444,16 +1444,14 @@ function FindCurveSimple(qexps, prec, n_rel)
     return X;
 end function;
 
-// This doesn't really work, as it assumes that
-// the q-expansions are rational!
 function FindHyperellipticCurve(qexps, prec)
     R<q> := Universe(qexps);
     K := BaseRing(R);
-    assert K eq Rationals();
+//  assert K eq Rationals();
     fs := [f + O(q^prec) : f in qexps];
     g := #fs;
-    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
-    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
+// T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+//    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
     x := fs[g-1] / fs[g];
     y := q * Derivative(x) / fs[g];
     mons := [x^i : i in [0..2*g+2]] cat [-y^2];
@@ -1900,8 +1898,8 @@ function getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := true)
     
     // if g eq 0 then
     if DefiningPolynomials(X) eq [0] then
-	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
+	//print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+	X, fs := FindHyperellipticCurve(fs, prec);
 	return X, fs;
     else
 	if CheckGenus then
@@ -1909,8 +1907,8 @@ function getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := true)
 	    g := Genus(X);
 	    vprintf ModularCurves, 1: "Done.";
 	    if g eq 0 then
-		print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-		//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
+		// print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+		X, fs := FindHyperellipticCurve(fs, prec);
 		return X, fs;
 	    else
 		assert g eq genus;
