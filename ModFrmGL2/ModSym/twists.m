@@ -6,12 +6,11 @@ import "../ModFrm/q-expansions.m" : PowerSeriesNormalizeMagma;
 import "linalg.m" : Restrict;
 import "operators.m" : ActionOnModularSymbolsBasis;
 import "qexpansion.m" : EigenvectorModSymSign,
-                        EigenvectorOfMatrixWithCharpoly,
-                        QuickIrredTest;
+                               EigenvectorOfMatrixWithCharpoly,
+                               QuickIrredTest;
 import "modsym.m" : GetDegeneracyReps,
-                    GetGLModel,
-                    GetRealConjugate,
-                    ModularSymbolsDual;
+                           GetGLModel,
+                           GetRealConjugate;
 import "core.m" : ConvFromModularSymbol;
 
 function TwistBasis_old(N, prec)
@@ -29,9 +28,9 @@ function TwistBasis_old(N, prec)
     u := [1, 1, 0, 1]; 
     u_mat := Transpose(ActionOnModularSymbolsBasis(u, M));
     for chi in X_even do
-        R_chi := ChangeRing(&+[Evaluate(chi^(-1), t) * u_mat^t : t in [0..N-1]], L);
-        Append(~twist_basis_plus, v1_plus * R_chi);
-        Append(~twist_basis_minus, v1_minus * R_chi);
+	R_chi := ChangeRing(&+[Evaluate(chi^(-1), t) * u_mat^t : t in [0..N-1]], L);
+	Append(~twist_basis_plus, v1_plus * R_chi);
+	Append(~twist_basis_minus, v1_minus * R_chi);
     end for;
     twist_basis := twist_basis_plus cat twist_basis_minus;
     assert sub<Universe(twist_basis) | twist_basis> eq ChangeRing(DualVectorSpace(S), L);
@@ -67,14 +66,14 @@ function NewformDecompositionSubspaceMaps(M)
 	    betas := [];
 	    ims := [];
 	    for m in divs do
-            dmap := DegeneracyMatrix(M_new, M_old, m);
-            beta := Transpose(dmap) * Transpose(quo_mat);
-            im_d := DualVectorSpace(d) * beta;
-            Append(~ims, im_d);
-            Append(~betas, <beta, quo_lev div m>);
+		dmap := DegeneracyMatrix(M_new, M_old, m);
+		beta := Transpose(dmap) * Transpose(quo_mat);
+		im_d := DualVectorSpace(d) * beta;
+		Append(~ims, im_d);
+		Append(~betas, <beta, quo_lev div m>);
 	    end for;
 	    for j in [1..#betas] do
-            Append(~DD, <d, betas[j], betas>);
+		Append(~DD, <d, betas[j], betas>);
 	    end for;
 	else
 	    one := <IdentityMatrix(BaseRing(d), Dimension(M)), 1>;
@@ -94,84 +93,37 @@ function NewformDecompositionSubspaceMaps2(M, prec)
     evs := AssociativeArray(D);
     printf "Computing eigenvectors...\n";
     for d in D do
-        evs_d := [];
-        v := EigenvectorModSymSign(d,1);
-        f := qEigenform(d, prec);
-        if (Type(BaseRing(v)) eq FldRat) then
-            K := BaseRing(v);
-        else
-            K := NormalClosure(BaseRing(v));
-        end if;
+	evs_d := [];
+	v := EigenvectorModSymSign(d,1);
+	f := qEigenform(d, prec);
+        K := NormalClosure(BaseRing(v));
         F := Compositum(F, K);
-        if (Type(BaseRing(Parent(f))) ne FldRat) then
-            assert IsIsomorphic(K, NormalClosure(AbsoluteField(BaseRing(Parent(f)))));
-        end if;
-        f := PowerSeriesRing(K)!f;
-        gal, _, psi := AutomorphismGroup(K, Rationals());
-        aut := [psi(g) : g in gal];
-        p := 2;
-        sig := aut;
-     
-        while (#sig gt 1) do
-            T_p := ChangeRing(DualHeckeOperator(AmbientSpace(d),p), K);
-            a_p := Coefficient(f,p);
-            sig := [sigma : sigma in sig |
-                    a_p * ApplyAut(sigma, v) eq
-                    ApplyAut(sigma, v) * T_p];
-            p := NextPrime(p);
-        end while;
-        v := ApplyAut(sig[1], v);
-        for sig in aut do
-            Append(~evs_d, <ApplyAut(sig, v), ApplyAut(sig, f)>);
-        end for;
-        evs[d] := <evs_d, K>;
+        assert IsIsomorphic(K, NormalClosure(BaseRing(Parent(f))));
+	f := PowerSeriesRing(K)!f;
+	gal, _, psi := AutomorphismGroup(K, Rationals());
+	aut := [psi(g) : g in gal];
+	p := 2;
+	sig := aut;
+ 
+	while (#sig gt 1) do
+	    T_p := ChangeRing(DualHeckeOperator(AmbientSpace(d),p), K);
+	    a_p := Coefficient(f,p);
+	    sig := [sigma : sigma in sig |
+		    a_p * ApplyAut(sigma, v) eq
+		    ApplyAut(sigma, v) * T_p];
+	
+	    p := NextPrime(p);
+	end while;
+	v := ApplyAut(sig[1], v);
+	for sig in aut do
+	    Append(~evs_d, <ApplyAut(sig, v), ApplyAut(sig, f)>);
+	end for;
+	evs[d] := <evs_d, K>;
     end for;
 
     printf "Preparing images in M_k(Gamma(N))...\n";
     for d in D do
-        K := evs[d][2];
-        M_old := AmbientSpace(d);
-        if not IsIdentical(M_old, M) then
-            assert exists(i){i : i in [1..#ms] | IsCompatibleChar(ms[i],M_old)};
-            M_new := ms[i];
-            quo_mat := Matrix([Representation(MultiQuotientMaps(M)[i](x))
-                       : x in Basis(M)]);
-            quo_lev := Level(M_new) div Level(M_old);
-            divs := Divisors(quo_lev);
-            betas := [];
-            for m in divs do
-            dmap := DegeneracyMatrix(M_new, M_old, m);
-            beta := Transpose(dmap) * Transpose(quo_mat);
-            // Append(~betas, <ChangeRing(beta, K), quo_lev div m>);
-            Append(~betas, <ChangeRing(beta, K), m>);
-            end for;
-            for j in [1..#betas] do
-                for ev in evs[d][1] do
-                    v, f := Explode(ev);
-                    V := sub<Parent(v)|[v]>;
-                    _<q> := Parent(f);
-                    Append(~DD, <V, betas[j], betas,
-                         betas[j][2]*Evaluate(f, q^betas[j][2])>);
-                end for;
-            end for;
-        else
-            one := <IdentityMatrix(K, Dimension(M)), 1>;
-            for ev in evs[d][1] do
-                v, f := Explode(ev);
-                V := sub<Parent(v)|[v]>;
-                Append(~DD, <V, one, [one], f>);
-            end for;
-        end if;
-    end for;
-    return DD, F;
-end function;
-
-function NewformDecompositionSubspaceMaps3(M)
-    ms := MultiSpaces(M);
-    S := CuspidalSubspace(M);
-    D := NewformDecomposition(S);
-    DD := [* *];
-    for d in D do
+	K := evs[d][2];
 	M_old := AmbientSpace(d);
 	if not IsIdentical(M_old, M) then
 	    assert exists(i){i : i in [1..#ms] | IsCompatibleChar(ms[i],M_old)};
@@ -181,26 +133,31 @@ function NewformDecompositionSubspaceMaps3(M)
 	    quo_lev := Level(M_new) div Level(M_old);
 	    divs := Divisors(quo_lev);
 	    betas := [];
-	    ims := [];
 	    for m in divs do
 		dmap := DegeneracyMatrix(M_new, M_old, m);
-		alpha := DegeneracyMatrix(M_old, M_new, m)
-			 * Transpose(quo_mat);
 		beta := Transpose(dmap) * Transpose(quo_mat);
-		im_d := DualVectorSpace(d) * beta;
-		Append(~ims, im_d);
-		Append(~betas, <beta, alpha, quo_lev div m>);
+		// Append(~betas, <ChangeRing(beta, K), quo_lev div m>);
+		Append(~betas, <ChangeRing(beta, K), m>);
 	    end for;
 	    for j in [1..#betas] do
-		Append(~DD, <d, betas[j]>);
+		for ev in evs[d][1] do
+		    v, f := Explode(ev);
+		    V := sub<Parent(v)|[v]>;
+		    _<q> := Parent(f);
+		    Append(~DD, <V, betas[j], betas,
+				 betas[j][2]*Evaluate(f, q^betas[j][2])>);
+		end for;
 	    end for;
 	else
-	    one := <IdentityMatrix(BaseRing(d), Dimension(M)),
-		    IdentityMatrix(BaseRing(d), Dimension(M)), 1>;
-	    Append(~DD, <d, one >); 
+	    one := <IdentityMatrix(K, Dimension(M)), 1>;
+	    for ev in evs[d][1] do
+		v, f := Explode(ev);
+		V := sub<Parent(v)|[v]>;
+		Append(~DD, <V, one, [one], f>);
+	    end for;
 	end if;
     end for;
-    return DD;
+    return DD, F;
 end function;
 
 function TwistBasis0(N, prec)
@@ -404,27 +361,6 @@ function DegMapToFullSpace(M, M_full)
   new_symbs := [ModularSymbolApply([1,0,0,1/N], symb) : symb in symbs];
   new_xs := [ConvFromModularSymbol(M, new_symb) : new_symb in new_symbs];
   return Matrix([Representation(new_x) : new_x in new_xs]);
-end function;
-
-function FindHyperellipticCurve(qexps, prec)
-    R<q> := Universe(qexps);
-    K := BaseRing(R);
-    fs := [f + O(q^prec) : f in qexps];
-    g := #fs;
-    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
-    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
-    x := fs[g-1] / fs[g];
-    y := q * Derivative(x) / fs[g];
-    mons := [x^i : i in [0..2*g+2]] cat [-y^2];   
-    f_mons := [denom*m + O(q^AbsolutePrecision(x)) : m in mons];
-    ker := Kernel(Matrix([AbsEltseq(f : FixedLength) : f in f_mons]));
-    assert Dimension(ker) eq 1;
-    ker_b := Basis(ker)[1];
-    ker_b /:= -ker_b[2*g+3];
-    R<x> := PolynomialRing(K);
-    poly := &+[ker_b[i+1]*x^i : i in [0..2*g+2]];
-    X := HyperellipticCurve(poly);
-    return X;
 end function;
 
 function FindCurveSimple(qexps, prec, n_rel)
@@ -638,7 +574,7 @@ function MoveRationalPoints(X)
   return ChangeToIntegralEquations(X_new), var_change;
 end function;
 
-// factoring out the big chunk of CremonaMethod
+// factoring out the big chunl of CremonaMethod
 
 function get_eigenvector_in_subspace(H, T, S, Conj, M)
   N := Modulus(BaseRing(H));
@@ -650,43 +586,20 @@ function get_eigenvector_in_subspace(H, T, S, Conj, M)
   Cnew_dec := NewformDecomposition(Cnew);
   newproj := [*BasisMatrix(DualVectorSpace(comp))*Cmat : comp in Cnew_dec*];
   H_inv_bas := Transpose(BasisMatrix(H_inv));
-  new_H_components := [i : i in [1..#newproj]
-		       | newproj[i]*ChangeRing(H_inv_bas,
-					       BaseRing(newproj[i])) ne 0];
+  new_H_components := [i : i in [1..#newproj] | newproj[i]*H_inv_bas ne 0];
   S_H := [Cnew_dec[h] : h in new_H_components];
   V_M := VectorSpace(S_H[1]);
-  V_C := Solution(Transpose(Cmat),BasisMatrix(V_M));
+  V_C :=  Solution(Transpose(Cmat),BasisMatrix(V_M));
   V := sub<Universe(Rows(V_C)) | Rows(V_C)>;
+  W_M := &+[VectorSpace(c) : c in S_H];
+  inv_rep := GetContainingIrreducibleRep(W_M, M, N);
+  comps := [c : c in [1..#Cnew_dec] | VectorSpace(Cnew_dec[c]) subset inv_rep];
+  W_C :=  Solution(Transpose(Cmat),BasisMatrix(inv_rep));
+  W := sub<Universe(Rows(W_C)) | Rows(W_C)>;
   Vplus := Kernel(Transpose(Conj-1)) meet V;
+  Wplus := Kernel(Transpose(Conj-1)) meet W;
   evec := my_eigenvector(Vplus, C);
-  return S_H, evec;
-end function;
-
-function get_eigenvector_in_old_subspace(S_H, idx, C)
-  // We could organize it better to save some work here if needed
-  Vplus := Kernel(StarInvolution(S_H[idx][1])-1);
-  evec_orig := my_eigenvector(Vplus, S_H[idx][1]);
-  evec_orig *:= BasisMatrix(VectorSpace(S_H[idx][1]));
-  old_orbit := [i : i in [1..#S_H] | S_H[i][1] eq S_H[idx][1]];
-  evecs := [evec_orig * S_H[i][2][2] : i in old_orbit];
-  Cb := Basis(C);
-  Cmat := Matrix([Eltseq(c) : c in Cb]);
-  evecs := [Solution(Cmat, ev) : ev in evecs];  
-  return evecs, old_orbit;
-end function;
-
-function get_relevant_components(H, T, S, M)
-  N := Modulus(BaseRing(H));
-  C := CuspidalSubspace(M);
-  H_inv := GetInvariantSubspaceSL2(H, S, T);
-  Cb := Basis(C);
-  Cmat := Transpose(Matrix([Eltseq(c) : c in Cb]));
-  DD := NewformDecompositionSubspaceMaps3(M);
-  proj := [*BasisMatrix(DualVectorSpace(dd[1]))*dd[2][1]*Cmat : dd in DD*];
-  H_inv_bas := Transpose(BasisMatrix(H_inv));
-  H_components := [i : i in [1..#proj] | proj[i]*H_inv_bas ne 0];
-  S_H := [*DD[h] : h in H_components*];
-  return S_H;
+  return S_H, evec, Conj;
 end function;
 
 function init_twist_operators(X, T, N)
@@ -741,7 +654,7 @@ function get_char_idxs(fs, n, X, X_even, Qcond)
      Kf := AbsoluteField(BaseRing(Parent(f)));
 // chars_f := {chi : chi in Elements(X) |
      chars_f := {chi : chi in X_even |
-		 &and[(chi^(-1))(g)*Qcond!Coefficient(f1,g) in
+		 &and[chi(g)^(-1)*Qcond!Coefficient(f1,g) in
 	        {Qcond!a(Coefficient(f,g)) : a in Automorphisms(Kf)}
 		      //		     	      : g in ZNstar_gens]};
 : g in [1..n-1]]};
@@ -751,23 +664,6 @@ function get_char_idxs(fs, n, X, X_even, Qcond)
   end for;
   rel_idxs := &cat idxs_by_f;
   return relevant_chars, rel_idxs, idxs_by_f;
-end function;
-
-function get_char_idxs_orbits(fs, n, X, X_even, Qcond)
-    orbits := [];
-    rem_idxs := [1..#fs];
-    while (#rem_idxs gt 0) do
-	first_idx := rem_idxs[1];
-	fs_rem := [fs[idx] : idx in rem_idxs];
-	relevant_chars, rel_idxs, idxs_by_f := get_char_idxs(fs_rem, n, X, X_even, Qcond);
-	covered := [idx : idx in [1..#rem_idxs] | #idxs_by_f[idx] ne 0];
-	orig_covered := [rem_idxs[idx] : idx in covered];
-	rem_idxs := [rem_idxs[idx] : idx in [1..#rem_idxs] | idx notin covered];
-	idxs_by_f := [idxs_by_f[idx] : idx in covered];
-	orbit := < first_idx, orig_covered, relevant_chars, rel_idxs, idxs_by_f >;
-	Append(~orbits, orbit);
-    end while;
-    return orbits;
 end function;
 
 function get_evec_twists(evec, R_chis, Qcond, X_gens, gauss)
@@ -801,7 +697,6 @@ function get_scaled_coeffs(Qcond, L, K, autK, evec, N, H_inv_1s, C,
 			   rel_idxs, idxs_by_f, indices, all_gauss)
   
   T_n := [HeckeOperator(C,p) : p in PrimesUpTo(N)];
-  // Should modify to work with arbitrary nubmer of generators
   eps := Generators(X)[1];
   eps_vals := [Qcond!eps(p) : p in PrimesUpTo(N)];
   as := [my_eigenvalue(evec, ChangeRing(t_n,K)) : t_n in T_n];
@@ -813,7 +708,11 @@ function get_scaled_coeffs(Qcond, L, K, autK, evec, N, H_inv_1s, C,
   eigs_by_f := [[ [eig[n*i+j] : i in [0..Degree(K)-1], j in [1..n] |
 		      indices[j] in idxs_by_f[m]]
                      : eig in eigs_all] : m in [1..#fs]];
-
+/*
+  eigs_by_f := [[ [[eig[n*i+j] : i in [0..Degree(K)-1]] :  j in [1..n] |
+		      indices[j] in idxs_by_f[m]]
+                     : eig in eigs_all] : m in [1..#fs]];
+*/
   assert &and[H_inv_1[i] eq 0 : i in [1..n], H_inv_1 in H_inv_1s
 	    | indices[i] notin rel_idxs];
   coeffs := [[[h[i] : i in [1..#X] | indices[i] in rel_idxs]
@@ -854,7 +753,12 @@ function get_f_conjs(fs, Qcond, eigs_by_f,
     end if;
     embs := [[e : e in embsKfQcond | &and[e(f_eig[i]) eq eigs_by_f[m][i][j]
 			     : i in [1..#f_eig]]][1] : j in [1..Degree(Kf)]];
-
+/*
+    embs := &cat [[e : e in embsKfQcond |
+		 exists(idx){idx : idx in [1..#(eigs_by_f[m][1])]
+	    | &and[e(f_eig[i]) eq eigs_by_f[m][i][idx][j]
+		   : i in [1..#f_eig]]}] : j in [1..Degree(K)]];
+*/
     f_conjs cat:= [Q_huge_q!([Q_huge!e(c) : c in AbsEltseq(f)]) : e in embs];
   end for;
   q := Q_huge_q.1;
@@ -894,13 +798,6 @@ function get_Xcusps(N, SW1, TW1, gammas, X_QN, get_cusp)
   return X_cusps;
 end function;
 
-function newLevel(S_new, chi)
-    L := Conductor(chi);
-    N_prime := Conductor(DirichletCharacter(S_new));
-    N := Level(S_new);
-    return LCM([N, N_prime*L, L^2]);
-end function;
-
 // This has to be adapted to include degeneracy maps
 // The twists of a newform alone do not span everything,
 // only if we allow degeneracy maps
@@ -912,14 +809,10 @@ function CremonaMethod(H, ps_prec, n_rel)
   T := Restrict(ActionOnModularSymbolsBasis([1,1/N,0,1],M), VectorSpace(C));
   S := Restrict(ActionOnModularSymbolsBasis([0,-1,N^2,0],M), VectorSpace(C));
   Conj := Transpose(StarInvolution(C));
-  assert (Transpose(Conj)*T*Transpose(Conj)*T eq 1) and
-	 (Transpose(Conj)*S*Transpose(Conj) eq S);
-
-  S_H := get_relevant_components(H, T, S, M);
-  fs := [* qEigenform(s_h[1], ps_prec) : s_h in S_H *];
-  fs := [* S_H[i][2][3]*Evaluate(fs[i], Parent(fs[i]).1^(S_H[i][2][3]))
-	 : i in [1..#fs] *];
- 
+  S_H, evec := get_eigenvector_in_subspace(H, T, S, Conj, M);
+  K := BaseRing(evec);
+  autK := Automorphisms(K);
+  evecs := [ApplyAut(aut, evec) : aut in autK];
   X := DirichletGroupFull(N);
   r,n := DistinguishedRoot(X);
   X_even := [x : x in Elements(X) | IsEven(x)];
@@ -930,96 +823,46 @@ function CremonaMethod(H, ps_prec, n_rel)
   Q_N<zeta_N> := CyclotomicField(N);
   Q_N_q<q> := PowerSeriesRing(Q_N);
   R_chis, gauss, gepsvecm := init_twist_operators(X, T, N);
-  
+  fs := [* qEigenform(s_h, ps_prec) : s_h in S_H *];
+  // Should we include these as well? I'm not sure
+  // fs cat:= [* qEigenform(Cnew_dec[c], ps_prec) : c in comps
+  // 			| c notin new_H_components  *];
+  // Magma works much better over cyclotomic fields, so we switch to cyclotomic
   cond := find_cond(fs, N);
+  
   Qcond<zeta> := CyclotomicField(cond);
   assert &and[IsSubfield(BaseRing(Parent(f)), Qcond) : f in fs];
-  
-  twist_orbits := get_char_idxs_orbits(fs, n, X, X_even, Qcond);
-  old_orbits := [];
-  old_evecs := [];
-  rem_idxs := [1..#S_H];
-  first := 1;
-  while (#rem_idxs gt 0) do
-      while (twist_orbits[first][1] notin rem_idxs) do
-	  first +:= 1;
-      end while;
-      idx := twist_orbits[first][1];
-      evecs, old_orbit := get_eigenvector_in_old_subspace(S_H, idx, C);
-      Append(~old_orbits, old_orbit);
-      Append(~old_evecs, evecs);
-      rem_idxs := [i : i in rem_idxs | i notin old_orbit];
-  end while;
-  coeffs_scaled := [[] : f in fs];
-  eigs := [[] : f in fs];
-  eigs_by_f := [[]: f in fs];
-  for old_orb_idx in [1..#old_orbits] do
-      orbit_evecs := old_evecs[old_orb_idx];
-      old_orbit := old_orbits[old_orb_idx];
-      orbit_evec_twists := [];
-      orbit_indices := [];
-      orbit_gauss := [];
-      K := BaseRing(orbit_evecs[1]);
-      assert IsSubfield(K, Qcond);
-      autK := Automorphisms(K);
-      for old_idx in [1..#old_orbit] do
-	  evec := orbit_evecs[old_idx];
-	  evecs := [ApplyAut(aut, evec) : aut in autK];
-	  evec_twists, elt_vecs, all_gauss := get_evec_twists(evec, R_chis,
-							      Qcond, X_gens,
-							      gauss);
-	  // We should be able to prevent it from happening by taking
-	  // only relevant twists (depending on the old level)
-	  good_idxs := [i : i in [1..#evec_twists] | evec_twists[i] ne 0];
-	  evec_twists := [evec_twists[i] : i in good_idxs];
-	  elt_vecs := [elt_vecs[i] : i in good_idxs];
-	  all_gauss := [all_gauss[i] : i in good_idxs];
-	  orbit_evec_twists cat:= evec_twists;
-	  indices := [Index(Elements(X),phi(A!Eltseq(v))) : v in elt_vecs];
-	  Append(~orbit_indices, indices);
-	  Append(~orbit_gauss, all_gauss);
-      end for;
-      W := sub<Universe(orbit_evec_twists) | orbit_evec_twists>;
-      M_evec_twists := Matrix(orbit_evec_twists);
-      TW := Restrict(ChangeRing(T, Qcond), W);
-      SW := Restrict(ChangeRing(S, Qcond), W);
-      H_inv_W := GetInvariantSubspaceSL2(H, SW, TW);
-      W_plus := Kernel(Restrict(Transpose(ChangeRing(Conj,Qcond))-1, W)); 
-      assert H_inv_W eq H_inv_W meet W_plus;
-      basis_HW := Basis(H_inv_W);
-      H_inv_s := [Solution(M_evec_twists, b * BasisMatrix(W)) : b in basis_HW];
-      gal, _, psi := AutomorphismGroup(Qcond,L);
-      // next we want to match these to the corresopnding elements of Gal(K)
-      gal_elts := [g : g in gal];
-      autK_vals := [Qcond!aut(K.1) : aut in autK];
-      // exists(g){g : g in gal | Order(g) ne 1};
-      gal_perm := [Index(autK_vals, psi(g)(K.1)) : g in gal_elts];
-      gal_elts := [gal_elts[Index(gal_perm,i)] : i in [1..#autK]];
-      H_invs := [[ApplyAut(psi(g), H_inv) : g in gal_elts] : H_inv in H_inv_s];
-      for old_idx in [1..#old_orbit] do
-	  evec := orbit_evecs[old_idx];
-	  twist_idx := old_orbit[old_idx];
-	  twist_orbit := twist_orbits[twist_idx];
-	  twist_orbit_idxs := twist_orbit[2];
-	  rel_idxs := twist_orbit[4];
-	  idxs_by_f := twist_orbit[5];
-	  indices := orbit_indices[old_idx];
-	  all_gauss := orbit_gauss[old_idx];
-	  twist_fs := [fs[i] : i in twist_orbit_idxs ];
-	  coeffs, as, as_by_f := get_scaled_coeffs(Qcond, L, K, autK,
-						   evec, N, H_inv_s, C,
-						   r, n, twist_fs, X,
-						   H_invs,
-						   rel_idxs, idxs_by_f,
-						   indices, all_gauss);
-	  for i in [1..#twist_orbit_idxs] do
-	      coeffs_scaled[twist_orbit_idxs[i]] := coeffs[i];
-	      eigs[twist_orbit_idxs[i]] := as[i];
-	      eigs_by_f[twist_orbit_idxs[i]] := as_by_f[i];
-	  end for;
-      end for;
-  end for;
+  assert IsSubfield(K, Qcond);
+  relevant_chars, rel_idxs, idxs_by_f := get_char_idxs(fs, n, X, X_even, Qcond);
+  // chars[#chars] is a generator when N is prime -
+  // handle the general case later
+  evec_twists, elt_vecs, all_gauss := get_evec_twists(evec, R_chis,
+						      Qcond, X_gens, gauss);
+  indices := [Index(Elements(X),phi(A!Eltseq(v))) : v in elt_vecs];
+  W1 := sub<Universe(evec_twists) | evec_twists>;
+  M_evec_twists := Matrix(evec_twists);
+  TW1 := Restrict(ChangeRing(T, Qcond), W1);
+  SW1 := Restrict(ChangeRing(S, Qcond), W1);
+  H_inv_W1 := GetInvariantSubspaceSL2(H, SW1, TW1);
+  // This shouldn't be necessary once we restrict to even characters
+  W1_plus := Kernel(Restrict(Transpose(ChangeRing(Conj,Qcond))-1, W1)); 
+  H_inv_W1 := H_inv_W1 meet W1_plus;
+  basis_HW := Basis(H_inv_W1);
+  H_inv_1s := [Solution(M_evec_twists, b * BasisMatrix(W1)) : b in basis_HW];
 
+// Figure out what do we want here in general, e.g. if K \cap L is not trivial
+  gal, _, psi := AutomorphismGroup(Qcond,L);
+  // next we want to match these to the corresopnding elements of Gal(K)
+  gal_elts := [g : g in gal];
+  autK_vals := [Qcond!aut(K.1) : aut in autK];
+  // exists(g){g : g in gal | Order(g) ne 1};
+  gal_perm := [Index(autK_vals, psi(g)(K.1)) : g in gal_elts];
+  gal_elts := [gal_elts[Index(gal_perm,i)] : i in [1..#autK]];
+  H_invs := [[ApplyAut(psi(g), H_inv_1) : g in gal_elts] : H_inv_1 in H_inv_1s];
+  coeffs_scaled, eigs, eigs_by_f := get_scaled_coeffs(Qcond, L, K, autK, evec,
+						      N,
+				      H_inv_1s, C, r, n, fs, X, H_invs,
+				     rel_idxs, idxs_by_f, indices, all_gauss);
   Q_huge<zeta_huge> := CyclotomicField(LCM(cond, N));
   Q_huge_q<q> := PowerSeriesRing(Q_huge);
   _, conj_huge := HasComplexConjugate(Q_huge);
@@ -1048,12 +891,12 @@ function CremonaMethod(H, ps_prec, n_rel)
   X_QN := ChangeRing(X, Q_N);
   MK := DirectSum([MK : csc in coeffs_scaled_conj]);  
   MM := Transpose(MK^(-1)) * var_change^(-1);
-  get_cusp := get_get_cusp_func(X, M_evec_twists, W, Matrix(basis_HW),
+  get_cusp := get_get_cusp_func(X, M_evec_twists, W1, Matrix(basis_HW),
 				 gal_elts, psi,
 			       MM, Q_N, Qcond, Q_huge, gepsvecm, conj_huge, hs);
   cusps := Cusps(PSL2Subgroup(H));
   gammas := [Eltseq(CuspInftyElt(cusp)) : cusp in cusps];
-  X_cusps := get_Xcusps(N, SW, TW, gammas, X_QN, get_cusp);
+  X_cusps := get_Xcusps(N, SW1, TW1, gammas, X_QN, get_cusp);
   QQ := Rationals();
   X_QQ := ChangeRing(X, QQ);
   return X_QQ, X_cusps, ts;
@@ -1348,107 +1191,3 @@ intrinsic ModularCurve(G::GrpPSL2) -> Crv, SeqEnum[Pt], SeqEnum[RngSerPowElt]
   return X, X_cusps, fs;
 end intrinsic;
 */
-
-function constructMSintersect(M,K)
-    if M eq 1 then
-        return ModularSymbols(CongruenceSubgroup(K));
-    end if;
-    g1 := CRT([1+K,1], [K^2,M]);
-    U, phi := UnitGroup(Integers(M));
-    // TODO : If M is not prime, it might not generated by a single generator
-    g2 := CRT([1,Integers()!phi(U.1)], [K^2,M]);
-    MS := ModularSymbolsH(M*K^2, [g1,g2], 2 ,0);
-    return MS;
-end function;
-
-function computeExpansionTwists(f, N, Kh, L)
-    X := DirichletGroupFull(Kh);
-    X_even := [x : x in Elements(X) | IsEven(x)];
-    divs := Divisors(N div L);
-    cond := find_cond([f], Kh);
-    Q_cond<zeta> := CyclotomicField(cond);
-    assert IsSubfield(BaseRing(Parent(f)), Q_cond);
-    assert IsSubfield(BaseRing(X), Q_cond);
-    Q_cond_q<q> := PowerSeriesRing(Q_cond);
-    Q_huge := CyclotomicField(LCM(cond, Kh));
-    Q_huge_q<q> := PowerSeriesRing(Q_huge);
-    f_K := Q_cond_q!f;
-    fs := [];
-    // TOOD : Check that we twist properly!!!
-    // There might be a correction from the projection
-    for chi in X_even do
-        f_chi := Q_huge_q!Twist(f_K, chi);
-        g := GaussSum(chi^(-1));
-        for e in divs do
-            f_twist := Evaluate(g*f_chi, q^e);
-            Append(~fs, f_twist);
-        end for;
-    end for;
-    return fs;
-end function;
-
-function computeSymbolTwists(mu, N, Kh, L, oldMS, MS)
-    X := DirichletGroupFull(Kh);
-    X_even := [x : x in Elements(X) | IsEven(x)];
-    divs := Divisors(N div L);
-    mus := [];
-    ms := MultiSpaces(MS);
-    old_ms := MultiSpaces(oldMS);
-    dims := [Dimension(sp) : sp in old_ms];
-    proj_inds := [&+dims[1..j] : j in [0..#dims]];
-    mu_proj := [Eltseq(mu)[proj_inds[i]+1..proj_inds[i+1]] : i in [1..#dims]];
-    assert exists(i){i : i in [1..#dims] | Vector(mu_proj[i]) ne 0};
-    orig_mu := Vector(mu_proj[i]);
-    assert exists(j){j : j in [1..#ms] | IsCompatibleChar(ms[j],old_ms[i])};
-    
-    for chi in X_even do
-        cond := Conductor(chi);
-        chi0 := DirichletGroup(cond)!chi;
-        T := ActionOnModularSymbolsBasis([1,1/cond,0,1], oldMS);
-        T_pow := IdentityMatrix(Rationals(), Dimension(oldMS));
-        R_chi := ZeroMatrix(Rationals(), Dimension(oldMS));
-        for u in [0..cond-1] do
-            R_chi +:= Evaluate(chi0^(-1), u) * T_pow;
-            T_pow *:= T;
-        end for;
-        mu_chi := mu * Transpose(R_chi);
-        for e in divs do
-            beta := Transpose(DegeneracyMatrix(ms[j],old_ms[i],e));
-        end for;
-    end for;
-    return mus;
-end function;
-
-function Box_qExpansions(G, prec)
-    N := Level(G);
-    M := GCD([Matrix(g)[2,1] : g in Generators(G)]);
-    K := N div M;
-    hh := GCD(M, 24^2);
-    h := 2^(Valuation(hh,2) div 2) * 3^(Valuation(hh,3) div 3);
-    // Q_Kh := CyclotomicField(K*h);
-    MS := constructMSintersect(M,K);
-    C := CuspidalSubspace(MS);
-    gens_seq := [Eltseq(g) : g in Generators(G)];
-    GL2Q := GL(2, Rationals());
-    gamma_K := GL2Q![1,0,0,K]^(-1);
-    conj_gens := [Eltseq(GL2Q!g^gamma_K) : g in gens_seq];
-    gen_mats := [ActionOnModularSymbolsBasis(g, MS) : g in conj_gens];
-    inv_subspace := &meet[Kernel(g-1) : g in gen_mats] meet VectorSpace(C);
-    divM := Divisors(M);
-    divK := Divisors(K);
-    // TODO : this can be done simply using the newform decomposition of C itself
-    for L2 in divK do
-        for L1 in divM do
-            L := L1*L2^2;
-            oldMS := constructMSintersect(L1, L2);
-            oldC := CuspidalSubspace(oldMS);
-            if Dimension(oldC) gt 0 then
-                oldC_dec := NewformDecomposition(oldC);
-                f := qEigenform(oldC_dec[1], prec+1);
-                f_twists := computeExpansionTwists(f, M*K^2, K*h, L);
-                mu := EigenvectorModSymSign(oldC_dec[1], 1);
-                mu_twists := computeSymbolTwists(mu, M*K^2, K*h, L);
-            end if;
-        end for;
-    end for;
-end function;

@@ -380,7 +380,7 @@ end intrinsic;
 
 intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
 						G::GrpMat,
-						H::GrpMat) -> GrpMat
+						H::GrpMat : RealType := true) -> GrpMat
 {}
     N_G := NormalizerGrpMat(G_prime, G);
     require H subset N_G : "H must normalize G";
@@ -413,7 +413,14 @@ intrinsic MaximalNormalizingWithAbelianQuotient(G_prime::GrpMat,
         C := Centralizer(Q,A);
       end while;
     end if;
-    return A @@ pi_Q;
+    A_pre := A @@ pi_Q;
+    if RealType then
+	// We force the normalizing group to be of real type.
+	eta := G_prime![-1,0,0,1];
+	A_pre := A_pre meet A_pre^eta;
+	assert A_pre^eta eq A_pre;
+    end if;
+    return A_pre;
 end intrinsic;
 
 intrinsic MaximalNormalizingWithAbelianQuotient(G::GrpPSL2) -> GrpPSL2
@@ -655,7 +662,7 @@ import "../../ModSym/core.m" : CosetReduce, ManinSymbolGenList;
 // This is not good enough -
 // we want level as a GL2 subgroup
 
-intrinsic calcLevel(G::GrpPSL2) -> RngIntElt
+intrinsic CalcLevel(G::GrpPSL2) -> RngIntElt
 {calculates the level of a subgroup of PSL2}
   if Degree(ModLevel(G)) eq 1 then return 1; end if;
   mlist := ManinSymbolGenList(2,G,G`BaseRing);
@@ -713,10 +720,9 @@ intrinsic SubgroupFromGens(G::GrpPSL2, gens::SeqEnum, N::RngIntElt,
         H`ModLevel := MatrixAlgebra(quo<H`BaseRing | N>,2);
      end if;
      H`ImageInLevel := sub< H`ModLevel | [H`ModLevel!Matrix(g) : g in gens]>;
-     if IsExactLevel then
-       H`Level := N;
-     else
-       H`Level := calcLevel(H);
+     H`Level := N;
+     if not IsExactLevel then
+       H`Level := CalcLevel(H);
      end if;
      return H;
 end intrinsic;
@@ -840,7 +846,7 @@ intrinsic SubgroupFromMod(G::GrpPSL2, N::RngIntElt, H0::GrpMat,
      if IsExactLevel then
         H`Level := N;
      else
-        H`Level := calcLevel(H);
+        H`Level := CalcLevel(H);
         H`ModLevel, H`ModLevelGL := get_mod_level(H, H`Level);
         if H`Level eq 1 then
 	  H0bar := H`ModLevelGL;

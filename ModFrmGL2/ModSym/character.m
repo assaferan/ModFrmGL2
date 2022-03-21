@@ -317,12 +317,22 @@ intrinsic MinimalBaseRingCharacter(eps::GrpChrElt) -> GrpChrElt
 	    return CharacterGroup(pi_Q, G_prime, G)!1;
          end if;
          if n gt 2 and EulerPhi(n) eq Degree(F) then
-            return eps;
+	     if IsEven(n) and IsOdd(n div 2) then
+		 K := CyclotomicField(n div 2);
+	     else
+		 K := CyclotomicField(n);
+	     end if;
+	     G := CharacterGroup(pi_Q,K,G_prime, G);
+	     return G!eps;
          else
             if n eq 2 then
                K := RationalField();
             else
-               K := CyclotomicField(n);
+		if IsEven(n) and IsOdd(n div 2) then
+		    K := CyclotomicField(n div 2);
+		else
+		    K := CyclotomicField(n);
+		end if;
             end if;
                G := CharacterGroup(pi_Q,K,G_prime, G);
             return G!eps;

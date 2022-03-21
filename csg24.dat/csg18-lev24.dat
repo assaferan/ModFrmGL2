@@ -1,0 +1,200 @@
+// list of all congruence groups with genus  18
+// with  24 <= level < 32
+//
+// by c cummins and s pauli
+// load "csg18-lev16.dat";
+import "csg18-lev16.dat" : L18_16;
+L18_24 := L18_16 cat 
+[ PowerStructure(Rec) |
+    rec<recformat<generators: SeqEnum, level: IntegerRing(), genus: 
+    IntegerRing(), index: IntegerRing(), contains_minus_one: BoolElt, subgroups:
+    SeqEnum, supergroups: SeqEnum, name: MonStgElt, label: MonStgElt, order: 
+    IntegerRing(), GLZConj: IntegerRing(), matgens: SeqEnum, cusps: SeqEnum, c2:
+    SeqEnum, c3: SeqEnum, gc: SeqEnum, projections: SeqEnum, special_name: 
+    SeqEnum, special_name_html: SeqEnum, direct_subgroups: SeqEnum, 
+    direct_supergroups: SeqEnum, length: IntegerRing(), treename: SeqEnum, 
+    treesupergroups: SeqEnum> | generators := [ PowerSequence(IntegerRing()) |
+        [ IntegerRing() | 1, 1 ],
+        [ IntegerRing() | 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2, 
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, 1, 2, 2, 2, 2, 1, 2, 2, 1 ],
+        [ IntegerRing() | 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1 ],
+        [ IntegerRing() | 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2, 
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        1, 2, 2, 2, 2, 1, 2, 2 ]
+    ], level := 27, genus := 18, index := 324, contains_minus_one := true, 
+    subgroups := [], supergroups := [ IntegerRing() | 1182 ], name := "27A18", 
+    label := "A", order := 54, GLZConj := 1, matgens := [ 
+        PowerSequence(IntegerRing(27)) |
+        [ IntegerRing(27) | 1, 0, 18, 1 ],
+        [ IntegerRing(27) | 16, 15, 25, 10 ],
+        [ IntegerRing(27) | 19, 21, 26, 16 ],
+        [ IntegerRing(27) | 26, 0, 0, 26 ]
+    ], cusps := [ IntegerRing() | 9, 9, 9, 9, 9, 9, 9, 9, 9, 27, 27, 27, 27, 27,
+    27, 27, 27, 27 ], c2 := [ IntegerRing() | 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2
+    ], c3 := [ IntegerRing() | 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ], gc := [ 
+    IntegerRing() | 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 18, 18, 18 ], special_name := 
+    [], special_name_html := [], direct_subgroups := [], direct_supergroups := [
+    IntegerRing() | 1182 ], length := 108, treename := [ 
+        PowerSequence(IntegerRing()) |
+        [ IntegerRing() | 324, 2, 4, 3, 6, 9 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6, 10 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6, 13 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 10 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 12 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 15 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 8 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 11 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 14 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 4 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 9 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 13 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 9 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 12 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 14 ]
+    ], treesupergroups := [ PowerSequence(IntegerRing()) |
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ]
+    ]>,
+    rec<recformat<generators: SeqEnum, level: IntegerRing(), genus: 
+    IntegerRing(), index: IntegerRing(), contains_minus_one: BoolElt, subgroups:
+    SeqEnum, supergroups: SeqEnum, name: MonStgElt, label: MonStgElt, order: 
+    IntegerRing(), GLZConj: IntegerRing(), matgens: SeqEnum, cusps: SeqEnum, c2:
+    SeqEnum, c3: SeqEnum, gc: SeqEnum, projections: SeqEnum, special_name: 
+    SeqEnum, special_name_html: SeqEnum, direct_subgroups: SeqEnum, 
+    direct_supergroups: SeqEnum, length: IntegerRing(), treename: SeqEnum, 
+    treesupergroups: SeqEnum> | generators := [ PowerSequence(IntegerRing()) |
+        [ IntegerRing() | 1, 1 ],
+        [ IntegerRing() | 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2, 
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 1, 2, 2, 2 ],
+        [ IntegerRing() | 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1 ],
+        [ IntegerRing() | 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2, 
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, -2, -2, -2, 1, 2, 2, 2, 2, 2, 1, -2, -2, -2, -1, -2, -2, -1, -2,
+        -2, -2, 1, 1, 1, 2, 1 ]
+    ], level := 27, genus := 18, index := 324, contains_minus_one := true, 
+    subgroups := [], supergroups := [ IntegerRing() | 1182 ], name := "27B18", 
+    label := "B", order := 54, GLZConj := 2, matgens := [ 
+        PowerSequence(IntegerRing(27)) |
+        [ IntegerRing(27) | 1, 0, 18, 1 ],
+        [ IntegerRing(27) | 1, 12, 2, 25 ],
+        [ IntegerRing(27) | 7, 24, 4, 10 ],
+        [ IntegerRing(27) | 26, 0, 0, 26 ]
+    ], cusps := [ IntegerRing() | 9, 9, 9, 9, 9, 9, 9, 9, 9, 27, 27, 27, 27, 27,
+    27, 27, 27, 27 ], c2 := [ IntegerRing() | 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2
+    ], c3 := [ IntegerRing() | 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ], gc := [ 
+    IntegerRing() | 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 18, 
+    18, 18, 18, 18, 18 ], special_name := [], special_name_html := [], 
+    direct_subgroups := [], direct_supergroups := [ IntegerRing() | 1182 ], 
+    length := 108, treename := [ PowerSequence(IntegerRing()) |
+        [ IntegerRing() | 324, 2, 4, 3, 6, 3 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6, 5 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6, 6 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6, 8 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6, 11 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6, 14 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 4 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 6 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 7 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 9 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 13 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7, 16 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 3 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 5 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 6 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 9 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 10 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6, 13 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 1 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 3 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 6 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 7 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 10 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3, 12 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 6 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 8 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 11 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 13 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 16 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8, 17 ]
+    ], treesupergroups := [ PowerSequence(IntegerRing()) |
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 324, 2, 4, 3, 6 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 405, 4, 4, 8, 7 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 432, 2, 2, 3, 6 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 486, 2, 3, 1, 3 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ],
+        [ IntegerRing() | 540, 4, 5, 5, 8 ]
+    ]>
+]
+;
+

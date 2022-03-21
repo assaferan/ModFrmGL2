@@ -172,19 +172,18 @@ intrinsic VectorSpace(M::ModSym) -> ModTupFld, Map, Map
                continue;
             end if;
 
+	    if do_skipped_small_primes and #skipped_small_primes gt 0 then
+	      p := skipped_small_primes[#skipped_small_primes];
+	      Prune(~skipped_small_primes);
+	      vprintf ModularSymbols, 1: "Using %o after all\n", p;
+	      elif p in {2,3,5,7} and Level(M) mod p eq 0 then
+				  vprintf ModularSymbols, 1: "Skipping %o\n", p;
+	      Append( ~skipped_small_primes, p);
+              p := NextPrime(p);
+	      continue;
+	    end if;
 
- if do_skipped_small_primes and #skipped_small_primes gt 0 then
-     p := skipped_small_primes[#skipped_small_primes];
-     Prune(~skipped_small_primes);
-     vprintf ModularSymbols, 1: "Using %o after all\n", p;
- elif p in {2,3,5,7} and Level(M) mod p eq 0 then
-     vprintf ModularSymbols, 1: "Skipping %o\n", p;
-     Append( ~skipped_small_primes, p);
-     p := NextPrime(p);
-     continue;
- end if;
-            V_sum, _, pi := DirectSum([V : i in [1..NumComponents(M)]]);
-            Tp := Restrict(HeckeOperator(AmbientSpace(M),p), V_sum);
+            Tp := Restrict(HeckeOperator(AmbientSpace(M),p),V);
             Tquo := DualHeckeOperator(M,p);
             cp := CharacteristicPolynomial(Tquo);
             R<x> := Parent(cp);
@@ -203,7 +202,7 @@ intrinsic VectorSpace(M::ModSym) -> ModTupFld, Map, Map
                fT := Evaluate(cp, Tp);
             end if;
 
-            V  := pi[1](KernelOn(fT,V_sum));
+            V  := KernelOn(fT,V);
 
 	    if p gt HeckeBound(M) and Dimension(V) gt Dimension(M) then
  if not IsEmpty(skipped_small_primes) then
@@ -324,7 +323,7 @@ that is isomorphic to M as module of the Hecke algebra}
             // which calls Complement, which in turn calls us!  All the full
             // space the ProjectionMatrix problem doesn't arise.
             Tsub := Restrict(HeckeOperator(AmbientSpace(M),p),
-		    DirectSum([VectorSpace(M) : i in [1..NumComponents(M)]]));
+				VectorSpace(M));
             cp := CharacteristicPolynomial(Tsub);
  
             vprintf ModularSymbols, 3: "charpoly = %o\n", cp;
