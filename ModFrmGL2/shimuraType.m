@@ -1,5 +1,7 @@
 AttachSpec("ModFrmGL2.spec");
+
 import "../csg24.dat/csg21-lev304.dat" : L21_304;
+
 
 import "congruence.m" : LoadGroups, qExpansionBasisShimura;
 import "congruence.m" : LoadGroupsByGenus;
@@ -36,6 +38,7 @@ shim[1] := [ Strings() | "6F1", "7B1", "8F1", "8K1", "9C1", "9H1", "10G1", "10K1
 shim[3] := [ Strings() | "7A3", "8A3", "12O3", "12K3", "15E3", "16H3", "20J3", "20S3", 
 "21D3", "24V3", "24X3", "24Y3", "30K3", "32J3", "33C3", "34C3", "35A3", "36K3", "39A3", 
 "40F3", "41A3", "43A3", "45D3", "48J3", "49A3", "64B3" ];
+
 shim[6] :=  [ "11A6", "22C6", "31A6", "31B6",
             "58A6", "71A6", "79A6", "121A6" ];
 shim[10] :=  [ "9A10", "18E10", "18M10", "26D10", "27B10", "28D10", "36Q10",

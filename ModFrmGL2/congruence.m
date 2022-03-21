@@ -319,6 +319,7 @@ function qExpansionBasisPSL2(grp_name, grps : Precision := 0,
     conjs := [c : c in conjs | c^eta eq c];
     Ms := [GCD([N] cat [Integers()!g[2,1] : g in Generators(c)]) : c in conjs];
     cands := [conjs[i] : i in [1..#Ms] | Ms[i] eq Maximum(Ms)];
+
     // We try to upgrade to normalizers, to be able to use characters
     if Normalizers then
 	normalizers := [MaximalNormalizingWithAbelianQuotient(PSL2Subgroup(c)) : c in cands];
@@ -414,11 +415,12 @@ procedure write_qexps(grp_name, fs, X : J := [])
     else
 	proj_string := Sprintf("P_Q<[x]> := ProjectiveSpace(Rationals(), %o);", Dimension(Proj));
     end if;
-    
+
     write_str cat:= Sprintf("
     	      %o
     	      X_%o := Curve(P_Q, %m);",
 			    proj_string, grp_name, DefiningPolynomials(X));
+
     if not IsEmpty(J) then
       jmap := J[1];
       P1<a,b> := Codomain(jmap);
@@ -474,6 +476,7 @@ function qExpansionBasisShimura(grp_name, grps : Proof := false)
    */
     Qq<q> := PowerSeriesRing(Rationals());
     fs := [Qq!f : f in fs];
+
     if genus eq 1 then
 	A := NewformDecomposition(C_H)[1];
 	X := EllipticCurve(A : Database := false);
@@ -502,6 +505,7 @@ function qExpansionBasisShimura(grp_name, grps : Proof := false)
     end if;
 end function;
 
+
 function GetRationalPoint(X, fs)
      // Finding a point on X
     mat := Matrix([AbsEltseq(f) : f in fs]);
@@ -511,6 +515,7 @@ function GetRationalPoint(X, fs)
 	col_idx +:= 1;
 	// col := Column(mat, col_idx);
 	col := Transpose(mat)[col_idx];
+
 	zero_col := IsZero(col);
     end while;
     
@@ -773,4 +778,5 @@ function ShimuraSubgroupsOfGenus(g)
     end for;
     return ret;
 end function;
+
 
