@@ -1256,7 +1256,7 @@ function createFieldEmbeddings(K, NN, C, ds)
 		_, Q_L_to_Kf := IsSubfield(Q_L, Kf);
 		// cond_Kf := Norm(Conductor(AbelianExtension(AbsoluteField(Kf))));
 		cyc_Kf := Order(UnitGroup(AbsoluteField(Kf)).1);
-		assert IsSubfield(CyclotomicField(cyc_Kf), Kf);
+                assert IsSubfield(CyclotomicField(cyc_Kf), AbsoluteField(Kf));
 		Q_gcd_f<zeta_gcd_f> := CyclotomicField(GCD(cyc_Kf, Knew));
 		Q_gcd_f_L := CyclotomicField(LCM(GCD(cyc_Kf, Knew), L));
 		_, Q_gcd_f_to_Q_gcd_f_L := IsSubfield(Q_gcd_f, Q_gcd_f_L);
@@ -1264,6 +1264,11 @@ function createFieldEmbeddings(K, NN, C, ds)
 		_, Q_gcd_f_to_Q_K := IsSubfield(Q_gcd_f, Q_K);
 		_, Q_gcd_f_L_to_Kf := IsSubfield(Q_gcd_f_L, Kf);
 		Q_gcd_f_to_Kf := Q_gcd_f_to_Q_gcd_f_L*Q_gcd_f_L_to_Kf;
+                poly := MinimalPolynomial(Kf.1, Q_gcd_f_L);
+                fac := Factorization(Evaluate(poly, x_huge));
+		degrees := {Degree(fa[1]) : fa in fac };
+		assert #degrees eq 1;
+		d := SetToSequence(degrees)[1];
 		if d ne 1 then
 		    vprintf ModularCurves, 2 : "Field is not contained in Q_huge, enlarging field.\n";
 		    KK := NumberField(fac[1][1]);
@@ -1287,7 +1292,8 @@ function createFieldEmbeddings(K, NN, C, ds)
 		    F_to_Kf := hom<fields[i] -> Kf | >;
 		else
 		    F_to_Kf := hom<fields[i] -> Kf | root>;
-		    Embed(fields[i], Kf, root);
+// Magma claims it to be invalid
+// Embed(fields[i], Kf, root);
 		end if;
 	    end if;
 	elif Kf eq Q_L then
@@ -1450,6 +1456,9 @@ function FindHyperellipticCurve(qexps, prec)
 //  assert K eq Rationals();
     fs := [f + O(q^prec) : f in qexps];
     g := #fs;
+    T, E := EchelonForm(Matrix([&cat[Eltseq(x)
+				     : x in AbsEltseq(f)] : f in fs]));
+    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
 // T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
 //    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
     x := fs[g-1] / fs[g];
