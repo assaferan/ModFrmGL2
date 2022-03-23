@@ -128,7 +128,11 @@ function pr(flist, check, Nold, prec, Kf_to_KK)
     KK := Codomain(Kf_to_KK);
     assert KK eq Universe(flist);
     Kfold := BaseRing(Parent(fold));
-    _, Kfold_to_Kf := IsSubfield(Kfold, Kf);
+    if Type(Kfold) ne FldRat then
+       _, Kfold_to_Kf := IsSubfield(Kfold, Kf);
+    else
+       Kfold_to_Kf := hom<Kfold->Kf|>;
+    end if;
     aut := Automorphisms(AbsoluteField(Kfold));
     embs := [a*Kfold_to_Kf*Kf_to_KK : a in aut];
     embs := [e : e in embs | &and[e(Coefficient(fold, i)) eq flist[i]
@@ -1194,7 +1198,9 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     base_field := BaseField(C);
     assert (Type(base_field) eq FldCyc) or (Type(base_field) eq FldRat);
-    cyc_base := Order(UnitGroup(AbsoluteField(base_field)).1);
+    // This line destroyed much, reverting it for now
+    // cyc_base := Order(UnitGroup(AbsoluteField(base_field)).1);
+    cyc_base := 1;
     L := EulerPhi(K);
     // We will only consider even characters
     if IsEven(L) then
@@ -1345,6 +1351,12 @@ function createFieldEmbeddings(K, NN, C, ds)
 	// We check that the different embedding commute as they should
 	assert Q_huge_to_KK(Q_L_to_Q_huge(zeta_L)) eq
 	       Kf_to_KK(Q_L_to_Kf(zeta_L));
+        // Magma sometimes throws an Invalid embedding error, and I don't know why
+        try
+          Embed(Domain(F_to_Kf), Kf, F_to_Kf(Domain(F_to_Kf).1));
+        catch e
+	  tmp := 0;
+	end try;
 	Append(~field_embs, Kf_to_KK);
 	Append(~huge_fields, KK);
 	Append(~gcd_fields, Q_gcd_f);
@@ -1474,6 +1486,64 @@ function FindHyperellipticCurve(qexps, prec)
     poly := &+[ker_b[i+1]*x^i : i in [0..2*g+2]];
     X := HyperellipticCurve(-poly);
     return X, fs;
+end function;
+
+function getJMap(G, qexps, prec)
+    g := Genus(G);
+    nu_infty := #Cusps(G);
+    // nu_ell := #EllipticPoints(G);
+    H := Universe(EllipticPoints(G)); 
+    nu_2 := #[H | pt : pt in EllipticPoints(G) |
+	      Order(Matrix(Stabilizer(pt, G))) eq 4];
+    nu_3 := #[H | pt : pt in EllipticPoints(G) |
+	      Order(Matrix(Stabilizer(pt, G))) eq 6];
+    // This bounds are from Rouse, DZB and Drew's paper
+    E4_k := Ceiling((2*nu_infty + nu_2 + nu_3 + 5*g-4)/(2*(g-1)));  
+    // TODO : Should differentiate the degree 3 elliptic points here
+    E6_k := Ceiling((3*nu_infty + nu_2 + 2*nu_3 + 7*g-6)/(2*(g-1)));
+    if IsOdd(E4_k) then
+	E4_k +:= 1;
+    end if;
+    if IsOdd(E6_k) then
+	E6_k +:= 1;
+    end if;
+    R<q> := Universe(qexps);
+    K := BaseRing(R);
+    fs := [f + O(q^prec) : f in qexps];
+    assert g eq #fs;
+    R<[x]> := PolynomialRing(K,g);
+    degmons := AssociativeArray();
+    for d in {E4_k-4, E4_k, E6_k-6, E6_k} do
+	degmons[d] := MonomialsOfDegree(R, d div 2);
+    end for;
+    E4 := qExpansion(EisensteinSeries(ModularForms(1,4))[1],prec);
+    E6 := qExpansion(EisensteinSeries(ModularForms(1,6))[1],prec);
+    prods_E4 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E4_k]];
+    prods_E4 cat:= [E4*Evaluate(m, fs)*q^4 + O(q^prec) : m in degmons[E4_k-4]];
+    prods_E6 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E6_k]];
+    prods_E6 cat:= [E6*Evaluate(m, fs)*q^6 + O(q^prec) : m in degmons[E6_k-6]];
+    ker_E4 := Kernel(Matrix([AbsEltseq(f) : f in prods_E4]));
+    ker_E6 := Kernel(Matrix([AbsEltseq(f) : f in prods_E6]));
+    assert exists(v_E4){v : v in Basis(ker_E4)
+			| not &and[v[i] eq 0 :
+				   i in [1..#degmons[E4_k]]] and
+			not &and[v[#degmons[E4_k]+i] eq 0 :
+				   i in [1..#degmons[E4_k-4]]]};
+    assert exists(v_E6){v : v in Basis(ker_E6) |
+			not &and[v[i] eq 0 :
+				   i in [1..#degmons[E6_k]]] and
+			not &and[v[#degmons[E6_k]+i] eq 0 :
+				 i in [1..#degmons[E6_k-6]]]};
+    E4_num := &+[v_E4[i]*degmons[E4_k][i] : i in [1..#degmons[E4_k]]];
+    E4_denom := &+[v_E4[#degmons[E4_k]+i]*degmons[E4_k-4][i]
+		   : i in [1..#degmons[E4_k-4]]];
+    E6_num := &+[v_E6[i]*degmons[E6_k][i] : i in [1..#degmons[E6_k]]];
+    E6_denom := &+[v_E6[#degmons[E6_k]+i]*degmons[E6_k-6][i]
+		   : i in [1..#degmons[E6_k-6]]];
+    E4 := E4_num / E4_denom;
+    E6 := E6_num / E6_denom;
+    j := 1728*E4^3/(E4^3-E6^2);
+    return E4, E6, j;
 end function;
 
 // This only works when conjugating one eigenform
@@ -1938,7 +2008,8 @@ end function;
 // output: X - a model for the canonical embdding of the modular curve X_G
 //         fs - the q-expansions of a basis of cusp forms
 
-function ModularCurveBox(G, genus : Precision := 0, Proof := false)
+function ModularCurveBox(G, genus : Precision := 0, Proof := false,
+			 chars := false)
     assert genus ge 2;
     N := Modulus(BaseRing(G));
     PG := PSL2Subgroup(G);
@@ -1946,10 +2017,15 @@ function ModularCurveBox(G, genus : Precision := 0, Proof := false)
     if Precision ne 0 then
         prec := Max(prec, Precision);
     end if;
-    fs := BoxMethod(G, prec);
-    K := BaseRing(Universe(fs));
-    _<q> := PowerSeriesRing(K);
-    fs := qExpansions(fs, prec, q, K, true);
+    if chars then
+      MS := CuspidalSubspace(ModularSymbols(PG));
+      fs := qExpansionBasis(MS, prec : Al := "Box");
+    else  
+      fs := BoxMethod(G, prec);
+      K := BaseRing(Universe(fs));
+      _<q> := PowerSeriesRing(K);
+      fs := qExpansions(fs, prec, q, K, true);
+    end if;
     return getCurveFromForms(fs, prec, max_deg, genus);
 end function;
 
