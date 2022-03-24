@@ -1006,6 +1006,9 @@ function get_gens(G, eps)
     M, K := get_M_K_normalizer(G, Kernel(eps));
     H := G meet SL(2, Integers(N));
     gens := [Eltseq(FindLiftToSL2(g)) : g in Generators(H)];
+    if IsEmpty(gens) then
+	gens := [[1,0,0,1]];
+    end if;
     quo, quo_mat := G/H;
     Cs := [g@@quo_mat : g in Generators(quo)];
     ds := [Determinant(C) : C in Cs];
@@ -1513,27 +1516,53 @@ function getJMap(G, qexps, prec)
     assert g eq #fs;
     R<[x]> := PolynomialRing(K,g);
     degmons := AssociativeArray();
-    for d in {E4_k-4, E4_k, E6_k-6, E6_k} do
-	degmons[d] := MonomialsOfDegree(R, d div 2);
-    end for;
-    E4 := qExpansion(EisensteinSeries(ModularForms(1,4))[1],prec);
-    E6 := qExpansion(EisensteinSeries(ModularForms(1,6))[1],prec);
-    prods_E4 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E4_k]];
-    prods_E4 cat:= [E4*Evaluate(m, fs)*q^4 + O(q^prec) : m in degmons[E4_k-4]];
-    prods_E6 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E6_k]];
-    prods_E6 cat:= [E6*Evaluate(m, fs)*q^6 + O(q^prec) : m in degmons[E6_k-6]];
-    ker_E4 := Kernel(Matrix([AbsEltseq(f) : f in prods_E4]));
-    ker_E6 := Kernel(Matrix([AbsEltseq(f) : f in prods_E6]));
-    assert exists(v_E4){v : v in Basis(ker_E4)
+    // we add this because there is something wrong with the bounds.
+    // computing E4
+    E4_found := false;
+    while (not E4_found) do
+	vprintf ModularCurves, 1:
+	    "Trying to find E4 with weight %o\n", E4_k;
+	//    for d in {E4_k-4, E4_k, E6_k-6, E6_k} do
+	for d in {E4_k-4, E4_k} do
+	    degmons[d] := MonomialsOfDegree(R, d div 2);
+	end for;
+	E4 := qExpansion(EisensteinSeries(ModularForms(1,4))[1],prec);
+	//    E6 := qExpansion(EisensteinSeries(ModularForms(1,6))[1],prec);
+	prods_E4 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E4_k]];
+	prods_E4 cat:= [E4*Evaluate(m, fs)*q^4 + O(q^prec) : m in degmons[E4_k-4]];
+//    prods_E6 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E6_k]];
+//    prods_E6 cat:= [E6*Evaluate(m, fs)*q^6 + O(q^prec) : m in degmons[E6_k-6]];
+	ker_E4 := Kernel(Matrix([AbsEltseq(f) : f in prods_E4]));
+//    ker_E6 := Kernel(Matrix([AbsEltseq(f) : f in prods_E6]));
+	E4_found :=  exists(v_E4){v : v in Basis(ker_E4)
 			| not &and[v[i] eq 0 :
 				   i in [1..#degmons[E4_k]]] and
 			not &and[v[#degmons[E4_k]+i] eq 0 :
-				   i in [1..#degmons[E4_k-4]]]};
-    assert exists(v_E6){v : v in Basis(ker_E6) |
+				 i in [1..#degmons[E4_k-4]]]};
+	E4_k +:= 2;
+    end while;
+    E6_found := false;
+    while (not E6_found) do
+	vprintf ModularCurves, 1:
+	    "Trying to find E6 with weight %o\n", E6_k;
+	for d in {E6_k-6, E6_k} do
+	    degmons[d] := MonomialsOfDegree(R, d div 2);
+	end for;
+	E6 := qExpansion(EisensteinSeries(ModularForms(1,6))[1],prec);
+	prods_E6 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E6_k]];
+	prods_E6 cat:= [E6*Evaluate(m, fs)*q^6 + O(q^prec) : m in degmons[E6_k-6]];
+	ker_E6 := Kernel(Matrix([AbsEltseq(f) : f in prods_E6]));
+	E6_found := exists(v_E6){v : v in Basis(ker_E6) |
 			not &and[v[i] eq 0 :
 				   i in [1..#degmons[E6_k]]] and
 			not &and[v[#degmons[E6_k]+i] eq 0 :
 				 i in [1..#degmons[E6_k-6]]]};
+	E6_k +:= 2;
+    end while;
+
+    E4_k -:= 2;
+    E6_k -:= 2;
+    
     E4_num := &+[v_E4[i]*degmons[E4_k][i] : i in [1..#degmons[E4_k]]];
     E4_denom := &+[v_E4[#degmons[E4_k]+i]*degmons[E4_k-4][i]
 		   : i in [1..#degmons[E4_k-4]]];
@@ -1543,6 +1572,7 @@ function getJMap(G, qexps, prec)
     E4 := E4_num / E4_denom;
     E6 := E6_num / E6_denom;
     j := 1728*E4^3/(E4^3-E6^2);
+    _<[x]> := Parent(E4);
     return E4, E6, j;
 end function;
 
