@@ -12,7 +12,7 @@ import "ModSym/Box.m" : testBoxSingle;
 grps := LoadGroups(L21_304);
 grps_by_genus := LoadGroupsByGenus(L21_304);
 
-degs := [1..7];
+degs := [1..6];
 
 genera := [d*(d+1) div 2 : d in degs];
 
