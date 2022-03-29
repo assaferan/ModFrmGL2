@@ -1474,12 +1474,10 @@ function FindHyperellipticCurve(qexps, prec)
     T, E := EchelonForm(Matrix([&cat[Eltseq(x)
 				     : x in AbsEltseq(f)] : f in fs]));
     fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
-// T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
-//    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
     x := fs[g-1] / fs[g];
     y := q * Derivative(x) / fs[g];
     mons := [x^i : i in [0..2*g+2]] cat [-y^2];
-    denom := q^(-(2*g+2)*Valuation(x));
+    denom := q^(-(2*g+2)*Valuation(y));
     f_mons := [denom*m + O(q^AbsolutePrecision(x)) : m in mons];
     ker := Kernel(Matrix([AbsEltseq(f : FixedLength) : f in f_mons]));
     assert Dimension(ker) eq 1;
