@@ -14,5 +14,6 @@
     Tests
     {
 	+Tests.spec
-    } 
+    }
+    verbose.m
 }

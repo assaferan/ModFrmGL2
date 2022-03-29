@@ -544,12 +544,12 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    require IsSupportedField(F) : SupportMessage;
 
    H := ImageInLevelGL(G);
-
-   /*
+/*
    if not IsOfRealType(G) then
      H := GetRealConjugate(H);
      G := PSL2Subgroup(H);
    end if;
+*/
 /*
    if assigned G`DetRep and #Domain(G`DetRep) lt EulerPhi(Level(G)) then
      H := GetGLModel(H);
@@ -2262,6 +2262,14 @@ function GetRealConjugate(H)
   assert real_H^eta eq real_H;
   return real_H; 
 end function;
+
+// TODO - move this to GrpPSL2
+intrinsic RealTypeConjugate(G::GrpPSL2) -> GrpPSL2
+{R a conjugate group which is of real type, if it exists.}
+  H := ImageInLevelGL(G);
+  real_H := GetRealConjugate(H);
+  return PSL2Subgroup(real_H);
+end intrinsic;
 
 function GetGLModel(H : RealType := true)
   N := Modulus(BaseRing(H));

@@ -386,7 +386,7 @@ end function;
 function JMap(G)
   curgp := G;
   _, _, mp := GetModularFunctionAndModel(curgp);
-  polyRing := CoordinateRing(Domain(mp));
+  polyRing := CoordinateRing(Codomain(mp));
   curpt := GeneratorsSequence(polyRing);
   while (curgp ne PSL2(Integers())) do
     covergp := CoveringGroup(curgp);
@@ -395,7 +395,7 @@ function JMap(G)
     curpt := [Evaluate(p, curpt) : p in polys];
     curgp := covergp;
     _, _, mp := GetModularFunctionAndModel(covergp);
-   polyRing := CoordinateRing(Domain(mp));
+   polyRing := CoordinateRing(Codomain(mp));
   end while;
   return curpt;
 end function;
@@ -429,8 +429,7 @@ function ratfuncrep(modfunc,haup,deg)
   for m in [0..deg] do
     haupprec := (m*val1 + 2*deg+2)/den;
     func2 := -(haup + BigO(q^(haupprec)))^(deg-m)*modfunc;
-    //printf "For m = %o, the precision on func2 is from %o to %o.\n",m,Valuati\
-on(func2),AbsolutePrecision(func2);
+    //printf "For m = %o, the precision on func2 is from %o to %o.\n",m,Valuation(func2),AbsolutePrecision(func2);
     //printf "For m = %o, precision needed is from %o to %o.\n",m,(val2+(deg-m)*val1)/den,(val2+(deg-m)*val1+2*deg+1)/den;
     //printf "Coefficient range %o to %o.\n",(val2+deg*val1)/den,(val2+deg*val1+2*deg+1)/den;
     for n in [1..2*deg+2] do
@@ -443,10 +442,8 @@ on(func2),AbsolutePrecision(func2);
   for m in [0..deg] do
     haupprec := (val2+m*val1+2*deg+2)/den;
     func2 := (haup+BigO(q^(haupprec)))^(deg-m);
-    //printf "For m = %o, precision on func2 ranges from %o to %o.\n",m,Valuati\
-on(func2),AbsolutePrecision(func2);
-    //printf "Precision needed is %o to %o.\n",(val2+(deg-m)*val1)/den,(val2+(d\
-eg-m)*val1+2*deg+1)/den;
+    //printf "For m = %o, precision on func2 ranges from %o to %o.\n",m,Valuation(func2),AbsolutePrecision(func2);
+    //printf "Precision needed is %o to %o.\n",(val2+(deg-m)*val1)/den,(val2+(deg-m)*val1+2*deg+1)/den;
     for n in [1..2*deg+2] do
       M[m+1][n] := Coefficient(func2,(val2+deg*val1+n-1)/den);
     end for;
@@ -723,6 +720,9 @@ function GetModularFunctionAndModel(H)
 // indbound := 8;
   indbound := radN^3;
   covergp := CoveringGroup(H);
+  done := true;
+  repeat
+  try
   ind := Index(ImageInLevelGL(covergp : N := N), ImageInLevelGL(H));
   gencover := Genus(covergp);
   gen := Genus(H);
@@ -1570,5 +1570,20 @@ end if;
     end if;
     return X, [xcoord, ycoord], covering_map, _;
   end if;
-  
+
+  catch e
+      done := false;
+      covergp := CoveringGroup(covergp);
+      if Index(covergp) eq 1 then
+	  done := true;
+      end if;
+  end try;
+ 
+  until done;
+
+  return false,_;
 end function;
+
+
+// Groups that don't work here - check why
+// 6E1
