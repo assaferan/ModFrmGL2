@@ -181,8 +181,9 @@ intrinsic EllipticCurve(M::ModSym :
 {An elliptic curve over the rational numbers that lies in the isogeny 
  class of elliptic curves associated to M.}
 
-   require Weight(M) eq 2 : "Argument 1 must be of weight 2.";
-   require IsTrivial(DirichletCharacter(M)) : "Argument 1 must be on Gamma_0(N), i.e., have trivial character.";
+  require Weight(M) eq 2 : "Argument 1 must be of weight 2.";
+  // We're trying to loosen this assumption
+  //   require IsTrivial(DirichletCharacter(M)) : "Argument 1 must be on Gamma_0(N), i.e., have trivial character.";
 
    // checking cuspidal if it hasn't been checked takes too long using the current algorithm.
    if assigned M`is_cuspidal then
@@ -232,6 +233,7 @@ intrinsic EllipticCurve(M::ModSym :
    else
       n := Max(2,StartPrec);
    end if;
+   n := Max(n, sturm);
    f := qEigenform(M,n);
    n := Degree(f);  // it might be known to much higher precision...
    c4, c6, j := EllipticInvariants(M,n);

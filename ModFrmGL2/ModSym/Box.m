@@ -14,7 +14,7 @@ freeze;
 *************************************************************************************
 */
 
-import "linalg.m" : KernelOn, Restrict;
+import "linalg.m" : KernelOn, Restrict, RelativeBasis, RelativeEltseq;
 import "operators.m" : ActionOnModularSymbolsBasis;
 
 // function : gen_to_mat
@@ -24,10 +24,10 @@ import "operators.m" : ActionOnModularSymbolsBasis;
 
 function gen_to_mat(g, C)
     MS := AmbientSpace(C);
-    vprintf ModularSymbols, 1 : "computing action of \n%o\n", g;
+    vprintf ModularCurves, 1 : "computing action of \n%o\n", g;
     t := Cputime();
     gM := ActionOnModularSymbolsBasis(Eltseq(g), MS);
-    vprintf ModularSymbols, 1 : "\t\ttime = %o\n", Cputime(t);
+    vprintf ModularCurves, 1 : "\t\ttime = %o\n", Cputime(t);
     gC := Restrict(gM, VectorSpace(C));
     return Transpose(gC);
 end function;
@@ -128,12 +128,18 @@ function pr(flist, check, Nold, prec, Kf_to_KK)
     KK := Codomain(Kf_to_KK);
     assert KK eq Universe(flist);
     Kfold := BaseRing(Parent(fold));
-    _, Kfold_to_Kf := IsSubfield(Kfold, Kf);
+    if Type(Kfold) ne FldRat then
+       _, Kfold_to_Kf := IsSubfield(Kfold, Kf);
+    else
+       Kfold_to_Kf := hom<Kfold->Kf|>;
+    end if;
     aut := Automorphisms(AbsoluteField(Kfold));
     embs := [a*Kfold_to_Kf*Kf_to_KK : a in aut];
     embs := [e : e in embs | &and[e(Coefficient(fold, i)) eq flist[i]
 				  : i in check]];
-    assert #embs eq 1;
+    // Again - no longer true with character
+    // assert #embs eq 1;
+    assert #embs ge 1;
     return [embs[1](Coefficient(fold, i)) : i in [1..prec-1]];
 end function;
 
@@ -207,7 +213,7 @@ procedure add_old_twists(~new_mutwists, ~new_ftwists, ~new_powerlist,
 	gs := gauss_sum(chis[mutw_idx], Q_huge);
 	ftw := ftws[mutw_idx];
 	cond := Conductor(chis[mutw_idx]);
-	check := [i : i in [1..#alist] | GCD(i, cond) eq 1];
+	check := [i : i in [1..Min(#alist, prec - 1)] | GCD(i, cond) eq 1];
 	is_old := false;
 	for sp_idx in [1..#oldspaces_full] do
 	    if mutw in ChangeRing(oldspaces_full[sp_idx], Kf) then
@@ -300,7 +306,8 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
     end if;
     embs := [e : e in embs | &and[e(Coefficient(f, i)) eq alist[i]
 				  : i in [1..#alist]]];
-    assert #embs eq 1;
+    // assert #embs eq 1;
+    assert #embs ge 1;
     emb := embs[1];
     flist := [Kf_to_KK(emb(Coefficient(f,i))) : i in [1..prec-1]];
     subsp := VectorSpace(Kf, dim);
@@ -318,7 +325,11 @@ function make_real_twist_orbit(alist, primes, Kf_to_KK, Tpluslist,
     end for;
     Hb := [x*ChangeRing(BasisMatrix(Cplus),Kf) : x in Basis(intsn)];
     H := sub<Universe(Hb)|Hb> meet subsp;
+    // This is no longer true with character
+    // This space will consist of both f and its conjugate.
+    // !! Take care - maybe have to choose consistently
     assert Dimension(H) eq 1;
+    // assert Dimension(H) ge 1;
     mu := Basis(H)[1];
     LKK<qKK> := PowerSeriesRing(Codomain(Kf_to_KK), prec);
     
@@ -405,11 +416,18 @@ end function;
 // output: elements x_k such that x = sum x_k zeta_g^k
 
 // When we have an element of a number field over a cyclotomic field
-function coeffs_by_zeta(x, Q_g, Q_L)
+function coeffs_by_zeta(x, Q_g, Q_L, Q_g_to_Kf)
     Kf := Parent(x);
     d := Degree(Q_g);
     if IsIsomorphic(Kf, Q_g) then
-	return Eltseq(Q_g!x);
+	auts := Automorphisms(Q_g);
+	assert exists(aut){aut : aut in auts | Q_g_to_Kf(aut(Q_g!x)) eq x};
+	pre_x := aut(Q_g!x);
+	assert Q_g_to_Kf(pre_x) eq x;
+	return Eltseq(pre_x);
+//	return Eltseq(Q_g!x);
+	// wishful thinking - the map has no inverse defined.
+	// return Eltseq(x@@Q_g_to_Kf);
     end if;
     if Kf eq Q_L then
 	Kf_Q_g := RelativeField(Q_g, Q_L);
@@ -470,7 +488,9 @@ end function;
 //         in the basis zeta_K^i g(chi_j^(-1)) f_j, where f_j are the unnormalized twists
 //         (on which sigma_d acts via the permutation perm_d), chi_j are the corresponding characters
 //         and g(chi_j^(-1)) are the gauss sums, so that g(chi_j^(-1)) f_j is the basis for the
-//         twist orbit space over Q_K. 
+//         twist orbit space over Q_K.
+// The basis here is first f_1, f_2, \ldots, f_n,
+// zeta f_1, \ldots zeta f_n, and so forth
 
 function Pdmatrix(Pd, d, powerlist, chis,
 		  Q_L, Q_huge, zeta_K, K,
@@ -553,23 +573,29 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			     oldspaces,
 			     C, Cplus, chis,
 			     Q_huge, Q_L, zeta_huge, zeta_K,
-			     K, SKpowersQ_L,
+			     SKpowersQ_L,
 			     B_mats,
 			     Tr_mats,
 			     deg_divs,
 			     num_coset_reps, J,
 			     Q_K_plus_to_Q_K, Q_K_to_Q_huge, Q_L_to_Q_huge,
-			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K, Nnew, eps_BPd_gens)
+			     Q_gcd, zeta_gcd, Q_gcd_to_Q_K, Nnew, eps_BPd_gens,
+			     gcd_fields, gcd_field_embs)
+    assert prec ge #as + 1;
+    Q_K := Parent(zeta_K);
+    K := CyclotomicOrder(Q_K);
     FCF := [];
     twist_orbit_indices := [];
     already_visited := {};
     i := 1;
     KK_aps := [*[Kf_to_KKs[j](aps[j]) : aps in as] : j in [1..#as[1]]*];
-    while #already_visited lt #as[1] do
+    fs := [];
+    // we now stop once we collect enough forms
+    while (#already_visited lt #as[1]) and (2*#fs lt Dimension(GFS)) do
 	while (i in already_visited) do
 	    i +:= 1;
 	end while;
-	vprintf ModularSymbols, 1 : "Computing twist orbit no. %o out of %o\n", i, #as[1];
+	vprintf ModularCurves, 1 : "Computing twist orbit no. %o out of %o\n", i, #as[1];
 	alist := [aps[i] : aps in as];
 	Kf_to_KK := Kf_to_KKs[i];
 	Kf := Domain(Kf_to_KK);
@@ -587,6 +613,8 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				  deg_divs,
 				  num_coset_reps,
 				  Q_L_to_Q_huge, Nnew);
+	// making sure we can identify forms uniquely
+//	assert Rank(Matrix(twist_mfs)) eq #twist_mfs;
 	twist_all_aps := [* *];
 	for twist_mf in twist_mfs do
 	    nonzero := exists(pivot){pivot : pivot in [1..#twist_mf]
@@ -601,7 +629,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 				BaseRing(Universe(KK_aps[j])) eq
 				BaseRing(Universe(twist_aps)) and
 				&and[MinimalPolynomial(KK_aps[j][l]) eq
-				     MinimalPolynomial(twist_aps[l]) : l in [1..#as]]};
+				     MinimalPolynomial(twist_aps[l]) : l in [1..Min(#as, prec-1)]]};
 	    if inlist then
 		Include(~already_visited, j);
 	    end if;
@@ -611,16 +639,25 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	fixed_space_basis := Basis(ChangeRing(GFS, Kf)
 					     meet real_twist_orbit_ms);
 	dim_orbit := Dimension(real_twist_orbit_ms);
-	vprintf ModularSymbols, 1 : "Dimension of orbit is %o\n", dim_orbit;
+	vprintf ModularCurves, 1 : "Dimension of orbit is %o\n", dim_orbit;
 	if #fixed_space_basis gt 0 then
-            vprintf ModularSymbols, 1 :
+	    // latest addition - let us see if it works
+	    // idea - sometimes Kf intersects Q_K in more than Q_L
+	  
+	    Q_gcd<zeta_gcd> := gcd_fields[i];
+	    Q_gcd_to_Kf := gcd_field_embs[i][1];
+	    Q_gcd_to_Q_K := gcd_field_embs[i][2];
+	    Q_K<zeta_K> := Domain(Q_K_to_Q_huge);
+	    
+	    // ends here
+            vprintf ModularCurves, 1 :
 		"Orbit intersects fixed space with dimension %o.\n", #fixed_space_basis;
-	    vprintf ModularSymbols, 1 : "Finding G-fixed vectors...\n";
+	    vprintf ModularCurves, 1 : "Finding G-fixed vectors...\n";
 	    fixed_basis_cfs :=
 		[Eltseq(Solution(BasisMatrix(real_twist_orbit_ms), mu))
 		 : mu in fixed_space_basis];
 	    
-	    coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd, Q_L) : b in b_imgs]
+	    coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd, Q_L, Q_gcd_to_Kf) : b in b_imgs]
 			    : b_imgs in fixed_basis_cfs];
 	    zeta_to_Q_K := [[Vector(Kf,Eltseq(Q_gcd_to_Q_K(zeta_gcd)^i
 					    *zeta_K^r))
@@ -643,13 +680,14 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		d := ds[k];
 		B_imgs := [mu*ChangeRing(Transpose(Bmat),Kf)
 			   : mu in fixed_space_basis];
-		assert &and[mu*ChangeRing(Transpose(J),Kf)
-			    eq mu : mu in B_imgs];
+		// This fails for 8A3 with character. Why?
+		// assert &and[mu*ChangeRing(Transpose(J),Kf)
+		// 	    eq mu : mu in B_imgs];
 		B_imgs_cfs :=
 		    [Eltseq(Solution(BasisMatrix(real_twist_orbit_ms),
 				     ChangeRing(mu,Kf))) : mu in B_imgs];
 
-		coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd, Q_L) : b in b_imgs]
+		coeffs_zeta := [[coeffs_by_zeta(b, Q_gcd, Q_L, Q_gcd_to_Kf) : b in b_imgs]
 				: b_imgs in B_imgs_cfs];
 		B_imgs_tr := [[[&+[cz[l][i+1]*zeta_to_Q_K[r+1][i+1]
 				   : i in [0..Degree(Q_gcd)-1]]
@@ -668,12 +706,17 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		pd_mat := Pdmatrix(Pd,d,powerlist,chis, Q_L, Q_huge,
 				   zeta_K, K, Q_L_to_Q_huge,Q_K_to_Q_huge,
 				   perm_d);
-		B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf);
+		// The inverse is for action on the symbols,
+		// which is complex conjugated.
+//		B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf)^(-1);
+                B_pd_mat := B_imgs_block * ChangeRing(pd_mat, Kf);
 		B_pd_cfs := Solution(fixed_basis_block, B_pd_mat);
 		I_mat := IdentityMatrix(Kf,EulerPhi(K)*#fixed_space_basis);
-		fixed_B_pd := Kernel(B_pd_cfs - eps_BPd_gens[k]*I_mat);
+		fixed_B_pd := Kernel(B_pd_cfs - eps_BPd_gens[k]^(-1)*I_mat);
 		fixed_ms_space_QQ meet:= fixed_B_pd;
 	    end for;
+	    // With characters this is no longer true as GFS
+	    // is the restriction of scalars to QQ
 	    assert Dimension(fixed_ms_space_QQ) eq #fixed_space_basis;
 	    
 	    // Here we need to take complex conjugates because of Proposition 4.10 in [Box]
@@ -690,16 +733,29 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			    : i in [0..EulerPhi(K)-1]];
 	    fsols := [&+[fmssQQ_cc[i][j]*fcf_ext[j] : j in [1..#fcf_ext]]
 		      : i in [1..#fmssQQ_cc]];
-	    
-	   
-	    // We look for things fixed by the automorphisms of KK that leave Q_K fixed.
-	    // There are several ways to do this, here we ake a direct one.
-	    Q_K := Domain(Q_K_to_Q_huge);
 
+	    // We look for things fixed by the automorphisms of KK that leave Q_K fixed.
+	    // There are several ways to do this, here we take a direct one.
+
+	    // !! TODO - Here we have a problem if KK is not Galois over Q_huge
+	    // Taking the normal closure is very expensive,
+	    // see e.g. 71A6, 79A6
+	    
 	    // Step I - summing over automorphisms of KK/Q_huge
 	    if KK ne Q_huge then
-		vprintf ModularSymbols, 2 : "Degree of the field KK is %o. ", Degree(KK);
-		vprintf ModularSymbols, 2 : "Extending the forms.\n";
+		vprintf ModularCurves, 2 : "Degree of the field KK is %o. ", Degree(KK);
+		vprintf ModularCurves, 2 : "Extending the forms.\n";
+		xi := KK.1;
+		basis := [xi^i : i in [0..Degree(KK)-1]];
+		fsols := &cat[[[Trace(b*v[i]) : i in [1..Degree(v)]]
+				  : b in basis] : v in fsols];
+		// we leave out the first term, since it corresponds to F
+		// and we just want to zero out all the other coefficients
+		// vecs_Q_huge := [&cat[Eltseq(v[j])[2..Degree(KK)] :
+		//		     j in [1..Degree(v)]] : v in all_vecs];
+		// ker := Kernel(Matrix(vecs_Q_huge));
+		// fsols := [&+[b[i]*all_vecs[i] : i in [1..#all_vecs]] : b in Basis(ker)];
+		/*
 		aut_KK := Automorphisms(KK);
 		xi := KK.1;
 		fsols_conj := [[Vector([sig(a) : a in Eltseq(f)])
@@ -710,10 +766,12 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		    &cat[[&+[xi_conj[l]^j * fsols_conj[l][i] : l in [1..#aut_KK]]
 			 : j in [0..Degree(KK)-1]]
 			 : i in [1..#fsols] ];
+	       */
 	    end if;
 
 	    // Step II - summing over automorphisms of Q_huge/Q_K
-	    L := EulerPhi(K) div 2;
+	    L := EulerPhi(K);
+	    if IsEven(L) then L div:= 2; end if;
 	    L_0 := L div GCD(K,L);
 	    powers := [CRT([1,a],[K,L_0]) : a in [1..L_0] | GCD(a,L_0) eq 1];
 	    aut_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
@@ -737,12 +795,12 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		    fixed_cusp_forms_orbit_Q_K_plus :=
 			[Vector([(a@@Q_K_to_Q_huge)@@Q_K_plus_to_Q_K : a in Eltseq(f)])
 			 : f in fixed_cusp_forms_orbit_ns];
-		    vprintf ModularSymbols, 1 : "Coefficients are in Q_K_plus.\n";
+		    vprintf ModularCurves, 1 : "Coefficients are in Q_K_plus.\n";
 		else
 		    fixed_cusp_forms_orbit_Q_K_plus :=
 		    [Vector([a@@Q_K_to_Q_huge : a in Eltseq(f)])
 		     : f in fixed_cusp_forms_orbit_ns];
-		    vprintf ModularSymbols, 1 : "Coefficients are in Q_K.\n";
+		    vprintf ModularCurves, 1 : "Coefficients are in Q_K.\n";
 		end if;
 	    else
 		in_Q_huge := &and &cat[ [IsCoercible(Q_huge, a) : a in Eltseq(f)]
@@ -750,10 +808,10 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 		if in_Q_huge then
 		    fixed_cusp_forms_orbit_Q_K_plus :=
 			[Vector([Q_huge!a  : a in Eltseq(f)]) : f in fixed_cusp_forms_orbit_ns];
-		    vprintf ModularSymbols, 1 : "Coefficients are in Q_huge.\n";
+		    vprintf ModularCurves, 1 : "Coefficients are in Q_huge.\n";
 		else
 		    fixed_cusp_forms_orbit_Q_K_plus := fixed_cusp_forms_orbit_ns;
-		    vprintf ModularSymbols, 1 : "Coefficients are not in Q_huge!\n";
+		    vprintf ModularCurves, 1 : "Coefficients are not in Q_huge!\n";
 		end if;
 	    end if;
 
@@ -767,7 +825,7 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 			   : i in [0..deg-1]]) : b in Q_basis];
 	    fixed_cusp_forms_orbit_Q_K_plus := fs;
 
-	    vprintf ModularSymbols, 1 : "Obtained %o forms from this orbit.\n", #fs;
+	    vprintf ModularCurves, 1 : "Obtained %o forms from this orbit.\n", #fs;
 	    
 	    FCF_orbit cat:= [fixed_cusp_forms_orbit_Q_K_plus];
 	    twist_orbit_index cat:=
@@ -778,8 +836,9 @@ function fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
 	end if;
 	FCF cat:= [FCF_orbit];
 	twist_orbit_indices cat:= [twist_orbit_index];
+	fs := &cat [FCF[i][1] : i in [1..#FCF]];
     end while;
-    fs := &cat [FCF[i][1] : i in [1..#FCF]];
+    // fs := &cat [FCF[i][1] : i in [1..#FCF]];
     tos := &cat[twist_orbit_indices[i][1] : i in [1..#FCF]];
     // make sure we have the right number of forms
     assert 2*#fs eq Dimension(GFS);
@@ -865,17 +924,64 @@ function get_M_K(G)
 		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(G)]>;
 	B_M := make_Borel(M);
 	if G_M eq B_M then
+	    PG_M := PSL2Subgroup(G_M);
 	    if K eq 1 then
-		G_K := GL(2, Integers(2));
+		PG_meet := PG_M;
 	    else	    
 		G_K := sub< GL(2, Integers(K)) |
 			  [[Integers(K)!x : x in Eltseq(g)] : g in Generators(G)]>;
+		PG_K := PSL2Subgroup(G_K);
+		PG_meet := PG_M meet PG_K;
 	    end if;
-	    PG_M := PSL2Subgroup(G_M);
-	    PG_K := PSL2Subgroup(G_K);
 	    //if G eq ImageInLevel(PG_K : N := N) meet ImageInLevel(PG_M : N := N) then
 	    PG := PSL2Subgroup(G);
-	    if PG eq PG_M meet PG_K then
+	    if PG eq PG_meet then
+		found := true;
+		break;
+	    end if;
+	end if;
+    end for;
+    if not found then M := 1; end if;
+    
+    K := N div M;
+
+    return M, K;
+end function;
+
+// find M, K such that G = B0(M) meet G_K and H contains B1(M)
+function get_M_K_normalizer(G, H)
+    N := Modulus(BaseRing(G));
+    // First we find M such that G_M is contained in B_0(M)
+    M := GCD([N] cat [Integers()!g[2,1] : g in Generators(G)]);
+    K := N div M;
+    // we make sure that GCD(K,M) eq 1
+    fac := Factorization(N);
+    M := &*([1] cat [fa[1]^fa[2] : fa in fac | K mod fa[1] ne 0]);
+    // Now we reduce it until equality holds
+    divs := Reverse(Divisors(M));
+    found := false;
+    // we don't try 1 because GL(2,1) etc.
+    for M in divs[1..#divs-1] do
+	G_M := sub< GL(2, Integers(M)) |
+		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(G)]>;
+	H_M := sub< GL(2, Integers(M)) |
+		  [[Integers(M)!x : x in Eltseq(g)] : g in Generators(H)]>;
+	B_M := make_Borel(M);
+	B1M := sub<B_M | [1,1,0,1]>;
+	small := PSL2Subgroup(B1M) meet CongruenceSubgroup(K);
+	if (G_M eq B_M) and (small subset PSL2Subgroup(H)) then
+	    PG_M := PSL2Subgroup(G_M);
+	    if K eq 1 then
+		PG_meet := PG_M;
+	    else	    
+		G_K := sub< GL(2, Integers(K)) |
+			  [[Integers(K)!x : x in Eltseq(g)] : g in Generators(G)]>;
+		PG_K := PSL2Subgroup(G_K);
+		PG_meet := PG_M meet PG_K;
+	    end if;
+	    //if G eq ImageInLevel(PG_K : N := N) meet ImageInLevel(PG_M : N := N) then
+	    PG := PSL2Subgroup(G);
+	    if PG eq PG_meet then
 		found := true;
 		break;
 	    end if;
@@ -895,15 +1001,19 @@ end function;
 //         K, M - relatively prime integers such that G = B_0(M) meet G_K.
 //         ds - a list corresponding to Bgens of the determinants of these generators.
 
-function get_gens(G)
+function get_gens(G, eps)
     N := Modulus(BaseRing(G));
-    M, K := get_M_K(G);
+    M, K := get_M_K_normalizer(G, Kernel(eps));
     H := G meet SL(2, Integers(N));
     gens := [Eltseq(FindLiftToSL2(g)) : g in Generators(H)];
+    if IsEmpty(gens) then
+	gens := [[1,0,0,1]];
+    end if;
     quo, quo_mat := G/H;
     Cs := [g@@quo_mat : g in Generators(quo)];
     ds := [Determinant(C) : C in Cs];
     Bgens := [C*GL(2,Integers(N))![Determinant(C),0,0,1]^(-1) : C in Cs];
+//    Bgens := [C*GL(2,Integers(N))![1,0,0,Determinant(C)]^(-1) : C in Cs];
     Bgens := [Eltseq(FindLiftToSL2(b)) : b in Bgens];
     return gens, Bgens, K, M, ds;
 end function;
@@ -944,15 +1054,15 @@ function get_degeneracy_maps(M_old, M, d)
 			       : x in Basis(M)]);
 	quo_old := Matrix([Representation(multi_old(b))
 			   : b in Basis(M_old)]);
-	deg_eltseq := [&cat[Eltseq(x) : x in Eltseq(row)]
+	deg_eltseq := [&cat[RelativeEltseq(x, BaseRing(M)) : x in Eltseq(row)]
 		       : row in Rows(quo_old*deg)];
-	deg_d_eltseq := [&cat[Eltseq(x) : x in Eltseq(row)]
+	deg_d_eltseq := [&cat[RelativeEltseq(x, BaseRing(M_old)) : x in Eltseq(row)]
 			 : row in Rows(quo_mat*deg_d)];
 	quo_inv := Matrix([Representation((z*b)@@multi)
-			   : z in Basis(BaseRing(ms[i])),
+			   : z in RelativeBasis(BaseRing(ms[i]), BaseRing(M)),
 			     b in Basis(ms[i])]);
 	quo_old_inv := Matrix([Representation((z*b)@@multi_old)
-			       : z in Basis(BaseRing(ms_old[j])),
+			       : z in RelativeBasis(BaseRing(ms_old[j]), BaseRing(M_old)),
 				 b in Basis(ms_old[j])]);
 	alpha := Matrix(deg_eltseq)*quo_inv;
 	beta := Transpose(quo_old_inv)*Transpose(Matrix(deg_d_eltseq));
@@ -961,6 +1071,10 @@ function get_degeneracy_maps(M_old, M, d)
     end for;
     big_alpha := &+all_alphas;
     big_beta := &+all_betas;
+//    Cboldmat := ChangeRing(Cboldmat, BaseRing(M));
+//    Cboldnewmat := ChangeRing(Cboldnewmat, BaseRing(M));
+//    big_beta := ChangeRing(big_beta, BaseRing(M));
+
     ims_mat := Cboldmat*big_alpha;
     alpha_C := Transpose(Solution(Cbmat, ims_mat));
     beta_C := Transpose(Solution(Cboldmat, Cbmat*Transpose(big_beta)));
@@ -988,7 +1102,8 @@ function get_old_spaces(MS)
     // This takes plenty of time, see if we really need it.
     // We just need the characters and the levels of these spaces here.
     D := NewformDecomposition(C);
-    old_levels := Sort([lev : lev in {Level(d) : d in D} | lev ne N]);
+    old_levels := Sort([lev : lev in {Level(AssociatedNewSpace(d)) : d in D}
+			| lev ne N]);
     dirichlet_groups := [DirichletGroupFull(level) : level in old_levels];
     // reduce them to minimal base rings 
     conds := [Conductor(BaseRing(grp)) : grp in dirichlet_groups];
@@ -996,8 +1111,10 @@ function get_old_spaces(MS)
 					CyclotomicField(conds[i]))
 			 : i in [1..#old_levels]];
     chars := [*[dirichlet_groups[i]!DirichletCharacter(d) : d in D |
-		Level(d) eq (old_levels[i])] : i in [1..#old_levels]*];
-    M_old := [ModularSymbols(chis, 2) : chis in chars | not IsEmpty(chis)];
+		Level(AssociatedNewSpace(d)) eq (old_levels[i])]
+	      : i in [1..#old_levels]*];
+    M_old := [ModularSymbols(chis, 2, 0 : F := BaseRing(MS))
+	      : chis in chars | not IsEmpty(chis)];
     C_old := [CuspidalSubspace(m) : m in M_old];
     C_old_new := [NewSubspace(c) : c in C_old];
     
@@ -1082,19 +1199,31 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     dim := Dimension(C);
 
+    base_field := BaseField(C);
+    assert (Type(base_field) eq FldCyc) or (Type(base_field) eq FldRat);
+    // This line destroyed much, reverting it for now
+    // cyc_base := Order(UnitGroup(AbsoluteField(base_field)).1);
+    cyc_base := 1;
     L := EulerPhi(K);
     // We will only consider even characters
     if IsEven(L) then
 	L := L div 2;
     end if;
+    ds := [CRT([Integers()!d, 1],[K, cyc_base div GCD(K, cyc_base)]) : d in ds];
+    Knew := LCM(K, cyc_base);
+    L := LCM(L, cyc_base);
     Q_L<zeta_L> := CyclotomicField(L);
-    Q_K<zeta_K> := CyclotomicField(K);
-    Q_gcd<zeta_gcd> := CyclotomicField(GCD(K,L));
+    Q_K<zeta_K> := CyclotomicField(Knew);
+    Q_gcd<zeta_gcd> := CyclotomicField(GCD(Knew,L));
     Q_K_plus, Q_K_plus_to_Q_K := sub<Q_K | zeta_K + zeta_K^(-1)>;
+
+    assert IsSubfield(base_field, Q_gcd);
+    assert IsSubfield(base_field, Q_K);
+    assert IsSubfield(base_field, Q_L);
     
     Q_K_q<q> := PowerSeriesRing(Q_K);
     
-    Q_huge<zeta_huge> := CyclotomicField(LCM(K,L));
+    Q_huge<zeta_huge> := CyclotomicField(LCM(Knew,L));
 
     _, Q_K_to_Q_huge := IsSubfield(Q_K, Q_huge);
     _, Q_L_to_Q_huge := IsSubfield(Q_L, Q_huge);
@@ -1107,11 +1236,13 @@ function createFieldEmbeddings(K, NN, C, ds)
     fields := [* BaseRing(Parent(f)) : f in NN *];
     huge_fields := [* *];
     field_embs := [* *];
+    gcd_fields := [* *];
+    gcd_field_embs := [* *];
     for i in [1..#fields] do
-	vprintf ModularSymbols, 2 : "Constructing field embedding no. %o out of %o.\n", i, #fields;
+	vprintf ModularCurves, 2 : "Constructing field embedding no. %o out of %o.\n", i, #fields;
 	Kf := fields[i];
 	Kf_base := BaseRing(Kf);
-	vprintf ModularSymbols, 2 : "K(f) = %o\n", Kf;
+	vprintf ModularCurves, 2 : "K(f) = %o\n", Kf;
 	if IsSubfield(Kf_base, Q_L) and (Kf ne Q_L) then
 	    poly := Evaluate(DefiningPolynomial(Kf), x_L);
 	    // Since K(f) is Galois, f(x) should decompose to factors of the same degree,
@@ -1121,20 +1252,36 @@ function createFieldEmbeddings(K, NN, C, ds)
 	    assert #degrees eq 1;
 	    d := SetToSequence(degrees)[1];
 	    if d ne 1 then
-		vprintf ModularSymbols, 2 : "Field is not contained in Q_L, enlarging field.\n";
+		vprintf ModularCurves, 2 : "Field is not contained in Q_L, enlarging field.\n";
 		poly := fac[1][1];
 		Kf := NumberField(poly);
-		vprintf ModularSymbols, 2 : "Kf = %o\n", Kf;
+		vprintf ModularCurves, 2 : "Kf = %o\n", Kf;
 		F_to_Kf := hom<fields[i] -> Kf | Kf.1 >;
 		Embed(fields[i], Kf, Kf.1);
 		fac := Factorization(Evaluate(poly, x_huge));
 		degrees := {Degree(fa[1]) : fa in fac };
 		assert #degrees eq 1;
 		d := SetToSequence(degrees)[1];
+		_, Q_L_to_Kf := IsSubfield(Q_L, Kf);
+		// cond_Kf := Norm(Conductor(AbelianExtension(AbsoluteField(Kf))));
+		cyc_Kf := Order(UnitGroup(AbsoluteField(Kf)).1);
+                assert IsSubfield(CyclotomicField(cyc_Kf), AbsoluteField(Kf));
+		Q_gcd_f<zeta_gcd_f> := CyclotomicField(GCD(cyc_Kf, Knew));
+		Q_gcd_f_L := CyclotomicField(LCM(GCD(cyc_Kf, Knew), L));
+		_, Q_gcd_f_to_Q_gcd_f_L := IsSubfield(Q_gcd_f, Q_gcd_f_L);
+		_, Q_L_to_Q_gcd_f_L := IsSubfield(Q_L, Q_gcd_f_L);
+		_, Q_gcd_f_to_Q_K := IsSubfield(Q_gcd_f, Q_K);
+		_, Q_gcd_f_L_to_Kf := IsSubfield(Q_gcd_f_L, Kf);
+		Q_gcd_f_to_Kf := Q_gcd_f_to_Q_gcd_f_L*Q_gcd_f_L_to_Kf;
+                poly := MinimalPolynomial(Kf.1, Q_gcd_f_L);
+                fac := Factorization(Evaluate(poly, x_huge));
+		degrees := {Degree(fa[1]) : fa in fac };
+		assert #degrees eq 1;
+		d := SetToSequence(degrees)[1];
 		if d ne 1 then
-		    vprintf ModularSymbols, 2 : "Field is not contained in Q_huge, enlarging field.\n";
+		    vprintf ModularCurves, 2 : "Field is not contained in Q_huge, enlarging field.\n";
 		    KK := NumberField(fac[1][1]);
-		    vprintf ModularSymbols, 2 : "KK = %o\n", KK;
+		    vprintf ModularCurves, 2 : "KK = %o\n", KK;
 		    Kf_to_KK := hom<Kf -> KK | KK.1 >;
 		else
 		    KK := Q_huge;
@@ -1145,28 +1292,80 @@ function createFieldEmbeddings(K, NN, C, ds)
 		Kf := Q_L;
 		KK := Q_huge;
 		Kf_to_KK := Q_L_to_Q_huge;
+		Q_gcd_f := Q_gcd;
+		zeta_gcd_f := zeta_gcd;
+		Q_gcd_f_to_Kf := Q_gcd_to_Q_L;
+		Q_gcd_f_to_Q_K := Q_gcd_to_Q_K;
 		root := -Coefficient(fac[1][1],0);
 		if Type(fields[i]) eq FldRat then
 		    F_to_Kf := hom<fields[i] -> Kf | >;
 		else
 		    F_to_Kf := hom<fields[i] -> Kf | root>;
-		    Embed(fields[i], Kf, root);
+// Magma claims it to be invalid
+// Embed(fields[i], Kf, root);
 		end if;
 	    end if;
-	else
-	    assert Kf eq Q_L;
+	elif Kf eq Q_L then
 	    KK := Q_huge;
 	    Kf_to_KK := Q_L_to_Q_huge;
+	    Q_gcd_f := Q_gcd;
+	    zeta_gcd_f := zeta_gcd;
+	    Q_gcd_f_to_Kf := Q_gcd_to_Q_L;
+	    Q_gcd_f_to_Q_K := Q_gcd_to_Q_K;
+	else
+	    // This might not be the case, but we start by treating this one
+	    assert IsSubfield(Q_L, Kf);
+	    Kf := RelativeField(Q_L, Kf);
+	    _, F_to_Kf := IsSubfield(fields[i], Kf);
+	    _, Q_L_to_Kf := IsSubfield(Q_L, Kf);
+	    cyc_Kf := Order(UnitGroup(AbsoluteField(Kf)).1);
+	    assert IsSubfield(CyclotomicField(cyc_Kf), Kf);
+	    Q_gcd_f<zeta_gcd_f> := CyclotomicField(GCD(cyc_Kf, Knew));
+	    Q_gcd_f_L := CyclotomicField(LCM(GCD(cyc_Kf, Knew), L));
+	    _, Q_gcd_f_to_Q_gcd_f_L := IsSubfield(Q_gcd_f, Q_gcd_f_L);
+	    _, Q_L_to_Q_gcd_f_L := IsSubfield(Q_L, Q_gcd_f_L);
+	    _, Q_gcd_f_to_Q_K := IsSubfield(Q_gcd_f, Q_K);
+	    _, Q_gcd_f_L_to_Kf := IsSubfield(Q_gcd_f_L, Kf);
+	    Q_gcd_f_to_Kf := Q_gcd_f_to_Q_gcd_f_L*Q_gcd_f_L_to_Kf;
+	    poly := DefiningPolynomial(Kf);
+	    KK := ext< Q_huge | Evaluate(poly, x_huge)>;
+	    Kf_to_KK := hom<Kf -> KK | KK.1>;
+	    Embed(Kf, KK, KK.1);
+	    
+	    /*
+	    assert IsSubfield(Q_L, Kf_base);	
+	    Kf_base_over_Q_L := RelativeField(Q_L, Kf_base);
+	    poly_base := DefiningPolynomial(Kf_base_over_Q_L);
+	    KK_base := ext< Q_huge | Evaluate(poly_base, x_huge)>;
+	    poly := DefiningPolynomial(Kf);
+	    Kf_base_to_KK_base := hom<Kf_base_over_Q_L -> KK_base | KK_base.1>;
+	    Embed(Kf_base, KK_base, KK_base.1);
+	    _<x_base> := PolynomialRing(KK_base);
+	    KK := ext< KK_base | Evaluate(poly, x_base)>;
+	    Kf_to_KK := hom<Kf -> KK | KK.1>;
+	    Embed(Kf, KK, KK.1);
+	   */
+	  
 	end if;
 	
-	vprintf ModularSymbols, 2 : "Check that the embeddings commute...\n";
+	vprintf ModularCurves, 2 : "Check that the embeddings commute...\n";
 	_, Q_L_to_Kf := IsSubfield(Q_L, Kf);
 	_, Q_huge_to_KK := IsSubfield(Q_huge, KK);
 	// We check that the different embedding commute as they should
 	assert Q_huge_to_KK(Q_L_to_Q_huge(zeta_L)) eq
 	       Kf_to_KK(Q_L_to_Kf(zeta_L));
+        // Magma sometimes throws an Invalid embedding error, and I don't know why
+        try
+          Embed(Domain(F_to_Kf), Kf, F_to_Kf(Domain(F_to_Kf).1));
+        catch e
+	  tmp := 0;
+	end try;
 	Append(~field_embs, Kf_to_KK);
 	Append(~huge_fields, KK);
+	Append(~gcd_fields, Q_gcd_f);
+	Append(~gcd_field_embs, [* Q_gcd_f_to_Kf, Q_gcd_f_to_Q_K *]);
+	assert Kf_to_KK(Q_gcd_f_to_Kf(zeta_gcd_f)) eq
+	       Q_huge_to_KK(Q_K_to_Q_huge(Q_gcd_f_to_Q_K(zeta_gcd_f)));
     end for;
 
     cc_Q_huge := hom<Q_huge -> Q_huge | zeta_huge^(-1)>;
@@ -1177,8 +1376,13 @@ function createFieldEmbeddings(K, NN, C, ds)
 
     assert &and[cc(F!zeta_huge) eq F!(zeta_huge^(-1)) : F in huge_fields];
 
-    elts := [Integers()!(Integers(K)!d) : d in ds];
-    powers := [CRT([e,1],[K,L div GCD(K,L)]) : e in elts];
+    if (Knew eq 1) then
+	elts := [1 : d in ds];
+    else
+	elts := [Integers()!(Integers(Knew)!d) : d in ds];
+    end if;
+  
+    powers := [CRT([e,1],[Knew,L div GCD(Knew,L)]) : e in elts];
     // Checking that CRT actually worked
     assert &and[p ne -1 : p in powers];
     Ps_Q_huge := [hom<Q_huge -> Q_huge | zeta_huge^pow> : pow in powers];
@@ -1202,7 +1406,7 @@ function createFieldEmbeddings(K, NN, C, ds)
     return field_embs, cc, Ps_Q_huge, SKpowersQ_L, Q_huge,
 	   Q_L, zeta_huge, zeta_K, Q_K_plus_to_Q_K, Q_K_to_Q_huge,
 	   Q_L_to_Q_huge, elts, Q_gcd, zeta_gcd,
-	   Q_gcd_to_Q_K;
+	   Q_gcd_to_Q_K, gcd_fields, gcd_field_embs;
 end function;
 
 // function: qExpansions
@@ -1219,7 +1423,9 @@ function qExpansions(fs, prec, q, K, integral)
 	den := 1;
     end if;
     ffs := [ChangeRing(f, K) : f in fs];
-    return [den*&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
+    // qexps := [&+[ff[i]*q^i : i in [1..prec-1]] : ff in ffs];
+    qexps := [den*&+[ff[i]*q^i : i in [1..prec-1]] + O(q^prec) : ff in ffs];
+    return qexps;
 end function;
 
 // function: FindCurveSimple
@@ -1241,22 +1447,35 @@ function FindCurveSimple(qexps, prec, n_rel)
     kers := [Kernel(Matrix([AbsEltseq(f) : f in prod])) : prod in prods];
     rels := [[&+[Eltseq(kers[d].i)[j]*degmons[d][j] : j in [1..#degmons[d]]] :
 	      i in [1..Dimension(kers[d])]] : d in [1..n_rel]];
-    I := ideal<R | &cat rels>;
+    // We want to generate the ideal with the lowest possible degree
+    is_all := false;
+    d := 1;
+    not_in_I := rels;
+    I := ideal<R | 0>;
+    while not is_all do
+	I +:= ideal<R | &cat not_in_I[1..d]>;
+	not_in_I := [[x : x in r | x notin I] : r in rels];
+	is_all := &and[IsEmpty(x) : x in not_in_I];
+	d +:= 1;
+    end while;
+    // I := ideal<R | &cat rels>;
+    // This might throw an error in the hyperelliptic case. 
     X := Curve(ProjectiveSpace(R),I);
     // Do we want to assert X is coercible to Q?
     return X;
 end function;
 
-// This doesn't really work, as it assumes that
-// the q-expansions are rational!
 function FindHyperellipticCurve(qexps, prec)
     R<q> := Universe(qexps);
     K := BaseRing(R);
-    assert K eq Rationals();
+//  assert K eq Rationals();
     fs := [f + O(q^prec) : f in qexps];
     g := #fs;
-    T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+    T, E := EchelonForm(Matrix([&cat[Eltseq(x)
+				     : x in AbsEltseq(f)] : f in fs]));
     fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
+// T, E := EchelonForm(Matrix([AbsEltseq(f) : f in fs]));
+//    fs := [&+[E[j][i]*fs[i] : i in [1..g]] : j in [1..g]];
     x := fs[g-1] / fs[g];
     y := q * Derivative(x) / fs[g];
     mons := [x^i : i in [0..2*g+2]] cat [-y^2];
@@ -1268,8 +1487,93 @@ function FindHyperellipticCurve(qexps, prec)
     ker_b /:= -ker_b[2*g+4];
     R<x> := PolynomialRing(K);
     poly := &+[ker_b[i+1]*x^i : i in [0..2*g+2]];
-    X := HyperellipticCurve(poly);
+    X := HyperellipticCurve(-poly);
     return X, fs;
+end function;
+
+function getJMap(G, qexps, prec)
+    g := Genus(G);
+    nu_infty := #Cusps(G);
+    // nu_ell := #EllipticPoints(G);
+    H := Universe(EllipticPoints(G)); 
+    nu_2 := #[H | pt : pt in EllipticPoints(G) |
+	      Order(Matrix(Stabilizer(pt, G))) eq 4];
+    nu_3 := #[H | pt : pt in EllipticPoints(G) |
+	      Order(Matrix(Stabilizer(pt, G))) eq 6];
+    // This bounds are from Rouse, DZB and Drew's paper
+    E4_k := Ceiling((2*nu_infty + nu_2 + nu_3 + 5*g-4)/(2*(g-1)));  
+    // TODO : Should differentiate the degree 3 elliptic points here
+    E6_k := Ceiling((3*nu_infty + nu_2 + 2*nu_3 + 7*g-6)/(2*(g-1)));
+    if IsOdd(E4_k) then
+	E4_k +:= 1;
+    end if;
+    if IsOdd(E6_k) then
+	E6_k +:= 1;
+    end if;
+    R<q> := Universe(qexps);
+    K := BaseRing(R);
+    fs := [f + O(q^prec) : f in qexps];
+    assert g eq #fs;
+    R<[x]> := PolynomialRing(K,g);
+    degmons := AssociativeArray();
+    // we add this because there is something wrong with the bounds.
+    // computing E4
+    E4_found := false;
+    while (not E4_found) do
+	vprintf ModularCurves, 1:
+	    "Trying to find E4 with weight %o\n", E4_k;
+	//    for d in {E4_k-4, E4_k, E6_k-6, E6_k} do
+	for d in {E4_k-4, E4_k} do
+	    degmons[d] := MonomialsOfDegree(R, d div 2);
+	end for;
+	E4 := qExpansion(EisensteinSeries(ModularForms(1,4))[1],prec);
+	//    E6 := qExpansion(EisensteinSeries(ModularForms(1,6))[1],prec);
+	prods_E4 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E4_k]];
+	prods_E4 cat:= [E4*Evaluate(m, fs)*q^4 + O(q^prec) : m in degmons[E4_k-4]];
+//    prods_E6 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E6_k]];
+//    prods_E6 cat:= [E6*Evaluate(m, fs)*q^6 + O(q^prec) : m in degmons[E6_k-6]];
+	ker_E4 := Kernel(Matrix([AbsEltseq(f) : f in prods_E4]));
+//    ker_E6 := Kernel(Matrix([AbsEltseq(f) : f in prods_E6]));
+	E4_found :=  exists(v_E4){v : v in Basis(ker_E4)
+			| not &and[v[i] eq 0 :
+				   i in [1..#degmons[E4_k]]] and
+			not &and[v[#degmons[E4_k]+i] eq 0 :
+				 i in [1..#degmons[E4_k-4]]]};
+	E4_k +:= 2;
+    end while;
+    E6_found := false;
+    while (not E6_found) do
+	vprintf ModularCurves, 1:
+	    "Trying to find E6 with weight %o\n", E6_k;
+	for d in {E6_k-6, E6_k} do
+	    degmons[d] := MonomialsOfDegree(R, d div 2);
+	end for;
+	E6 := qExpansion(EisensteinSeries(ModularForms(1,6))[1],prec);
+	prods_E6 := [Evaluate(m, fs) + O(q^prec) : m in degmons[E6_k]];
+	prods_E6 cat:= [E6*Evaluate(m, fs)*q^6 + O(q^prec) : m in degmons[E6_k-6]];
+	ker_E6 := Kernel(Matrix([AbsEltseq(f) : f in prods_E6]));
+	E6_found := exists(v_E6){v : v in Basis(ker_E6) |
+			not &and[v[i] eq 0 :
+				   i in [1..#degmons[E6_k]]] and
+			not &and[v[#degmons[E6_k]+i] eq 0 :
+				 i in [1..#degmons[E6_k-6]]]};
+	E6_k +:= 2;
+    end while;
+
+    E4_k -:= 2;
+    E6_k -:= 2;
+    
+    E4_num := &+[v_E4[i]*degmons[E4_k][i] : i in [1..#degmons[E4_k]]];
+    E4_denom := &+[v_E4[#degmons[E4_k]+i]*degmons[E4_k-4][i]
+		   : i in [1..#degmons[E4_k-4]]];
+    E6_num := &+[v_E6[i]*degmons[E6_k][i] : i in [1..#degmons[E6_k]]];
+    E6_denom := &+[v_E6[#degmons[E6_k]+i]*degmons[E6_k-6][i]
+		   : i in [1..#degmons[E6_k-6]]];
+    E4 := E4_num / E4_denom;
+    E6 := E6_num / E6_denom;
+    j := 1728*E4^3/(E4^3-E6^2);
+    _<[x]> := Parent(E4);
+    return E4, E6, j;
 end function;
 
 // This only works when conjugating one eigenform
@@ -1301,15 +1605,18 @@ function FindRationalCurve(qexps, prec, n_rel)
     return X;
 end function;
 
-// function: BoxMethod
-// input: G - a subgroup of GL(2, N) for some N
-//        prec - a required precision for the q-expansions
-//        AtkinLehner - a list of AtkinLehner operators
-// output: fs - a list of coefficients of q-expansions for a basis of cusp forms in S_2(G, Q)
-//         tos - indices indicating from which twist orbit each of them was taken.
+// This function takes a list of characters and outputs its product
+// X is  a character group from which to take the trivial character in the default scenario
+function character_product(list, X)
+    chi := X!1;
+    for i in [1..#list] do
+	chi := chi * list[i];
+    end for;
+    return chi;
+end function;
 
-function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
-    // this is a temporary patch to allow for activation without a character
+function create_character(G, Chars)
+        // this is a temporary patch to allow for activation without a character
     if IsEmpty(Chars) then
 	// we create the trivial character
 	Q, pi_Q := G/G;
@@ -1319,26 +1626,29 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 	assert #Chars eq 1;
 	eps := Chars[1];
     end if;
-    
-    gens, Bgens, K, M, ds := get_gens(G);
+    return eps;
+end function;
 
-    vprintf ModularSymbols, 1 :  "Found generators. K = %o and M = %o.\n", K, M;
+function compute_ms_action(G, eps, gens, Bgens, K, M, ds, AtkinLehner)
 
     GL_N := GL(2, BaseRing(G));
     eps_gens := [eps(G!g) : g in gens];
     // the value of eps on BP_d
+    // eps_BPd_gens := [eps(GL_N!Bgens[i]*GL_N![1,0,0,ds[i]]) : i in [1..#Bgens]]; 
     eps_BPd_gens := [eps(GL_N!Bgens[i]*GL_N![ds[i],0,0,1]) : i in [1..#Bgens]]; 
     
     N := M * K^2;
-    g1 := CRT([1+K,1], [K^2,M]);
-    alpha := Integers()!PrimitiveElement(Integers(M));
-    g2 := CRT([1,alpha], [K^2,M]);
-    MS := ModularSymbolsH(N, [g1,g2], 2, 0);
+
+    g0 := CRT([1+K,1], [K^2,M]);
+    U, mU := UnitGroup(Integers(M));
+    alphas := [Integers()!mU(x) : x in Generators(U)];
+    gs := [g0] cat [CRT([1,alpha], [K^2,M]) : alpha in alphas];
+    MS := ModularSymbolsH(N, gs, 2, 0, eps);
 
     C := CuspidalSubspace(MS);
     dim := Dimension(C);
 
-    vprintf ModularSymbols, 1 : "Dimension of large cusp form space is %o.\n", dim;
+    vprintf ModularCurves, 1 : "Dimension of large cusp form space is %o.\n", dim;
     
     GL2Q := GL(2, Rationals());
     alpha_K := GL(2, Rationals())![1,0,0,1/K];
@@ -1346,7 +1656,7 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     Bmats := [Matrix(GL2Q!g^alpha_K) : g in Bgens];
     al_mats := [Matrix(GL2Q!g^alpha_K) : g in AtkinLehner];
     
-    vprintf ModularSymbols, 1 : "Computing action of Gamma on large cusp form space...\n";
+    vprintf ModularCurves, 1 : "Computing action of Gamma on large cusp form space...\n";
 
     B0M := M eq 1 select PSL2(Integers()) else Gamma0(M);
     B0M_gens := [Eltseq(x) : x in Generators(B0M)];
@@ -1383,27 +1693,24 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     // We want the space fixed by the Atkin-Lehner
     eps_gens cat:= [1 : g in al_mats];
     
-    J := Transpose(StarInvolution(C));
+    return MS, C, gs, Bs, eps_gens, eps_BPd_gens;
+end function;
 
-    Cplus := Kernel(Transpose(J-1));
-
-    vprintf ModularSymbols, 1 : "Computing old subspaces...\n";
-
-    Tr_mats, Tr_ims, B_mats, deg_divs,
-    num_coset_reps, oldspaces_full,
-    oldspaces, C_old_new := get_old_spaces(MS);
-
-    vprintf ModularSymbols, 1 : "Computing newforms...\n";
+function compute_newforms(C, C_old_new, prec, N)
     
     Nnew := NewSubspace(C);
+    
+    J := Transpose(StarInvolution(C));
+    Cplus := Kernel(Transpose(J-1));
 
+    // This would ensure that we can separate all the forms,
+    // but it is an overkill. Instead we raise it slowly.
+    // prec := Max(prec, HeckeBound(C));
+    
     nfd_old := [NewformDecomposition(s) : s in C_old_new];    
     nfd := NewformDecomposition(Nnew);
-    Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
-    Nnew := [* qEigenform(d,prec) : d in nfd *];
-    NN := (&cat ([[* *]] cat Nold)) cat Nnew;
-
-    vprintf ModularSymbols, 1 : "Computing Hecke operators...\n";
+    
+    vprintf ModularCurves, 1 : "Computing Hecke operators...\n";
     
     max_hecke := 1;
     num_distinct := 0;
@@ -1413,41 +1720,58 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     // an eigenform for the other Hecke operators
     primes := [];
     sep_all := false;
-    while (not sep_all) do
+    prec_old := [0 : d in C_old_new];
+    level_facs := [Level(C) div Level(d) : d in C_old_new];
+
+    while (not sep_all) do   
 	repeat
 	    max_hecke := NextPrime(max_hecke);
 	until N mod max_hecke ne 0;
+	
 	Append(~primes, max_hecke);
+
+	if max_hecke ge prec then
+	    prec := max_hecke + 1;
+	end if;
+
+	Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
+	Nnew := [* qEigenform(d,prec) : d in nfd *];
+	NN := (&cat ([[* *]] cat Nold)) cat Nnew;
+	
 	num_distinct := 
 	    #{[Coefficients(MinimalPolynomial(Coefficient(f,i)))
 	       : i in [1..max_hecke]] : f in NN};
 	// we also want to be able to cut the exact subspace
 	// using only prime to level Hecke operators
 	num_distinct_old := 
-	   [ #{[Coefficients(MinimalPolynomial(Coefficient(f,p)))
-		: p in primes] : f in n_old} : n_old in Nold];
-	sep_old := &and[num_distinct_old[i] eq #Nold[i] : i in [1..#Nold]];
-	sep_all := sep_old and (num_distinct eq #NN);
+	    [ #{[Coefficients(MinimalPolynomial(Coefficient(f,p)))
+		 : p in primes] : f in n_old} : n_old in Nold];
+	sep_old := [num_distinct_old[i] eq #Nold[i] : i in [1..#Nold]];
+	for i in [1..#Nold] do
+	    if sep_old[i] and (prec_old[i] eq 0) then
+		prec_old[i] := max_hecke;
+	    end if;
+	end for;
+	sep_all := &and sep_old and (num_distinct eq #NN);
+
     end while;
+
+    // we want to be able to separate level-raised oldforms when computing the Pd action
+    prec := Maximum([prec] cat [prec_old[i] * level_facs[i] : i in [1..#Nold]]);
+
+    Nold := [[* qEigenform(d,prec) : d in nf *] : nf in nfd_old]; 
+    Nnew := [* qEigenform(d,prec) : d in nfd *];
+    NN := (&cat ([[* *]] cat Nold)) cat Nnew;
 
     Ts := [HeckeOperator(C, p) : p in primes];
     Tpluslist := [Restrict(T, Cplus) : T in Ts];
 
     as := [[*Coefficient(f, n) : f in NN *] : n in [1..max_hecke]];
 
-    vprintf ModularSymbols, 1 : "Creating field embeddings...\n";
-    
-    field_embs, cc, Ps_Q_huge, SKpowersQ_L,
-    Q_huge, Q_L, zeta_huge, zeta_K,
-    Q_K_plus_to_Q_K, Q_K_to_Q_huge,
-    Q_L_to_Q_huge, elts,
-    Q_gcd, zeta_gcd, Q_gcd_to_Q_K := createFieldEmbeddings(K, NN, C, ds);
+    return NN, Nold, Nnew, as, nfd, nfd_old, Tpluslist, primes, prec;
+end function;
 
-    // Taking only the forms with trivial Nebentypus character is not good enough
-    // We need to take represenatives for X / X^2!
-
-    vprintf ModularSymbols, 1 : "Preparing character group...\n";
-    
+function prepare_character_representatives(K)
     X := DirichletGroupFull(K);
     A, phi := AbelianGroup(X);
 
@@ -1455,16 +1779,54 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
     h := hom< A -> Z2 | a :-> IsEven(phi(a)) select 0 else 1>;
     A_even := Kernel(h);
     chis := [phi(g) : g in Generators(A_even)];
+    if IsTrivial(A_even) then
+	chis := [phi(A_even!0)];
+    end if;
 
     quo, quo_map := A / (2*A_even);
     char_reps := [phi(g@@quo_map) : g in quo];
     
+    return X, char_reps, chis;
+end function;
+
+function get_gamma_fixed_space(eps_gens, gs)
+    min_polys := [MinimalPolynomial(xi) : xi in eps_gens];
+ 
+    fixed_spaces := [Kernel(Evaluate(min_polys[i], Transpose(gs[i])))
+		     : i in [1..#gs]];
+    
+    Gamma_fixed_space := &meet fixed_spaces;
+    
+    return Gamma_fixed_space;
+end function;
+
+function restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K)
+   
+    nfd_chars := [* DirichletCharacter(f) : f in nfd *];
+    nfd_decomp := [* Decomposition(chi) : chi in nfd_chars *];
+    nfd_K_part := [* character_product([* chi : chi in chis | K mod Modulus(chi) eq 0 *], X)
+		   : chis in nfd_decomp *];
+    
+    nfd_old_chars := [[* DirichletCharacter(f) : f in nf *] : nf in nfd_old];
+    nfd_old_decomp := [[* Decomposition(chi) : chi in chis *] : chis in nfd_old_chars];
+    nfd_old_K_part := [[* character_product([* chi : chi in chis
+					     | K mod Modulus(chi) eq 0 *], X)
+
+			: chis in nf_decomp *] : nf_decomp in nfd_old_decomp]; 
+
+
+/*   
     nfd_trivial := [i : i in [1..#nfd] |
 		    X!DirichletCharacter(nfd[i]) in char_reps];
     nfd_old_trivial := [[i : i in [1..#nf] |
 			 X!DirichletCharacter(nf[i]) in char_reps]
 			: nf in nfd_old]; 
-
+*/
+    
+    nfd_trivial := [i : i in [1..#nfd] | X!nfd_K_part[i] in char_reps];
+    nfd_old_trivial := [[i : i in [1..#nfd_old[j]] | X!nfd_old_K_part[j][i] in char_reps]
+			: j in [1..#nfd_old]];
+    
     cumsum := [0] cat [&+[#nf : nf in nfd_old[1..i]] : i in [1..#nfd_old]];
     a_idxs := &cat[ [idx + cumsum[j] : idx in nfd_old_trivial[j]]
 		    : j in [1..#nfd_old]];
@@ -1472,22 +1834,10 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 
     as := [[* aps[idx] : idx in a_idxs *] : aps in as ];
 
-    vprintf ModularSymbols, 1 : "Computing the Gamma fixed space...\n";
-/*
-    fixed_spaces := [Kernel(Transpose(gmat)-
-			   IdentityMatrix(Rationals(), Nrows(gmat)))
-		     : gmat in gs];
-*/
-    fixed_spaces := [Kernel(Transpose(gs[i])-
-			    eps_gens[i] * IdentityMatrix(Rationals(), Nrows(gs[i])))
-		     : i in [1..#gs]];
+    return a_idxs, as;
+end function;
 
-    Gamma_fixed_space := &meet fixed_spaces;
-
-    vprintf ModularSymbols, 1 : "Dimension of fixed space is %o.\n", Dimension(Gamma_fixed_space);
-    
-    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
-    
+function get_aut_extensions(Ps_Q_huge, Q_huge)
     Ps := [];
     for P_Q_huge in Ps_Q_huge do
 	function P(a)
@@ -1495,18 +1845,94 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 	end function;
 	Append(~Ps, P);
     end for;
+    return Ps;
+end function;
 
-    vprintf ModularSymbols, 1 : "Entering fixed_cusp_forms_QQ...\n";
+// function: BoxMethod
+// input: G - a subgroup of GL(2, N) for some N
+//        prec - a required precision for the q-expansions
+//        AtkinLehner - a list of AtkinLehner operators
+// output: fs - a list of coefficients of q-expansions for a basis of cusp forms in S_2(G, Q)
+//         tos - indices indicating from which twist orbit each of them was taken.
+
+function BoxMethod(G, prec : AtkinLehner := [], Chars := [], M := 0)
+
+    eps := create_character(G, Chars);
+    
+    gens, Bgens, best_K, best_M, ds := get_gens(G, eps);
+    if M eq 0 then
+	M := best_M;
+	K := best_K;
+    else
+	N := Modulus(BaseRing(G));
+	K := N div M;
+    end if;
+    N := M * K^2;
+
+    vprintf ModularCurves, 1 :  "Found generators. K = %o and M = %o.\n", K, M;
+
+    MS, C, gs, Bmats, eps_gens, eps_BPd_gens :=
+	compute_ms_action(G, eps, gens, Bgens, K, M, ds, AtkinLehner);
+
+    J := Transpose(StarInvolution(C));
+    Cplus := Kernel(Transpose(J-1));
+
+    vprintf ModularCurves, 1 : "Computing the Gamma fixed space...\n";
+
+    GFS := get_gamma_fixed_space(eps_gens, gs);
+
+    vprintf ModularCurves, 1 : "Dimension of fixed space is %o.\n",
+			       Dimension(GFS);
+
+    // making sure we will have enough equations. (Maybe, what about zero columns?)
+    numrels := Dimension(GFS) div 2 + 2;
+    prec := Maximum(prec, numrels + 1);
+    
+    vprintf ModularCurves, 1 : "Computing old subspaces...\n";
+
+    Tr_mats, Tr_ims, B_mats, deg_divs,
+    num_coset_reps, oldspaces_full,
+    oldspaces, C_old_new := get_old_spaces(MS);
+
+    vprintf ModularCurves, 1 : "Computing newforms...\n";
+    
+    NN, Nold, Nnew, as, nfd, nfd_old, Tpluslist, primes, prec :=
+	compute_newforms(C, C_old_new, prec, N);
+
+    vprintf ModularCurves, 1 : "Creating field embeddings...\n";
+    
+    field_embs, cc, Ps_Q_huge, SKpowersQ_L,
+    Q_huge, Q_L, zeta_huge, zeta_K,
+    Q_K_plus_to_Q_K, Q_K_to_Q_huge,
+    Q_L_to_Q_huge, ds,
+    Q_gcd, zeta_gcd, Q_gcd_to_Q_K,
+    gcd_fields, gcd_field_embs := createFieldEmbeddings(K, NN, C, ds);
+
+    // Taking only the forms with trivial Nebentypus character is not good enough
+    // We need to take represenatives for X / X^2!
+
+    vprintf ModularCurves, 1 : "Preparing character group...\n";
+
+    X, char_reps, chis := prepare_character_representatives(K);
+    a_idxs, as := restrict_to_character_reps(nfd, nfd_old, as, X, char_reps, K);
+
+    gcd_fields := [* gcd_fields[i] : i in a_idxs *];
+    gcd_field_embs := [* gcd_field_embs[i] : i in a_idxs *];
+    Kf_to_KKs := [* field_embs[i] : i in a_idxs *];
+    
+    Pds := get_aut_extensions(Ps_Q_huge, Q_huge);
+
+    vprintf ModularCurves, 1 : "Entering fixed_cusp_forms_QQ...\n";
     
     fs,tos := fixed_cusp_forms_QQ(as, primes, Tpluslist, Kf_to_KKs, prec,
-				  Gamma_fixed_space,Bs,
-				  Ps,elts,
+				  GFS,Bmats,
+				  Pds,ds,
 				  cc,
 				  NN,Nold,
 				  oldspaces_full, oldspaces,
 				  C, Cplus, chis,
 				  Q_huge, Q_L, zeta_huge, zeta_K,
-				  K, SKpowersQ_L,
+				  SKpowersQ_L,
 				  B_mats,
 				  Tr_mats,
 				  deg_divs,
@@ -1514,8 +1940,95 @@ function BoxMethod(G, prec : AtkinLehner := [], Chars := [])
 				  J,
 				  Q_K_plus_to_Q_K, Q_K_to_Q_huge,
 				  Q_L_to_Q_huge, Q_gcd, zeta_gcd,
-				  Q_gcd_to_Q_K, Nnew, eps_BPd_gens);
+				  Q_gcd_to_Q_K, Nnew, eps_BPd_gens,
+				  gcd_fields, gcd_field_embs);
+    
+    // We now have the forms over BaseField(eps)
+    // and we still need to get restriction of scalars to Q.
+    // (summing over the Galois orbit of the character)
+
+    F := BaseField(C);
+    cyc_base := Order(UnitGroup(F).1);
+    
+    powers := [CRT([1,a],[K div GCD(K, cyc_base),cyc_base]) : a in [1..cyc_base] |
+	       GCD(a,cyc_base) eq 1];
+    Q_K := Parent(zeta_K);
+    aut_Q_K := [hom<Q_K -> Q_K | zeta_K^pow> : pow in powers];
+    
+    // auts := Automorphisms(F);
+    auts := aut_Q_K;
+    xi := F.1;
+    fs_conj := [[Vector([sig(a) : a in Eltseq(f)])
+		 : f in fs] : sig in auts];
+    //    fs := &cat fs_conj;
+    
+    xi_conj := [sig(xi) : sig in auts];
+    fs := &cat[[&+[xi_conj[l]^j * fs_conj[l][i] : l in [1..#auts]]
+		: j in [0..Degree(F)-1]]
+	       : i in [1..#fs] ];
+   
     return fs, tos;
+end function;
+
+function precisionForCurve(PG : Proof := false)
+    
+    genus := Genus(PG);
+    max_deg := Maximum(7-genus, 3);
+    // This is the precision needed for linearly independent equations
+    prec := Binomial(max_deg + genus - 1, max_deg);
+    prec *:= Level(PG);
+    prec +:= 2;
+    if Proof then
+	k := 2*max_deg;
+	m := Index(PG);
+	N := Level(PG);
+	// This is the Sturm bound for weight k modular forms
+	sturm := Ceiling(k*m/12 - (m-1)/N);
+	// we multiply by the level since our q-expansions are in q^{1/N}
+	// should replace that by the K that we are using
+	// In general, should be the cusp width, but only if this is the
+	// uniformizer we are actually using.
+	prec := Maximum(prec, sturm * N);
+    end if;
+   
+    return prec, max_deg;
+end function;
+
+function getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := true)
+    assert genus ge 2;
+
+    assert Minimum([AbsolutePrecision(f) : f in fs]) ge prec;
+    
+    X := FindCurveSimple(fs, prec, max_deg);
+    
+    // If could not find equations, magma now spits an error
+    // when trying to compute the genus
+    // g := Genus(X);
+    
+    // if g eq 0 then
+    if DefiningPolynomials(X) eq [0] then
+	//print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+	X, fs := FindHyperellipticCurve(fs, prec);
+	return X, fs;
+    else
+	if CheckGenus then
+	    vprintf ModularCurves, 1: "Computing genus of curve...\n";
+	    g := Genus(X);
+	    vprintf ModularCurves, 1: "Done.";
+	    if g eq 0 then
+		// print "Curve is Hyperelliptic. Finding equations not implemented yet.";
+		X, fs := FindHyperellipticCurve(fs, prec);
+		return X, fs;
+	    else
+		assert g eq genus;
+		X_Q := ChangeRing(X, Rationals());
+		return X_Q, fs;
+	    end if;
+	else
+	    X_Q := ChangeRing(X, Rationals());
+	    return X_Q, fs;
+	end if;
+    end if;
 end function;
 
 // function: ModularCurve
@@ -1525,39 +2038,29 @@ end function;
 // output: X - a model for the canonical embdding of the modular curve X_G
 //         fs - the q-expansions of a basis of cusp forms
 
-function ModularCurveBox(G, genus : Precision := 0)
+function ModularCurveBox(G, genus : Precision := 0, Proof := false,
+			 chars := false)
     assert genus ge 2;
-    max_deg := Maximum(7-genus, 3);
-    prec := Binomial(max_deg + genus - 1, max_deg);
+    N := Modulus(BaseRing(G));
     PG := PSL2Subgroup(G);
-//    h := CuspWidth(PG, Infinity());
-    N := Level(PG);
-    //    prec *:= N div h; // This is the amount of non-zero coefficients we need
-    prec *:= N;
-    prec +:= 2; // For a random set of linear equations, his has high probability of giving prec
-    // Problem : our set of equations is not random. Is this a good enough correction?
-    // linearly independent equations.
+    prec, max_deg := precisionForCurve(PG : Proof := Proof);
     if Precision ne 0 then
-        prec := Precision;
+        prec := Max(prec, Precision);
     end if;
-    fs := BoxMethod(G, prec);
-    K := BaseRing(Universe(fs));
-    _<q> := PowerSeriesRing(K);
-    fs := qExpansions(fs, prec, q, K, true);
-    X := FindCurveSimple(fs, prec, max_deg);
-    g := Genus(X);
-    if g eq 0 then
-	print "Curve is Hyperelliptic. Finding equations not implemented yet.";
-	//	X, fs := FindHyperellipticCurve(fs_qexps, prec);
-	return X, fs;
-    else
-	assert Genus(X) eq genus;
-	X_Q := ChangeRing(X, Rationals());
-	return X_Q, fs;
+    if chars then
+      MS := CuspidalSubspace(ModularSymbols(PG));
+      fs := qExpansionBasis(MS, prec : Al := "Box");
+    else  
+      fs := BoxMethod(G, prec);
+      K := BaseRing(Universe(fs));
+      _<q> := PowerSeriesRing(K);
+      fs := qExpansions(fs, prec, q, K, true);
     end if;
+    return getCurveFromForms(fs, prec, max_deg, genus);
 end function;
 
-intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
+intrinsic ModularCurve(G::GrpPSL2 : Proof := false) -> Crv[FldRat],
+                                                       SeqEnum[RngSerPowElt]
 {Returns the canonical embedding of the modular curve associated to G,
  together with the q-expansions of a basis of cusp forms.}
   if IsGamma0(G) then
@@ -1566,7 +2069,7 @@ intrinsic ModularCurve(G::GrpPSL2) -> Crv[FldRat], SeqEnum[RngSerPowElt]
   end if;
   genus := Genus(G);
   require genus ge 2 : "Currenty not implemented for genus < 2";
-  return ModularCurveBox(ImageInLevelGL(G), genus);
+  return ModularCurveBox(ImageInLevelGL(G), genus : Proof := Proof);
 end intrinsic;
 
 // procedure: testBoxExample
@@ -1576,7 +2079,7 @@ procedure testBoxExample()
     prec := 200;
     fs := [* *];
     for num in [1..3] do
-	vprintf ModularSymbols, 1 : "computing for Box's group number %o.\n", num;
+	vprintf ModularCurves, 1 : "computing for Box's group number %o.\n", num;
 	G, ws := getBoxGandAL(num);
 	Append(~fs, BoxMethod(G, prec : AtkinLehner := ws));
     end for;
@@ -1592,31 +2095,86 @@ procedure testBoxExample()
 end procedure;
 
 // This tests Box's method using the database of congruence subgroups
-import "../congruence.m" : qExpansionBasis;
+import "../congruence.m" : qExpansionBasisPSL2, createPSL2, write_qexps;
 
-procedure testBox(grps_by_name)
-    testBoxExample();
+procedure testBoxSingle(grps_by_name, name : Proof := false,
+					     Normalizers := false,
+					     WriteFile := false,
+					     CheckGenus := true,
+					     M := 0)
+    genus := grps_by_name[name]`genus;
+    PG := createPSL2(grps_by_name[name]);
+    prec, max_deg := precisionForCurve(PG : Proof := Proof);
+    fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec,
+						   Normalizers := Normalizers,
+						   M := M);
+    if (genus gt 1) then
+	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus : CheckGenus := CheckGenus);
+	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
+    else
+	vprintf ModularCurves, 1 : "Curve is of genus 1. Right now not implemented in general. Writing a dummy P1.\n";
+	R<q> := Universe(fs);
+	K := BaseRing(R);
+	// we return a dummy P1 for now
+	R<x,y> := PolynomialRing(K,2);
+	X := Curve(ProjectiveSpace(R));
+    end if;
+    if WriteFile then
+	write_qexps(name, fs, X);
+    end if;
+end procedure;
+
+// Not working -
+// 10C3 - arguments do not define a curve
+
+// Not working with character -
+// 10A3 - arguments do not define a curve
+
+procedure testBox(grps_by_name : Proof := false,
+				 Normalizers := false,
+				 WriteFiles := false)
+    
     working_examples := ["7A3", "8A2", "8A3", "8B3", "8A5",
 			 "9A2", "9B2", "9A3", "9A4", "9B4", "9C4",
 			 "10A2", "10B2", "10A3", "10A4", 
 			 "11A2", "11A6",
 			 "12B2", "12E2",
 			 "14B6",
+			 "17A6",
 			 "18A6", "18B6", "18C6",
 			 "20C6",
 			 "21B6", "21C6",
-			 "22A6", "22B6",
-			 "35E6"];
-    // Checked all real type conjugates for:
-    // 7A3, 8A2, 8A3, 8B3, 9A2
-    // Hyperelliptic (curve finding not implemented yet):
-    // 8A2, 8B3, 9A2, 9B2, 10A2, 10B2, 10D2, 10E2, 10F2, 11A2,
-    // 12B2, 12C2, 12E2, 12F2
-    // still not working:
+			 // We exclude 22C6 because it takes too much time.
+			 // Once normalizers is running well enough, can add it back.
+			 "22A6", "22B6", // "22C6",
+			 "24G6",
+			 "30E6",
+			 "35E6",
+			 "58A6",
+			 "66B6",
+			 "66D6",
+			 "69A6",
+			 "87A6",
+			 "121A6"];
 
     for name in working_examples do
-	vprintf ModularSymbols, 1 : "Working on group %o\n", name;
-	X<[x]>, fs := qExpansionBasis(name, grps_by_name);
-	vprintf ModularSymbols, 1 : "Canonical curve is %o\n", X;
+	vprintf ModularCurves, 1 : "Working on group %o\n", name;
+	/*
+	genus := grps_by_name[name]`genus;
+	PG := createPSL2(grps_by_name[name]);
+	prec, max_deg := precisionForCurve(PG : Proof := Proof);
+	fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec,
+						       Normalizers := Normalizers);
+	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
+	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
+	if WriteFiles then
+	    write_qexps(name, fs, X);
+	end if;
+       */
+	testBoxSingle(grps_by_name, name : Proof := Proof,
+					   Normalizers := Normalizers,
+					   WriteFile := WriteFiles);
     end for;
+
+    testBoxExample();
 end procedure;

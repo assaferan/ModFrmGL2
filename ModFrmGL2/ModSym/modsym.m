@@ -544,12 +544,12 @@ intrinsic ModularSymbols(G::GrpPSL2, k::RngIntElt,
    require IsSupportedField(F) : SupportMessage;
 
    H := ImageInLevelGL(G);
-
-   /*
+/*
    if not IsOfRealType(G) then
      H := GetRealConjugate(H);
      G := PSL2Subgroup(H);
    end if;
+*/
 /*
    if assigned G`DetRep and #Domain(G`DetRep) lt EulerPhi(Level(G)) then
      H := GetGLModel(H);

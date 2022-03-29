@@ -481,17 +481,21 @@ The base field must be either the rationals or a cyclotomic field.}
      Append(~forms, form);
      Append(~mats, mat);
    end for;
-   J := mats[1];
-   K := BaseRing(J);
-   for mat in mats[2..#mats] do
-     K := Compositum(K, BaseRing(mat));
-     J := DirectSum(ChangeRing(J,K), ChangeRing(mat, K));
-   end for;
+   if not IsOfGammaType(D[1]) then
+       J := mats[1];
+       K := BaseRing(J);
+       for mat in mats[2..#mats] do
+	   K := Compositum(K, BaseRing(mat));
+	   J := DirectSum(ChangeRing(J,K), ChangeRing(mat, K));
+       end for;
+   end if;
    S, I := SaturatePolySeq(&cat forms, prec);
    R:=Parent(S[1]);
    q:=R.1;
-   return [ f+O(q^prec) : f in S | not IsWeaklyZero(f+O(q^prec)) ],
-     ChangeRing(I,K)*J;
+   if not IsOfGammaType(D[1]) then
+       I := ChangeRing(I, K)*J;
+   end if;
+   return [ f+O(q^prec) : f in S | not IsWeaklyZero(f+O(q^prec)) ], I;
 end intrinsic;
 
 
@@ -549,7 +553,7 @@ of more Hecke operators.}
 end intrinsic;
 
 intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
-                          Al := "Newform") -> SeqEnum
+                          Al := "Newform", M_val := 0) -> SeqEnum
 {"} // "
    prec := Max(2,prec);
 
@@ -571,7 +575,23 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
        "The characteristic of the base field must equal 0.  Try qEigenform on an irreducible space instead.";
 
    if IsMultiChar(M) then
-       return &cat[qExpansionBasis(CuspidalSubspace(m), prec : Al := Al) : m in MultiSpaces(M)];
+       S := [* qExpansionBasis(CuspidalSubspace(m), prec : Al := Al, M_val := M_val) : m in MultiSpaces(M) *];
+       S := [* s : s in S | not IsEmpty(s) *];
+       fields := [* BaseRing(Universe(s)) : s in S *];
+       // if compositum fails, we can do this
+//       conds := [* Conductor(AbsoluteField(F)) : F in fields *];
+       if not IsEmpty(S) then
+	   F := fields[1];
+	   for idx in [2..#S] do
+	       F := Compositum(F, fields[idx]);
+	   end for;
+	   R<q> := PowerSeriesRing(F);
+	   if (Type(F) ne FldRat) then
+	       F<zeta> := F;
+	   end if;
+	   S := &cat[[R!f : f in s] : s in S];
+       end if;
+       return S;
    end if;
 
    if Dimension(M) eq 0 then
@@ -599,7 +619,9 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
                         qExpansionBasisUniversal(M,prec, false) else
                         (Al eq "Newform" select
 			 qExpansionBasisNewform(M,prec, false) else
-			 qExpansionBasisBox(M, prec, false));
+			 // we scale by a common denominator
+			 qExpansionBasisBox(M, prec : M_val := M_val));
+      prec := M`qexpbasis[1];
    end if;
    _<q> := Universe(M`qexpbasis[2]);
    return [f + O(q^prec) : f in M`qexpbasis[2] | not IsWeaklyZero(f+O(q^prec)) ];
@@ -637,9 +659,8 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    require Type(BaseField(A)) in {FldRat, FldCyc} : 
                  "The base field must be either the rationals or a cyclotomic field.";
    require IsCuspidal(A) : "Argument 1 must be cuspidal.";
-   require Al eq "Universal" or Al eq "Newform" :
-         "Al paramater must equal either \"Universal\" or \"Newform\".";
-
+   require Al eq "Universal" or Al eq "Newform" or Al eq "Box":
+         "Al paramater must equal either \"Universal\" or \"Newform\" or \"Box\".";
    /*
    // At the moment, newform decomposition is not supported in general
    if not IsOfGammaType(A) then
@@ -712,7 +733,7 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
 	 ans, I := qExpansionBasisNewform(A, prec_new, true);
       else
 	  prec_new := prec;
-	  ans, I := qExpansionBasisBox(A, prec_new, true);
+	  ans, I := qExpansionBasisBox(A, prec_new);
       end if;
       A`qintbasis[2] := ans;
       A`qintbasis[1] := prec_new;
@@ -811,7 +832,7 @@ function SpaceGeneratedByImages(C, N, F, do_saturate, prec : debug:=false)
 	    I := DirectSum(I, I_other);
          end for;
       else
-         I := IdentityMatrix(BaseRing(Parent(C[1])), #ans);  
+         I := IdentityMatrix(FieldOfFractions(BaseRing(Parent(C[1]))), #ans);  
       end if;
       ans, J := SaturatePolySeq(ans,prec);
       return ans, ChangeRing(J, BaseRing(I))*I;
@@ -858,8 +879,10 @@ function qExpansionBasisNewform(A, prec, do_saturate)
          IndentPush(); time0 := Cputime();
       end if;
       f := qEigenform(A,prec : debug:=debug);
-      old_eigforms := [f];
-      Anew := AssociatedNewSpace(A);
+      if not IsOfGammaType(A) then
+	  old_eigforms := [f];
+	  Anew := AssociatedNewSpace(A);
+      end if;
       if (not IsOfGammaType(A)) and
 	 (LevelSubgroup(A) ne LevelSubgroup(Anew)) then
 	  /*
@@ -910,86 +933,141 @@ function qExpansionBasisNewform(A, prec, do_saturate)
          IndentPop();
          printf " ... qEigenform took %os\n", Cputime(time0);
       end if;
-      all_B := [];
-      all_I := [* *];
-      dim := Maximum([#Eltseq(f) : f in old_eigforms] cat [prec-1]);
-      for f in old_eigforms do
-        Q := BaseRing(Parent(f));
-      //V := VectorSpace(BaseField(A),#Eltseq(f));
-        V := VectorSpace(BaseField(A), dim);
-        if Q cmpeq BaseField(A) then
-	   // seq := Eltseq(f);
-	   seq := Eltseq(f) cat [0 : i in [#Eltseq(f)+1..dim]];
-           B := [V!seq];
-           F := (do_saturate and Type(BaseField(A)) eq FldRat) 
-                             select Integers() else BaseField(A);
-           I := Matrix([[Q!1]]);
-        else
-            if ISA( Type(Q), FldNum) then
-		if not IsNormal(Q) then
-		    Q := NormalClosure(Q);
-		    Qq := PowerSeriesRing(Q);
-		    ff := Qq!f;
-		end if;
-              V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
+      if not IsOfGammaType(A) then
+	  all_B := [];
+	  all_I := [* *];
+	  dim := Maximum([#Eltseq(f) : f in old_eigforms] cat [prec-1]);
+	  for f in old_eigforms do
+              Q := BaseRing(Parent(f));
+	      //V := VectorSpace(BaseField(A),#Eltseq(f));
+              V := VectorSpace(BaseField(A), dim);
+              if Q cmpeq BaseField(A) then
+		  // seq := Eltseq(f);
+		  seq := Eltseq(f) cat [0 : i in [#Eltseq(f)+1..dim]];
+		  B := [V!seq];
+		  F := (do_saturate and Type(BaseField(A)) eq FldRat) 
+                       select Integers() else BaseField(A);
+		  I := Matrix([[Q!1]]);
+              else
+		  if ISA( Type(Q), FldNum) then
+		      if not IsNormal(Q) then
+			  Q := NormalClosure(Q);
+			  Qq := PowerSeriesRing(Q);
+			  ff := Qq!f;
+		      else
+			  ff := f;
+		      end if;
+		      V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
                                                     // because Eltseq(f) omits trailing zeros
-              // TO DO: make the next line optimal
-              // time 
-              coeffs := [ Eltseq(Coefficient(ff,i)) : i in [1..prec-1] ];
-              B := [V! [coeffs[i][j] : i in [1..#coeffs]] :
-		    j in [1..Degree(Q)]];
-	      // This fails when K(f) is not Galois !!!
-              // gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
-	      gal, dummy, psi := AutomorphismGroup(Q, BaseField(A));
-              T := Matrix([[(g@psi)(Coefficient(ff,j)) :
-				      j in [1..prec-1]] : g in gal]);
-	      E, I := EchelonForm(T);
-              delete coeffs;
-           else
-              assert Type(Q) eq RngUPolRes;
-              // this is what was here previously:
-              g := Modulus(Q);
-              n := Degree(g);
-              R := PreimageRing(Q);
-	      //B := [V![Coefficient(R!a,j) : a in Eltseq(f)] : j in [0..n-1]];
-	      seq := Eltseq(f) cat [0 : i in [#Eltseq(f)+1..dim]];
-	      B := [V![Coefficient(R!a,j) : a in seq] : j in [0..n-1]];
-	      // !!! TODO: Is this correct???
-              gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
-					       BaseField(A));
-              mat := Matrix([[(g@psi)(Coefficient(f,j)) :
-				 j in [1..Degree(f)]] :	g in gal]);
-	      E, I := EchelonForm(mat);
-           end if;
-           if do_saturate 
-              and Type(BaseField(A)) eq FldRat then
-                 // Steve changed this
-                 // C := Basis(Saturate(B));
-                 B := Saturation(Matrix(B));
-                 r := Nrows(B);
-                 B := [ B[i] : i in [1..r] ];
-                 F := Integers();
-           else
-              F := BaseField(A);
-           end if;
-        end if;
-        assert #B gt 0;
-	all_B cat:= B;
-	Append(~all_I,I); 
-      end for;
-      assert #all_I gt 0;
-      I := all_I[1];
-      for I_other in all_I[2..#all_I] do
-	 I := DirectSum(I, I_other);
-      end for;
-      // B may contain either vectors or power series (see SpaceGeneratedByImages)
-      //      return SpaceGeneratedByImages(B, Level(A) div Level(AssociatedNewSpace(A)),
-      N := (IsOfGammaType(A) select
-	    Level(A) div Level(AssociatedNewSpace(A)) else 1);
-      ans, J := SpaceGeneratedByImages(all_B, N, 
-                                    F, do_saturate, prec : debug:=debug);
-     
-      I := TensorProduct(I, IdentityMatrix(BaseRing(I), Nrows(J) div Nrows(I)));
+		      // TO DO: make the next line optimal
+		      // time 
+		      coeffs := [ Eltseq(Coefficient(ff,i)) : i in [1..prec-1] ];
+		      B := [V! [coeffs[i][j] : i in [1..#coeffs]] :
+			    j in [1..Degree(Q)]];
+		      // This fails when K(f) is not Galois !!!
+		      // gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
+		      gal, dummy, psi := AutomorphismGroup(Q, BaseField(A));
+		      T := Matrix([[(g@psi)(Coefficient(ff,j)) :
+				    j in [1..prec-1]] : g in gal]);
+		      E, I := EchelonForm(T);
+		      delete coeffs;
+		  else
+		      assert Type(Q) eq RngUPolRes;
+		      // this is what was here previously:
+		      g := Modulus(Q);
+		      n := Degree(g);
+		      R := PreimageRing(Q);
+		      //B := [V![Coefficient(R!a,j) : a in Eltseq(f)] : j in [0..n-1]];
+		      seq := Eltseq(f) cat [0 : i in [#Eltseq(f)+1..dim]];
+		      B := [V![Coefficient(R!a,j) : a in seq] : j in [0..n-1]];
+		      // !!! TODO: Is this correct???
+		      gal, dummy, psi := AutomorphismGroup(BaseRing(Parent(f)),
+							   BaseField(A));
+		      mat := Matrix([[(g@psi)(Coefficient(f,j)) :
+				      j in [1..Degree(f)]] :	g in gal]);
+		      E, I := EchelonForm(mat);
+		  end if;
+		  if do_saturate 
+		     and Type(BaseField(A)) eq FldRat then
+                      // Steve changed this
+                      // C := Basis(Saturate(B));
+                      B := Saturation(Matrix(B));
+                      r := Nrows(B);
+                      B := [ B[i] : i in [1..r] ];
+                      F := Integers();
+		  else
+		      F := BaseField(A);
+		  end if;
+              end if;
+              assert #B gt 0;
+	      all_B cat:= B;
+	      Append(~all_I,I); 
+	  end for;
+	  assert #all_I gt 0;
+	  I := all_I[1];
+	  for I_other in all_I[2..#all_I] do
+	      I := DirectSum(I, I_other);
+	  end for;
+	  // B may contain either vectors or power series (see SpaceGeneratedByImages)
+	  //      return SpaceGeneratedByImages(B, Level(A) div Level(AssociatedNewSpace(A)),
+	  N := (IsOfGammaType(A) select
+		Level(A) div Level(AssociatedNewSpace(A)) else 1);
+	  ans, J := SpaceGeneratedByImages(all_B, N, 
+					   F, do_saturate, prec : debug:=debug);
+	  // if the base field is not Galois
+	  //if ISA( Type(Q), FldNum) then
+	  // J := Matrix(&cat[[[(g@psi)(f_J[j]) :
+	  //		     j in [1..Ncols(J)]] : f_J in Rows(J)] : g in gal]);
+	  //end if;
+	  
+	  I := TensorProduct(I, IdentityMatrix(BaseRing(I), Nrows(J) div Nrows(I)));
+
+	  // This is a quick patch as we don't really need it right now
+	  if Nrows(I) ne Nrows(J) then
+	      I := IdentityMatrix(BaseRing(I), Nrows(J));
+	  end if;
+      else
+	        Q := BaseRing(Parent(f));
+		V := VectorSpace(BaseField(A),#Eltseq(f));
+		if Q cmpeq BaseField(A) then
+		    seq := Eltseq(f);
+		    B := [V!seq];
+		    F := (do_saturate and Type(BaseField(A)) eq FldRat) 
+                         select Integers() else BaseField(A);
+		else
+		    if ISA( Type(Q), FldNum) then
+			V := VectorSpace(BaseField(A), prec-1); // note that the dimension may be different
+                        // because Eltseq(f) omits trailing zeros
+			// TO DO: make the next line optimal
+			// time 
+			coeffs := [ Eltseq(Coefficient(f,i)) : i in [1..prec-1] ];
+			B := [V! [coeffs[i][j] : i in [1..#coeffs]] : j in [1..Degree(Q)]];
+			delete coeffs;
+		    else
+			assert Type(Q) eq RngUPolRes;
+			// this is what was here previously:
+			g := Modulus(Q);
+			n := Degree(g);
+			R := PreimageRing(Q);
+			B := [V![Coefficient(R!a,j) : a in Eltseq(f)] : j in [0..n-1]];
+		    end if;
+		    if do_saturate 
+		       and Type(BaseField(A)) eq FldRat then
+			// Steve changed this
+			// C := Basis(Saturate(B));
+			B := Saturation(Matrix(B));
+			r := Nrows(B);
+			B := [ B[i] : i in [1..r] ];
+			F := Integers();
+		    else
+			F := BaseField(A);
+		    end if;
+		end if;
+		assert #B gt 0;
+		ans, J := SpaceGeneratedByImages(B, Level(A) div Level(AssociatedNewSpace(A)), 
+						 F, do_saturate, prec : debug:=debug);
+		I := IdentityMatrix(Q, Nrows(J));
+      end if;
       return ans, I*ChangeRing(J, BaseRing(I));
    end if;
 end function;
@@ -2102,16 +2180,21 @@ intrinsic ActionOnEchelonFormBasis(g::GrpMatElt, M::ModSym) -> AlgMatElt
   return I^(-1) * s_hol * I;
 end intrinsic;
 
-function qExpansionBasisBox(A, prec, do_saturate)
+function qExpansionBasisBox(A, prec : M_val := 0)
     // at the moment we can only do this for the entire space.
     // Are we able to find forms corresponding to Hecke subspaces?
     assert A eq CuspidalSubspace(AmbientSpace(A));
     G := ImageInLevelGL(LevelSubgroup(A));
     // what about the character?
-    fs := BoxMethod(G, prec : Chars := [DirichletCharacter(A)]);
+    fs := BoxMethod(G, prec : Chars := [DirichletCharacter(A)], M := M_val);
     if IsEmpty(fs) then return fs; end if;
     K := BaseRing(Universe(fs));
     _<q> := PowerSeriesRing(K);
-    fs := qExpansions(fs,prec,q,K,do_saturate);
+    new_prec := Minimum([Degree(f)+1 : f in fs]);
+    // we don't want to normalize until the end, because of multichar
+    //    fs := qExpansions(fs,new_prec,q,K, true);
+    fs := qExpansions(fs,new_prec,q,K, false);
+    // we update the precision
+    A`qexpbasis[1] := new_prec;
     return fs;
 end function;

@@ -11,6 +11,38 @@ ModFrmGL2/genus6_Q.txt~
 .DS_Store
 data/.DS_Store
 data/modular curves/.DS_Store
+*.spec~
+ModFrmGL2/11A6_shim.m
+ModFrmGL2/22C6_shim.m
+ModFrmGL2/31A6_shim.m
+ModFrmGL2/31B6_shim.m
+ModFrmGL2/58A6_shim.m
+ModFrmGL2/ModSym/.#qexpansion.m
+ModFrmGL2/108F10_shim.m
+ModFrmGL2/121A6_shim.m
+ModFrmGL2/127A10_shim.m
+ModFrmGL2/14B6.m
+ModFrmGL2/18E10_shim.m
+ModFrmGL2/18M10_shim.m
+ModFrmGL2/26D10_shim.m
+ModFrmGL2/27B10_shim.m
+ModFrmGL2/28D10_shim.m
+ModFrmGL2/35C15_shim.m
+ModFrmGL2/36Q10_shim.m
+ModFrmGL2/37A10_shim.m
+ModFrmGL2/38A10_shim.m
+ModFrmGL2/46A10_shim.m
+ModFrmGL2/54A10_shim.m
+ModFrmGL2/54I10_shim.m
+ModFrmGL2/71A6_shim.m
+ModFrmGL2/79A6_shim.m
+ModFrmGL2/81A10_shim.m
+ModFrmGL2/86A10_shim.m
+ModFrmGL2/92A10_shim.m
+ModFrmGL2/9A10_shim.m
+*.dat#
+*.dat~
+*.sig
 data/modular curves/Genus 10/108F10_shim.m
 data/modular curves/Genus 10/127A10_shim.m
 data/modular curves/Genus 10/18E10_shim.m
@@ -49,7 +81,6 @@ data/modular curves/Genus 6/35E6.m
 data/modular curves/Genus 6/58A6_shim.m
 data/modular curves/Genus 6/71A6_shim.m
 data/modular curves/Genus 6/79A6_shim.m
-
 *.sig
 *.dat~
 *.dat#

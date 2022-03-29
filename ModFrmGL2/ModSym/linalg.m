@@ -457,7 +457,7 @@ end function;
 
 QQ := RationalField();
 
-function RestrictionOfScalars_AlgMatElt(A) 
+function RestrictionOfScalars_AlgMatElt(A : Base := RationalField()) 
 /* The restriction of scalars to the rational field 
    of the matrix A over a number field.
    If alpha1,...,alphad is the basis for the number field F,
@@ -474,11 +474,19 @@ function RestrictionOfScalars_AlgMatElt(A)
       return A;
    end if;
    n := Degree(Parent(A));
+   if (Type(BaseRing(K)) ne Type(Base)) or (BaseRing(K) ne Base) then
+       K := RelativeField(Base, K);
+       if IsIsomorphic(K, Base) then
+	  return MatrixAlgebra(Base, n)!A;
+       end if;
+   end if;
    d := Degree(K);
    if d eq 1 then
-      return MatrixAlgebra(RationalField(),n)!A;
+       // return MatrixAlgebra(RationalField(),n)!A;
+       return MatrixAlgebra(Base, n)!A;
    end if;
-   B := MatrixAlgebra(RationalField(),d*n)!0;
+   // B := MatrixAlgebra(RationalField(),d*n)!0;
+   B := MatrixAlgebra(Base, d*n)!0;
    basis := Basis(K);
    for i in [1..n] do
       v := A[i];
@@ -549,30 +557,65 @@ function RestrictionOfScalars_ModTupFld(V)
    return VectorSpaceWithBasis([RestrictionOfScalars(a*v) : v in BV, a in BK]);
 end function;
 
+function RelativeBasis(K, Base)
+    if (Type(BaseRing(K)) ne Type(Base)) or (BaseRing(K) ne Base) then
+	K := RelativeField(Base, K);
+	basis := Basis(K);
+	if IsIsomorphic(K, Base) then
+	    basis := [K | 1];
+	end if;
+    else
+	basis := Basis(K);
+    end if;
+    return basis;
+end function;
 
-function RestrictionOfScalars_SeqEnum(v) 
+function RelativeDegree(K, Base)
+    // !! TODO - make it work in general. This is temporary, works in most cases.
+    // return Degree(AbsoluteField(K)) div Degree(AbsoluteField(Base));
+    return Degree(K) div Degree(Base); 
+end function;
+
+function RelativeEltseq(a, Base)
+    K := Parent(a);
+    if (Type(BaseField(K)) ne Type(Base)) or (BaseField(K) ne Base) then
+	K := RelativeField(Base, K);
+	x := Eltseq(K!a);
+	if IsIsomorphic(K, Base) then
+	    x := [Base!a];
+	end if;
+    else
+	x := Eltseq(K!a);
+    end if;
+    return x;
+end function;
+
+function RestrictionOfScalars_SeqEnum(v : Base := QQ) 
    assert Type(v) eq SeqEnum;
    if #v eq 0 then
-      return VectorSpace(QQ,0)!0;
+       // return VectorSpace(QQ,0)!0;
+       return VectorSpace(Base,0)!0;
    end if;
    K := Parent(v[1]);
    assert Type(K) in {FldRat, FldCyc, FldNum, RngInt};
    if Type(K) eq FldRat then
       return VectorSpace(QQ, #v)!v;
    end if;
-   V := VectorSpace(QQ,#v*Degree(K));
-   return V![Eltseq(x)[i] : x in v, i in [1..Degree(K)]];
-
+   //   V := VectorSpace(QQ,#v*Degree(K));
+   deg := RelativeDegree(K, Base);
+   V := VectorSpace(Base,#v*deg);
+//   return V![Eltseq(x)[i] : x in v, i in [1..Degree(K)]];
+   return V![RelativeEltseq(x, Base)[i] : x in v, i in [1..deg]];
 end function;
 
-function RestrictionOfScalars(x)
+function RestrictionOfScalars(x : Base := RationalField())
 //   if (Type(x) eq SeqEnum and (#x eq 0 or Type(x[1]) eq FldRat)) or
 //      (Type(x) ne SeqEnum and (Type(BaseRing(Parent(x))) eq FldRat)) then
 //      return x;
 //   end if;
    case Type(x):
       when AlgMatElt:
-         return RestrictionOfScalars_AlgMatElt(x);
+         return RestrictionOfScalars_AlgMatElt(x : Base := Base);
       when ModMatFldElt:
          return RestrictionOfScalars_ModMatFldElt(x);
       when ModTupFldElt:
@@ -580,7 +623,7 @@ function RestrictionOfScalars(x)
       when ModTupFld:
          return RestrictionOfScalars_ModTupFld(x);
       when SeqEnum:
-         return RestrictionOfScalars_SeqEnum(x);
+         return RestrictionOfScalars_SeqEnum(x : Base := Base);
       else:
          print "Type(x) = ", Type(x);
          assert false;
@@ -600,13 +643,15 @@ function UnRestrictionOfScalars_ModMatFldElt(x, K)
    error "Not yet written";
 end function;
 
-function UnRestrictionOfScalars_ModTupFldElt(x, K)
-   d := Degree(K);
-   n := Degree(x) div d;
-   return VectorSpace(K, n) ! [K![x[j+n*i] : i in [0..d-1]] : j in [1..n]];
+function UnRestrictionOfScalars_ModTupFldElt(x, K : Base := RationalField())
+    basis := RelativeBasis(K, Base);
+    d := #basis;
+    n := Degree(x) div d;
+    //    return VectorSpace(K, n) ! [K![x[j+n*i] : i in [0..d-1]] : j in [1..n]];
+    return VectorSpace(K, n) ! [&+[x[j+n*i]*basis[i+1] : i in [0..d-1]] : j in [1..n]];
 end function;
 
-function UnRestrictionOfScalars(x, K)
+function UnRestrictionOfScalars(x, K : Base := RationalField())
    if Type(K) eq FldRat then
       return x;
    end if;
@@ -616,7 +661,7 @@ function UnRestrictionOfScalars(x, K)
       when ModMatFldElt:
          return UnRestrictionOfScalars_ModMatFldElt(x, K);
       when ModTupFldElt, LatElt:
-         return UnRestrictionOfScalars_ModTupFldElt(x, K);
+         return UnRestrictionOfScalars_ModTupFldElt(x, K : Base := Base);
       else:
          assert false;
    end case;

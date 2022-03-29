@@ -64,7 +64,7 @@ end if;
 import "./ModSym/multichar.m" : MC_NewformDecompositionOfCuspidalSubspace;
 import "./Tests/nsCartan.m" : Test_NSCartan_11, Test_NSCartan_17, Test_NSCartan;
 import "./ModSym/decomp.m" : GetNN;
-import "./ModSym/modsym.m" : GetRealConjugate;
+// import "./ModSym/modsym.m" : GetRealConjugate;
 import "twists.m" : TwistBasis0, get_qexps_from_bases, FindCurveSimple;
 
 function my_idxG0(n)
@@ -838,7 +838,7 @@ procedure Test_S13()
     S4tp := sub<GL(2,p) | [mp(1+s) : s in [i,j,k]]
     			cat [mp(1-s) : s in [i,j,k]] cat [-1]>;
     H_S4 := sub<GL(2,Integers(p)) | Generators(S4tp)>;
-// H_S4 := GetRealConjugate(H_S4);
+//    H_S4 := GetRealConjugate(H_S4);
     G_S4 := PSL2Subgroup(H_S4);
     G_S4 := RealTypeConjugate(G_S4);
     M := ModularSymbols(G_S4, 2, Rationals(), 0);
@@ -870,7 +870,7 @@ procedure Test_2adic()
     H_N := sub<GL(2,Integers(N)) | gens>;
 // H_N := GetRealConjugate(H_N);
     H := PSL2Subgroup(H_N);
-    H := RealTypeConjugate(H);
+H := RealTypeConjugate(H);
     M := ModularSymbols(H, 2, Rationals(), 0);
     S := CuspidalSubspace(M);
     D := Decomposition(S, HeckeBound(S));
