@@ -1477,8 +1477,8 @@ function FindHyperellipticCurve(qexps, prec)
     x := fs[g-1] / fs[g];
     y := q * Derivative(x) / fs[g];
     mons := [x^i : i in [0..2*g+2]] cat [-y^2];
-    denom := q^(-(2*g+2)*Valuation(y));
-    f_mons := [denom*m + O(q^AbsolutePrecision(x)) : m in mons];
+    denom := q^(-(2*g+2)*Valuation(x));
+    f_mons := [denom*m + O(q^AbsolutePrecision(y)) : m in mons];
     ker := Kernel(Matrix([AbsEltseq(f : FixedLength) : f in f_mons]));
     assert Dimension(ker) eq 1;
     ker_b := Basis(ker)[1];
@@ -2157,18 +2157,6 @@ procedure testBox(grps_by_name : Proof := false,
 
     for name in working_examples do
 	vprintf ModularCurves, 1 : "Working on group %o\n", name;
-	/*
-	genus := grps_by_name[name]`genus;
-	PG := createPSL2(grps_by_name[name]);
-	prec, max_deg := precisionForCurve(PG : Proof := Proof);
-	fs := qExpansionBasisPSL2(name, grps_by_name : Precision := prec,
-						       Normalizers := Normalizers);
-	X<[x]>, fs := getCurveFromForms(fs, prec, max_deg, genus);
-	vprintf ModularCurves, 1 : "Canonical curve is %o\n", X;
-	if WriteFiles then
-	    write_qexps(name, fs, X);
-	end if;
-       */
 	testBoxSingle(grps_by_name, name : Proof := Proof,
 					   Normalizers := Normalizers,
 					   WriteFile := WriteFiles);
