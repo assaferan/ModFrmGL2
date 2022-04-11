@@ -620,7 +620,7 @@ intrinsic qExpansionBasis(M::ModSym, prec::RngIntElt :
                         (Al eq "Newform" select
 			 qExpansionBasisNewform(M,prec, false) else
 			 // we scale by a common denominator
-			 qExpansionBasisBox(M, prec : M_val := M_val));
+			 qExpansionBasisBox(M, prec, false : M_val := M_val));
       prec := M`qexpbasis[1];
    end if;
    _<q> := Universe(M`qexpbasis[2]);
@@ -636,7 +636,7 @@ The base field must be either the rationals or a cyclotomic field.}
    require Type(BaseField(A)) in {FldRat, FldCyc} : 
                  "The base field must be either the rationals or a cyclotomic field.";
    require IsCuspidal(A) : "Argument 1 must be cuspidal.";
-   require Al eq "Universal" or Al eq "Newform" :
+   require Al eq "Universal" or Al eq "Newform" or Al eq "Box" :
          "Al paramater must equal either \"Universal\" or \"Newform\".";
 
    prec := assigned A`qintbasis select A`qintbasis[1] else 8;
@@ -661,12 +661,11 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
    require IsCuspidal(A) : "Argument 1 must be cuspidal.";
    require Al eq "Universal" or Al eq "Newform" or Al eq "Box":
          "Al paramater must equal either \"Universal\" or \"Newform\" or \"Box\".";
-   /*
+   
    // At the moment, newform decomposition is not supported in general
    if not IsOfGammaType(A) then
       Al := "Box";
    end if;
-   */
    
    if Dimension(A) eq 0 then
       return [];
@@ -733,7 +732,7 @@ intrinsic qIntegralBasis(A::ModSym, prec::RngIntElt :
 	 ans, I := qExpansionBasisNewform(A, prec_new, true);
       else
 	  prec_new := prec;
-	  ans, I := qExpansionBasisBox(A, prec_new);
+	  ans, I := qExpansionBasisBox(A, prec_new, true);
       end if;
       A`qintbasis[2] := ans;
       A`qintbasis[1] := prec_new;
@@ -2180,7 +2179,7 @@ intrinsic ActionOnEchelonFormBasis(g::GrpMatElt, M::ModSym) -> AlgMatElt
   return I^(-1) * s_hol * I;
 end intrinsic;
 
-function qExpansionBasisBox(A, prec : M_val := 0)
+function qExpansionBasisBox(A, prec, integral : M_val := 0)
     // at the moment we can only do this for the entire space.
     // Are we able to find forms corresponding to Hecke subspaces?
     assert A eq CuspidalSubspace(AmbientSpace(A));
@@ -2195,6 +2194,11 @@ function qExpansionBasisBox(A, prec : M_val := 0)
     //    fs := qExpansions(fs,new_prec,q,K, true);
     fs := qExpansions(fs,new_prec,q,K, false);
     // we update the precision
-    A`qexpbasis[1] := new_prec;
+    if integral then
+	A`qintbasis[1] := new_prec;
+	return fs, IdentityMatrix(BaseRing(Universe(fs)), #fs);
+    else
+	A`qexpbasis[1] := new_prec;
+    end if;
     return fs;
 end function;

@@ -72,7 +72,7 @@ function GetGLModel(H : RealType := true)
     error if IsEmpty(cands), (RealType) select Error("No model with surjective determinant, 
                  	                         which commutes with eta")
 							else Error("No model with surjective determinant");
-  // We would perfer a model for which the Hecke operators are standard
+  // We would prefer a model for which the Hecke operators are standard
   U, psi := UnitGroup(Integers(N));
   if exists(c){c : c in cands |
 	       sub<GL_N | [[1,0,0,psi(t)] : t in Generators(U)]> subset c} then
