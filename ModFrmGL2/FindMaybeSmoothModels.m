@@ -5,7 +5,7 @@ genus := (d-1)*(d-2) div 2;
 
 load "shimuraType.m";
 SetVerbose("ModularCurves", 1);
-genus_dir := Sprintf("../q-expansions/Genus\ %o", genus);
+genus_dir := Sprintf("../data/modular\ curves/Genus\ %o", genus);
 ChangeDirectory(genus_dir);
 load "all_shim.m";
 
