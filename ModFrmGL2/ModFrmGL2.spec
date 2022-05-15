@@ -15,5 +15,6 @@
     {
 	+Tests.spec
     }
+    SmoothModel.m
     verbose.m
 }

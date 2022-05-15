@@ -1,6 +1,8 @@
 # ModFrmGL2
 Extending magma's implementation of modular symbols to arbitrary congruence subgroups
 
+For the application of finding smooth models of modular curves, please refer to SmoothModelsREADME.md
+
 Brief Description
 -----------------
 Currently magma's implementation only supports modular symbols for the subgroups Gamma0(N), Gamma1(N) of PSL2(Z)
