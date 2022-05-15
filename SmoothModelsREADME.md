@@ -13,13 +13,13 @@ The code that computes the Betti numbers can be found in ModFrmGL2/SmoothModel.m
 
 Here are examples of using the code for specific curves
 > AttachSpec("ModFrmGL2/ModFrmGL2.spec");
-> load "q-expansions/Genus\ 6/11A6.m";
+> load "data/modular\ curves/Genus\ 6/11A6.m";
 > GradedBettiNumberGreen(X_11A6,5);
 0
 > C := GetP2Image(X_11A6, fs_11A6);
 ...
 
-> load "q-expansions/Genus\ 10/9A10_shim.m";
+> load "data/modular\ curves/Genus\ 10/9A10_shim.m";
 > GradedBettiNumberGreen(X_9A10_shim,6);
 0
 > C := GetP2Image(X_9A10_shim, fs_9A10_shim : Shimura);
