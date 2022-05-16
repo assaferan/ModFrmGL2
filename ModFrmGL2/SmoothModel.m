@@ -8,7 +8,7 @@ intrinsic GradedBettiNumberGreen(X::Crv, d::RngIntElt) -> RngIntElt
 {Returns the graded Betti number at index (d-4, d-2) for the curve X.}
   I := Ideal(X);
   M := QuotientModule(I);
-  return BettiNumber(M, d-2, d-4);
+  return BettiNumber(M, d-4, d-2);
 end intrinsic;
 
 // A function that returns the possibly smooth plane curves, given a list
