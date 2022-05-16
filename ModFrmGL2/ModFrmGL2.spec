@@ -11,10 +11,6 @@
     {
 	+ModSym.spec
     }
-    Tests
-    {
-	+Tests.spec
-    }
     Petri.m
     SmoothModel.m
     verbose.m

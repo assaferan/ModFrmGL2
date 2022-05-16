@@ -1,4 +1,4 @@
-// For Drew
+// Test for non-split Cartan subgroups
 
 function ConjugateForm(sigma, f, prec)
   q := Parent(f).1;
@@ -192,3 +192,6 @@ procedure Test_NSCartan(max_N)
   end for;
 end procedure;
 
+Test_NSCartan_11();
+Test_NSCartan_17();
+Test_NSCartan(100);
