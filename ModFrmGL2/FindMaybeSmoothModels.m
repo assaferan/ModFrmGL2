@@ -1,6 +1,7 @@
 // Usage: magma -b d:={d} FindMaybeSmoothModels.m
 
 // d := 6;
+d := StringToInteger(d);
 genus := (d-1)*(d-2) div 2;
 
 load "shimuraType.m";
