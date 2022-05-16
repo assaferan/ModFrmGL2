@@ -1,16 +1,95 @@
+freeze;
+
+// This function, given as input a curve in P^{g-1}
+// returns g linearly independent points on a field extension of the base
+
+function FindRationalPoints(X)
+  vprintf ModularCurves, 1:
+     "Attempting to find rational points on the curve.\n";
+  Pg<[x]> := AmbientSpace(X);
+  g := #x;
+  H_parallel := [Scheme(Pg, x[i]) : i in [1..g]];
+  vprintf ModularCurves, 1:
+     "Constructing divisors parallel to the axes (zeros of differentials)...\n";
+  D_parallel := [Divisor(X, h) : h in H_parallel];
+  vprintf ModularCurves, 1:
+    "Computing their support...\n";
+  suppD_parallel := [Support(D) : D in D_parallel];
+  vprintf ModularCurves, 1:
+    "Done.\n";
+  rank := 0;
+  s := 1;
+  F := Rationals();
+  X_F := ChangeRing(X,F);
+  P := [];
+  while (rank lt g) do
+    idx := 1;
+    while (rank lt g) and (idx le #suppD_parallel[s]) do
+      pt := RepresentativePoint(suppD_parallel[s][idx]);
+      L<a> := AbsoluteField(Universe(Eltseq(pt)));
+      _<t> := DefiningPolynomial(L);
+      vprintf ModularCurves, 1:
+	"Encountered the point %o over the field %o.\n", pt, L;
+      if Type(L) eq FldRat then
+         E := L;
+      else
+	vprintf ModularCurves, 1:
+	  "Computing normal closure...\n";
+        E := NormalClosure(L);
+        vprintf ModularCurves, 1:
+	  "Done. Normal closure is %o.\n", E;
+      end if;
+      vprintf ModularCurves, 1:
+	  "Computing compositum with current field...\n";
+      F := Compositum(E,F);
+      vprintf ModularCurves, 1:
+        "Done.\n";
+      aut_E := Automorphisms(E);
+      X_F := ChangeRing(X_F, F);
+      Pg_F := AmbientSpace(X_F);
+      pt_conjs := [Pg_F![sig(y) : y in Eltseq(pt)] : sig in aut_E];
+      P_F := [X_F!p : p in pt_conjs];
+      P := [X_F!Eltseq(p) : p in P] cat P_F;
+      rank := Rank(Matrix([Eltseq(p) : p in P]));
+      vprintf ModularCurves, 1:
+	"Rank = %o\n", rank;
+      idx +:= 1;
+    end while;
+    s +:= 1;
+  end while;
+
+  mat := Matrix([Eltseq(p) : p in P]);  
+  E, T := EchelonForm(Transpose(mat));
+  pivots := [PivotColumn(E,i) : i in [1..g]];
+  P := [P[i] : i in pivots];
+  return P;
+end function;
+  
+
 // This assumes we are in the situation g = 10
 
 intrinsic FindSchreyerSurface(X::Crv) -> Srfc
-{Given a curve of genus 10, with beta_{2,4} = 27 (graded Betti number indexed (2,4)), Returns the exceptional surface X lies on, using Schereyer's method.}
-    // g := 10;
-    g := Genus(X);
+{Given a curve of genus 10, with beta(2,4) = 27 (graded Betti number indexed (2,4)), Returns the exceptional surface X lies on, using Schereyer's method.}
+
+    Pg<[x]> := AmbientSpace(X);
+    g := #x;
+
+    // We check that this is a canonical embedding
+    assert g eq Genus(X);
+
+    // right now only works for genus 10
     assert g eq 10;
 
-    F := GF(101); // auxiliary for now
+    // F := GF(101); // auxiliary for now
+    P := FindRationalPoints(X);
+
+    assert #P eq g;
+
+    F := Universe(Eltseq(P[1]));
     X_F := ChangeRing(X, F);
     I_F := Ideal(X_F);
 
-    P := Points(X_F)[1..g];
+// P := Points(X_F)[1..g];
 
     // making sure the points are in a general linear position
     assert IsInvertible(Matrix([Eltseq(p) : p in P]));
@@ -129,4 +208,4 @@ intrinsic FindSchreyerSurface(X::Crv) -> Srfc
 
     S := Surface(AmbientSpace(X_F), J);
     return S;
-end function;
+end intrinsic;

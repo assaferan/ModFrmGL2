@@ -15,6 +15,7 @@
     {
 	+Tests.spec
     }
+    Petri.m
     SmoothModel.m
     verbose.m
 }
