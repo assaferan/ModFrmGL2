@@ -11,6 +11,10 @@ The models themselves can be found under the folder "data/modular curves" classi
 
 The code that computes the Betti numbers can be found in ModFrmGL2/SmoothModel.m. This file also contains code to compute the image of a curve in P2 using the three divisors with maximal multiplicity, which in cases without higher order cancellation (quadratic and above) yields back the smooth plane model.
 
+The file ModFrmGL2/Petri.m contains code that, given a canonical model of a genus 10 curve, produces the embedded Veronese surface in which it is contained.
+
+The file ModFrmGL2/congruence.m contains other auxiliary functions which we have used in the project, e.g. to find models with surjective determinant, to determine groups of Shimura type, etc.
+
 Here are examples of using the code for specific curves
 > AttachSpec("ModFrmGL2/ModFrmGL2.spec");
 > load "data/modular\ curves/Genus\ 6/11A6.m";
