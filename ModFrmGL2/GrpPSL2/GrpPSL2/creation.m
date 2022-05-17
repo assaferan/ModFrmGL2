@@ -319,6 +319,42 @@ intrinsic GammaShimura(U::GrpAb, phi::Map,
    return PSL2Subgroup(sub<GL(2, Integers(N)) | mat_gens>);
 end intrinsic;
 
+function my_Gamma(N, type)
+  if N eq 1 then
+     // just take en entire GL(2,N) for some N
+    return PSL2Subgroup(GL(2,IntegerRing(2)), false);
+  end if;
+  Z_N := IntegerRing(N);
+  G_N := GL(2, Z_N);
+  // gens := [-G_N!1];
+  gens := [];
+  U, psi := UnitGroup(Z_N);
+  // This matches our convention for the Galois action
+  for t in Generators(U) do
+    Append(~gens, G_N![1,0,0,psi(t)]);
+  end for;
+  if Type(type) eq RngIntElt then
+     Append(~gens, G_N![1,1,0,1]);   
+     if type eq 0 then
+       for t in Generators(U) do
+	 Append(~gens, G_N![psi(t),0,0,1]);
+       end for;
+     end if;
+  end if;
+  H_N := sub<G_N | gens>;
+  return PSL2Subgroup(H_N, true);
+end function;
+
+intrinsic FakeGamma(N::RngIntElt, type::RngIntElt) -> GrpPSL2
+{Creates a congruence subgroup of gamma type, for testing.}
+  return my_Gamma(N, type);
+end intrinsic;
+
+intrinsic FakeGamma(N::RngIntElt, type::MonStgElt) -> GrpPSL2
+{Creates a congruence subgroup of gamma type, for testing.}
+  return my_Gamma(N, type);
+end intrinsic;
+
 // Creation of Quotient
 
 intrinsic '/'(G::GrpPSL2, H::GrpPSL2) -> GrpPSL2
