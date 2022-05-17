@@ -48,4 +48,4 @@ procedure Test_NewformDecomp(N, char)
     assert dims eq dims0;
 end procedure;
 
-Test_NewformDecomposition(5);
+Test_NewformDecomposition(4);
