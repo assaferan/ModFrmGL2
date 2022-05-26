@@ -2148,7 +2148,8 @@ function find_echelon_forms_vecs(M)
 						 my_eigenvector(d,M),
 						 F) : d in decomp]);
   K := BaseRing(eigenvecs);
-  Embed(BaseRing(I), K, K.1);
+  // K := ext< BaseRing(I) | DefiningPolynomial(K) >;
+  Embed(BaseRing(I), K, K!(BaseRing(I).1));
   t_K := ChangeRing(t_eigvecs_in_M, K);
   R := PolynomialRing(K,2*dim);
   e_R := ChangeRing(eigenvecs, R);

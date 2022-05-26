@@ -1,4 +1,22 @@
-// For Drew
+// Test for non-split Cartan subgroups
+
+function benchmark(G)
+  M := ModularForms(G);
+  Snew := NewSubspace(CuspidalSubspace(M));
+  prec := Dimension(Snew) + 10;
+  tm := Cputime();
+  tmp := [* qExpansion(f[1],prec) : f in Newforms(Snew) *];
+  return Cputime() - tm;
+end function;
+
+function Test_John_timing(N)
+  G := GammaNSplus(N);
+  p := NextPrime(Index(G));
+  // Constructing a Gamma0(p) with ~ same number of representatives
+  time_0 := benchmark(Gamma0(p));
+  time_1 := benchmark(G);
+  return [time_0, time_1];
+end function;
 
 function ConjugateForm(sigma, f, prec)
   q := Parent(f).1;
@@ -182,13 +200,17 @@ end function;
 procedure Test_NSCartan(max_N)
    // right now, this is only worked out for odd primes
    //  !!! TODO : handle all N, shouldn't be much more work
-  printf "Testing dimensions of non-split Cartan...\n";
+  printf "Testing dimensions of non-split Cartan. p = ";
   primes := PrimesUpTo(max_N);
   odd_primes := primes[2..#primes];
   for p in odd_primes do
-      printf "testing p=%o..\n", p;
+      printf "%o ", p;
       SingleTestNSCartan(p, false);
       SingleTestNSCartan(p, true);
   end for;
 end procedure;
 
+Test_NSCartan_11();
+Test_NSCartan_17();
+// Test_NSCartan(100);
+Test_NSCartan(30);
