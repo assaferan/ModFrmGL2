@@ -25,7 +25,19 @@ intrinsic GetMaybeSmoothCurves(curves::SeqEnum[Crv],
   for i->X in curves do
       vprintf ModularCurves, 1:
 	  "Working on curve %o\n", labels[i];
-      betti := GradedBettiNumberGreen(X, d);
+      lcm := LCM([LCM([Denominator(x) : x in Coefficients(p)])
+		  : p in DefiningPolynomials(X)]);
+      p := 1;
+      repeat
+	  p := NextPrime(p);
+	  while lcm mod p eq 0 do
+	      p := NextPrime(p);
+	  end while;
+	  F := GF(p);
+	  X_F := ChangeRing(X, F);
+      until (ISA(Type(X_F), Crv));
+      // betti := GradedBettiNumberGreen(X, d);
+      betti := GradedBettiNumberGreen(X_F, d);
       if betti ne 0 then
 	  Append(~maybe_smooth, X);
 	  Append(~smooth_labels, labels[i]);
