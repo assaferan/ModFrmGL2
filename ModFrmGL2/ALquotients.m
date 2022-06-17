@@ -86,3 +86,64 @@ function checkALQuotientShimura(idx, labels, grps)
     end for;
     return true;
 end function;
+
+// Here G is a PSL2subgroup of level N and p is a prime divisor of N.
+// Find an AL of determinant p for G
+// For now, assume p^2 does not divide N
+// We only find one, since any two are related by a det 1 element
+function FindALGeneralAtPrime(G,p)
+    M2Z := MatrixAlgebra(Integers(),2);
+    M2Fp := MatrixAlgebra(GF(p),2);
+    V, psi := VectorSpace(M2Fp);
+    G_N := ImageInLevelGL(G);
+    Gp := sub<GL(2, GF(p)) | [GL(2,Integers(p))!g : g in Generators(G_N)]>;
+    gens := [g : g in Generators(Gp)];
+    R<x,y> := PolynomialRing(GF(p), 2);
+    P1 := ProjectiveSpace(R);
+    polys := [];
+    for g in gens do
+	a,b,c,d := Explode(Eltseq(g));
+	f := b*x^2 + (d-a)*x*y-c*y^2;
+	Append(~polys, f);
+    end for;
+    X := Scheme(P1, polys);
+    // these are the possible gamma_0 mod p such that gamma_0 * G * gamma_0^(-1) is in M_2(Z)
+    // up to multiplication by a scalar in Z_p^x (that's the reason for t running over P1 and not A2)
+    mats := [Matrix(2,2,[t[1]*p[1],t[1]*p[2],t[2]*p[1],t[2]*p[2]]) : t in Points(P1), p in Points(X)];
+    for gamma_0 in mats do
+	T := hom< V->V | [psi(gamma_0 * (psi^(-1))(V.x) * Adjoint(gamma_0)) : x in [1..4]]>;
+	h_basis := [(psi^(-1))(b) : b in Basis(Image(T))];
+	h_params := CartesianPower(GF(p),#h_basis);
+	// Finding lifts mod p^2
+	res := [M2Z!gamma_0 * M2Z!g * Adjoint(M2Z!gamma_0) : g in gens];
+	assert &and[&and[x mod p eq 0 : x in Eltseq(ress)] : ress in res];
+	res := [MatrixAlgebra(GF(p),2)!(ress div p) : ress in res];
+	R<[x]> := PolynomialRing(GF(p),4);
+	x_mat := Matrix(2,2,x); 
+	eqs := [[Eltseq(x_mat * Matrix(g) * Adjoint(gamma_0) + gamma_0 * Matrix(g) * Adjoint(x_mat) + res[i] - Matrix(t)) : t in Gp] : i->g in gens];
+	// Here it might be sometimes faster to loop over solutions to one of them (when there are less than #Gp
+	// These are linear equations, but this is the shortest lines of code to produce the solutions...
+	all_gamma1s := [&join[{Eltseq(p) : p in Points(Scheme(AffineSpace(R),eqsss))}
+			      : eqsss in eqss] : eqss in eqs];
+	gamma1s := &meet all_gamma1s;
+	al_cands := [M2Z!gamma_0 + p*(M2Z!gamma_1) : gamma_1 in gamma1s];
+	for gamma in al_cands do
+	    is_good := true;
+	    for g in gens do
+		res := M2Z!gamma * M2Z!g * Adjoint(M2Z!gamma);
+		assert &and[x mod p eq 0 : x in Eltseq(res)];
+		res := MatrixAlgebra(GF(p),2)!(res div p);
+		for h_param in h_params do
+		    h := &+[h_param[i]*h_basis[i] : i in [1..#h_basis]];
+		    if (h + res) notin Gp then
+			is_good := false;
+			break;
+		    end if;
+		end for;
+		if not is_good then break; end if;
+	    end for;
+	    if (is_good) then return true, gamma; end if;
+	end for;
+    end for;
+    return false, _;
+end function;
