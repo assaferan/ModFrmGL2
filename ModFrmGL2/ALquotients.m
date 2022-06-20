@@ -56,10 +56,13 @@ function checkALQuotientShimura(idx, labels, grps)
     H_t := H@@red_U;
     MS_H := ModularSymbolsH(N*t, [Integers()!phi_t(g) : g in Generators(H_t)], 2, 0);
     C_H := CuspidalSubspace(MS_H);
-    qs := [p^Valuation(N,p) : p in PrimeDivisors(N)];
+    qs := {p^Valuation(N,p) : p in PrimeDivisors(N)};
     al_qs := AssociativeArray();
     gensG := Generators(PG);
-    for q in qs do
+    subsets := [S : S in Subsets(qs) | not IsEmpty(S)];
+    //    for q in qs do
+    for S in subsets do
+	q := &*S;
 	d, x, y:= XGCD(q,-Integers()!(N/q));
         g := [q*x, y, N, q];
 	is_al := &and[GL2Q!g * GL2Q!Eltseq(gg) * GL2Q!g^(-1) in PG : gg in gensG];
@@ -69,19 +72,22 @@ function checkALQuotientShimura(idx, labels, grps)
 	    al_qs[q] := al;
 	end if;
     end for;
+     // genus check
     g := Dimension(C_H) div 2;
-    all_als := [<&*S,&*{MatrixAlgebra(Rationals(), 2*g) | al_qs[s] : s in S}> : S in Subsets(Keys(al_qs)) | not IsEmpty(S)];
-    // genuc check
+    //    all_als := [<&*S,&*{MatrixAlgebra(Rationals(), 2*g) | al_qs[s] : s in S}> : S in Subsets(Keys(al_qs)) | not IsEmpty(S)];
+
     // we're only interested in the planar curve case
     assert exists(d){d : d in [1..10] | (d-1)*(d-2) eq 2*g};
     f := d + (d mod 2);
-    for al in all_als do
-	g_quo := Dimension(Kernel(al[2]-1)) div 2;
+    // for al in all_als do
+    for q in Keys(al_qs) do
+	//	g_quo := Dimension(Kernel(al[2]-1)) div 2;
+	g_quo := Dimension(Kernel(al_qs[q]-1)) div 2;
 	// Riemann-Hurwitz
 	RH := 2*g-2 - 2*(2*g_quo-2) - f;
 	if (RH ne 0) then
-	    vprintf ModularCurves, 1 : "The quotient by W_{%o} has genus %o, contradicting RH as for a plane curve as we expected %o fixed points, but there are %o.\n", al[1], g_quo, f, RH + f;
-	    return false, al[1], g_quo, f, RH + f;
+	    vprintf ModularCurves, 1 : "The quotient by W_{%o} has genus %o, contradicting RH as for a plane curve as we expected %o fixed points, but there are %o.\n", q, g_quo, f, RH + f;
+	    return false, q, g_quo, f, RH + f;
 	end if;
     end for;
     return true;
