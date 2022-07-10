@@ -1,4 +1,6 @@
+import "ModSym/Box.m" : precisionForCurve, FindCurveSimple, get_degeneracy_maps;
 import "ModSym/linalg.m" : Restrict;
+import "ModSym/modsym.m" : ModularSymbolsSub;
 import "ModSym/operators.m" : ActionOnModularSymbolsBasis;
 import "congruence.m" : createPSL2Models;
 
@@ -152,4 +154,175 @@ function FindALGeneralAtPrime(G,p)
 	end for;
     end for;
     return false, _;
+end function;
+
+function al_model(grp, qs)
+    GL2Q := GL(2, Rationals());
+    Gs := createPSL2Models(grp);
+    assert exists(i){i : i in [1..#Gs] | IsGammaShimura(Gs[i])};
+    _, U, phi, H, t := IsGammaShimura(Gs[i]);
+    PG := GammaShimura(U, phi, H, t);
+    assert t eq 1;
+    N := Level(PG);
+    U_t, phi_t := UnitGroup(Integers(N*t));
+    red_N := hom<Integers(N*t) -> Integers(N)|>;
+    gens := [U_t.i : i in [1..Ngens(U_t)]];
+    red_U := hom<U_t -> U | [red_N(phi_t(x))@@phi : x in gens]>;
+    H_t := H@@red_U;
+    MS_H := ModularSymbolsH(N*t, [Integers()!phi_t(g) 
+				  : g in Generators(H_t)],2,1); 
+    C_H := CuspidalSubspace(MS_H);
+    // qs := {p^Valuation(N,p) : p in PrimeDivisors(N)};
+    al_qs := AssociativeArray();
+    gensG := Generators(PG);
+    V := VectorSpace(C_H);
+    for q in qs do
+	d, x, y:= XGCD(q,-Integers()!(N/q));
+	g := [q*x, y, N, q];
+	assert &and[GL2Q!g * GL2Q!Eltseq(gg) * GL2Q!g^(-1) in PG : gg in gensG];
+	al := ActionOnModularSymbolsBasis(g, MS_H); 
+	V := V meet Kernel(al-1);
+    end for;
+    al_cusp := ModularSymbolsSub(MS_H, V);
+    prec := precisionForCurve(PG) div N;
+    // That was naive to think that this would work...
+    // The issue is that we have non-trivial character, and so the 
+    // fixed vectors are linear combinations of an eigenform with its conjugate
+    // defined by the pseudo-eigenvalues
+    // qexps := qExpansionBasis(al_cusp, prec);
+    // X := FindCurveSimple(qexps, prec, 3);
+    // return X;
+    D := NewformDecomposition(C_H);
+    Cbmat := BasisMatrix(VectorSpace(C_H));
+    D_V := [ ];
+    for d in D do
+	quo_level := N div Level(AssociatedNewSpace(d));
+	if (quo_level ne 1) then
+	    betas := [];
+	    for m in Divisors(quo_level) do
+		alpha, ims_alpha, beta, alpha_new := 
+		    get_degeneracy_maps(AmbientSpace(d), MS_H, m);
+		Append(~betas, beta);
+	    end for;
+	    basis := VerticalJoin([BasisMatrix(Image(beta)) : beta in betas]);
+	    im_D := sub<VectorSpace(MS_H) | Rows(basis * Cbmat)>;
+	else
+	    im_D := VectorSpace(d);
+	end if;
+	if (Dimension(im_D meet V) gt 0) then
+	    Append(~D_V, d);
+	end if;
+    end for;
+    // D := [d : d in D | Dimension(VectorSpace(d) meet V) gt 0];
+    D := D_V;
+    gauss_sums := [GaussSum(DirichletCharacter(d)) : d in D];
+    Q_cyc := FieldOfFractions(Universe(gauss_sums));
+    al_fs := [ ];
+    // for now only handle the case of a single AL quotient
+    assert #qs eq 1;
+    Q := qs[1];
+    for i->d in D do
+	f0 := qEigenform(d, prec);
+	_<q> := Parent(f0);
+	F := BaseRing(Parent(f0));
+	quo_level := N div Level(AssociatedNewSpace(d));
+	divs := Divisors(quo_level);
+	// for now we only treat the case #divs le 2
+	assert #divs le 2;
+	if (GCD(quo_level, Q) eq 1) then
+	    fs := [Evaluate(f0, q^ddiv) : ddiv in divs];
+	else
+	    fs := [&+[ddiv*Evaluate(f0, q^ddiv) : ddiv in divs]];
+	end if;
+	for f in fs do
+	/*
+	F_nor := NormalClosure(AbsoluteField(F));
+	F_nor_q<q> := PowerSeriesRing(F_nor);
+	gal, aut, galmap := AutomorphismGroup(F_nor, Rationals());
+	_, cc := HasComplexConjugate(F_nor);
+	assert exists(cc_gal){g : g in gal | 
+			      galmap(g)(F_nor.1) eq cc(F_nor.1)};
+	fix_F := [g : g in gal | galmap(g)(F.1) eq F.1];
+	Append(~fix_F, cc_gal);
+	reps := Transversal(gal, sub<gal| fix_F>);
+	f_elt := AbsEltseq(f);
+	f_conjs := [F_nor_q![galmap(r)(x) : x in f_elt]+O(q^prec) 
+		    : r in reps];
+	g := gauss_sums[i];
+	F := F_nor;
+	p := MinimalPolynomial(F.1);
+	p_K := ChangeRing(p, K);
+	K := ext< K | Factorization(p_K)[1][1]>;
+	// assert Evaluate(p,K.1) eq 0;
+	assert IsSubfield(BaseRing(F),K);
+	h := hom<F->K | K.1>;
+	Kq<q> := PowerSeriesRing(K);
+	for f_conj in f_conjs do
+	    a_qs := [Coefficient(f_conj,q) : q in qs];
+	    // assume for now #a_qs = 1
+	    assert #a_qs eq 1;
+	    a := h(a_qs[1]);
+	    lambda := g/a;
+	    fc := Kq![h(x) : x in AbsEltseq(f_conj)];
+	    fbar := Kq![h(cc(x)) : x in AbsEltseq(f_conj)] + O(q^prec);
+	    al_f := fc + lambda * fbar;
+	    Append(~al_fs, al_f);
+	end for;
+       */
+	    g := gauss_sums[i];
+	    p := MinimalPolynomial(F.1);
+	    p_K := ChangeRing(p, Q_cyc);
+	    K := ext< Q_cyc | Factorization(p_K)[1][1]>;
+	    if (Type(F) ne FldRat) then
+		assert IsSubfield(BaseRing(F),K);
+		h := hom<F->K | K.1>;
+	    else
+		h := hom<F->K | >;
+	    end if;
+	    
+	    has_cc := false;
+	    if Type(F) ne FldRat then
+		has_cc, cc := HasComplexConjugate(F);
+	    end if;
+	    if not has_cc then
+		cc := IdentityHomomorphism(F);
+	    end if;
+	    Kq<q> := PowerSeriesRing(K);
+	    a_qs := [Coefficient(f,q) : q in qs];
+	    // assume for now #a_qs = 1
+	    assert #a_qs eq 1;
+	    a := h(a_qs[1]);
+	    if not has_cc then
+		// in this case f is fixed by the Atkin-Lehner and so
+		// f itself is a fixed eigenvector
+		lambda := 0;
+	    else
+		lambda := g/a;
+	    end if;
+	    fc := Kq![h(x) : x in AbsEltseq(f)] + O(q^prec);
+	    fbar := Kq![h(cc(x)) : x in AbsEltseq(f)] + O(q^prec);
+	    al_f := fc + lambda * fbar;
+	    
+	    Q_cyc_q<q> := PowerSeriesRing(Q_cyc);
+	    tr_f := Q_cyc_q![Trace(x) : x in AbsEltseq(al_f)] + O(q^prec);
+	    eps := DirichletCharacter(d);
+	    cyc_order := CyclotomicOrder(BaseRing(Parent(eps)));
+	    prim_elt := PrimitiveElement(Integers(cyc_order));
+	    e := CRT([Integers()!prim_elt,1],[cyc_order,N]);
+	    Q_N<zeta_N> := CyclotomicField(LCM(N,CyclotomicOrder(Q_cyc)));
+	    if (Type(Q_cyc) ne FldRat) then
+		aut_cyc := [hom<Q_cyc->Q_cyc | Q_cyc.1^(e^i mod N*cyc_order)> 
+			    : i in [1..cyc_order] | GCD(i,cyc_order) eq 1];
+	    else
+		aut_cyc := [hom<Q_cyc->Q_cyc | >];
+	    end if;    
+	    Q_N_q<q> := PowerSeriesRing(Q_N);  
+	    al_fs cat:= [Q_N_q![Q_N!(&+[a((Q_cyc.1^(N*i))*x) : a in aut_cyc]) 
+				: x in AbsEltseq(tr_f)]+O(q^prec) 
+			 : i in [0..#aut_cyc-1]];
+	end for;
+    end for;
+    max_deg := Maximum(7-#al_fs, 3);
+    X := FindCurveSimple(al_fs, prec, max_deg);
+    return X;
 end function;

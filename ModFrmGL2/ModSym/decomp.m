@@ -901,7 +901,7 @@ intrinsic AtkinLehnerSubspace(M::ModSym, p::RngIntElt, eps::RngIntElt) -> ModSym
    //   require IsPrime(p) : "Argument 2 must be prime.";
    require eps in {-1, 1} : "Argument 3 must be either -1 or +1.";
    require Level(M) mod p eq 0 : "Argument 2 must divide the level of argument 1.";
-   require IsTrivial(DirichletCharacter(M)) : "Character of argument 1 must be trivial";
+   // require IsTrivial(DirichletCharacter(M)) : "Character of argument 1 must be trivial";
    require IsEven(Weight(M)) : "Weight of argument 1 must be even.";
 
    wp := DualAtkinLehner(M,p);

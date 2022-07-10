@@ -2038,8 +2038,8 @@ characteristic of the base field of M divides q.}
        elif IsMultiChar(M) then
            t := MC_AtkinLehnerOperator(M,q);
        else
-	   require IsTrivial(DirichletCharacter(M)^2)  :
-	    "Argument 1 must have trivial or quadratic character.";
+	   // require IsTrivial(DirichletCharacter(M)^2)  :
+	   //  "Argument 1 must have trivial or quadratic character.";
            // 1. Compute matrix to act by.
            d, x, y:= XGCD(q,-Integers()!(N/q));
            g := [q*x, y, N, q];
