@@ -326,3 +326,130 @@ function al_model(grp, qs)
     X := FindCurveSimple(al_fs, prec, max_deg);
     return X;
 end function;
+
+
+function CanonicalRingShimura(grp : prec := 100)
+    GL2Q := GL(2, Rationals());
+    Gs := createPSL2Models(grp);
+    assert exists(i){i : i in [1..#Gs] | IsGammaShimura(Gs[i])};
+    _, U, phi, H, t := IsGammaShimura(Gs[i]);
+    PG := GammaShimura(U, phi, H, t);
+    assert t eq 1;
+    s := Signature(PG);
+    level := Level(PG);
+    g := s[1];
+    e := s[2];
+    delta := s[3];
+    assert delta ge 1;
+    r := #e;
+    if r eq 0 then
+	if g ge 1 then
+	    // This is Theorem 4.1.3 in DZB+Voight Stacky curve paper
+	    // for log curves
+	    gen_degs := [3,2,1,1];
+	    rel_degs := [6,4,3,2];
+	    idx := Minimum(delta, 4);
+	    gen_deg := gen_degs[idx];
+	    rel_deg := rel_degs[idx];
+	else
+	    // This follows from the discussion of the genus 0 case
+	    gen_degs := [0,1,1,1];
+	    rel_degs := [0,0,0,2];
+	    idx := Minimum(delta, 4);
+	    gen_deg := gen_degs[idx];
+	    rel_deg := rel_degs[idx];
+	end if;
+    else
+	e := Maximum(e);
+	if g ge 1 then
+	    // This is Theorem 8.4.1 in stacky curve
+	    gen_deg := Maximum(3,e);
+	    rel_deg := 2*gen_deg;
+	else
+	    if delta eq 0 then
+		if r eq 3 then 
+		    exceptional := [[2,3,7],[2,3,8],[2,3,9],[2,4,5],[2,5,5],[3,3,4],[3,3,5],
+				    [3,3,6],[3,4,4],[3,4,5],[4,4,4]];
+		    gen_degs := [21,15,9,10,6,12,9,6,8,5,4];
+		    rel_degs := [42,30,24,20,16,24,18,15,16,16,5];
+		elif r eq 4 then
+		    exceptional := [[2,2,2,3], [2,2,2,4],[2,2,2,5],[2,2,3,3],
+				    [2,2,3,4],[2,3,33]];
+		    gen_degs := [9,7,5,6,4,3];
+		    rel_degs := [18,14,12,12,13,9];
+		elif r eq 5 then
+		    exceptional := [[2,2,2,2,2],[2,2,2,2,3]];
+		    gen_degs := [5,3];
+		    rel_degs := [10,8];
+		else
+		    exceptional := [[2 : i in [1..r]]];
+		    gen_degs := [3];
+		    rel_degs := [6];
+		end if;
+		
+		if s[2] in exceptional then
+		    idx := Index(exceptional, s[2]);
+		    gen_deg := gen_degs[idx];
+		    rel_deg := rel_degs[idx];
+		end if;
+	    end if;
+	    // Theorem 9.3.1
+	    gen_deg := e;
+	    rel_deg := 2*e;
+	end if;
+    end if;
+    // TODO - fix the needed precision
+    
+    ring_gens := AssociativeArray();
+    
+    N := Level(PG);
+    U_t, phi_t := UnitGroup(Integers(N*t));
+    red_N := hom<Integers(N*t) -> Integers(N)|>;
+    gens := [U_t.i : i in [1..Ngens(U_t)]];
+    red_U := hom<U_t -> U | [red_N(phi_t(x))@@phi : x in gens]>;
+    H_t := H@@red_U;
+    for d in [1..gen_deg] do
+	MS_H := ModularSymbolsH(N*t, [Integers()!phi_t(g) 
+				  : g in Generators(H_t)],2*d,1); 
+	C_H := CuspidalSubspace(MS_H);
+	fs := qIntegralBasis(C_H, prec);
+	// K := 1;
+	// The Eisenstein series are returned with denominator N = level !!
+	// eis := EisensteinSeries(ModularForms(PG,2*d));
+	eis := EisensteinSeries(ModularForms(DirichletCharacter(MS_H),2*d));
+	eis := [qExpansion(f, prec) : f in eis];
+	/*
+	gap := level div K;
+	eis_elt := [AbsEltseq(f) : f in eis];
+	assert &and[ &and[f[x] eq 0 : x in [1..#f] | (x-1) mod gap ne 0] : f in eis_elt];
+	eis_elt := [[f[gap*i+1] : i in [0..(#f-1) div gap]] : f in eis_elt];
+	eis := [Universe(eis)!f_elt : f_elt in eis_elt];
+       */
+	ring_gens[d] := fs cat eis;
+    end for;
+    fs := &cat [ring_gens[d] : d in [1..gen_deg]];
+    grading := &cat[[d : x in ring_gens[d]] : d in [1..gen_deg]];
+    R<[x]> := PolynomialRing(Rationals(),grading);
+    degmons := [MonomialsOfWeightedDegree(R, d) : d in [1..rel_deg]];
+    _<q> := Universe(fs);
+    prods := [[Evaluate(m, fs) + O(q^prec) : m in degmons[d]] :
+	      d in [1..rel_deg]];
+    coeffs := [[&cat[Eltseq(x) : x in AbsEltseq(f)] : f in prod]
+	       : prod in prods];
+    kers := [IsEmpty(c) select VectorSpace(Rationals(),0) else Kernel(Matrix(c))
+	     : c in coeffs];
+    rels := [[&+[Eltseq(kers[d].i)[j]*degmons[d][j] : j in [1..#degmons[d]]] :
+	      i in [1..Dimension(kers[d])]] : d in [1..rel_deg]];
+    is_all := false;
+    d := 1;
+    not_in_I := rels;
+    I := ideal<R | 0>;
+    while not is_all do
+	I +:= ideal<R | &cat not_in_I[1..d]>;
+	not_in_I := [[x : x in r | x notin I] : r in rels];
+	is_all := &and[IsEmpty(x) : x in not_in_I];
+	d +:= 1;
+    end while;
+    X := Curve(ProjectiveSpace(R),I);
+    return X, fs, K;
+end function;
