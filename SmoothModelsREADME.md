@@ -1,4 +1,4 @@
-2# Smooth Models of Modular Curves
+# Smooth Models of Modular Curves
 Using the ModFrmGL2 package to compute smooth models of modular curves.
 
 Brief Description
