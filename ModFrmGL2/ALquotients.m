@@ -153,3 +153,70 @@ function FindALGeneralAtPrime(G,p)
     end for;
     return false, _;
 end function;
+
+function get_qexpansion_basis(M, W, prec)
+    als := [AtkinLehner(M,w) : w in W];
+    S := CuspidalSubspace(M);
+    V := &meet([VectorSpace(S)] cat [Eigenspace(al,1) : al in als]);
+    D := NewformDecomposition(S);
+    D_V := [d : d in D | Dimension(VectorSpace(d) meet V) gt 0];
+    Qq<q> := PowerSeriesRing(Rationals());
+    qexp_basis := [Qq | ];
+    for d in D_V do
+	d_old := AssociatedNewSpace(d);
+	M_old := AmbientSpace(d_old);
+	f := qEigenform(d_old,prec);
+	v := d_old`eigen;
+	K := BaseRing(v);
+	if Degree(K) gt 1 then
+	    L := NormalClosure(K);
+	    gal_rel, aut_rel, psi_rel := AutomorphismGroup(L,K);
+	    gal, aut, psi := AutomorphismGroup(L);
+	    coset_reps := Transversal(gal ,gal_rel);
+	    gal := [psi(x) : x in coset_reps];
+	    K := L;
+	else
+	    gal := Automorphisms(K);
+	end if;
+	R<qK> := PowerSeriesRing(K);
+	f := R!f;
+	v := ChangeRing(v, K);
+	v_orb := AssociativeArray();
+	f_orb := AssociativeArray();
+	for sig in gal do
+	    v_orb[sig] := Vector([sig(x) : x in Eltseq(v)]);
+	    f_orb[sig] := Parent(f)![sig(x) : x in AbsEltseq(f)]
+			  + O(qK^prec);
+	end for;
+	divs := Divisors(Level(d) div Level(d_old));
+	iotas := AssociativeArray(divs);
+	vs := AssociativeArray(divs);
+	d_K := ChangeRing(DualVectorSpace(d), K);
+	B := BasisMatrix(d_K);
+	for a in divs do
+	    iotas[a] := Transpose(DegeneracyMatrix(M,M_old,a));
+	    vs[a] := AssociativeArray();
+	    for sig in gal do
+		vs[a][sig] := Solution(B, v_orb[sig] * ChangeRing(iotas[a], K));
+	    end for;
+	end for;
+	basis := Matrix(&cat[[vs[a][sig] : sig in gal] : a in divs]);
+	al_K := [ChangeRing(DualAtkinLehner(d, w), K) : w in W];
+	al_mats := [Solution(basis, basis*al) : al in al_K];
+	fixed := &meet([VectorSpace(K, Dimension(d_K))] cat
+		       [Eigenspace(mat,1) : mat in al_mats]);
+	fs := &cat[[a * Evaluate(f_orb[sig], qK^a)
+		    + O(qK^prec) : sig in gal]
+		   : a in divs];
+	fixed_fs := [&+[b[i]*fs[i] : i in [1..#fs]] : b in Basis(fixed)];
+	xi := K.1;
+	gal_orbs := [[Parent(g)![(&+[sig(xi^i*x) : sig in gal])
+				 : x in AbsEltseq(g)] + O(qK^prec)
+		      : i in [0..Degree(K)-1]] : g in fixed_fs];
+	new_qexps := &cat gal_orbs;
+	mat := Matrix([AbsEltseq(f) : f in new_qexps]);
+	basis := Basis(RowSpace(mat));
+	qexp_basis cat:= [Qq!Eltseq(b) + O(q^prec) : b in basis];
+    end for;
+    return qexp_basis;
+end function;

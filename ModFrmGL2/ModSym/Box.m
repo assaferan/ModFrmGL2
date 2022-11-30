@@ -1460,7 +1460,7 @@ function FindCurveSimple(qexps, prec, n_rel)
     end while;
     // I := ideal<R | &cat rels>;
     // This might throw an error in the hyperelliptic case. 
-    X := Curve(ProjectiveSpace(R),I);
+    X := Curve(ProjectiveSpace(R),I : Nonsingular);
     // Do we want to assert X is coercible to Q?
     return X;
 end function;
