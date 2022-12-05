@@ -1,3 +1,6 @@
 [submodule "ModularCurvesData"]
 	path = ModularCurvesData
 	url = https://github.com/assaferan/ModularCurvesData
+[submodule "ModFrmGL2/GrpGL2Hat"]
+	path = ModFrmGL2/GrpGL2Hat
+	url = https://github.com/assaferan/GrpGL2Hat
