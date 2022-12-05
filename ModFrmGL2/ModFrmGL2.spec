@@ -1,7 +1,7 @@
 {
-    GrpPSL2
+    GrpGL2Hat
     {
-	+GrpPSL2.spec
+	+GrpGL2Hat.spec
     }
     ModFrm
     {
