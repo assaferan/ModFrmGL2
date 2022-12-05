@@ -7,9 +7,9 @@
     {
 	+ModFrm.spec
     }
-    ModSym
+    ModSymA
     {
-	+ModSym.spec
+	+ModSymA.spec
     }
     Tests
     {
