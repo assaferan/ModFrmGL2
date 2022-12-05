@@ -3,9 +3,9 @@
     {
 	+GrpGL2Hat.spec
     }
-    ModFrm
+    ModFrmA
     {
-	+ModFrm.spec
+	+ModFrmA.spec
     }
     ModSymA
     {
