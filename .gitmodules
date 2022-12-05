@@ -1,0 +1,3 @@
+[submodule "ModularCurvesData"]
+	path = ModularCurvesData
+	url = https://github.com/assaferan/ModularCurvesData
