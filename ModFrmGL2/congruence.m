@@ -1,7 +1,7 @@
-import "GrpPSL2/GrpPSL2/misc.m" : Conjugates,
+import "GrpGL2Hat/misc.m" : Conjugates,
        IsConjugate, NormalizerGrpMat;
 
-import "ModSym/Box.m" : ModularCurveBox, get_M_K,
+import "ModSymA/Box.m" : ModularCurveBox, get_M_K,
        get_M_K_normalizer,
        FindCurveSimple, FindHyperellipticCurve;
 
