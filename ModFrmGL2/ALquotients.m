@@ -1,5 +1,5 @@
-import "ModSym/linalg.m" : Restrict;
-import "ModSym/operators.m" : ActionOnModularSymbolsBasis;
+import "ModSymA/linalg.m" : Restrict;
+import "ModSymA/operators.m" : ActionOnModularSymbolsBasis;
 import "congruence.m" : createPSL2Models;
 
 function FindIsomorphicGroup(PG, t)
@@ -166,7 +166,11 @@ function get_qexpansion_basis(M, W, prec)
 	d_old := AssociatedNewSpace(d);
 	M_old := AmbientSpace(d_old);
 	f := qEigenform(d_old,prec);
-	v := d_old`eigen;
+	if Dimension(d_old) eq 1 then
+	    v := VectorSpace(d_old).1;
+	else
+	    v := d_old`eigen;
+	end if;
 	K := BaseRing(v);
 	if Degree(K) gt 1 then
 	    L := NormalClosure(K);
@@ -220,3 +224,28 @@ function get_qexpansion_basis(M, W, prec)
     end for;
     return qexp_basis;
 end function;
+
+/*
+al_N := ActionOnModularSymbolsBasis(Eltseq(w_N), AmbientSpace(S));
+al_N;
+al_N := Transpose(ActionOnModularSymbolsBasis(Eltseq(w_N), AmbientSpace(S)));
+T2_big := DualHeckeOperator(AmbientSpace(S), 2);
+T2_big
+;
+Kernel(T2_big - a2);
+v_big := Basis(Kernel(T2_big - a2))[1];
+v_big
+;
+v_big * al_N;
+Kf := BaseRing(v_big);
+v_big * ChangeRing(al_N, Kf);
+v_big * ChangeRing(al_N, Kf)[2];
+(v_big * ChangeRing(al_N, Kf))[2];
+lambda := (v_big * ChangeRing(al_N, Kf))[2];
+ComplexConjugate(v_big);
+Vector([ComplexConjugate(vv) : vv in Eltseq(v_big)]);
+v_bar_big := Vector([ComplexConjugate(vv) : vv in Eltseq(v_big)]);
+v_big * ChangeRing(al_N, Kf) eq lambda * v_bar_big;
+f;
+f := qEigenform(S_chi, 100);
+*/
