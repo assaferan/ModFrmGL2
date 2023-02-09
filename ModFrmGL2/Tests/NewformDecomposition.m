@@ -1,5 +1,5 @@
 import "test_utils.m" : MakeGroupCopy, RandomSpace;
-import "ModSym/multichar.m" : MC_NewformDecompositionOfCuspidalSubspace'
+import "ModSym/multichar.m" : MC_NewformDecompositionOfCuspidalSubspace;
 
 procedure Test_NewformDecomposition_Single(M)
     t := Cputime();
