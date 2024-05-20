@@ -1,5 +1,5 @@
 import "test_utils.m" : MakeGroupCopy, RandomSpace;
-import "./ModSym/decomp.m" : GetNN;
+import "./ModSymA/decomp.m" : GetNN;
 
 function my_idxG0(n)
    return 
