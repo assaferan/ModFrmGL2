@@ -210,7 +210,13 @@ procedure Test_NSCartan(max_N)
   end for;
 end procedure;
 
+procedure Test_NSCartan_49()
+    N := 49;
+    G := GammaNSplus(N);
+end procedure;
+
 Test_NSCartan_11();
 Test_NSCartan_17();
-// Test_NSCartan(100);
-Test_NSCartan(30);
+Test_NSCartan(100);
+// Test_NSCartan(30);
+Test_NSCartan_49(); // issue #3
