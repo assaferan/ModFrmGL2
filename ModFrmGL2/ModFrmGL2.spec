@@ -1,15 +1,15 @@
 {
-    GrpPSL2
+    GrpGL2Hat
     {
-	+GrpPSL2.spec
+	+GrpGL2Hat.spec
     }
-    ModFrm
+    ModFrmA
     {
-	+ModFrm.spec
+	+ModFrmA.spec
     }
-    ModSym
+    ModSymA
     {
-	+ModSym.spec
+	+ModSymA.spec
     }
     Petri.m
     SmoothModel.m

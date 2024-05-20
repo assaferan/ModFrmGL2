@@ -1,6 +1,6 @@
 AttachSpec("ModFrmGL2.spec");
 
-import "../csg24.dat/csg21-lev304.dat" : L21_304;
+import "../ModularCurvesData/csg24.dat/csg21-lev304.dat" : L21_304;
 
 
 import "congruence.m" : LoadGroups, qExpansionBasisShimura;

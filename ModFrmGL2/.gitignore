@@ -13,3 +13,4 @@
 */.magma-scan/*
 */*/.magma-scan
 */*/.magma-scan/*
+*.py~

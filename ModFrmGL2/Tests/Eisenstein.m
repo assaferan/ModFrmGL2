@@ -23,9 +23,10 @@ procedure Test_Eisenstein_Single(N,k : prec := 100, gamma_type:=0)
 //    tt := Cputime();
     assert gamma_type in [0,1];
     G := (gamma_type eq 0) select Gamma0(N) else Gamma1(N);
-    E_orig := EisensteinSeries(ModularForms(G,k));
+    // E_orig := EisensteinSeries(ModularForms(G,k));
+    E_orig := Basis(EisensteinSubspace(BaseChange(ModularForms(G,k), Rationals())));
     E := EisensteinSeries(ModularForms(FakeGamma(N,gamma_type),k));
-// assert #E eq Dimension(EisensteinSubspace(ModularForms(G,k)));
+    assert #E eq Dimension(EisensteinSubspace(ModularForms(G,k)));
     assert #E eq #E_orig;
     if #E ne 0 then
         f_orig := [PowerSeries(e, prec) : e in E_orig];

@@ -89,8 +89,6 @@ intrinsic FindSchreyerSurface(X::Crv) -> Srfc
     X_F := ChangeRing(X, F);
     I_F := Ideal(X_F);
 
-// P := Points(X_F)[1..g];
-
     // making sure the points are in a general linear position
     assert IsInvertible(Matrix([Eltseq(p) : p in P]));
     R_F<[x_F]> := CoordinateRing(AmbientSpace(X_F));
