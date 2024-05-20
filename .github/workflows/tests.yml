@@ -118,7 +118,7 @@ jobs:
       - name: Check we have submodules
         run: |
           if [[ -f GrpGL2Hat ]]; then
-            echo "GrpGL2Hat" exists!"
+            echo "GrpGL2Hat exists!"
           fi
 
       - name: Checkout for a PR event
