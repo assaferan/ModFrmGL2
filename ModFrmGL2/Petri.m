@@ -1,15 +1,3 @@
-<<<<<<< HEAD
-function FindSchreyerSurface(X)
-    
-    // g := 10;
-    g := Genus(X);
-
-    F := GF(101); // auxiliary for now
-    X_F := ChangeRing(X, F);
-    I_F := Ideal(X_F);
-
-    P := Points(X_F)[1..g];
-=======
 freeze;
 
 // This function, given as input a curve in P^{g-1}
@@ -100,9 +88,6 @@ intrinsic FindSchreyerSurface(X::Crv) -> Srfc
     F := Universe(Eltseq(P[1]));
     X_F := ChangeRing(X, F);
     I_F := Ideal(X_F);
-
-// P := Points(X_F)[1..g];
->>>>>>> master
 
     // making sure the points are in a general linear position
     assert IsInvertible(Matrix([Eltseq(p) : p in P]));
@@ -221,8 +206,4 @@ intrinsic FindSchreyerSurface(X::Crv) -> Srfc
 
     S := Surface(AmbientSpace(X_F), J);
     return S;
-<<<<<<< HEAD
-end function;
-=======
 end intrinsic;
->>>>>>> master
