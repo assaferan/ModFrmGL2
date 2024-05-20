@@ -115,6 +115,12 @@ jobs:
 	with:
 	  submodules: 'true'
 
+      - name: Check we have submodules
+        run: |
+	  if [[ -f GrpGL2Hat ]]; then
+	    echo "GrpGL2Hat" exists!"
+	  fi
+
       - name: Checkout for a PR event
         uses: actions/checkout@v2
         if: ${{ github.event_name == 'pull_request_target' }}
