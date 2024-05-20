@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-	  submodules: 'true'
+          submodules: 'true'
       - id: set-matrix
         run: |
           cd ModFrmGL2/
@@ -112,21 +112,21 @@ jobs:
       - name: Checkout for a push event
         uses: actions/checkout@v2
         if: ${{ github.event_name == 'push' }}
-	with:
-	  submodules: 'true'
+        with:
+          submodules: 'true'
 
       - name: Check we have submodules
         run: |
-	  if [[ -f GrpGL2Hat ]]; then
-	    echo "GrpGL2Hat" exists!"
-	  fi
+          if [[ -f GrpGL2Hat ]]; then
+            echo "GrpGL2Hat" exists!"
+          fi
 
       - name: Checkout for a PR event
         uses: actions/checkout@v2
         if: ${{ github.event_name == 'pull_request_target' }}
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-	  submodules: true
+          submodules: true
 
       - name: Cache magma
         uses: actions/cache@v3
