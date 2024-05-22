@@ -184,16 +184,18 @@ procedure Test_Error()
     assert Order(eps_old) eq 2;
     eps_new := X_new[2];
     assert Order(eps_new) eq 2;
-    k := 5;
+    k := 5; 
     M_old := ModularSymbols(eps_old, k);
     M_new := ModularSymbols(eps_new, k);
     beta := DegeneracyMatrix(M_old, M_new, GL(2, Rationals())!1);
     p := 5;
-    // Check that the level raising and the Hecke operator commute
+    // Check that the trace operator and the Hecke operator commute
     beta_t := Transpose(beta);
     T5_old := DualHeckeOperator(M_old, 5);
     T5_new := DualHeckeOperator(M_new, 5);
     assert T5_new*beta_t eq beta_t*T5_old;
+    // Why does it not commute? it anti commutes for some reason!
 end procedure;
 
 Test_DegeneracyMaps(5);
+Test_Error();
