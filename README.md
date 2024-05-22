@@ -3,22 +3,22 @@ Extending magma's implementation of modular symbols to arbitrary congruence subg
 
 For the application of finding smooth models of modular curves, please refer to SmoothModelsREADME.md
 
-Brief Description
------------------
+## Brief Description
+
 Currently magma's implementation only supports modular symbols for the subgroups Gamma0(N), Gamma1(N) of PSL2(Z)
 (It also supports modular symbols for Gamma(N) by embedding it in Gamma0(N^2))
 The goal of this extension is to support arbitrary congruence subgroups of PSL2(Z), given either by their 
 generators or by their image in PSL(Z/NZ) (where N is the level).
 
-Quick Start
------------
+## Quick Start
+
 Simply run the following line in magma: (from the main directory -  ModFrmGL2)
 AttachSpec("ModFrmGL2.spec");
 
 This attaches the package to your runnning magma session.
 
-Status
-------
+## Status
+
 In my view there are three development vectors:
 1. Features / Bugs - things we would like to support and currently aren't working.
 2. Profiling - things that are not as quick and efficient as we would like. This is particularly important 
@@ -27,8 +27,8 @@ in order to establish relevance of this package.
 Even though this usually falls within bugs, here the effort for it is quite significant, so it really deservres
 a place of its own.
 
-1. Features / Bugs
-------------------
+
+### 1. Features / Bugs
 
 + The package supports construction of a space of modular symbols from a subgroup G of GL(Z/NZ) 
 of real type with surjective determinant, and which includes -I, or by a subgroup of PSL2(Z) given by 
@@ -54,13 +54,13 @@ A/G, where A is a maximal subgroup in N(G) - the normalizer of G in PSL2(Z), suc
 - At the moment, q-expansions of Eisenstein modular forms are not supported
 
 
-2. Profiling
-------------
+### 2. Profiling
+
 
 The main bottleneck at the moment is the computation of the Hecke operators at primes dividing the level. This is because we use Farey symbols to find generators for the gorup in order to conjugate it.
 
-3. Testing
-----------
+### 3. Testing
+
 All tests are implemented in "tests.m" and could be run using the procedure DoTests(num);
 Currently implemented are:
 1. tests for the genera of Jeremy Rouse's 2-adic modular curves
