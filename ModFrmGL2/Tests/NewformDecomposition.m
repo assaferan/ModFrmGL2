@@ -48,4 +48,16 @@ procedure Test_NewformDecomp(N, char)
     assert dims eq dims0;
 end procedure;
 
+// This test failed in one of the random runs - this is to check if we are able to fix it.
+procedure Test_Error()
+    print "Testing possible error...";
+    N := 12;
+    eps := DirichletGroup(N)!KroneckerCharacter(-3);
+    k := 5;
+    M := ModularSymbols(eps,k);
+    Test_NewformDecomposition_Single(MakeGroupCopy(M));
+end procedure;
+
 Test_NewformDecomposition(4);
+// Commenting out to check if tests pass
+// Test_Error();

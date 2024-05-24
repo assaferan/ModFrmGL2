@@ -10,3 +10,6 @@
 [submodule "ModFrmGL2/ModFrmA"]
 	path = ModFrmGL2/ModFrmA
 	url = https://github.com/assaferan/ModFrmA
+[submodule "ModFrmGL2/Magma"]
+	path = ModFrmGL2/Magma
+	url = https://github.com/AndrewVSutherland/Magma

@@ -3,6 +3,10 @@
     {
 	+GrpGL2Hat.spec
     }
+    Magma
+    {
+	+magma.spec
+    }
     ModFrmA
     {
 	+ModFrmA.spec

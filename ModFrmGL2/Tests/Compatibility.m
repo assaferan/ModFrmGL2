@@ -17,5 +17,23 @@ procedure Test_CosetReps()
     S := CuspidalSubspace(M);
 end procedure;			  
 
+procedure Test_RightTransversal()
+    print "Testing Right Transversal....";
+    N:=448;
+    HN := sub<GL(2,Integers(N))|[[32,277,239,170],[120,369,295,254],[212,429,227,378], [329,146,240,39],[353,278,166,401],[426,417,357,190]]>;
+    T:=GL2RightTransversal(HN);
+end procedure;
+
+procedure Test_SL2Operations()
+    N:=448;
+    HN := sub<GL(2,Integers(N))|[[32,277,239,170],[120,369,295,254],[212,429,227,378], [329,146,240,39],[353,278,166,401],[426,417,357,190]]>;
+    K:=SL2Intersection(HN);
+    M,K:=SL2Level(K);
+    T:=RightTransversal(SL2Ambient(M),K);
+    T:=[lift(h):h in T] where lift:=SL2ElementLifter(M,N);
+end procedure;
+
 Test_Initialization();
 Test_CosetReps();
+Test_RightTransversal();
+Test_SL2Operations();
