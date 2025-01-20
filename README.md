@@ -12,8 +12,16 @@ generators or by their image in PSL(Z/NZ) (where N is the level).
 
 ## Quick Start
 
+Clone the package, and initialize the submodules, by running
+```
+git submodule init
+git submodule update
+``` 
+
 Simply run the following line in magma: (from the main directory -  ModFrmGL2)
-AttachSpec("ModFrmGL2.spec");
+```
+> AttachSpec("ModFrmGL2.spec");
+```
 
 This attaches the package to your runnning magma session.
 
