@@ -20,6 +20,6 @@ end function;
 num_times := 5;
 max_N := 10;
 for i in [1..num_times] do
-    N := Random(max_N);
+    N := Random(2, max_N);
     D, S := Test_Shimura(N);
 end for;
