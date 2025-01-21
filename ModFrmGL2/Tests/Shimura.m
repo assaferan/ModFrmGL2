@@ -8,11 +8,18 @@ function Test_Shimura(N)
 //    mat_gens := [[-1,0,0,-1],[1,t,0,1]] cat [[a,0,0,1] : a in h_gens]
 //		cat [[1,0,0,d] : d in all_gens];
 //    gamma := PSL2Subgroup(sub<GL(2, Integers(N)) | mat_gens>);
-    gamma := GammaShimura(N, U, phi, H`subgroup, t);
+    gamma := GammaShimura(U, phi, H`subgroup, t);
 //   M := ModularSymbols(gamma, 2, Rationals(), 0);
     M := ModularSymbols(gamma);
     S := CuspidalSubspace(M);
-    D := NewformDecomposition(S);
-    // D := Decomposition(S, HeckeBound(S));
+    // D := NewformDecomposition(S);
+    D := Decomposition(S, HeckeBound(S));
     return D, S;
 end function;
+
+num_times := 5;
+max_N := 10;
+for i in [1..num_times] do
+    N := Random(2, max_N);
+    D, S := Test_Shimura(N);
+end for;
