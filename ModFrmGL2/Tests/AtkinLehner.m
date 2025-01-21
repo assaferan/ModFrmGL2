@@ -14,8 +14,8 @@ procedure Test_AtkinLehner(numchecks : maxN := 15, maxk := 6)
    end for;
 end procedure;
 
-procedure Test_IssueKoutsianas()
-  printf "Testing issue in mail from Koutsianas... ";
+procedure Test_Issue30()
+  printf "Testing issue #30";
   gens := [[1,3,12,3],[1,1,12,7],[1,3,0,3],[1,0,2,3]];
   N := 16;
   H_N := sub<GL(2,Integers(N)) | gens>;
@@ -27,4 +27,4 @@ end procedure;
 
 Test_AtkinLehner(5);
 
-Test_IssueKoutsianas();
+Test_Issue30();
