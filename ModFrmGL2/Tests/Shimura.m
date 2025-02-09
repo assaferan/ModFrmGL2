@@ -9,8 +9,8 @@ function Test_Shimura(N)
 //		cat [[1,0,0,d] : d in all_gens];
 //    gamma := PSL2Subgroup(sub<GL(2, Integers(N)) | mat_gens>);
     gamma := GammaShimura(U, phi, H`subgroup, t);
-//   M := ModularSymbols(gamma, 2, Rationals(), 0);
-    M := ModularSymbols(gamma);
+    M := ModularSymbols(gamma, 2, Rationals(), 0);
+    // M := ModularSymbols(gamma);
     S := CuspidalSubspace(M);
     // D := NewformDecomposition(S);
     D := Decomposition(S, HeckeBound(S));
