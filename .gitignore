@@ -85,3 +85,8 @@ data/modular curves/Genus 6/79A6_shim.m
 *.dat~
 *.dat#
 *.md~
+/in*
+/out*
+/cmds*
+/FIRST_TIMINGS
+/act*
